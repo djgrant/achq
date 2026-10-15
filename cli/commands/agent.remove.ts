@@ -1,6 +1,6 @@
 import { defineCommand } from "@pokit/core";
 import { z } from "zod";
-import { agentEnv, ghApi, type Hook, need, Railway, serviceName } from "../lib/agent.ts";
+import { agentEnv, ghApi, type Hook, need, ownerRepo, Railway, serviceName } from "../lib/agent.ts";
 
 export const command = defineCommand({
   label: "Delete a repo's GitHub agent: its Railway service, volume and webhook",
@@ -13,7 +13,7 @@ export const command = defineCommand({
     },
   },
   run: async (r, { context }) => {
-    const { repo } = context;
+    const repo = ownerRepo(context.repo);
     const env = agentEnv();
     const railway = new Railway(need(env, "RAILWAY_API_TOKEN", ""));
     const project = await railway.project(need(env, "RAILWAY_PROJECT_ID", "Nothing has been deployed."));

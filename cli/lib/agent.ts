@@ -36,7 +36,14 @@ export const saveSecret = (name: string, value: string) => {
 /** Each repo's webhook secret, derived from one key so re-running `add` is idempotent. */
 export const webhookSecret = (key: string, repo: string) => createHmac("sha256", key).update(repo).digest("hex");
 
-export const serviceName = (repo: string) => repo.split("/")[1].toLowerCase();
+/** A repo's service name: the repo's name, so `owner/repo` or just `repo` finds it. */
+export const serviceName = (repo: string) => repo.split("/").pop()!.toLowerCase();
+
+/** Interactive prompts skip the arg's schema, so commands that need the owner check again. */
+export const ownerRepo = (repo: string) => {
+  if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) throw new Error(`Expected owner/repo, got ${repo}`);
+  return repo;
+};
 
 /** The App's installation on a repo, or undefined if it isn't installed there. */
 export const appInstallation = async (env: Record<string, string>, repo: string) => {

@@ -8,6 +8,7 @@ import {
   ghApi,
   type Hook,
   need,
+  ownerRepo,
   Railway,
   saveSecret,
   serviceName,
@@ -27,7 +28,7 @@ export const command = defineCommand({
     },
   },
   run: async (r, { context }) => {
-    const { repo } = context;
+    const repo = ownerRepo(context.repo);
     const env = agentEnv();
     const railway = new Railway(need(env, "RAILWAY_API_TOKEN", "Create an account token at https://railway.com/account/tokens."));
     const claudeToken = need(env, "CLAUDE_CODE_OAUTH_TOKEN", "Run `claude setup-token`.");

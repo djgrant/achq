@@ -8,8 +8,8 @@ export const command = defineCommand({
   context: {
     repo: {
       from: "arg",
-      schema: z.string().regex(/^[\w.-]+\/[\w.-]+$/, "Expected owner/repo"),
-      description: "GitHub repo",
+      schema: z.string().regex(/^([\w.-]+\/)?[\w.-]+$/, "Expected owner/repo or repo"),
+      description: "GitHub repo, owner/repo or just repo",
     },
   },
   run: async (_r, { context }) => {

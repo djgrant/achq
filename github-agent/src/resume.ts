@@ -13,6 +13,7 @@ const BUSY = 75;
 export const resume = async (paths: Paths, issue: number) => {
   const { session } = readState(paths.state(issue));
   if (!session) throw new Error(`Issue #${issue} has no session`);
+  skipOnboarding(paths.home, paths.worktree(issue));
   fs.mkdirSync(path.dirname(paths.lock(issue)), { recursive: true });
   const code = await Bun.spawn(
     ["flock", "--nonblock", `--conflict-exit-code=${BUSY}`, paths.lock(issue), "claude", "--resume", session],
@@ -24,4 +25,15 @@ export const resume = async (paths: Paths, issue: number) => {
   ).exited;
   if (code === BUSY) throw new Error(`The agent is working on issue #${issue}. Try again when its run finishes.`);
   return code;
+};
+
+/** Claude's first interactive start asks for a theme and whether to trust the folder. */
+const skipOnboarding = (home: string, cwd: string) => {
+  const file = path.join(home, ".claude.json");
+  const config = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, "utf8")) : {};
+  config.hasCompletedOnboarding = true;
+  config.theme ??= "dark";
+  config.projects ??= {};
+  config.projects[cwd] = { ...config.projects[cwd], hasTrustDialogAccepted: true };
+  fs.writeFileSync(file, JSON.stringify(config, null, 2));
 };
