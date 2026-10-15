@@ -36,8 +36,18 @@ export const saveSecret = (name: string, value: string) => {
 /** Each repo's webhook secret, derived from one key so re-running `add` is idempotent. */
 export const webhookSecret = (key: string, repo: string) => createHmac("sha256", key).update(repo).digest("hex");
 
-/** A repo's service name: the repo's name, so `owner/repo` or just `repo` finds it. */
-export const serviceName = (repo: string) => repo.split("/").pop()!.toLowerCase();
+/** A repo's service name, from owner and repo so same-named repos don't collide. */
+export const serviceName = (repo: string) => repo.toLowerCase().replace(/[^a-z0-9-]+/g, "-");
+
+/** The service for `owner/repo`, or for a bare repo name that only one service ends in. */
+export const findService = <S extends { name: string }>(services: S[], repo: string): S => {
+  const matches = repo.includes("/")
+    ? services.filter((s) => s.name === serviceName(repo))
+    : services.filter((s) => s.name.endsWith(`-${serviceName(repo)}`));
+  if (matches.length === 1) return matches[0];
+  if (!matches.length) throw new Error(`No agent deployed for ${repo}`);
+  throw new Error(`${repo} matches several services (${matches.map((s) => s.name).join(", ")}). Use owner/repo.`);
+};
 
 /** Interactive prompts skip the arg's schema, so commands that need the owner check again. */
 export const ownerRepo = (repo: string) => {
@@ -76,8 +86,7 @@ export const railwaySsh = async (repo: string, command: string[]) => {
   const env = agentEnv();
   const token = need(env, "RAILWAY_API_TOKEN", "");
   const project = await new Railway(token).project(need(env, "RAILWAY_PROJECT_ID", "Nothing has been deployed."));
-  const service = serviceName(repo);
-  if (!project.services.some((s) => s.name === service)) throw new Error(`No agent deployed for ${repo}`);
+  const service = findService(project.services, repo).name;
   const args = ["ssh", "--project", project.id, "--environment", project.environmentId, "--service", service];
   const proc = Bun.spawn(["railway", ...args, ...(command.length ? ["--", ...command] : [])], {
     env: { ...process.env, RAILWAY_API_TOKEN: token },
