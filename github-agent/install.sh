@@ -27,15 +27,6 @@ curl -fsSL https://claude.ai/install.sh | HOME="$tmp" bash
 install -m 755 "$(readlink -f "$tmp/.local/bin/claude")" /usr/local/bin/claude
 rm -rf "$tmp"
 
-# Claude's defaults for every user. HOME is on the volume, which isn't there at build time.
-mkdir -p /etc/claude-code
-cat > /etc/claude-code/managed-settings.json <<'EOF'
-{
-  "model": "claude-opus-5-5",
-  "attribution": { "commit": "", "pr": "" }
-}
-EOF
-
 # The agent itself.
 rm -rf /opt/github-agent
 if [ -n "${GITHUB_AGENT_SOURCE:-}" ]; then

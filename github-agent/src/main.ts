@@ -1,4 +1,5 @@
 import * as fs from "node:fs";
+import * as path from "node:path";
 import { loadConfig } from "./config.ts";
 import { resume } from "./resume.ts";
 import { serve } from "./server.ts";
@@ -8,6 +9,15 @@ import { serve } from "./server.ts";
 const cfg = loadConfig();
 process.env.HOME = cfg.paths.home;
 for (const dir of [cfg.paths.home, cfg.paths.issues]) fs.mkdirSync(dir, { recursive: true });
+
+// Claude's defaults, filled in when the container starts or you resume a session. Settings you've changed are kept.
+const settings = path.join(cfg.paths.home, ".claude", "settings.json");
+fs.mkdirSync(path.dirname(settings), { recursive: true });
+fs.writeFileSync(settings, JSON.stringify({
+  model: "claude-opus-5-5",
+  attribution: { commit: "", pr: "" },
+  ...(fs.existsSync(settings) ? JSON.parse(fs.readFileSync(settings, "utf8")) : {}),
+}, null, 2));
 
 const [command, arg] = process.argv.slice(2);
 if (command === "resume") process.exit(await resume(cfg.paths, Number(arg)));
