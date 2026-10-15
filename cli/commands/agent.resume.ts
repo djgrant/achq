@@ -19,6 +19,11 @@ export const command = defineCommand({
     },
   },
   run: async (_r, { context }) => {
-    process.exitCode = await railwaySsh(context.repo, ["github-agent", "resume", String(context.issue)]);
+    // Railway's SSH sets TERM=xterm and nothing else, so Claude can't tell which
+    // keys your terminal can send (Shift+Enter and the like). Pass your terminal's on.
+    const term = ["TERM", "COLORTERM", "TERM_PROGRAM", "TERM_PROGRAM_VERSION"].flatMap((name) =>
+      process.env[name] ? [`${name}=${process.env[name]}`] : [],
+    );
+    process.exitCode = await railwaySsh(context.repo, ["env", ...term, "github-agent", "resume", String(context.issue)]);
   },
 });
