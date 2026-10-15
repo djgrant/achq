@@ -219,6 +219,32 @@ export class Railway {
     return (await this.serviceDomains(projectId, environmentId, serviceId))[0]?.domain;
   }
 
+  /**
+   * Gives a service the private hostname `<dnsName>.railway.internal`. Railway
+   * takes it from the service's name at creation and keeps it through renames.
+   */
+  async privateHostname(environmentId: string, serviceId: string, dnsName: string) {
+    const { privateNetworks } = await this.gql<{ privateNetworks: { publicId: string }[] }>(
+      `query ($environmentId: String!) { privateNetworks(environmentId: $environmentId) { publicId } }`,
+      { environmentId },
+    );
+    const privateNetworkId = privateNetworks[0].publicId;
+    const { privateNetworkEndpoint: endpoint } = await this.gql<{ privateNetworkEndpoint: { publicId: string; dnsName: string } }>(
+      `query ($environmentId: String!, $privateNetworkId: String!, $serviceId: String!) {
+        privateNetworkEndpoint(environmentId: $environmentId, privateNetworkId: $privateNetworkId, serviceId: $serviceId) { publicId dnsName }
+      }`,
+      { environmentId, privateNetworkId, serviceId },
+    );
+    if (endpoint.dnsName === dnsName) return false;
+    await this.gql(
+      `mutation ($id: String!, $dnsName: String!, $privateNetworkId: String!) {
+        privateNetworkEndpointRename(id: $id, dnsName: $dnsName, privateNetworkId: $privateNetworkId)
+      }`,
+      { id: endpoint.publicId, dnsName, privateNetworkId },
+    );
+    return true;
+  }
+
   async variables(projectId: string, environmentId: string, serviceId: string) {
     const { variables } = await this.gql<{ variables: Record<string, string> }>(
       `query ($projectId: String!, $environmentId: String!, $serviceId: String!) {

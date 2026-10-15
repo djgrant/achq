@@ -108,6 +108,10 @@ export const command = defineCommand({
       });
       r.reporter.info("Attached a volume at /data");
     }
+    // The router reaches the service at <service name>.railway.internal.
+    if (await railway.privateHostname(environmentId, serviceId, name)) {
+      r.reporter.info(`Set its private hostname to ${name}.railway.internal`);
+    }
     // Only the router is public. A public domain would let any request wake the service.
     const oldDomains = await railway.serviceDomains(projectId, environmentId, serviceId);
     for (const { id } of oldDomains) {
