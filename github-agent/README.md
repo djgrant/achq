@@ -62,10 +62,10 @@ ak agent ssh <owner/repo>          # a shell in the container
 
 ## Setting it up
 
-`ak agent` (or `ak agent`) commands, with credentials in `github-agent/secrets.env`, which is gitignored:
+`ak agent` commands, with credentials in `github-agent/secrets.env`, which is gitignored:
 
 1. `ak agent app [--org <org>]` creates the GitHub App through GitHub's manifest flow and saves its ID, slug and private key. Install the App on each repo afterwards.
-2. Add `CLAUDE_CODE_OAUTH_TOKEN` (from `claude setup-token`), `RAILWAY_API_TOKEN` (an account token) and `RAILWAY_WORKSPACE_ID` to `secrets.env`.
+2. Add `CLAUDE_CODE_OAUTH_TOKEN` (from `claude setup-token`) and `RAILWAY_API_TOKEN` (an account token) to `secrets.env`. A value can be a 1Password reference, `op://vault/item/field`. If you have more than one Railway workspace, also set `RAILWAY_WORKSPACE_ID`.
 3. `ak agent add <owner/repo>` does the rest, and is safe to re-run:
    - creates the `agentkit` Railway project if it doesn't exist
    - creates the repo's service with a volume and a domain, sets its variables, and connects it to the repo

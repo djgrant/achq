@@ -11,10 +11,14 @@ export const AGENT_SECRETS_FILE = path.join(REPO, "github-agent/secrets.env");
 
 export const agentEnv = () => loadEnv(AGENT_SECRETS_FILE);
 
+/** A secret by name. Values like op://vault/item/field are read from 1Password. */
 export const need = (env: Record<string, string>, name: string, hint: string): string => {
   const value = env[name];
   if (!value) throw new Error(`Missing ${name} in ${AGENT_SECRETS_FILE} or the environment. ${hint}`);
-  return value;
+  if (!value.startsWith("op://")) return value;
+  const read = Bun.spawnSync(["op", "read", value], { stderr: "pipe" });
+  if (read.exitCode !== 0) throw new Error(`Couldn't read ${name} from 1Password: ${read.stderr.toString().trim()}`);
+  return (env[name] = read.stdout.toString().trim());
 };
 
 /** Sets KEY="value" in the secrets file. parseEnv turns the escaped newlines back. */
@@ -89,6 +93,16 @@ export class Railway {
       throw new Error(`Railway: ${json.errors?.map((e) => e.message).join("; ") ?? res.status}`);
     }
     return json.data;
+  }
+
+  /** The account's only workspace; with several, RAILWAY_WORKSPACE_ID picks one. */
+  async workspaceId() {
+    const { me } = await this.gql<{ me: { workspaces: { id: string; name: string }[] } }>(
+      `query { me { workspaces { id name } } }`,
+    );
+    if (me.workspaces.length === 1) return me.workspaces[0].id;
+    const list = me.workspaces.map((w) => `${w.name}: ${w.id}`).join(", ");
+    throw new Error(`Set RAILWAY_WORKSPACE_ID to one of your Railway workspaces: ${list}`);
   }
 
   async project(id: string) {

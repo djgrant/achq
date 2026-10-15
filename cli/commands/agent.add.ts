@@ -44,7 +44,7 @@ export const command = defineCommand({
     r.reporter.step("Railway project");
     let projectId = env.RAILWAY_PROJECT_ID;
     if (!projectId) {
-      const workspaceId = need(env, "RAILWAY_WORKSPACE_ID", "Find it in your Railway workspace settings.");
+      const workspaceId = env.RAILWAY_WORKSPACE_ID ?? (await railway.workspaceId());
       ({ projectCreate: { id: projectId } } = await railway.gql<{ projectCreate: { id: string } }>(
         `mutation ($input: ProjectCreateInput!) { projectCreate(input: $input) { id } }`,
         { input: { name: "agentkit", workspaceId } },
