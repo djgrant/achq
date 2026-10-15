@@ -9,7 +9,7 @@ export const command = defineCommand({
     repo: {
       from: "arg",
       schema: z.string().regex(/^([\w.-]+\/)?[\w.-]+$/, "Expected owner/repo or repo"),
-      description: "GitHub repo, owner/repo or just repo",
+      description: "GitHub repo",
       resolve: deployedRepos,
     },
   },

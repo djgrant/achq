@@ -15,14 +15,23 @@ export const resume = async (paths: Paths, issue: number) => {
   if (!session) throw new Error(`Issue #${issue} has no session`);
   skipOnboarding(paths.home, paths.worktree(issue));
   fs.mkdirSync(path.dirname(paths.lock(issue)), { recursive: true });
-  const code = await Bun.spawn(
-    ["flock", "--nonblock", `--conflict-exit-code=${BUSY}`, paths.lock(issue), "claude", "--resume", session],
+  // The shell takes the lock on an fd and execs claude, so claude holds the lock
+  // itself and killing it frees the lock (flock's command form would fork).
+  const proc = Bun.spawn(
+    ["sh", "-c", `exec 9>"$0"; flock --nonblock 9 || exit ${BUSY}; exec claude --resume "$1"`, paths.lock(issue), session],
     {
       cwd: paths.worktree(issue),
       env: { ...process.env, GH_CONFIG_DIR: `${paths.github}/gh`, DISABLE_AUTOUPDATER: "1" },
       stdio: ["inherit", "inherit", "inherit"],
     },
-  ).exited;
+  );
+  // A dropped SSH connection doesn't always reach claude, which would then hold
+  // the lock forever. Stop it when our parent (the SSH shell) goes away.
+  const parent = process.ppid;
+  const orphaned = setInterval(() => process.ppid !== parent && proc.kill("SIGHUP"), 1000);
+  for (const signal of ["SIGHUP", "SIGTERM"] as const) process.on(signal, () => proc.kill(signal));
+  const code = await proc.exited;
+  clearInterval(orphaned);
   if (code === BUSY) throw new Error(`The agent is working on issue #${issue}. Try again when its run finishes.`);
   return code;
 };
