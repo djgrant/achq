@@ -31,7 +31,7 @@ CMD ["github-agent"]
 - **System-wide tools:** the agent runs as the unprivileged `agent` user, so install tools system-wide, not under `/root`.
 - **Instructions:** Claude follows the repo's `AGENTS.md` or `CLAUDE.md`, including how to set up a fresh worktree.
 
-Railway only redeploys when `.agentkit/**` changes. A redeploy stops running sessions; the agent reports them on the issues when it comes back.
+Railway only redeploys when `.agentkit/**` changes. To update the agent itself, push agentkit and re-run `ak agent add`: it sets the service's `AGENTKIT_REF` build arg to agentkit's latest commit and redeploys. A redeploy stops running sessions; the agent reports them on the issues when it comes back.
 
 ## The GitHub contract
 
@@ -65,9 +65,9 @@ ak agent ssh <owner/repo>          # a shell in the container
 `ak agent` commands, with credentials in `github-agent/secrets.env`, which is gitignored:
 
 1. `ak agent app [--org <org>]` creates the GitHub App through GitHub's manifest flow and saves its ID, slug and private key. Install the App on each repo afterwards.
-2. Add `CLAUDE_CODE_OAUTH_TOKEN` (from `claude setup-token`) and `RAILWAY_API_TOKEN` (an account token) to `secrets.env`. A value can be a 1Password reference, `op://vault/item/field`. If you have more than one Railway workspace, also set `RAILWAY_WORKSPACE_ID`.
+2. Add `CLAUDE_CODE_OAUTH_TOKEN` (from `claude setup-token`) and `RAILWAY_API_TOKEN` (an account or workspace token) to `secrets.env`. A value can be a 1Password reference, `op://vault/item/field`. If you have more than one Railway workspace, also set `RAILWAY_WORKSPACE_ID`.
 3. `ak agent add <owner/repo>` does the rest, and is safe to re-run:
    - creates the `agentkit` Railway project if it doesn't exist
-   - creates the repo's service with a volume and a domain, sets its variables, and connects it to the repo
+   - creates the repo's service with a volume and a domain, sets its variables, and connects it to the repo, or redeploys it if it exists
    - creates the repo's webhook
 4. `ak agent status` lists the deployed agents. `ak agent remove <owner/repo>` deletes a repo's service, volume and webhook.

@@ -1,3 +1,4 @@
+import { $ } from "bun";
 import { defineCommand } from "@pokit/core";
 import { randomBytes } from "node:crypto";
 import { z } from "zod";
@@ -57,7 +58,10 @@ export const command = defineCommand({
     const name = serviceName(repo);
     let service: { id: string; deployment?: unknown } | undefined = project.services.find((s) => s.name === name);
 
+    // Pins the image's agentkit, as a build arg; a changed ref also busts Railway's layer cache.
+    const agentkitRef = (await $`git ls-remote https://github.com/djgrant/agentkit main`.text()).split("\t")[0];
     const variables = {
+      AGENTKIT_REF: agentkitRef,
       AGENT_REPO: repo,
       PORT: String(PORT),
       GITHUB_APP_ID: need(env, "GITHUB_APP_ID", "Run `ak agent app`."),
@@ -108,7 +112,13 @@ export const command = defineCommand({
     }
 
     if (deployed) {
-      r.reporter.info("Service already deployed. Settings and variables are updated; they apply on the next deploy.");
+      await railway.gql(
+        `mutation ($serviceId: String!, $environmentId: String!) {
+          serviceInstanceDeploy(serviceId: $serviceId, environmentId: $environmentId, latestCommit: true)
+        }`,
+        { serviceId, environmentId },
+      );
+      r.reporter.info(`Redeploying with agentkit ${agentkitRef.slice(0, 7)}. Runs in progress are interrupted.`);
     } else {
       // Connecting the repo last means the first build already has the settings above.
       await railway
@@ -138,6 +148,6 @@ export const command = defineCommand({
     else await ghApi("POST", `repos/${repo}/hooks`, { name: "web", ...hook });
 
     r.reporter.success(`${repo} → https://${domain}`);
-    r.reporter.info(`Shell in with: railway ssh --project ${projectId} --service ${name}`);
+    r.reporter.info(`Shell in with: ak agent ssh ${repo}`);
   },
 });
