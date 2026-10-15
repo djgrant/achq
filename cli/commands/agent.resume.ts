@@ -1,6 +1,6 @@
 import { defineCommand } from "@pokit/core";
 import { z } from "zod";
-import { railwaySsh } from "../lib/agent.ts";
+import { deployedRepos, railwaySsh } from "../lib/agent.ts";
 
 export const command = defineCommand({
   label: "Open an issue's Claude session interactively in its agent container",
@@ -10,6 +10,7 @@ export const command = defineCommand({
       from: "arg",
       schema: z.string().regex(/^([\w.-]+\/)?[\w.-]+$/, "Expected owner/repo or repo"),
       description: "GitHub repo, owner/repo or just repo",
+      resolve: deployedRepos,
     },
     issue: {
       from: "arg",

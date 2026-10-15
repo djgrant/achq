@@ -49,6 +49,25 @@ export const findService = <S extends { name: string }>(services: S[], repo: str
   throw new Error(`${repo} matches several services (${matches.map((s) => s.name).join(", ")}). Use owner/repo.`);
 };
 
+/** The repos with a deployed agent, read from each service's AGENT_REPO, for picking one interactively. */
+export const deployedRepos = async () => {
+  const env = agentEnv();
+  const railway = new Railway(need(env, "RAILWAY_API_TOKEN", ""));
+  const project = await railway.project(need(env, "RAILWAY_PROJECT_ID", "Nothing has been deployed."));
+  const repos = await Promise.all(
+    project.services.map(async (s) => {
+      const { variables } = await railway.gql<{ variables: Record<string, string> }>(
+        `query ($projectId: String!, $environmentId: String!, $serviceId: String!) {
+          variables(projectId: $projectId, environmentId: $environmentId, serviceId: $serviceId)
+        }`,
+        { projectId: project.id, environmentId: project.environmentId, serviceId: s.id },
+      );
+      return variables.AGENT_REPO;
+    }),
+  );
+  return repos.filter(Boolean).sort();
+};
+
 /** Interactive prompts skip the arg's schema, so commands that need the owner check again. */
 export const ownerRepo = (repo: string) => {
   if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) throw new Error(`Expected owner/repo, got ${repo}`);

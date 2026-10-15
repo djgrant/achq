@@ -1,6 +1,6 @@
 import { defineCommand } from "@pokit/core";
 import { z } from "zod";
-import { agentEnv, ghApi, type Hook, findService, need, ownerRepo, Railway } from "../lib/agent.ts";
+import { agentEnv, deployedRepos, findService, ghApi, type Hook, need, ownerRepo, Railway } from "../lib/agent.ts";
 
 export const command = defineCommand({
   label: "Delete a repo's GitHub agent: its Railway service, volume and webhook",
@@ -10,6 +10,7 @@ export const command = defineCommand({
       from: "arg",
       schema: z.string().regex(/^[\w.-]+\/[\w.-]+$/, "Expected owner/repo"),
       description: "GitHub repo",
+      resolve: deployedRepos,
     },
   },
   run: async (r, { context }) => {
