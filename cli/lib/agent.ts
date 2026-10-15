@@ -1,10 +1,12 @@
 import { $ } from "bun";
-import { createHmac } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { REPO } from "../config/paths.ts";
 import { appJwt } from "../../github-agent/src/github.ts";
+import { serviceName, webhookSecret } from "../../github-agent/src/router.ts";
 import { loadEnv } from "./env.ts";
+
+export { serviceName, webhookSecret };
 
 /** App credentials, tokens and Railway IDs for `ak agent`, gitignored. */
 export const AGENT_SECRETS_FILE = path.join(REPO, "github-agent/secrets.env");
@@ -33,11 +35,6 @@ export const saveSecret = (name: string, value: string) => {
   fs.writeFileSync(AGENT_SECRETS_FILE, `${lines.join("\n")}\n`, { mode: 0o600 });
 };
 
-/** Each repo's webhook secret, derived from one key so re-running `add` is idempotent. */
-export const webhookSecret = (key: string, repo: string) => createHmac("sha256", key).update(repo).digest("hex");
-
-/** A repo's service name, from owner and repo so same-named repos don't collide. */
-export const serviceName = (repo: string) => repo.toLowerCase().replace(/[^a-z0-9-]+/g, "-");
 
 /** The service for `owner/repo`, or for a bare repo name that only one service ends in. */
 export const findService = <S extends { name: string }>(services: S[], repo: string): S => {
@@ -55,15 +52,7 @@ export const deployedRepos = async () => {
   const railway = new Railway(need(env, "RAILWAY_API_TOKEN", ""));
   const project = await railway.project(need(env, "RAILWAY_PROJECT_ID", "Nothing has been deployed."));
   const repos = await Promise.all(
-    project.services.map(async (s) => {
-      const { variables } = await railway.gql<{ variables: Record<string, string> }>(
-        `query ($projectId: String!, $environmentId: String!, $serviceId: String!) {
-          variables(projectId: $projectId, environmentId: $environmentId, serviceId: $serviceId)
-        }`,
-        { projectId: project.id, environmentId: project.environmentId, serviceId: s.id },
-      );
-      return variables.AGENT_REPO;
-    }),
+    project.services.map(async (s) => (await railway.variables(project.id, project.environmentId, s.id)).AGENT_REPO),
   );
   return repos.filter(Boolean).sort();
 };
@@ -112,6 +101,56 @@ export const railwaySsh = async (repo: string, command: string[]) => {
     stdio: ["inherit", "inherit", "inherit"],
   });
   return proc.exited;
+};
+
+export const ROUTER = "agentkit-router";
+const ROUTER_PORT = 8080;
+// The stock Bun image runs router.ts straight from agentkit at AGENTKIT_REF, so the router needs no build.
+const ROUTER_START = `bun -e 'const res = await fetch(\`https://raw.githubusercontent.com/djgrant/agentkit/\${process.env.AGENTKIT_REF}/github-agent/src/router.ts\`); if (!res.ok) throw new Error(\`router.ts: \${res.status}\`); await Bun.write("/tmp/router.ts", res); (await import("/tmp/router.ts")).start()'`;
+
+type Project = Awaited<ReturnType<Railway["project"]>>;
+
+/**
+ * Creates the router every repo's webhook goes to, or redeploys it when its
+ * agentkit ref or key changed. Returns its public domain.
+ */
+export const ensureRouter = async (railway: Railway, project: Project, vars: { AGENTKIT_REF: string; AGENT_WEBHOOK_KEY: string }) => {
+  const { id: projectId, environmentId } = project;
+  let service: { id: string } | undefined = project.services.find((s) => s.name === ROUTER);
+  let deploy = !service;
+  if (service) {
+    const current = await railway.variables(projectId, environmentId, service.id);
+    deploy = current.AGENTKIT_REF !== vars.AGENTKIT_REF || current.AGENT_WEBHOOK_KEY !== vars.AGENT_WEBHOOK_KEY;
+  } else {
+    ({ serviceCreate: service } = await railway.gql<{ serviceCreate: { id: string } }>(
+      `mutation ($input: ServiceCreateInput!) { serviceCreate(input: $input) { id } }`,
+      { input: { projectId, environmentId, name: ROUTER } },
+    ));
+  }
+  const serviceId = service.id;
+  if (deploy) {
+    await railway.gql(
+      `mutation ($serviceId: String!, $environmentId: String!, $input: ServiceInstanceUpdateInput!) {
+        serviceInstanceUpdate(serviceId: $serviceId, environmentId: $environmentId, input: $input)
+      }`,
+      { serviceId, environmentId, input: { source: { image: "oven/bun:1-slim" }, startCommand: ROUTER_START, healthcheckPath: "/" } },
+    );
+    await railway.gql(`mutation ($input: VariableCollectionUpsertInput!) { variableCollectionUpsert(input: $input) }`, {
+      input: { projectId, environmentId, serviceId, variables: { ...vars, PORT: String(ROUTER_PORT) }, skipDeploys: true },
+    });
+    await railway.gql(
+      `mutation ($serviceId: String!, $environmentId: String!) { serviceInstanceDeployV2(serviceId: $serviceId, environmentId: $environmentId) }`,
+      { serviceId, environmentId },
+    );
+  }
+  let domain = await railway.serviceDomain(projectId, environmentId, serviceId);
+  if (!domain) {
+    ({ serviceDomainCreate: { domain } } = await railway.gql<{ serviceDomainCreate: { domain: string } }>(
+      `mutation ($input: ServiceDomainCreateInput!) { serviceDomainCreate(input: $input) { domain } }`,
+      { input: { environmentId, serviceId, targetPort: ROUTER_PORT } },
+    ));
+  }
+  return { domain, deployed: deploy };
 };
 
 export class Railway {
@@ -166,14 +205,28 @@ export class Railway {
     };
   }
 
-  async serviceDomain(projectId: string, environmentId: string, serviceId: string) {
-    const { domains } = await this.gql<{ domains: { serviceDomains: { domain: string }[] } }>(
+  async serviceDomains(projectId: string, environmentId: string, serviceId: string) {
+    const { domains } = await this.gql<{ domains: { serviceDomains: { id: string; domain: string }[] } }>(
       `query ($projectId: String!, $environmentId: String!, $serviceId: String!) {
-        domains(projectId: $projectId, environmentId: $environmentId, serviceId: $serviceId) { serviceDomains { domain } }
+        domains(projectId: $projectId, environmentId: $environmentId, serviceId: $serviceId) { serviceDomains { id domain } }
       }`,
       { projectId, environmentId, serviceId },
     );
-    return domains.serviceDomains[0]?.domain;
+    return domains.serviceDomains;
+  }
+
+  async serviceDomain(projectId: string, environmentId: string, serviceId: string) {
+    return (await this.serviceDomains(projectId, environmentId, serviceId))[0]?.domain;
+  }
+
+  async variables(projectId: string, environmentId: string, serviceId: string) {
+    const { variables } = await this.gql<{ variables: Record<string, string> }>(
+      `query ($projectId: String!, $environmentId: String!, $serviceId: String!) {
+        variables(projectId: $projectId, environmentId: $environmentId, serviceId: $serviceId)
+      }`,
+      { projectId, environmentId, serviceId },
+    );
+    return variables;
   }
 }
 

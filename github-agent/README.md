@@ -2,6 +2,8 @@
 
 Mention `@claude` on a GitHub issue and Claude Code works on it in a container on Railway: it answers questions, edits the issue, and pushes branches and PRs. Each repo gets its own Railway service, built from the repo's own Dockerfile, with a volume that keeps every issue's session and worktree.
 
+Repo services sleep when idle and have no public domain. One always-on router, `agentkit-router`, receives every repo's webhook, ignores comments that don't mention `@claude`, and forwards the rest to the repo's service over Railway's private network, retrying for about five minutes while the service wakes. A service stays awake while a run is in progress and sleeps 5–10 minutes after it ends.
+
 ## Using it
 
 Comment on an issue:
@@ -68,6 +70,7 @@ ak agent ssh <owner/repo>          # a shell in the container
 2. Add `CLAUDE_CODE_OAUTH_TOKEN` (from `claude setup-token`) and `RAILWAY_API_TOKEN` (an account or workspace token) to `secrets.env`. A value can be a 1Password reference, `op://vault/item/field`. If you have more than one Railway workspace, also set `RAILWAY_WORKSPACE_ID`.
 3. `ak agent add <owner/repo>` does the rest, and is safe to re-run:
    - creates the `agentkit` Railway project if it doesn't exist
-   - creates the repo's service with a volume and a domain, sets its variables, and connects it to the repo, or redeploys it if it exists
-   - creates the repo's webhook
+   - creates the repo's service with a volume, sets its variables, and connects it to the repo, or redeploys it if it exists
+   - creates the router, or redeploys it if agentkit changed. It runs `src/router.ts` on the stock Bun image, so it needs no build
+   - creates the repo's webhook, pointing at the router
 4. `ak agent status` lists the deployed agents. `ak agent remove <owner/repo>` deletes a repo's service, volume and webhook.

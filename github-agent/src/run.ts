@@ -24,6 +24,7 @@ export class Runner {
   private queues = new Map<number, Promise<void>>();
   private active = 0;
   private waiting: (() => void)[] = [];
+  private awake?: Timer;
 
   constructor(
     private cfg: Config,
@@ -40,13 +41,25 @@ export class Runner {
 
   private async slot(fn: () => Promise<void>) {
     if (this.active >= this.cfg.maxRuns) await new Promise<void>((resolve) => this.waiting.push(resolve));
-    this.active++;
+    if (this.active++ === 0) this.stayAwake();
     try {
       await fn();
     } finally {
-      this.active--;
+      if (--this.active === 0) clearInterval(this.awake);
       this.waiting.shift()?.();
     }
+  }
+
+  /**
+   * Railway sleeps the service after five minutes without outbound traffic, which
+   * a long tool call could reach mid-run. A GitHub call every few minutes keeps it
+   * awake and refreshes the token Claude's git and gh use before it expires.
+   */
+  private stayAwake() {
+    this.awake = setInterval(
+      () => this.gh.api("GET", "/rate_limit").catch((e) => console.error("keep-awake call failed", e)),
+      3 * 60_000,
+    );
   }
 
   private async run(job: Job) {

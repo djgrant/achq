@@ -5,11 +5,13 @@ import { z } from "zod";
 import {
   agentEnv,
   appInstallation,
+  ensureRouter,
   ghApi,
   type Hook,
   need,
   ownerRepo,
   Railway,
+  ROUTER,
   saveSecret,
   serviceName,
   webhookSecret,
@@ -76,6 +78,8 @@ export const command = defineCommand({
       // Only changes to the agent's image redeploy it. A redeploy stops running sessions.
       watchPatterns: [".agentkit/**"],
       healthcheckPath: "/",
+      // Sleeps when idle; the router's forwarded webhooks wake it.
+      sleepApplication: true,
     };
 
     if (!service) {
@@ -104,13 +108,15 @@ export const command = defineCommand({
       });
       r.reporter.info("Attached a volume at /data");
     }
-    let domain = await railway.serviceDomain(projectId, environmentId, serviceId);
-    if (!domain) {
-      ({ serviceDomainCreate: { domain } } = await railway.gql<{ serviceDomainCreate: { domain: string } }>(
-        `mutation ($input: ServiceDomainCreateInput!) { serviceDomainCreate(input: $input) { domain } }`,
-        { input: { environmentId, serviceId, targetPort: PORT } },
-      ));
+    // Only the router is public. A public domain would let any request wake the service.
+    const oldDomains = await railway.serviceDomains(projectId, environmentId, serviceId);
+    for (const { id } of oldDomains) {
+      await railway.gql(`mutation ($id: String!) { serviceDomainDelete(id: $id) }`, { id });
     }
+
+    r.reporter.step("Router");
+    const router = await ensureRouter(railway, project, { AGENTKIT_REF: agentkitRef, AGENT_WEBHOOK_KEY: env.AGENT_WEBHOOK_KEY });
+    if (router.deployed) r.reporter.info(`Deploying ${ROUTER} with agentkit ${agentkitRef.slice(0, 7)}`);
 
     if (deployed) {
       await railway.gql(
@@ -137,8 +143,11 @@ export const command = defineCommand({
     }
 
     r.reporter.step("GitHub webhook");
-    const url = `https://${domain}/webhook`;
+    const url = `https://${router.domain}/webhook`;
     const hooks = await ghApi<Hook[]>("GET", `repos/${repo}/hooks`);
+    for (const hook of hooks.filter((h) => oldDomains.some((d) => h.config.url === `https://${d.domain}/webhook`))) {
+      await ghApi("DELETE", `repos/${repo}/hooks/${hook.id}`);
+    }
     const existing = hooks.find((h) => h.config.url === url);
     const hook = {
       active: true,
@@ -148,7 +157,7 @@ export const command = defineCommand({
     if (existing) await ghApi("PATCH", `repos/${repo}/hooks/${existing.id}`, hook);
     else await ghApi("POST", `repos/${repo}/hooks`, { name: "web", ...hook });
 
-    r.reporter.success(`${repo} → https://${domain}`);
+    r.reporter.success(`${repo} → ${url}`);
     r.reporter.info(`Shell in with: ak agent ssh ${repo}`);
   },
 });

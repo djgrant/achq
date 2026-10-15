@@ -1,6 +1,6 @@
 import { defineCommand } from "@pokit/core";
 import { z } from "zod";
-import { agentEnv, deployedRepos, findService, ghApi, type Hook, need, ownerRepo, Railway } from "../lib/agent.ts";
+import { agentEnv, deployedRepos, findService, ghApi, type Hook, need, ownerRepo, Railway, ROUTER } from "../lib/agent.ts";
 
 export const command = defineCommand({
   label: "Delete a repo's GitHub agent: its Railway service, volume and webhook",
@@ -20,12 +20,15 @@ export const command = defineCommand({
     const project = await railway.project(need(env, "RAILWAY_PROJECT_ID", "Nothing has been deployed."));
     const service = findService(project.services, repo);
 
-    const domain = await railway.serviceDomain(project.id, project.environmentId, service.id);
-    if (domain) {
-      const hooks = await ghApi<Hook[]>("GET", `repos/${repo}/hooks`);
-      for (const hook of hooks.filter((h) => h.config.url === `https://${domain}/webhook`)) {
-        await ghApi("DELETE", `repos/${repo}/hooks/${hook.id}`);
-      }
+    // The repo's webhook points at the router (or, before the router, at the service itself).
+    const router = project.services.find((s) => s.name === ROUTER);
+    const domains = await Promise.all(
+      [router?.id, service.id].flatMap((id) => (id ? [railway.serviceDomain(project.id, project.environmentId, id)] : [])),
+    );
+    const urls = domains.filter(Boolean).map((d) => `https://${d}/webhook`);
+    const hooks = await ghApi<Hook[]>("GET", `repos/${repo}/hooks`);
+    for (const hook of hooks.filter((h) => urls.includes(h.config.url ?? ""))) {
+      await ghApi("DELETE", `repos/${repo}/hooks/${hook.id}`);
     }
     await railway.gql(`mutation ($id: String!, $environmentId: String!) { serviceDelete(id: $id, environmentId: $environmentId) }`, {
       id: service.id,

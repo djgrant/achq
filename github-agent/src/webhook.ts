@@ -1,16 +1,8 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
+export { verifySignature } from "./router.ts";
 
 export const TRUSTED = new Set(["OWNER", "MEMBER", "COLLABORATOR"]);
 
 export type Job = { issue: number; commentId: number; author: string; body: string };
-
-/** Checks GitHub's X-Hub-Signature-256 header against the raw body. */
-export const verifySignature = (secret: string, body: string, header: string | null): boolean => {
-  if (!header?.startsWith("sha256=")) return false;
-  const expected = Buffer.from(`sha256=${createHmac("sha256", secret).update(body).digest("hex")}`);
-  const actual = Buffer.from(header);
-  return expected.length === actual.length && timingSafeEqual(expected, actual);
-};
 
 /**
  * Turns a webhook delivery into a job, or says why it was skipped. Only issue
