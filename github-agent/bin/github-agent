@@ -1,0 +1,13 @@
+#!/bin/sh
+# Entry point. Railway mounts the volume root-owned, so when started as root
+# this hands the volume to the `agent` user and re-runs itself as that user.
+# Claude refuses --dangerously-skip-permissions as root.
+set -eu
+
+data=${DATA_DIR:-${RAILWAY_VOLUME_MOUNT_PATH:-/data}}
+if [ "$(id -u)" = 0 ]; then
+  mkdir -p "$data"
+  chown agent:agent "$data"
+  exec setpriv --reuid=agent --regid=agent --init-groups env HOME="$data/home" "$0" "$@"
+fi
+exec bun "$(dirname "$(readlink -f "$0")")/../src/main.ts" "$@"
