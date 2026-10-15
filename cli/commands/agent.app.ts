@@ -38,7 +38,7 @@ export const command = defineCommand({
       : "https://github.com/settings/apps/new";
     const page = `<form id="f" method="post" action="${action}"><input type="hidden" name="manifest" value='${JSON.stringify(manifest).replace(/'/g, "&#39;")}'></form><script>f.submit()</script>`;
 
-    const app = await new Promise<{ id: number; slug: string; pem: string; html_url: string }>((resolve, reject) => {
+    const app = new Promise<{ id: number; slug: string; pem: string; html_url: string }>((resolve, reject) => {
       const server = Bun.serve({
         port: PORT,
         async fetch(req) {
@@ -58,6 +58,11 @@ export const command = defineCommand({
           resolve((await res.json()) as { id: number; slug: string; pem: string; html_url: string });
           return new Response("App created. You can close this tab.");
         },
+      });
+      // Bun.serve keeps the process alive, so Ctrl+C has to stop it.
+      process.once("SIGINT", () => {
+        server.stop(true);
+        process.exit(130);
       });
     });
 
