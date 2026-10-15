@@ -34,7 +34,7 @@ export const tokens = (n: number): string =>
 
 const percent = (n: number) => `${Math.floor(n * 100)}%`;
 
-/** A one-line footer for the runner to append to Claude's last comment. */
+/** A one-line footer for the runner to append to its comment. */
 export const footer = (stats: StreamStats, session?: string): string => {
   const parts: string[] = [];
   if (stats.context !== undefined) {
@@ -45,9 +45,10 @@ export const footer = (stats: StreamStats, session?: string): string => {
   }
   if (stats.turns) parts.push(`${stats.turns} turns`);
   if (session) parts.push(`session \`${session}\``);
-  return parts.length ? `\n\n---\n<sub>${parts.join(" · ")}</sub>\n` : "";
+  return parts.length ? `\n\n<sub>${parts.join(" · ")}</sub>\n` : "";
 };
 
-const FOOTER = /\n\n---\n<sub>[^\n]*<\/sub>\n?$/;
+// Older comments have a rule above the footer.
+const FOOTER = /\n\n(---\n)?<sub>[^\n]*<\/sub>\n?$/;
 
 export const stripFooter = (body: string): string => body.replace(FOOTER, "");

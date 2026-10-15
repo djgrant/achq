@@ -116,7 +116,7 @@ describe("footer", () => {
     stats.push({ type: "assistant", parent_tool_use_id: "t", message: { usage: { input_tokens: 999999 } } });
     stats.push({ type: "result", is_error: false, num_turns: 2, modelUsage: { m: { contextWindow: 1_000_000 } } });
     const text = footer(stats, "s1");
-    expect(text).toBe("\n\n---\n<sub>context 19k / 1M (1%) · 2 turns · session `s1`</sub>\n");
+    expect(text).toBe("\n\n<sub>context 19k / 1M (1%) · 2 turns · session `s1`</sub>\n");
     expect(stripFooter(`hello${text}`)).toBe("hello");
   });
   test("uses the compacted size after /compact", () => {

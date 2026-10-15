@@ -14,7 +14,9 @@ const SYSTEM_PROMPT = path.join(import.meta.dir, "..", "system.md");
 
 // Claude only sees the trusted context the runner gives it. These would let it
 // read issue content from anyone, so they're denied.
-const DENIED = ["Bash(gh issue view:*)", "Bash(gh issue list:*)", "Bash(gh api:*)", "Bash(gh search:*)"];
+// Reading issues is denied because they can hold anyone's text. Commenting is
+// denied because the runner posts Claude's reply.
+const DENIED = ["Bash(gh issue view:*)", "Bash(gh issue list:*)", "Bash(gh issue comment:*)", "Bash(gh api:*)", "Bash(gh search:*)"];
 
 // Never handed to Claude: the App key mints tokens for every installation.
 const PRIVATE_ENV = ["GITHUB_APP_PRIVATE_KEY", "GITHUB_WEBHOOK_SECRET", "GITHUB_APP_ID"];
@@ -66,7 +68,6 @@ export class Runner {
     const { cfg, gh } = this;
     const { paths, repo } = cfg;
     const log = (...args: unknown[]) => console.log(`[issue-${job.issue}]`, ...args);
-    const started = new Date(Math.floor(Date.now() / 1000) * 1000).toISOString().replace(".000Z", "Z");
     const stateFile = paths.state(job.issue);
     const state = readState(stateFile);
     const command = parseCommand(job.body, cfg.trigger);
@@ -190,43 +191,19 @@ export class Runner {
       writeState(stateFile, state);
     }
 
-    await this.report(job.issue, started, stats, session, command.mode, error).catch((e) =>
+    await this.report(job.issue, stats, session, command.mode, error).catch((e) =>
       console.error(`[issue-${job.issue}] report failed`, e),
     );
   }
 
-  /**
-   * Claude writes to the issue itself. The runner appends the footer to its
-   * last comment of the run, and only posts its own comment for failures,
-   * compactions, and runs where Claude didn't comment.
-   */
-  private async report(
-    issue: number,
-    started: string,
-    stats: StreamStats,
-    session: string | undefined,
-    mode: string,
-    error: string | undefined,
-  ) {
-    const { gh } = this;
-    const route = `/repos/${this.cfg.repo}/issues`;
-    const tail = footer(stats, session);
-    const posted = (await gh.paginate<Comment>(`${route}/${issue}/comments?since=${started}`))
-      .filter((c) => c.user.login === gh.bot.login && c.created_at >= started)
-      .sort((a, b) => a.id - b.id);
-
-    let message: string | undefined;
+  /** Posts Claude's final reply to the issue, or what went wrong, with the footer. */
+  private async report(issue: number, stats: StreamStats, session: string | undefined, mode: string, error: string | undefined) {
+    let message: string;
     if (error) message = `⚠️ ${error}`;
     else if (mode === "compact" && stats.compacted)
       message = `Compacted the session: ${tokens(stats.compacted.pre)} → ${tokens(stats.compacted.post)} tokens.`;
-    else if (!posted.length) message = "Claude finished without commenting on the issue.";
-
-    if (message) {
-      await gh.api("POST", `${route}/${issue}/comments`, { body: message + tail });
-    } else {
-      const last = posted.at(-1)!;
-      await gh.api("PATCH", `${route}/comments/${last.id}`, { body: last.body + tail });
-    }
+    else message = stats.result?.result?.trim() || "Claude finished without a reply.";
+    await this.gh.api("POST", `/repos/${this.cfg.repo}/issues/${issue}/comments`, { body: message + footer(stats, session) });
   }
 }
 
@@ -240,7 +217,7 @@ export const reportInterrupted = async (cfg: Config, gh: GitHub) => {
     state.status = "interrupted";
     writeState(cfg.paths.state(issue), state);
     await gh.api("POST", `/repos/${cfg.repo}/issues/${issue}/comments`, {
-      body: `⚠️ The agent restarted while this run was in progress. The work so far is in the worktree and the session is intact. Comment \`${cfg.trigger} <prompt>\` to resume it.\n\n---\n<sub>session \`${state.session}\`</sub>\n`,
+      body: `⚠️ The agent restarted while this run was in progress. The work so far is in the worktree and the session is intact. Comment \`${cfg.trigger} <prompt>\` to resume it.\n\n<sub>session \`${state.session}\`</sub>\n`,
     });
   }
 };

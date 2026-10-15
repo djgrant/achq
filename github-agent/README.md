@@ -14,7 +14,7 @@ Comment on an issue:
 | `@claude /new <prompt>` | Start a fresh session |
 | `@claude /compact [focus]` | Compact the session |
 
-Claude writes to the issue itself with `gh`. The runner appends a footer to Claude's last comment of each run: context used, turns, and the session ID. It posts its own comment only when a run fails, compacts, or ends without Claude commenting.
+The runner posts Claude's final reply as an issue comment, with a footer: context used, turns, and the session ID. When a run fails or compacts, it posts that instead. Claude can't comment itself (`gh issue comment` is denied), but it can edit the issue body and open PRs.
 
 One run per issue at a time. Comments made during a run queue up, and the next run picks up all of them.
 
