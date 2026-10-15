@@ -95,13 +95,13 @@ export class Railway {
     return json.data;
   }
 
-  /** The account's only workspace; with several, RAILWAY_WORKSPACE_ID picks one. */
+  /** The token's only workspace; with several, RAILWAY_WORKSPACE_ID picks one. */
   async workspaceId() {
-    const { me } = await this.gql<{ me: { workspaces: { id: string; name: string }[] } }>(
-      `query { me { workspaces { id name } } }`,
+    const { apiToken } = await this.gql<{ apiToken: { workspaces: { id: string; name: string }[] } }>(
+      `query { apiToken { workspaces { id name } } }`,
     );
-    if (me.workspaces.length === 1) return me.workspaces[0].id;
-    const list = me.workspaces.map((w) => `${w.name}: ${w.id}`).join(", ");
+    if (apiToken.workspaces.length === 1) return apiToken.workspaces[0].id;
+    const list = apiToken.workspaces.map((w) => `${w.name}: ${w.id}`).join(", ");
     throw new Error(`Set RAILWAY_WORKSPACE_ID to one of your Railway workspaces: ${list}`);
   }
 

@@ -66,7 +66,7 @@ export const command = defineCommand({
       CLAUDE_CODE_OAUTH_TOKEN: claudeToken,
     };
     const settings = {
-      builder: "DOCKERFILE",
+      // Setting a Dockerfile path is what makes Railway build with Docker.
       dockerfilePath: ".agentkit/Dockerfile",
       // Only changes to the agent's image redeploy it. A redeploy stops running sessions.
       watchPatterns: [".agentkit/**"],
@@ -111,10 +111,17 @@ export const command = defineCommand({
       r.reporter.info("Service already deployed. Settings and variables are updated; they apply on the next deploy.");
     } else {
       // Connecting the repo last means the first build already has the settings above.
-      await railway.gql(
-        `mutation ($id: String!, $input: ServiceConnectInput!) { serviceConnect(id: $id, input: $input) { id } }`,
-        { id: serviceId, input: { repo, branch: default_branch } },
-      );
+      await railway
+        .gql(
+          `mutation ($id: String!, $input: ServiceConnectInput!) { serviceConnect(id: $id, input: $input) { id } }`,
+          { id: serviceId, input: { repo, branch: default_branch } },
+        )
+        .catch((error: Error) => {
+          if (!/access to the repo/.test(error.message)) throw error;
+          throw new Error(
+            `Railway's GitHub app can't see ${repo}. Give it access at https://github.com/settings/installations (or the org's), then re-run.`,
+          );
+        });
       r.reporter.info(`Connected ${repo}@${default_branch}; Railway is building .agentkit/Dockerfile`);
     }
 
