@@ -77,6 +77,7 @@ describe("buildPrompt", () => {
     bodyChanged: false,
     author: "pal",
     bot: "agent[bot]",
+    trigger: "@claude",
     branch: "issue-7",
     head: "abc123",
   };
@@ -98,6 +99,10 @@ describe("buildPrompt", () => {
   });
   test("resumed sessions get the body when it changed", () => {
     expect(buildPrompt({ ...base, mode: "resume", since: 2, bodyChanged: true }).prompt).toContain("The RFC");
+  });
+  test("leaves /new out of comments", () => {
+    const { prompt } = buildPrompt({ ...base, mode: "new", since: 0, comments: [comment(5, "dj", "OWNER", "@claude /new build it\n\n/news is a path")] });
+    expect(prompt).toContain("@claude build it\n\n/news is a path");
   });
   test("reports nothing new", () => {
     expect(buildPrompt({ ...base, mode: "resume", since: 4 }).included).toBe(0);

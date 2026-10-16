@@ -112,6 +112,7 @@ export class Runner {
           bodyChanged: bodySha !== state.bodySha,
           author: job.author,
           bot: gh.bot.login,
+          trigger: cfg.trigger,
           ...(await describeHead(cwd)),
         });
         // An earlier run already picked up this comment along with others.

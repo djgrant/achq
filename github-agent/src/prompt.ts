@@ -22,6 +22,7 @@ export type PromptInput = {
   bodyChanged: boolean;
   author: string;
   bot: string;
+  trigger: string;
   branch: string;
   head: string;
 };
@@ -43,7 +44,7 @@ export const buildPrompt = (input: PromptInput): { prompt: string; included: num
 
   const prompt = render(fs.readFileSync(path.join(TEMPLATES, `${mode}.md`), "utf8"), {
     issue: { number: issue.number, title: issue.title, url: issue.html_url, body: issue.body?.trim() || "(empty)" },
-    comments: included.map((c) => ({ author: c.user.login, date: c.created_at, body: c.body.trim() })),
+    comments: included.map((c) => ({ author: c.user.login, date: c.created_at, body: withoutNew(c.body, input.trigger).trim() })),
     omitted,
     bodyChanged: input.bodyChanged,
     branch: input.branch,
@@ -52,3 +53,7 @@ export const buildPrompt = (input: PromptInput): { prompt: string; included: num
   });
   return { prompt, included: included.length, omitted };
 };
+
+/** `/new` is for the runner. Claude only needs what follows it. */
+const withoutNew = (body: string, trigger: string) =>
+  body.replace(new RegExp(`(${trigger.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})\\s+/new(?![\\w-])`, "g"), "$1");
