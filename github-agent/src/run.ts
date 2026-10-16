@@ -10,7 +10,7 @@ import { readState, writeState } from "./state.ts";
 import { footer, StreamStats } from "./stats.ts";
 import type { Job } from "./webhook.ts";
 
-const SYSTEM_PROMPT = path.join(import.meta.dir, "..", "system.md");
+const SYSTEM_PROMPT = path.join(import.meta.dir, "..", "prompts/system.md");
 
 // Claude only sees the trusted context the runner gives it. These would let it
 // read issue content from anyone, so they're denied.
