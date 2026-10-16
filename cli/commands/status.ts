@@ -3,7 +3,7 @@ import { agentEnv, need, Railway } from "../lib/agent.ts";
 
 export const command = defineCommand({
   label: "List deployed GitHub agents",
-  examples: ["ak agent status"],
+  examples: ["achq status"],
   run: async (r) => {
     const env = agentEnv();
     const railway = new Railway(need(env, "RAILWAY_API_TOKEN", ""));

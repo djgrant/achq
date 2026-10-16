@@ -7,7 +7,7 @@ const PORT = 3171;
 
 export const command = defineCommand({
   label: "Create the GitHub App the GitHub agent acts as",
-  examples: ["ak agent app --org notationlabs"],
+  examples: ["achq app --org notationlabs"],
   context: {
     name: {
       from: "flag",
@@ -25,7 +25,7 @@ export const command = defineCommand({
     // back with a code, and the code converts into the App's credentials.
     const manifest = {
       name: context.name,
-      url: "https://github.com/djgrant/agentkit",
+      url: "https://github.com/djgrant/achq",
       // Each repo's service gets its own repo webhook; the App only mints tokens.
       hook_attributes: { url: "https://example.com", active: false },
       redirect_url: `http://localhost:${PORT}/callback`,
@@ -48,7 +48,7 @@ export const command = defineCommand({
           if (url.pathname !== "/callback" || !code) return new Response("not found", { status: 404 });
           const res = await fetch(`https://api.github.com/app-manifests/${code}/conversions`, {
             method: "POST",
-            headers: { accept: "application/vnd.github+json", "user-agent": "agentkit" },
+            headers: { accept: "application/vnd.github+json", "user-agent": "achq" },
           });
           setTimeout(() => server.stop(), 100);
           if (!res.ok) {

@@ -25,7 +25,7 @@ const PORT = 3000;
 
 export const command = defineCommand({
   label: "Deploy a GitHub agent, or bring an existing one up to date",
-  examples: ["ak agent deploy notationlabs/yieldstar"],
+  examples: ["achq deploy notationlabs/yieldstar"],
   context: {
     repo: {
       from: "arg",
@@ -65,14 +65,14 @@ export const command = defineCommand({
     const name = serviceName(repo);
     let service: { id: string; deployment?: unknown } | undefined = project.services.find((s) => s.name === name);
 
-    // Pins the image's agentkit, as a build arg; a changed ref also busts Railway's layer cache.
+    // Pins the image's achq, as a build arg; a changed ref also busts Railway's layer cache.
     const agentkitRef = await lastCommit("github-agent");
     const variables = {
       AGENTKIT_REF: agentkitRef,
       AGENT_REPO: repo,
       PORT: String(PORT),
-      GITHUB_APP_ID: need(env, "GITHUB_APP_ID", "Run `ak agent app`."),
-      GITHUB_APP_PRIVATE_KEY: need(env, "GITHUB_APP_PRIVATE_KEY", "Run `ak agent app`."),
+      GITHUB_APP_ID: need(env, "GITHUB_APP_ID", "Run `achq app`."),
+      GITHUB_APP_PRIVATE_KEY: need(env, "GITHUB_APP_PRIVATE_KEY", "Run `achq app`."),
       GITHUB_WEBHOOK_SECRET: webhookSecret(env.AGENT_WEBHOOK_KEY, repo),
       CLAUDE_CODE_OAUTH_TOKEN: claudeToken,
     };
@@ -128,10 +128,10 @@ export const command = defineCommand({
     r.reporter.step("Router");
     const routerRef = await lastCommit("github-agent/src/router.ts");
     const router = await ensureRouter(railway, project, { AGENTKIT_REF: routerRef, AGENT_WEBHOOK_KEY: env.AGENT_WEBHOOK_KEY });
-    r.reporter.info(router.deployed ? `Deploying ${ROUTER} with agentkit ${routerRef.slice(0, 7)}` : `${ROUTER} is up to date`);
+    r.reporter.info(router.deployed ? `Deploying ${ROUTER} with achq ${routerRef.slice(0, 7)}` : `${ROUTER} is up to date`);
 
     if (deployed && !stale) {
-      r.reporter.info(`${name} is up to date with agentkit ${agentkitRef.slice(0, 7)}`);
+      r.reporter.info(`${name} is up to date with achq ${agentkitRef.slice(0, 7)}`);
     } else if (deployed) {
       await railway.gql(
         `mutation ($serviceId: String!, $environmentId: String!) {
@@ -139,7 +139,7 @@ export const command = defineCommand({
         }`,
         { serviceId, environmentId },
       );
-      r.reporter.info(`Redeploying ${name} with agentkit ${agentkitRef.slice(0, 7)}. Runs in progress are interrupted.`);
+      r.reporter.info(`Redeploying ${name} with achq ${agentkitRef.slice(0, 7)}. Runs in progress are interrupted.`);
     } else {
       // Connecting the repo last means the first build already has the settings above.
       await railway
@@ -175,6 +175,6 @@ export const command = defineCommand({
     else await ghApi("POST", `repos/${repo}/hooks`, { name: "web", ...hook });
 
     r.reporter.success(`${repo} → ${url}`);
-    r.reporter.info(deployed && !stale ? `Shell in with: ak agent ssh ${repo}` : `Shell in once it has deployed: ak agent ssh ${repo}`);
+    r.reporter.info(deployed && !stale ? `Shell in with: achq ssh ${repo}` : `Shell in once it has deployed: achq ssh ${repo}`);
   },
 });

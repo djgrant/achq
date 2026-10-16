@@ -71,7 +71,7 @@ export const createRouter = ({ key, trigger, agentPort, forward = fetch, delays 
     if (!repo || !verifySignature(webhookSecret(key, repo), body, req.headers.get("x-hub-signature-256"))) {
       return new Response("bad signature", { status: 401 });
     }
-    // `ak agent ssh` signs a wake request the way GitHub signs a webhook, and waits for the service.
+    // `achq ssh` signs a wake request the way GitHub signs a webhook, and waits for the service.
     if (pathname === "/wake") {
       const { ok, detail } = await reach(repo, "/", { method: "GET" });
       console.log(`${repo}: wake ${detail}`);
@@ -101,7 +101,7 @@ export const start = () => {
     agentPort: Number(process.env.AGENT_PORT ?? 3000),
   });
   Bun.serve({ port, hostname: "::", fetch });
-  console.log(`agentkit router listening on :${port}`);
+  console.log(`achq router listening on :${port}`);
 };
 
 if (import.meta.main) start();

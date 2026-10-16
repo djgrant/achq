@@ -1,4 +1,7 @@
-# github-agent
+# achq
+
+Agent Communications Headquarters.
+
 
 Mention `@claude` on a GitHub issue and Claude Code works on it in a container on Railway: it answers questions, edits the issue, and pushes branches and PRs. Each repo gets its own Railway service, built from the repo's own Dockerfile, with a volume that keeps every issue's session and worktree.
 
@@ -25,7 +28,7 @@ A repo opts in with one file, `.agentkit/Dockerfile`. It installs the repo's too
 ```dockerfile
 FROM node:22.18-bookworm
 RUN npm install -g bun@1.3.14 pnpm@11.17.0
-RUN curl -fsSL https://raw.githubusercontent.com/djgrant/agentkit/<ref>/github-agent/install.sh | sh -s <ref>
+RUN curl -fsSL https://raw.githubusercontent.com/djgrant/achq/<ref>/github-agent/install.sh | sh -s <ref>
 CMD ["github-agent"]
 ```
 
@@ -33,7 +36,7 @@ CMD ["github-agent"]
 - **System-wide tools:** the agent runs as the unprivileged `agent` user, so install tools system-wide, not under `/root`.
 - **Instructions:** Claude follows the repo's `AGENTS.md` or `CLAUDE.md`, including how to set up a fresh worktree.
 
-Railway only redeploys when `.agentkit/**` changes. To update the agent itself, push agentkit and re-run `ak agent deploy`: it sets the service's `AGENTKIT_REF` build arg to the latest agentkit commit that changed `github-agent/`, and redeploys if that or anything else it manages changed. A redeploy stops running sessions; the agent reports them on the issues when it comes back.
+Railway only redeploys when `.agentkit/**` changes. To update the agent itself, push achq and re-run `achq deploy`: it sets the service's `AGENTKIT_REF` build arg to the latest achq commit that changed `github-agent/`, and redeploys if that or anything else it manages changed. A redeploy stops running sessions; the agent reports them on the issues when it comes back.
 
 ## The GitHub contract
 
@@ -56,21 +59,21 @@ Railway only redeploys when `.agentkit/**` changes. To update the agent itself, 
 To get in yourself (needs the Railway CLI):
 
 ```sh
-ak agent resume <n> [owner/repo]   # the issue's current session, interactively, in its worktree
-ak agent ssh [owner/repo]          # a shell in the container
+achq resume <n> [owner/repo]   # the issue's current session, interactively, in its worktree
+achq ssh [owner/repo]          # a shell in the container
 ```
 
 Both wake a sleeping service first, through the router, and `resume` keeps it awake while you're in. `resume` opens the issue's current session. It fails if a run is in progress. While you're in, the agent's next run for the issue waits until you exit. Inside the container it's `github-agent resume <n>`.
 
 ## Setting it up
 
-`ak agent` commands, with credentials in `github-agent/secrets.env`, which is gitignored. `deploy`, `destroy`, `ssh` and `resume` default to the repo of the directory you run them in:
+`achq` commands, run through `bin/achq` (put it on your `PATH`; it needs [pok](https://github.com/djgrant/pok) and `bun install`), with credentials in `github-agent/secrets.env`, which is gitignored. `deploy`, `destroy`, `ssh` and `resume` default to the repo of the directory you run them in:
 
-1. `ak agent app [--org <org>]` creates the GitHub App through GitHub's manifest flow and saves its ID, slug and private key. Install the App on each repo afterwards.
+1. `achq app [--org <org>]` creates the GitHub App through GitHub's manifest flow and saves its ID, slug and private key. Install the App on each repo afterwards.
 2. Add `CLAUDE_CODE_OAUTH_TOKEN` (from `claude setup-token`) and `RAILWAY_API_TOKEN` (an account or workspace token) to `secrets.env`. A value can be a 1Password reference, `op://vault/item/field`. If you have more than one Railway workspace, also set `RAILWAY_WORKSPACE_ID`.
-3. `ak agent deploy <owner/repo>` does the rest. Re-running it only changes what differs:
+3. `achq deploy <owner/repo>` does the rest. Re-running it only changes what differs:
    - creates the `agentkit` Railway project if it doesn't exist
    - creates the repo's service with a volume, sets its variables, and connects it to the repo, or updates them and redeploys if they changed
-   - creates the router, or redeploys it if `router.ts` changed. It runs `src/router.ts` on the stock Bun image, so it needs no build
+   - creates the router, or redeploys it if `router.ts` changed. It runs `github-agent/src/router.ts` on the stock Bun image, so it needs no build
    - creates the repo's webhook, pointing at the router
-4. `ak agent status` lists the deployed agents. `ak agent destroy <owner/repo>` deletes a repo's service, volume and webhook.
+4. `achq status` lists the deployed agents. `achq destroy <owner/repo>` deletes a repo's service, volume and webhook.

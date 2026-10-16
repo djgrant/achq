@@ -1,0 +1,7 @@
+#!/bin/sh
+# Runs achq's pok commands from anywhere. Commands that take a repo default to
+# the one you ran this in, so pass that directory on.
+ACHQ_CALLER_CWD=$PWD
+export ACHQ_CALLER_CWD
+cd "$(dirname "$(readlink -f "$0")")/.." || exit 1
+exec pok "$@"

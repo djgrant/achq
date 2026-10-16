@@ -1,7 +1,7 @@
 #!/bin/sh
 # Installs github-agent into a Debian-based image that already has bun.
 # Usage in a repo's .agentkit/Dockerfile:
-#   RUN curl -fsSL https://raw.githubusercontent.com/djgrant/agentkit/<ref>/github-agent/install.sh | sh -s <ref>
+#   RUN curl -fsSL https://raw.githubusercontent.com/djgrant/achq/<ref>/github-agent/install.sh | sh -s <ref>
 #   CMD ["github-agent"]
 # Set GITHUB_AGENT_SOURCE to a local github-agent directory to install from it instead.
 set -eu
@@ -32,11 +32,11 @@ rm -rf /opt/github-agent
 if [ -n "${GITHUB_AGENT_SOURCE:-}" ]; then
   cp -R "$GITHUB_AGENT_SOURCE" /opt/github-agent
 else
-  mkdir -p /opt/agentkit
-  curl -fsSL "https://codeload.github.com/djgrant/agentkit/tar.gz/$ref" \
-    | tar -xz --strip-components=1 -C /opt/agentkit --wildcards '*/github-agent/*'
-  mv /opt/agentkit/github-agent /opt/github-agent
-  rm -rf /opt/agentkit
+  mkdir -p /opt/achq
+  curl -fsSL "https://codeload.github.com/djgrant/achq/tar.gz/$ref" \
+    | tar -xz --strip-components=1 -C /opt/achq --wildcards '*/github-agent/*'
+  mv /opt/achq/github-agent /opt/github-agent
+  rm -rf /opt/achq
 fi
 chmod 755 /opt/github-agent/bin/github-agent
 ln -sf /opt/github-agent/bin/github-agent /usr/local/bin/github-agent

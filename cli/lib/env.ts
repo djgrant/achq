@@ -7,7 +7,3 @@ export const loadEnv = (file: string): Record<string, string> => {
   return { ...fromFile, ...process.env } as Record<string, string>;
 };
 
-/** Every ${NAME} referenced in text. */
-export const placeholders = (text: string): string[] => [
-  ...new Set([...text.matchAll(/\$\{(\w+)\}/g)].map((m) => m[1])),
-];

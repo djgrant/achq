@@ -86,7 +86,7 @@ export class GitHub {
       headers: {
         accept: "application/vnd.github+json",
         "x-github-api-version": "2022-11-28",
-        "user-agent": "agentkit-github-agent",
+        "user-agent": "achq",
         ...(auth && { authorization: auth }),
         ...(body !== undefined && { "content-type": "application/json" }),
       },

@@ -4,7 +4,7 @@ import { deployedRepos, railwaySsh, repoSchema } from "../lib/agent.ts";
 
 export const command = defineCommand({
   label: "Shell into the GitHub agent container",
-  examples: ["ak agent ssh notationlabs/yieldstar", "ak agent ssh notationlabs/yieldstar -- ls /data/worktrees"],
+  examples: ["achq ssh notationlabs/yieldstar", "achq ssh notationlabs/yieldstar -- ls /data/worktrees"],
   context: {
     repo: {
       from: "arg",

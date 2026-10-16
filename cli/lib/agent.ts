@@ -3,14 +3,15 @@ import type { z } from "zod";
 import { createHash, createHmac } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { REPO } from "../config/paths.ts";
 import { appJwt } from "../../github-agent/src/github.ts";
 import { serviceName, webhookSecret } from "../../github-agent/src/router.ts";
 import { loadEnv } from "./env.ts";
 
 export { serviceName, webhookSecret };
 
-/** App credentials, tokens and Railway IDs for `ak agent`, gitignored. */
+const REPO = path.resolve(import.meta.dir, "../..");
+
+/** App credentials, tokens and Railway IDs for `achq`, gitignored. */
 export const AGENT_SECRETS_FILE = path.join(REPO, "github-agent/secrets.env");
 
 export const agentEnv = () => loadEnv(AGENT_SECRETS_FILE);
@@ -82,8 +83,8 @@ export const ownerRepo = (repo: string) => {
 
 /** The GitHub repo of the current directory's `origin`, if it has one. */
 export const cwdRepo = (): string | undefined => {
-  // `ak` runs pok from agentkit's directory and passes on the one you ran it in.
-  const cwd = process.env.AGENTKIT_CALLER_CWD ?? process.cwd();
+  // `achq` runs pok from this repo's directory and passes on the one you ran it in.
+  const cwd = process.env.ACHQ_CALLER_CWD ?? process.cwd();
   const { stdout, success } = Bun.spawnSync(["git", "remote", "get-url", "origin"], { cwd, stderr: "ignore" });
   return success ? stdout.toString().trim().match(/github\.com[:/]([\w.-]+\/[\w.-]+?)(?:\.git)?$/)?.[1] : undefined;
 };
@@ -96,9 +97,9 @@ export const repoSchema = (schema: z.ZodString) => {
 
 /** The App's installation on a repo, or undefined if it isn't installed there. */
 export const appInstallation = async (env: Record<string, string>, repo: string) => {
-  const jwt = appJwt(need(env, "GITHUB_APP_ID", "Run `ak agent app`."), need(env, "GITHUB_APP_PRIVATE_KEY", ""));
+  const jwt = appJwt(need(env, "GITHUB_APP_ID", "Run `achq app`."), need(env, "GITHUB_APP_PRIVATE_KEY", ""));
   const res = await fetch(`https://api.github.com/repos/${repo}/installation`, {
-    headers: { authorization: `Bearer ${jwt}`, accept: "application/vnd.github+json", "user-agent": "agentkit" },
+    headers: { authorization: `Bearer ${jwt}`, accept: "application/vnd.github+json", "user-agent": "achq" },
   });
   if (res.status === 404) return undefined;
   if (!res.ok) throw new Error(`GitHub: ${res.status} ${await res.text()}`);
@@ -145,7 +146,7 @@ export const railwaySsh = async (repo: string, command: string[]) => {
 const wake = async (railway: Railway, project: Project, key: string, repo: string) => {
   const router = project.services.find((s) => s.name === ROUTER);
   const domain = router && (await railway.serviceDomain(project.id, project.environmentId, router.id));
-  if (!domain) throw new Error(`The service is asleep and there's no ${ROUTER} to wake it. Run \`ak agent deploy ${repo}\`.`);
+  if (!domain) throw new Error(`The service is asleep and there's no ${ROUTER} to wake it. Run \`achq deploy ${repo}\`.`);
   console.error(`Waking ${serviceName(repo)}…`);
   const body = JSON.stringify({ repository: { full_name: repo } });
   const signature = `sha256=${createHmac("sha256", webhookSecret(key, repo)).update(body).digest("hex")}`;
@@ -159,8 +160,8 @@ const wake = async (railway: Railway, project: Project, key: string, repo: strin
 
 export const ROUTER = "agentkit-router";
 const ROUTER_PORT = 8080;
-// The stock Bun image runs router.ts straight from agentkit at AGENTKIT_REF, so the router needs no build.
-const ROUTER_START = `bun -e 'const res = await fetch(\`https://raw.githubusercontent.com/djgrant/agentkit/\${process.env.AGENTKIT_REF}/github-agent/src/router.ts\`); if (!res.ok) throw new Error(\`router.ts: \${res.status}\`); await Bun.write("/tmp/router.ts", res); (await import("/tmp/router.ts")).start()'`;
+// The stock Bun image runs router.ts straight from achq at AGENTKIT_REF, so the router needs no build.
+const ROUTER_START = `bun -e 'const res = await fetch(\`https://raw.githubusercontent.com/djgrant/achq/\${process.env.AGENTKIT_REF}/github-agent/src/router.ts\`); if (!res.ok) throw new Error(\`router.ts: \${res.status}\`); await Bun.write("/tmp/router.ts", res); (await import("/tmp/router.ts")).start()'`;
 
 type Project = Awaited<ReturnType<Railway["project"]>>;
 
@@ -322,18 +323,18 @@ export class Railway {
 /** A variable holding the fingerprint of the config a service last deployed with. */
 export const DEPLOYED = "AGENTKIT_DEPLOYED";
 
-/** A hash of everything `ak agent deploy` sets on a service. */
+/** A hash of everything `achq deploy` sets on a service. */
 export const fingerprint = (config: object) =>
   createHash("sha256").update(JSON.stringify(config)).digest("hex").slice(0, 16);
 
 export type ServiceSettings = { dockerfilePath: string; watchPatterns: string[]; healthcheckPath: string; sleepApplication: boolean };
 
 /**
- * The latest agentkit commit that changed `path`, so a service only redeploys
+ * The latest achq commit that changed `path`, so a service only redeploys
  * when the code it runs changed.
  */
 export const lastCommit = async (path: string) =>
-  (await ghApi<{ sha: string }[]>("GET", `repos/djgrant/agentkit/commits?sha=main&per_page=1&path=${path}`))[0].sha;
+  (await ghApi<{ sha: string }[]>("GET", `repos/djgrant/achq/commits?sha=main&per_page=1&path=${path}`))[0].sha;
 
 type Edges<T> = { edges: { node: T }[] };
 type RailwayProject = {

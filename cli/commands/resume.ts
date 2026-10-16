@@ -4,7 +4,7 @@ import { deployedRepos, railwaySsh, recentIssues, repoSchema } from "../lib/agen
 
 export const command = defineCommand({
   label: "Resume the Github agent's last Claude session",
-  examples: ["ak agent resume 34", "ak agent resume 34 notationlabs/yieldstar"],
+  examples: ["achq resume 34", "achq resume 34 notationlabs/yieldstar"],
   context: {
     issue: {
       from: "arg",
