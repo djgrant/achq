@@ -5,7 +5,7 @@ Agent Communications Headquarters.
 
 Mention `@claude` on a GitHub issue and Claude Code works on it in a container on Railway: it answers questions, edits the issue, and pushes branches and PRs. Each repo gets its own Railway service, built from the repo's own Dockerfile, with a volume that keeps every issue's session and worktree.
 
-Repo services sleep when idle and have no public domain. One always-on router, `agentkit-router`, receives every repo's webhook, ignores comments that don't mention `@claude`, and forwards the rest to the repo's service over Railway's private network, retrying for about five minutes while the service wakes. A service stays awake while a run is in progress and sleeps 5–10 minutes after it ends.
+Repo services sleep when idle and have no public domain. One always-on router, `achq-router`, receives every repo's webhook, ignores comments that don't mention `@claude`, and forwards the rest to the repo's service over Railway's private network, retrying for about five minutes while the service wakes. A service stays awake while a run is in progress and sleeps 5–10 minutes after it ends.
 
 ## Using it
 
@@ -23,12 +23,13 @@ One run per issue at a time. Comments made during a run queue up, and the next r
 
 ## The repo contract
 
-A repo opts in with one file, `.agentkit/Dockerfile`. It installs the repo's toolchain, installs the agent, and runs it:
+A repo opts in with one file, `.achq/Dockerfile`. It installs the repo's toolchain, installs the agent, and runs it:
 
 ```dockerfile
 FROM node:22.18-bookworm
 RUN npm install -g bun@1.3.14 pnpm@11.17.0
-RUN curl -fsSL https://raw.githubusercontent.com/djgrant/achq/<ref>/github-agent/install.sh | sh -s <ref>
+ARG ACHQ_REF=main
+RUN curl -fsSL "https://raw.githubusercontent.com/djgrant/achq/$ACHQ_REF/github-agent/install.sh" | sh -s "$ACHQ_REF"
 CMD ["github-agent"]
 ```
 
@@ -36,7 +37,7 @@ CMD ["github-agent"]
 - **System-wide tools:** the agent runs as the unprivileged `agent` user, so install tools system-wide, not under `/root`.
 - **Instructions:** Claude follows the repo's `AGENTS.md` or `CLAUDE.md`, including how to set up a fresh worktree.
 
-Railway only redeploys when `.agentkit/**` changes. To update the agent itself, push achq and re-run `achq deploy`: it sets the service's `AGENTKIT_REF` build arg to the latest achq commit that changed `github-agent/`, and redeploys if that or anything else it manages changed. A redeploy stops running sessions; the agent reports them on the issues when it comes back.
+Railway only redeploys when `.achq/**` changes. To update the agent itself, push achq and re-run `achq deploy`: it sets the service's `ACHQ_REF` build arg to the latest achq commit that changed `github-agent/`, and redeploys if that or anything else it manages changed. A redeploy stops running sessions; the agent reports them on the issues when it comes back.
 
 ## The GitHub contract
 
@@ -72,7 +73,7 @@ Both wake a sleeping service first, through the router, and `resume` keeps it aw
 1. `achq app [--org <org>]` creates the GitHub App through GitHub's manifest flow and saves its ID, slug and private key. Install the App on each repo afterwards.
 2. Add `CLAUDE_CODE_OAUTH_TOKEN` (from `claude setup-token`) and `RAILWAY_API_TOKEN` (an account or workspace token) to `secrets.env`. A value can be a 1Password reference, `op://vault/item/field`. If you have more than one Railway workspace, also set `RAILWAY_WORKSPACE_ID`.
 3. `achq deploy <owner/repo>` does the rest. Re-running it only changes what differs:
-   - creates the `agentkit` Railway project if it doesn't exist
+   - creates the `achq` Railway project if it doesn't exist
    - creates the repo's service with a volume, sets its variables, and connects it to the repo, or updates them and redeploys if they changed
    - creates the router, or redeploys it if `router.ts` changed. It runs `github-agent/src/router.ts` on the stock Bun image, so it needs no build
    - creates the repo's webhook, pointing at the router

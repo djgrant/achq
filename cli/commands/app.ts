@@ -11,7 +11,7 @@ export const command = defineCommand({
   context: {
     name: {
       from: "flag",
-      schema: z.string().default("agentkit-github-agent"),
+      schema: z.string().default("achq"),
       description: "App name, unique across GitHub",
     },
     org: {

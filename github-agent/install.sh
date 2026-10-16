@@ -1,7 +1,8 @@
 #!/bin/sh
 # Installs github-agent into a Debian-based image that already has bun.
-# Usage in a repo's .agentkit/Dockerfile:
-#   RUN curl -fsSL https://raw.githubusercontent.com/djgrant/achq/<ref>/github-agent/install.sh | sh -s <ref>
+# Usage in a repo's .achq/Dockerfile:
+#   ARG ACHQ_REF=main
+#   RUN curl -fsSL "https://raw.githubusercontent.com/djgrant/achq/$ACHQ_REF/github-agent/install.sh" | sh -s "$ACHQ_REF"
 #   CMD ["github-agent"]
 # Set GITHUB_AGENT_SOURCE to a local github-agent directory to install from it instead.
 set -eu

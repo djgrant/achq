@@ -30,7 +30,7 @@ export const command = defineCommand({
     repo: {
       from: "arg",
       schema: repoSchema(z.string().regex(/^[\w.-]+\/[\w.-]+$/, "Expected owner/repo")),
-      description: "GitHub repo with an .agentkit/Dockerfile",
+      description: "GitHub repo with an .achq/Dockerfile",
     },
   },
   run: async (r, { context }) => {
@@ -42,8 +42,8 @@ export const command = defineCommand({
 
     r.reporter.step(`Checking ${repo}`);
     const { default_branch } = await ghApi<{ default_branch: string }>("GET", `repos/${repo}`);
-    await ghApi("GET", `repos/${repo}/contents/.agentkit/Dockerfile?ref=${default_branch}`).catch(() => {
-      throw new Error(`${repo} has no .agentkit/Dockerfile on ${default_branch}`);
+    await ghApi("GET", `repos/${repo}/contents/.achq/Dockerfile?ref=${default_branch}`).catch(() => {
+      throw new Error(`${repo} has no .achq/Dockerfile on ${default_branch}`);
     });
     if (!(await appInstallation(env, repo))) {
       throw new Error(`Install the App on ${repo} first: https://github.com/apps/${env.GITHUB_APP_SLUG}/installations/new`);
@@ -55,7 +55,7 @@ export const command = defineCommand({
       const workspaceId = env.RAILWAY_WORKSPACE_ID ?? (await railway.workspaceId());
       ({ projectCreate: { id: projectId } } = await railway.gql<{ projectCreate: { id: string } }>(
         `mutation ($input: ProjectCreateInput!) { projectCreate(input: $input) { id } }`,
-        { input: { name: "agentkit", workspaceId } },
+        { input: { name: "achq", workspaceId } },
       ));
       saveSecret("RAILWAY_PROJECT_ID", projectId);
       r.reporter.info(`Created project ${projectId}`);
@@ -66,9 +66,9 @@ export const command = defineCommand({
     let service: { id: string; deployment?: unknown } | undefined = project.services.find((s) => s.name === name);
 
     // Pins the image's achq, as a build arg; a changed ref also busts Railway's layer cache.
-    const agentkitRef = await lastCommit("github-agent");
+    const achqRef = await lastCommit("github-agent");
     const variables = {
-      AGENTKIT_REF: agentkitRef,
+      ACHQ_REF: achqRef,
       AGENT_REPO: repo,
       PORT: String(PORT),
       GITHUB_APP_ID: need(env, "GITHUB_APP_ID", "Run `achq app`."),
@@ -78,9 +78,9 @@ export const command = defineCommand({
     };
     const settings: ServiceSettings = {
       // Setting a Dockerfile path is what makes Railway build with Docker.
-      dockerfilePath: ".agentkit/Dockerfile",
+      dockerfilePath: ".achq/Dockerfile",
       // Only changes to the agent's image redeploy it. A redeploy stops running sessions.
-      watchPatterns: [".agentkit/**"],
+      watchPatterns: [".achq/**"],
       healthcheckPath: "/",
       // Sleeps when idle; the router's forwarded webhooks wake it.
       sleepApplication: true,
@@ -127,11 +127,11 @@ export const command = defineCommand({
 
     r.reporter.step("Router");
     const routerRef = await lastCommit("github-agent/src/router.ts");
-    const router = await ensureRouter(railway, project, { AGENTKIT_REF: routerRef, AGENT_WEBHOOK_KEY: env.AGENT_WEBHOOK_KEY });
+    const router = await ensureRouter(railway, project, { ACHQ_REF: routerRef, AGENT_WEBHOOK_KEY: env.AGENT_WEBHOOK_KEY });
     r.reporter.info(router.deployed ? `Deploying ${ROUTER} with achq ${routerRef.slice(0, 7)}` : `${ROUTER} is up to date`);
 
     if (deployed && !stale) {
-      r.reporter.info(`${name} is up to date with achq ${agentkitRef.slice(0, 7)}`);
+      r.reporter.info(`${name} is up to date with achq ${achqRef.slice(0, 7)}`);
     } else if (deployed) {
       await railway.gql(
         `mutation ($serviceId: String!, $environmentId: String!) {
@@ -139,7 +139,7 @@ export const command = defineCommand({
         }`,
         { serviceId, environmentId },
       );
-      r.reporter.info(`Redeploying ${name} with achq ${agentkitRef.slice(0, 7)}. Runs in progress are interrupted.`);
+      r.reporter.info(`Redeploying ${name} with achq ${achqRef.slice(0, 7)}. Runs in progress are interrupted.`);
     } else {
       // Connecting the repo last means the first build already has the settings above.
       await railway
@@ -153,7 +153,7 @@ export const command = defineCommand({
             `Railway's GitHub app can't see ${repo}. Give it access at https://github.com/settings/installations (or the org's), then re-run.`,
           );
         });
-      r.reporter.info(`Connected ${repo}@${default_branch}; Railway is building .agentkit/Dockerfile`);
+      r.reporter.info(`Connected ${repo}@${default_branch}; Railway is building .achq/Dockerfile`);
     }
 
     // Recorded only once the deploy has started, so an interrupted run redeploys next time.

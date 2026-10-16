@@ -158,10 +158,10 @@ const wake = async (railway: Railway, project: Project, key: string, repo: strin
   if (!res.ok) throw new Error(`Couldn't wake ${serviceName(repo)}: ${res.status} ${await res.text()}`);
 };
 
-export const ROUTER = "agentkit-router";
+export const ROUTER = "achq-router";
 const ROUTER_PORT = 8080;
-// The stock Bun image runs router.ts straight from achq at AGENTKIT_REF, so the router needs no build.
-const ROUTER_START = `bun -e 'const res = await fetch(\`https://raw.githubusercontent.com/djgrant/achq/\${process.env.AGENTKIT_REF}/github-agent/src/router.ts\`); if (!res.ok) throw new Error(\`router.ts: \${res.status}\`); await Bun.write("/tmp/router.ts", res); (await import("/tmp/router.ts")).start()'`;
+// The stock Bun image runs router.ts straight from achq at ACHQ_REF, so the router needs no build.
+const ROUTER_START = `bun -e 'const res = await fetch(\`https://raw.githubusercontent.com/djgrant/achq/\${process.env.ACHQ_REF}/github-agent/src/router.ts\`); if (!res.ok) throw new Error(\`router.ts: \${res.status}\`); await Bun.write("/tmp/router.ts", res); (await import("/tmp/router.ts")).start()'`;
 
 type Project = Awaited<ReturnType<Railway["project"]>>;
 
@@ -169,7 +169,7 @@ type Project = Awaited<ReturnType<Railway["project"]>>;
  * Creates the router every repo's webhook goes to, or redeploys it when its
  * config changed. Returns its public domain.
  */
-export const ensureRouter = async (railway: Railway, project: Project, vars: { AGENTKIT_REF: string; AGENT_WEBHOOK_KEY: string }) => {
+export const ensureRouter = async (railway: Railway, project: Project, vars: { ACHQ_REF: string; AGENT_WEBHOOK_KEY: string }) => {
   const { id: projectId, environmentId } = project;
   let service: { id: string } | undefined = project.services.find((s) => s.name === ROUTER);
   const settings = { source: { image: "oven/bun:1-slim" }, startCommand: ROUTER_START, healthcheckPath: "/" };
@@ -321,7 +321,7 @@ export class Railway {
 }
 
 /** A variable holding the fingerprint of the config a service last deployed with. */
-export const DEPLOYED = "AGENTKIT_DEPLOYED";
+export const DEPLOYED = "ACHQ_DEPLOYED";
 
 /** A hash of everything `achq deploy` sets on a service. */
 export const fingerprint = (config: object) =>
