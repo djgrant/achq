@@ -56,15 +56,15 @@ Railway only redeploys when `.agentkit/**` changes. To update the agent itself, 
 To get in yourself (needs the Railway CLI):
 
 ```sh
-ak agent resume <owner/repo> <n>   # the issue's current session, interactively, in its worktree
-ak agent ssh <owner/repo>          # a shell in the container
+ak agent resume <n> [owner/repo]   # the issue's current session, interactively, in its worktree
+ak agent ssh [owner/repo]          # a shell in the container
 ```
 
 Both wake a sleeping service first, through the router, and `resume` keeps it awake while you're in. `resume` opens the issue's current session. It fails if a run is in progress. While you're in, the agent's next run for the issue waits until you exit. Inside the container it's `github-agent resume <n>`.
 
 ## Setting it up
 
-`ak agent` commands, with credentials in `github-agent/secrets.env`, which is gitignored:
+`ak agent` commands, with credentials in `github-agent/secrets.env`, which is gitignored. `deploy`, `destroy`, `ssh` and `resume` default to the repo of the directory you run them in:
 
 1. `ak agent app [--org <org>]` creates the GitHub App through GitHub's manifest flow and saves its ID, slug and private key. Install the App on each repo afterwards.
 2. Add `CLAUDE_CODE_OAUTH_TOKEN` (from `claude setup-token`) and `RAILWAY_API_TOKEN` (an account or workspace token) to `secrets.env`. A value can be a 1Password reference, `op://vault/item/field`. If you have more than one Railway workspace, also set `RAILWAY_WORKSPACE_ID`.

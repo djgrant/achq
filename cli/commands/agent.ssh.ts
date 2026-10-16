@@ -1,6 +1,6 @@
 import { defineCommand } from "@pokit/core";
 import { z } from "zod";
-import { deployedRepos, railwaySsh } from "../lib/agent.ts";
+import { deployedRepos, railwaySsh, repoSchema } from "../lib/agent.ts";
 
 export const command = defineCommand({
   label: "Shell into the GitHub agent container",
@@ -8,7 +8,7 @@ export const command = defineCommand({
   context: {
     repo: {
       from: "arg",
-      schema: z.string().regex(/^([\w.-]+\/)?[\w.-]+$/, "Expected owner/repo or repo"),
+      schema: repoSchema(z.string().regex(/^([\w.-]+\/)?[\w.-]+$/, "Expected owner/repo or repo")),
       description: "GitHub repo",
       resolve: deployedRepos,
     },

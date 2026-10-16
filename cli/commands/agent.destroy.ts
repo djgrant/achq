@@ -1,6 +1,6 @@
 import { defineCommand } from "@pokit/core";
 import { z } from "zod";
-import { agentEnv, deployedRepos, findService, ghApi, type Hook, need, ownerRepo, Railway, ROUTER } from "../lib/agent.ts";
+import { agentEnv, deployedRepos, findService, ghApi, type Hook, need, ownerRepo, Railway, ROUTER, repoSchema } from "../lib/agent.ts";
 
 export const command = defineCommand({
   label: "Tear down a GitHub agent",
@@ -8,7 +8,7 @@ export const command = defineCommand({
   context: {
     repo: {
       from: "arg",
-      schema: z.string().regex(/^[\w.-]+\/[\w.-]+$/, "Expected owner/repo"),
+      schema: repoSchema(z.string().regex(/^[\w.-]+\/[\w.-]+$/, "Expected owner/repo")),
       description: "GitHub repo",
       resolve: deployedRepos,
     },

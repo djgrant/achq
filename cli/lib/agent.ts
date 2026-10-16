@@ -1,4 +1,5 @@
 import { $ } from "bun";
+import type { z } from "zod";
 import { createHash, createHmac } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -62,6 +63,18 @@ export const deployedRepos = async () => {
 export const ownerRepo = (repo: string) => {
   if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) throw new Error(`Expected owner/repo, got ${repo}`);
   return repo;
+};
+
+/** The GitHub repo of the current directory's `origin`, if it has one. */
+export const cwdRepo = (): string | undefined => {
+  const { stdout, success } = Bun.spawnSync(["git", "remote", "get-url", "origin"], { stderr: "ignore" });
+  return success ? stdout.toString().trim().match(/github\.com[:/]([\w.-]+\/[\w.-]+?)(?:\.git)?$/)?.[1] : undefined;
+};
+
+/** A repo argument that defaults to the current directory's repo. */
+export const repoSchema = (schema: z.ZodString) => {
+  const repo = cwdRepo();
+  return repo ? schema.default(repo) : schema;
 };
 
 /** The App's installation on a repo, or undefined if it isn't installed there. */

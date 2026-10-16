@@ -1,21 +1,21 @@
 import { defineCommand } from "@pokit/core";
 import { z } from "zod";
-import { deployedRepos, railwaySsh } from "../lib/agent.ts";
+import { deployedRepos, railwaySsh, repoSchema } from "../lib/agent.ts";
 
 export const command = defineCommand({
   label: "Resume the Github agent's last Claude session",
-  examples: ["ak agent resume notationlabs/yieldstar 34"],
+  examples: ["ak agent resume 34", "ak agent resume 34 notationlabs/yieldstar"],
   context: {
-    repo: {
-      from: "arg",
-      schema: z.string().regex(/^([\w.-]+\/)?[\w.-]+$/, "Expected owner/repo or repo"),
-      description: "GitHub repo",
-      resolve: deployedRepos,
-    },
     issue: {
       from: "arg",
       schema: z.coerce.number().int().positive(),
       description: "Issue number",
+    },
+    repo: {
+      from: "arg",
+      schema: repoSchema(z.string().regex(/^([\w.-]+\/)?[\w.-]+$/, "Expected owner/repo or repo")),
+      description: "GitHub repo",
+      resolve: deployedRepos,
     },
   },
   run: async (_r, { context }) => {

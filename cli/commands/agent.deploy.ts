@@ -18,6 +18,7 @@ import {
   type ServiceSettings,
   serviceName,
   webhookSecret,
+  repoSchema,
 } from "../lib/agent.ts";
 
 const PORT = 3000;
@@ -28,7 +29,7 @@ export const command = defineCommand({
   context: {
     repo: {
       from: "arg",
-      schema: z.string().regex(/^[\w.-]+\/[\w.-]+$/, "Expected owner/repo"),
+      schema: repoSchema(z.string().regex(/^[\w.-]+\/[\w.-]+$/, "Expected owner/repo")),
       description: "GitHub repo with an .agentkit/Dockerfile",
     },
   },
