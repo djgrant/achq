@@ -174,6 +174,6 @@ export const command = defineCommand({
     else await ghApi("POST", `repos/${repo}/hooks`, { name: "web", ...hook });
 
     r.reporter.success(`${repo} → ${url}`);
-    r.reporter.info(`Shell in once it has deployed: ak agent ssh ${repo}`);
+    r.reporter.info(deployed && !changed.length ? `Shell in with: ak agent ssh ${repo}` : `Shell in once it has deployed: ak agent ssh ${repo}`);
   },
 });
