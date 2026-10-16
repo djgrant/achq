@@ -20,7 +20,7 @@ import {
 const PORT = 3000;
 
 export const command = defineCommand({
-  label: "Deploy the GitHub agent for a repo on Railway and point the repo's webhook at it",
+  label: "Deploy a GitHub agent",
   examples: ["ak agent add notationlabs/yieldstar"],
   context: {
     repo: {

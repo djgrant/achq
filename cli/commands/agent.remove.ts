@@ -3,7 +3,7 @@ import { z } from "zod";
 import { agentEnv, deployedRepos, findService, ghApi, type Hook, need, ownerRepo, Railway, ROUTER } from "../lib/agent.ts";
 
 export const command = defineCommand({
-  label: "Delete a repo's GitHub agent: its Railway service, volume and webhook",
+  label: "Tear down a GitHub agent",
   examples: ["ak agent remove notationlabs/yieldstar"],
   context: {
     repo: {

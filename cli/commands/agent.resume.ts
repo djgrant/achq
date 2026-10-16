@@ -3,7 +3,7 @@ import { z } from "zod";
 import { deployedRepos, railwaySsh } from "../lib/agent.ts";
 
 export const command = defineCommand({
-  label: "Open an issue's Claude session interactively in its agent container",
+  label: "Resume the Github agent's last Claude session",
   examples: ["ak agent resume notationlabs/yieldstar 34"],
   context: {
     repo: {

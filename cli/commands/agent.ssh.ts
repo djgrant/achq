@@ -3,7 +3,7 @@ import { z } from "zod";
 import { deployedRepos, railwaySsh } from "../lib/agent.ts";
 
 export const command = defineCommand({
-  label: "Open a shell in a repo's GitHub agent container",
+  label: "Shell into the GitHub agent container",
   examples: ["ak agent ssh notationlabs/yieldstar", "ak agent ssh notationlabs/yieldstar -- ls /data/worktrees"],
   context: {
     repo: {
