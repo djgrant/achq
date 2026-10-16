@@ -1,6 +1,6 @@
 import { defineCommand } from "@pokit/core";
 import { z } from "zod";
-import { deployedRepos, railwaySsh, repoSchema } from "../lib/agent.ts";
+import { deployedRepos, railwaySsh, recentIssues, repoSchema } from "../lib/agent.ts";
 
 export const command = defineCommand({
   label: "Resume the Github agent's last Claude session",
@@ -9,7 +9,9 @@ export const command = defineCommand({
     issue: {
       from: "arg",
       schema: z.coerce.number().int().positive(),
-      description: "Issue number",
+      description: "Issue",
+      resolve: recentIssues,
+      dependsOn: ["repo"],
     },
     repo: {
       from: "arg",

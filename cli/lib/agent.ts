@@ -59,6 +59,21 @@ export const deployedRepos = async () => {
   return repos.filter(Boolean).sort();
 };
 
+type IssueRow = { number: number; title: string; state: string; pull_request?: unknown };
+
+/**
+ * The repo's ten most recently updated issues for picking one interactively,
+ * or the ten best title matches for what you've typed.
+ */
+export const recentIssues = async ({ filter }: { filter?: string }, context: Record<string, unknown>) => {
+  let repo = String(context.repo ?? "");
+  if (!repo.includes("/")) repo = (await deployedRepos()).find((r) => r.endsWith(`/${repo}`)) ?? repo;
+  const issues = filter
+    ? (await ghApi<{ items: IssueRow[] }>("GET", `search/issues?per_page=10&q=${encodeURIComponent(`repo:${repo} is:issue in:title ${filter}`)}`)).items
+    : (await ghApi<IssueRow[]>("GET", `repos/${repo}/issues?state=all&sort=updated&per_page=30`)).filter((i) => !i.pull_request).slice(0, 10);
+  return issues.map((i) => ({ value: i.number, label: `#${i.number} ${i.title}`, hint: i.state === "closed" ? "closed" : undefined }));
+};
+
 /** Interactive prompts skip the arg's schema, so commands that need the owner check again. */
 export const ownerRepo = (repo: string) => {
   if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) throw new Error(`Expected owner/repo, got ${repo}`);
@@ -67,7 +82,9 @@ export const ownerRepo = (repo: string) => {
 
 /** The GitHub repo of the current directory's `origin`, if it has one. */
 export const cwdRepo = (): string | undefined => {
-  const { stdout, success } = Bun.spawnSync(["git", "remote", "get-url", "origin"], { stderr: "ignore" });
+  // `ak` runs pok from agentkit's directory and passes on the one you ran it in.
+  const cwd = process.env.AGENTKIT_CALLER_CWD ?? process.cwd();
+  const { stdout, success } = Bun.spawnSync(["git", "remote", "get-url", "origin"], { cwd, stderr: "ignore" });
   return success ? stdout.toString().trim().match(/github\.com[:/]([\w.-]+\/[\w.-]+?)(?:\.git)?$/)?.[1] : undefined;
 };
 
