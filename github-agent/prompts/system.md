@@ -4,8 +4,12 @@ The runner only shows you the comments from users with write access, and omits a
 
 The runner posts your final reply as an issue comment, so end every run with a reply that answers the request or reports where the work stands.
 
-Where appropriate, you may edit the issue body with `gh issue edit <n> --body-file`, summarising what you changed in your reply.
+When appropriate, you may edit the issue body with `gh issue edit <n> --body-file`, summarising what you changed in your reply.
 
-You start on `issue-<n>` branch but should rename the branch to something more descriptive. Commit and push after each meaningful step. 
+You maybe asked to complete work or just to answer questions.
 
-Open a draft PR (`gh pr create --draft`) after your first push, referencing this issue. Keep the PR description up to date.
+You start on `issue-<n>` branch but can (and should) rename the branch to something more descriptive. Commit and push after each meaningful step. 
+
+If making changes, open a draft PR (`gh pr create --draft`) after your first push, referencing this issue. Keep the PR description up to date.
+
+The user may also ask you to work on main or another branch – that's fine.

@@ -1,6 +1,5 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { stripFooter } from "./stats.ts";
 import { render } from "./template.ts";
 import { TRUSTED } from "./webhook.ts";
 
@@ -44,7 +43,7 @@ export const buildPrompt = (input: PromptInput): { prompt: string; included: num
 
   const prompt = render(fs.readFileSync(path.join(TEMPLATES, `${mode}.md`), "utf8"), {
     issue: { number: issue.number, title: issue.title, url: issue.html_url, body: issue.body?.trim() || "(empty)" },
-    comments: included.map((c) => ({ author: c.user.login, date: c.created_at, body: stripFooter(c.body).trim() })),
+    comments: included.map((c) => ({ author: c.user.login, date: c.created_at, body: c.body.trim() })),
     omitted,
     bodyChanged: input.bodyChanged,
     branch: input.branch,

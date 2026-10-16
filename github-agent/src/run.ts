@@ -7,7 +7,7 @@ import type { GitHub } from "./github.ts";
 import { buildPrompt, type Comment, type Issue } from "./prompt.ts";
 import { describeHead, ensureWorktree, fetchMirror } from "./repo.ts";
 import { readState, writeState } from "./state.ts";
-import { footer, StreamStats } from "./stats.ts";
+import { StreamStats } from "./stats.ts";
 import type { Job } from "./webhook.ts";
 
 const SYSTEM_PROMPT = path.join(import.meta.dir, "..", "prompts/system.md");
@@ -196,14 +196,14 @@ export class Runner {
     );
   }
 
-  /** Posts Claude's final reply to the issue, or what went wrong, with the footer. */
+  /** Posts Claude's final reply to the issue, or what went wrong */
   private async report(issue: number, stats: StreamStats, session: string | undefined, mode: string, error: string | undefined) {
     let message: string;
     if (error) message = `⚠️ ${error}`;
     else if (mode === "compact" && stats.compacted)
       message = `Compacted the session: ${tokens(stats.compacted.pre)} → ${tokens(stats.compacted.post)} tokens.`;
     else message = stats.result?.result?.trim() || "Claude finished without a reply.";
-    await this.gh.api("POST", `/repos/${this.cfg.repo}/issues/${issue}/comments`, { body: message + footer(stats, session) });
+    await this.gh.api("POST", `/repos/${this.cfg.repo}/issues/${issue}/comments`, { body: message });
   }
 }
 

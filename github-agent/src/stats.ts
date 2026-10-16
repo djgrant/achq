@@ -31,24 +31,3 @@ export class StreamStats {
 
 export const tokens = (n: number): string =>
   n >= 1_000_000 ? `${Math.floor(n / 100_000) / 10}M` : n >= 1000 ? `${Math.floor(n / 1000)}k` : `${n}`;
-
-const percent = (n: number) => `${Math.floor(n * 100)}%`;
-
-/** A one-line footer for the runner to append to its comment. */
-export const footer = (stats: StreamStats, session?: string): string => {
-  const parts: string[] = [];
-  if (stats.context !== undefined) {
-    parts.push(
-      `context ${tokens(stats.context)}` +
-        (stats.window ? ` / ${tokens(stats.window)} (${percent(stats.context / stats.window)})` : ""),
-    );
-  }
-  if (stats.turns) parts.push(`${stats.turns} turns`);
-  if (session) parts.push(`session \`${session}\``);
-  return parts.length ? `\n\n<sub>${parts.join(" · ")}</sub>\n` : "";
-};
-
-// Older comments have a rule above the footer.
-const FOOTER = /\n\n(---\n)?<sub>[^\n]*<\/sub>\n?$/;
-
-export const stripFooter = (body: string): string => body.replace(FOOTER, "");

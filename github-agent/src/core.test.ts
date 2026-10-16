@@ -3,7 +3,6 @@ import { createHmac, generateKeyPairSync, createVerify } from "node:crypto";
 import { parseCommand } from "./command.ts";
 import { appJwt } from "./github.ts";
 import { buildPrompt, type Comment } from "./prompt.ts";
-import { footer, StreamStats, stripFooter, tokens } from "./stats.ts";
 import { jobFrom, verifySignature } from "./webhook.ts";
 
 describe("parseCommand", () => {
@@ -82,7 +81,7 @@ describe("buildPrompt", () => {
     head: "abc123",
   };
 
-  test("new sessions get the body and the trusted thread, including the bot's comments without footers", () => {
+  test("new sessions get the body and the trusted thread, including the bot's comments", () => {
     const { prompt, included, omitted } = buildPrompt({ ...base, mode: "new", since: 0 });
     expect(prompt).toContain("The RFC");
     expect(prompt).toContain("X is fine.");
@@ -102,31 +101,6 @@ describe("buildPrompt", () => {
   });
   test("reports nothing new", () => {
     expect(buildPrompt({ ...base, mode: "resume", since: 4 }).included).toBe(0);
-  });
-});
-
-describe("footer", () => {
-  test("summarises context and turns from the stream", () => {
-    const stats = new StreamStats();
-    stats.push({ type: "system", subtype: "init", session_id: "s1" });
-    stats.push({
-      type: "assistant",
-      message: { usage: { input_tokens: 2, cache_read_input_tokens: 6023, cache_creation_input_tokens: 13555, output_tokens: 4 } },
-    });
-    stats.push({ type: "assistant", parent_tool_use_id: "t", message: { usage: { input_tokens: 999999 } } });
-    stats.push({ type: "result", is_error: false, num_turns: 2, modelUsage: { m: { contextWindow: 1_000_000 } } });
-    const text = footer(stats, "s1");
-    expect(text).toBe("\n\n<sub>context 19k / 1M (1%) · 2 turns · session `s1`</sub>\n");
-    expect(stripFooter(`hello${text}`)).toBe("hello");
-  });
-  test("uses the compacted size after /compact", () => {
-    const stats = new StreamStats();
-    stats.push({ type: "system", subtype: "compact_boundary", compact_metadata: { pre_tokens: 19584, post_tokens: 1200 } });
-    expect(stats.context).toBe(1200);
-    expect(stats.compacted).toEqual({ pre: 19584, post: 1200 });
-  });
-  test("formats token counts", () => {
-    expect([tokens(950), tokens(84_123), tokens(1_000_000), tokens(1_250_000)]).toEqual(["950", "84k", "1M", "1.2M"]);
   });
 });
 

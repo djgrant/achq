@@ -14,7 +14,7 @@ Comment on an issue:
 | `@claude /new <prompt>` | Start a fresh session |
 | `@claude /compact [focus]` | Compact the session |
 
-The runner posts Claude's final reply as an issue comment, with a footer: context used, turns, and the session ID. When a run fails or compacts, it posts that instead. Claude can't comment itself (`gh issue comment` is denied), but it can edit the issue body and open PRs.
+The runner posts Claude's final reply as an issue comment. When a run fails or compacts, it posts that instead. Claude can't comment itself (`gh issue comment` is denied), but it can edit the issue body and open PRs.
 
 One run per issue at a time. Comments made during a run queue up, and the next run picks up all of them.
 
@@ -60,7 +60,7 @@ ak agent resume <owner/repo> <n>   # the issue's current session, interactively,
 ak agent ssh <owner/repo>          # a shell in the container
 ```
 
-`resume` opens the issue's current session: the one the footers name, which `/new` replaces. It fails if a run is in progress. While you're in, the agent's next run for the issue waits until you exit. Inside the container it's `github-agent resume <n>`.
+`resume` opens the issue's current session. It fails if a run is in progress. While you're in, the agent's next run for the issue waits until you exit. Inside the container it's `github-agent resume <n>`.
 
 ## Setting it up
 
