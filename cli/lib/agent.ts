@@ -221,7 +221,7 @@ export class Railway {
 
   /**
    * Gives a service the private hostname `<dnsName>.railway.internal`. Railway
-   * takes it from the service's name at creation and keeps it through renames.
+   * takes it from the service's name on its first deploy and keeps it through renames.
    */
   async privateHostname(environmentId: string, serviceId: string, dnsName: string) {
     const { privateNetworks } = await this.gql<{ privateNetworks: { publicId: string }[] }>(
@@ -229,13 +229,14 @@ export class Railway {
       { environmentId },
     );
     const privateNetworkId = privateNetworks[0].publicId;
-    const { privateNetworkEndpoint: endpoint } = await this.gql<{ privateNetworkEndpoint: { publicId: string; dnsName: string } }>(
+    const { privateNetworkEndpoint: endpoint } = await this.gql<{ privateNetworkEndpoint: { publicId: string; dnsName: string } | null }>(
       `query ($environmentId: String!, $privateNetworkId: String!, $serviceId: String!) {
         privateNetworkEndpoint(environmentId: $environmentId, privateNetworkId: $privateNetworkId, serviceId: $serviceId) { publicId dnsName }
       }`,
       { environmentId, privateNetworkId, serviceId },
     );
-    if (endpoint.dnsName === dnsName) return false;
+    // A service that hasn't deployed yet has no hostname, and will get one from its name.
+    if (!endpoint || endpoint.dnsName === dnsName) return false;
     await this.gql(
       `mutation ($id: String!, $dnsName: String!, $privateNetworkId: String!) {
         privateNetworkEndpointRename(id: $id, dnsName: $dnsName, privateNetworkId: $privateNetworkId)
