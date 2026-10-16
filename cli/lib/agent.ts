@@ -1,5 +1,5 @@
 import { $ } from "bun";
-import { createHmac } from "node:crypto";
+import { createHash, createHmac } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { REPO } from "../config/paths.ts";
@@ -136,15 +136,17 @@ type Project = Awaited<ReturnType<Railway["project"]>>;
 
 /**
  * Creates the router every repo's webhook goes to, or redeploys it when its
- * agentkit ref or key changed. Returns its public domain.
+ * config changed. Returns its public domain.
  */
 export const ensureRouter = async (railway: Railway, project: Project, vars: { AGENTKIT_REF: string; AGENT_WEBHOOK_KEY: string }) => {
   const { id: projectId, environmentId } = project;
   let service: { id: string } | undefined = project.services.find((s) => s.name === ROUTER);
+  const settings = { source: { image: "oven/bun:1-slim" }, startCommand: ROUTER_START, healthcheckPath: "/" };
+  const variables = { ...vars, PORT: String(ROUTER_PORT) };
+  const config = fingerprint({ variables, settings });
   let deploy = !service;
   if (service) {
-    const current = await railway.variables(projectId, environmentId, service.id);
-    deploy = current.AGENTKIT_REF !== vars.AGENTKIT_REF || current.AGENT_WEBHOOK_KEY !== vars.AGENT_WEBHOOK_KEY;
+    deploy = (await railway.variables(projectId, environmentId, service.id))[DEPLOYED] !== config;
   } else {
     ({ serviceCreate: service } = await railway.gql<{ serviceCreate: { id: string } }>(
       `mutation ($input: ServiceCreateInput!) { serviceCreate(input: $input) { id } }`,
@@ -157,15 +159,14 @@ export const ensureRouter = async (railway: Railway, project: Project, vars: { A
       `mutation ($serviceId: String!, $environmentId: String!, $input: ServiceInstanceUpdateInput!) {
         serviceInstanceUpdate(serviceId: $serviceId, environmentId: $environmentId, input: $input)
       }`,
-      { serviceId, environmentId, input: { source: { image: "oven/bun:1-slim" }, startCommand: ROUTER_START, healthcheckPath: "/" } },
+      { serviceId, environmentId, input: settings },
     );
-    await railway.gql(`mutation ($input: VariableCollectionUpsertInput!) { variableCollectionUpsert(input: $input) }`, {
-      input: { projectId, environmentId, serviceId, variables: { ...vars, PORT: String(ROUTER_PORT) }, skipDeploys: true },
-    });
+    await railway.setVariables(projectId, environmentId, serviceId, variables);
     await railway.gql(
       `mutation ($serviceId: String!, $environmentId: String!) { serviceInstanceDeployV2(serviceId: $serviceId, environmentId: $environmentId) }`,
       { serviceId, environmentId },
     );
+    await railway.setVariables(projectId, environmentId, serviceId, { [DEPLOYED]: config });
   }
   let domain = await railway.serviceDomain(projectId, environmentId, serviceId);
   if (!domain) {
@@ -270,15 +271,11 @@ export class Railway {
     return true;
   }
 
-  /** The service settings `ak agent deploy` manages. */
-  async serviceInstance(environmentId: string, serviceId: string) {
-    const { serviceInstance } = await this.gql<{ serviceInstance: ServiceSettings }>(
-      `query ($environmentId: String!, $serviceId: String!) {
-        serviceInstance(environmentId: $environmentId, serviceId: $serviceId) { dockerfilePath watchPatterns healthcheckPath sleepApplication }
-      }`,
-      { environmentId, serviceId },
-    );
-    return serviceInstance;
+  /** Sets variables without deploying. */
+  async setVariables(projectId: string, environmentId: string, serviceId: string, variables: Record<string, string>) {
+    await this.gql(`mutation ($input: VariableCollectionUpsertInput!) { variableCollectionUpsert(input: $input) }`, {
+      input: { projectId, environmentId, serviceId, variables, skipDeploys: true },
+    });
   }
 
   async variables(projectId: string, environmentId: string, serviceId: string) {
@@ -291,6 +288,13 @@ export class Railway {
     return variables;
   }
 }
+
+/** A variable holding the fingerprint of the config a service last deployed with. */
+export const DEPLOYED = "AGENTKIT_DEPLOYED";
+
+/** A hash of everything `ak agent deploy` sets on a service. */
+export const fingerprint = (config: object) =>
+  createHash("sha256").update(JSON.stringify(config)).digest("hex").slice(0, 16);
 
 export type ServiceSettings = { dockerfilePath: string; watchPatterns: string[]; healthcheckPath: string; sleepApplication: boolean };
 

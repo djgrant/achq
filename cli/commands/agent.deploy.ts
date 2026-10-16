@@ -13,6 +13,8 @@ import {
   Railway,
   ROUTER,
   saveSecret,
+  DEPLOYED,
+  fingerprint,
   type ServiceSettings,
   serviceName,
   webhookSecret,
@@ -94,22 +96,17 @@ export const command = defineCommand({
     const serviceId = service.id;
     const deployed = Boolean(service.deployment);
 
-    // Only what differs is written, and only a difference redeploys.
-    const current = { ...(await railway.variables(projectId, environmentId, serviceId)), ...(await railway.serviceInstance(environmentId, serviceId)) };
-    const wanted: Record<string, unknown> = { ...variables, ...settings };
-    const changed = Object.keys(wanted).filter((k) => JSON.stringify(current[k as keyof typeof current]) !== JSON.stringify(wanted[k]));
-    if (changed.some((k) => k in settings)) {
+    // Writes and redeploys only when the config differs from the last one deployed.
+    const config = fingerprint({ variables, settings });
+    const stale = (await railway.variables(projectId, environmentId, serviceId))[DEPLOYED] !== config;
+    if (stale) {
       await railway.gql(
         `mutation ($serviceId: String!, $environmentId: String!, $input: ServiceInstanceUpdateInput!) {
           serviceInstanceUpdate(serviceId: $serviceId, environmentId: $environmentId, input: $input)
         }`,
         { serviceId, environmentId, input: settings },
       );
-    }
-    if (changed.some((k) => k in variables)) {
-      await railway.gql(`mutation ($input: VariableCollectionUpsertInput!) { variableCollectionUpsert(input: $input) }`, {
-        input: { projectId, environmentId, serviceId, variables, skipDeploys: true },
-      });
+      await railway.setVariables(projectId, environmentId, serviceId, variables);
     }
     if (!project.volumes.some((v) => v.serviceId === serviceId)) {
       await railway.gql(`mutation ($input: VolumeCreateInput!) { volumeCreate(input: $input) { id } }`, {
@@ -132,7 +129,7 @@ export const command = defineCommand({
     const router = await ensureRouter(railway, project, { AGENTKIT_REF: routerRef, AGENT_WEBHOOK_KEY: env.AGENT_WEBHOOK_KEY });
     r.reporter.info(router.deployed ? `Deploying ${ROUTER} with agentkit ${routerRef.slice(0, 7)}` : `${ROUTER} is up to date`);
 
-    if (deployed && !changed.length) {
+    if (deployed && !stale) {
       r.reporter.info(`${name} is up to date with agentkit ${agentkitRef.slice(0, 7)}`);
     } else if (deployed) {
       await railway.gql(
@@ -141,7 +138,7 @@ export const command = defineCommand({
         }`,
         { serviceId, environmentId },
       );
-      r.reporter.info(`Redeploying ${name} (${changed.join(", ")} changed). Runs in progress are interrupted.`);
+      r.reporter.info(`Redeploying ${name} with agentkit ${agentkitRef.slice(0, 7)}. Runs in progress are interrupted.`);
     } else {
       // Connecting the repo last means the first build already has the settings above.
       await railway
@@ -157,6 +154,9 @@ export const command = defineCommand({
         });
       r.reporter.info(`Connected ${repo}@${default_branch}; Railway is building .agentkit/Dockerfile`);
     }
+
+    // Recorded only once the deploy has started, so an interrupted run redeploys next time.
+    if (stale) await railway.setVariables(projectId, environmentId, serviceId, { [DEPLOYED]: config });
 
     r.reporter.step("GitHub webhook");
     const url = `https://${router.domain}/webhook`;
@@ -174,6 +174,6 @@ export const command = defineCommand({
     else await ghApi("POST", `repos/${repo}/hooks`, { name: "web", ...hook });
 
     r.reporter.success(`${repo} → ${url}`);
-    r.reporter.info(deployed && !changed.length ? `Shell in with: ak agent ssh ${repo}` : `Shell in once it has deployed: ak agent ssh ${repo}`);
+    r.reporter.info(deployed && !stale ? `Shell in with: ak agent ssh ${repo}` : `Shell in once it has deployed: ak agent ssh ${repo}`);
   },
 });
