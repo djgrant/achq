@@ -94,13 +94,18 @@ export const railwaySsh = async (repo: string, command: string[]) => {
   const env = agentEnv();
   const token = need(env, "RAILWAY_API_TOKEN", "");
   const project = await new Railway(token).project(need(env, "RAILWAY_PROJECT_ID", "Nothing has been deployed."));
-  const service = findService(project.services, repo).name;
+  const { name: service, deployment } = findService(project.services, repo);
   const args = ["ssh", "--project", project.id, "--environment", project.environmentId, "--service", service];
   const proc = Bun.spawn(["railway", ...args, ...(command.length ? ["--", ...command] : [])], {
     env: { ...process.env, RAILWAY_API_TOKEN: token },
     stdio: ["inherit", "inherit", "inherit"],
   });
-  return proc.exited;
+  const code = await proc.exited;
+  // `add` returns while Railway builds, and Railway's "No active deployment" doesn't say so.
+  if (code !== 0 && deployment && ["QUEUED", "INITIALIZING", "BUILDING", "DEPLOYING", "WAITING"].includes(deployment.status)) {
+    console.error(`\n${service} is still deploying (${deployment.status.toLowerCase()}). Try again in a minute.`);
+  }
+  return code;
 };
 
 export const ROUTER = "agentkit-router";
