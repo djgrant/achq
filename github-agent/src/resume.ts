@@ -29,9 +29,12 @@ export const resume = async (paths: Paths, issue: number) => {
   // the lock forever. Stop it when our parent (the SSH shell) goes away.
   const parent = process.ppid;
   const orphaned = setInterval(() => process.ppid !== parent && proc.kill("SIGHUP"), 1000);
+  // Railway sleeps the service after minutes without outbound traffic, which an idle session doesn't make.
+  const awake = setInterval(() => fetch("https://api.github.com/zen").catch(() => {}), 3 * 60_000);
   for (const signal of ["SIGHUP", "SIGTERM"] as const) process.on(signal, () => proc.kill(signal));
   const code = await proc.exited;
   clearInterval(orphaned);
+  clearInterval(awake);
   if (code === BUSY) throw new Error(`The agent is working on issue #${issue}. Try again when its run finishes.`);
   return code;
 };

@@ -4,7 +4,7 @@ import { agentEnv, deployedRepos, findService, ghApi, type Hook, need, ownerRepo
 
 export const command = defineCommand({
   label: "Tear down a GitHub agent",
-  examples: ["ak agent remove notationlabs/yieldstar"],
+  examples: ["ak agent destroy notationlabs/yieldstar"],
   context: {
     repo: {
       from: "arg",

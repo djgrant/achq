@@ -5,10 +5,10 @@ import { createRouter, webhookSecret } from "./router.ts";
 const key = "key";
 const repo = "djgrant/gh-agent-test";
 
-const delivery = (payload: object, event = "issue_comment", secret = webhookSecret(key, repo)) => {
+const delivery = (payload: object, event = "issue_comment", secret = webhookSecret(key, repo), path = "/webhook") => {
   const body = JSON.stringify(payload);
   const signature = `sha256=${createHmac("sha256", secret).update(body).digest("hex")}`;
-  return new Request("http://router/webhook", {
+  return new Request(`http://router${path}`, {
     method: "POST",
     headers: { "x-github-event": event, "x-hub-signature-256": signature, "content-type": "application/json" },
     body,
@@ -60,6 +60,15 @@ describe("router", () => {
     expect(await (await router(delivery(comment("no mention")))).text()).toBe("skipped");
     expect(await (await router(delivery({ zen: "hi", repository: { full_name: repo } }, "ping"))).text()).toBe("skipped");
     expect(calls.length).toBe(0);
+  });
+
+  test("wakes a service on a signed request and waits until it answers", async () => {
+    const { router, calls } = setup([new Error("connection refused"), 200]);
+    const res = await router(delivery({ repository: { full_name: repo } }, "wake", webhookSecret(key, repo), "/wake"));
+    expect([res.status, await res.text()]).toEqual([200, "awake"]);
+    expect(calls.map((c) => c.url)).toEqual(Array(2).fill("http://djgrant-gh-agent-test.railway.internal:3000/"));
+    const unsigned = await router(delivery({ repository: { full_name: repo } }, "wake", "wrong", "/wake"));
+    expect(unsigned.status).toBe(401);
   });
 
   test("rejects a delivery signed with another repo's secret", async () => {

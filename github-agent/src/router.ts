@@ -2,7 +2,8 @@
  * The one public endpoint in front of every repo's agent. Repo services sleep
  * when idle and have no public domain, so GitHub sends each repo's webhook here.
  * The router forwards comments that mention the trigger to the repo's service
- * over Railway's private network, retrying while the service wakes.
+ * over Railway's private network, retrying while the service wakes. It also
+ * wakes a service on request, for SSH.
  *
  * Self-contained, because Railway runs it as a single downloaded file.
  */
@@ -36,27 +37,29 @@ type Options = {
 };
 
 export const createRouter = ({ key, trigger, agentPort, forward = fetch, delays = DELAYS }: Options) => {
-  /** Posts to the repo's service until it answers with anything but a 5xx. */
-  const deliver = async (repo: string, init: RequestInit) => {
-    const url = `http://${serviceName(repo)}.railway.internal:${agentPort}/webhook`;
+  /** Requests `path` on the repo's service until it answers with anything but a 5xx. */
+  const reach = async (repo: string, path: string, init: RequestInit) => {
+    const url = `http://${serviceName(repo)}.railway.internal:${agentPort}${path}`;
     let last = "";
     for (const delay of [0, ...delays]) {
       await Bun.sleep(delay * 1000);
       try {
         const res = await forward(url, init);
-        if (res.status < 500) return console.log(`${repo}: ${res.status} ${await res.text()}`);
+        if (res.status < 500) return { ok: true, detail: `${res.status} ${await res.text()}` };
         last = `${res.status}`;
       } catch (e) {
         last = e instanceof Error ? e.message : String(e);
       }
     }
-    console.error(`${repo}: gave up after ${delays.length + 1} attempts (${last})`);
+    return { ok: false, detail: `gave up after ${delays.length + 1} attempts (${last})` };
   };
 
   return async (req: Request): Promise<Response> => {
     const { pathname } = new URL(req.url);
     if (req.method === "GET" && pathname === "/") return new Response("ok");
-    if (req.method !== "POST" || pathname !== "/webhook") return new Response("not found", { status: 404 });
+    if (req.method !== "POST" || (pathname !== "/webhook" && pathname !== "/wake")) {
+      return new Response("not found", { status: 404 });
+    }
     const body = await req.text();
     let payload: any;
     try {
@@ -68,6 +71,12 @@ export const createRouter = ({ key, trigger, agentPort, forward = fetch, delays 
     if (!repo || !verifySignature(webhookSecret(key, repo), body, req.headers.get("x-hub-signature-256"))) {
       return new Response("bad signature", { status: 401 });
     }
+    // `ak agent ssh` signs a wake request the way GitHub signs a webhook, and waits for the service.
+    if (pathname === "/wake") {
+      const { ok, detail } = await reach(repo, "/", { method: "GET" });
+      console.log(`${repo}: wake ${detail}`);
+      return new Response(ok ? "awake" : detail, { status: ok ? 200 : 504 });
+    }
     // Only wake a service for something it would act on. It checks everything else.
     const event = req.headers.get("x-github-event");
     if (event !== "issue_comment" || payload.action !== "created" || !payload.comment?.body?.includes(trigger)) {
@@ -75,7 +84,9 @@ export const createRouter = ({ key, trigger, agentPort, forward = fetch, delays 
     }
     const headers = Object.fromEntries(FORWARDED.flatMap((h) => (req.headers.has(h) ? [[h, req.headers.get(h)!]] : [])));
     // Answer GitHub now; it gives up after ten seconds and a waking service can take longer.
-    void deliver(repo, { method: "POST", headers, body });
+    void reach(repo, "/webhook", { method: "POST", headers, body }).then(({ ok, detail }) =>
+      (ok ? console.log : console.error)(`${repo}: ${detail}`),
+    );
     return new Response("forwarding", { status: 202 });
   };
 };

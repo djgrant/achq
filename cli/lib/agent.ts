@@ -1,4 +1,5 @@
 import { $ } from "bun";
+import { createHmac } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { REPO } from "../config/paths.ts";
@@ -93,8 +94,10 @@ export const railwaySsh = async (repo: string, command: string[]) => {
   if (!Bun.which("railway")) throw new Error("Needs the Railway CLI: brew install railway");
   const env = agentEnv();
   const token = need(env, "RAILWAY_API_TOKEN", "");
-  const project = await new Railway(token).project(need(env, "RAILWAY_PROJECT_ID", "Nothing has been deployed."));
+  const railway = new Railway(token);
+  const project = await railway.project(need(env, "RAILWAY_PROJECT_ID", "Nothing has been deployed."));
   const { name: service, deployment } = findService(project.services, repo);
+  if (deployment?.status === "SLEEPING") await wake(railway, project, need(env, "AGENT_WEBHOOK_KEY", ""), repo);
   const args = ["ssh", "--project", project.id, "--environment", project.environmentId, "--service", service];
   const proc = Bun.spawn(["railway", ...args, ...(command.length ? ["--", ...command] : [])], {
     env: { ...process.env, RAILWAY_API_TOKEN: token },
@@ -106,6 +109,22 @@ export const railwaySsh = async (repo: string, command: string[]) => {
     console.error(`\n${service} is still deploying (${deployment.status.toLowerCase()}). Try again in a minute.`);
   }
   return code;
+};
+
+/** Asks the router to wake a sleeping service, since only private traffic reaches it. */
+const wake = async (railway: Railway, project: Project, key: string, repo: string) => {
+  const router = project.services.find((s) => s.name === ROUTER);
+  const domain = router && (await railway.serviceDomain(project.id, project.environmentId, router.id));
+  if (!domain) throw new Error(`The service is asleep and there's no ${ROUTER} to wake it. Run \`ak agent deploy ${repo}\`.`);
+  console.error(`Waking ${serviceName(repo)}…`);
+  const body = JSON.stringify({ repository: { full_name: repo } });
+  const signature = `sha256=${createHmac("sha256", webhookSecret(key, repo)).update(body).digest("hex")}`;
+  const res = await fetch(`https://${domain}/wake`, {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-hub-signature-256": signature },
+    body,
+  });
+  if (!res.ok) throw new Error(`Couldn't wake ${serviceName(repo)}: ${res.status} ${await res.text()}`);
 };
 
 export const ROUTER = "agentkit-router";
@@ -251,6 +270,17 @@ export class Railway {
     return true;
   }
 
+  /** The service settings `ak agent deploy` manages. */
+  async serviceInstance(environmentId: string, serviceId: string) {
+    const { serviceInstance } = await this.gql<{ serviceInstance: ServiceSettings }>(
+      `query ($environmentId: String!, $serviceId: String!) {
+        serviceInstance(environmentId: $environmentId, serviceId: $serviceId) { dockerfilePath watchPatterns healthcheckPath sleepApplication }
+      }`,
+      { environmentId, serviceId },
+    );
+    return serviceInstance;
+  }
+
   async variables(projectId: string, environmentId: string, serviceId: string) {
     const { variables } = await this.gql<{ variables: Record<string, string> }>(
       `query ($projectId: String!, $environmentId: String!, $serviceId: String!) {
@@ -261,6 +291,15 @@ export class Railway {
     return variables;
   }
 }
+
+export type ServiceSettings = { dockerfilePath: string; watchPatterns: string[]; healthcheckPath: string; sleepApplication: boolean };
+
+/**
+ * The latest agentkit commit that changed `path`, so a service only redeploys
+ * when the code it runs changed.
+ */
+export const lastCommit = async (path: string) =>
+  (await ghApi<{ sha: string }[]>("GET", `repos/djgrant/agentkit/commits?sha=main&per_page=1&path=${path}`))[0].sha;
 
 type Edges<T> = { edges: { node: T }[] };
 type RailwayProject = {

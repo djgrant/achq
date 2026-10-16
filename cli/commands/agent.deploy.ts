@@ -1,4 +1,3 @@
-import { $ } from "bun";
 import { defineCommand } from "@pokit/core";
 import { randomBytes } from "node:crypto";
 import { z } from "zod";
@@ -8,11 +7,13 @@ import {
   ensureRouter,
   ghApi,
   type Hook,
+  lastCommit,
   need,
   ownerRepo,
   Railway,
   ROUTER,
   saveSecret,
+  type ServiceSettings,
   serviceName,
   webhookSecret,
 } from "../lib/agent.ts";
@@ -20,8 +21,8 @@ import {
 const PORT = 3000;
 
 export const command = defineCommand({
-  label: "Deploy a GitHub agent",
-  examples: ["ak agent add notationlabs/yieldstar"],
+  label: "Deploy a GitHub agent, or bring an existing one up to date",
+  examples: ["ak agent deploy notationlabs/yieldstar"],
   context: {
     repo: {
       from: "arg",
@@ -62,7 +63,7 @@ export const command = defineCommand({
     let service: { id: string; deployment?: unknown } | undefined = project.services.find((s) => s.name === name);
 
     // Pins the image's agentkit, as a build arg; a changed ref also busts Railway's layer cache.
-    const agentkitRef = (await $`git ls-remote https://github.com/djgrant/agentkit main`.text()).split("\t")[0];
+    const agentkitRef = await lastCommit("github-agent");
     const variables = {
       AGENTKIT_REF: agentkitRef,
       AGENT_REPO: repo,
@@ -72,7 +73,7 @@ export const command = defineCommand({
       GITHUB_WEBHOOK_SECRET: webhookSecret(env.AGENT_WEBHOOK_KEY, repo),
       CLAUDE_CODE_OAUTH_TOKEN: claudeToken,
     };
-    const settings = {
+    const settings: ServiceSettings = {
       // Setting a Dockerfile path is what makes Railway build with Docker.
       dockerfilePath: ".agentkit/Dockerfile",
       // Only changes to the agent's image redeploy it. A redeploy stops running sessions.
@@ -93,15 +94,23 @@ export const command = defineCommand({
     const serviceId = service.id;
     const deployed = Boolean(service.deployment);
 
-    await railway.gql(
-      `mutation ($serviceId: String!, $environmentId: String!, $input: ServiceInstanceUpdateInput!) {
-        serviceInstanceUpdate(serviceId: $serviceId, environmentId: $environmentId, input: $input)
-      }`,
-      { serviceId, environmentId, input: settings },
-    );
-    await railway.gql(`mutation ($input: VariableCollectionUpsertInput!) { variableCollectionUpsert(input: $input) }`, {
-      input: { projectId, environmentId, serviceId, variables, skipDeploys: true },
-    });
+    // Only what differs is written, and only a difference redeploys.
+    const current = { ...(await railway.variables(projectId, environmentId, serviceId)), ...(await railway.serviceInstance(environmentId, serviceId)) };
+    const wanted: Record<string, unknown> = { ...variables, ...settings };
+    const changed = Object.keys(wanted).filter((k) => JSON.stringify(current[k as keyof typeof current]) !== JSON.stringify(wanted[k]));
+    if (changed.some((k) => k in settings)) {
+      await railway.gql(
+        `mutation ($serviceId: String!, $environmentId: String!, $input: ServiceInstanceUpdateInput!) {
+          serviceInstanceUpdate(serviceId: $serviceId, environmentId: $environmentId, input: $input)
+        }`,
+        { serviceId, environmentId, input: settings },
+      );
+    }
+    if (changed.some((k) => k in variables)) {
+      await railway.gql(`mutation ($input: VariableCollectionUpsertInput!) { variableCollectionUpsert(input: $input) }`, {
+        input: { projectId, environmentId, serviceId, variables, skipDeploys: true },
+      });
+    }
     if (!project.volumes.some((v) => v.serviceId === serviceId)) {
       await railway.gql(`mutation ($input: VolumeCreateInput!) { volumeCreate(input: $input) { id } }`, {
         input: { projectId, environmentId, serviceId, mountPath: "/data" },
@@ -119,17 +128,20 @@ export const command = defineCommand({
     }
 
     r.reporter.step("Router");
-    const router = await ensureRouter(railway, project, { AGENTKIT_REF: agentkitRef, AGENT_WEBHOOK_KEY: env.AGENT_WEBHOOK_KEY });
-    if (router.deployed) r.reporter.info(`Deploying ${ROUTER} with agentkit ${agentkitRef.slice(0, 7)}`);
+    const routerRef = await lastCommit("github-agent/src/router.ts");
+    const router = await ensureRouter(railway, project, { AGENTKIT_REF: routerRef, AGENT_WEBHOOK_KEY: env.AGENT_WEBHOOK_KEY });
+    r.reporter.info(router.deployed ? `Deploying ${ROUTER} with agentkit ${routerRef.slice(0, 7)}` : `${ROUTER} is up to date`);
 
-    if (deployed) {
+    if (deployed && !changed.length) {
+      r.reporter.info(`${name} is up to date with agentkit ${agentkitRef.slice(0, 7)}`);
+    } else if (deployed) {
       await railway.gql(
         `mutation ($serviceId: String!, $environmentId: String!) {
           serviceInstanceDeploy(serviceId: $serviceId, environmentId: $environmentId, latestCommit: true)
         }`,
         { serviceId, environmentId },
       );
-      r.reporter.info(`Redeploying with agentkit ${agentkitRef.slice(0, 7)}. Runs in progress are interrupted.`);
+      r.reporter.info(`Redeploying ${name} (${changed.join(", ")} changed). Runs in progress are interrupted.`);
     } else {
       // Connecting the repo last means the first build already has the settings above.
       await railway
