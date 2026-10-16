@@ -4,8 +4,8 @@ import { loadConfig } from "./config.ts";
 import { resume } from "./resume.ts";
 import { serve } from "./server.ts";
 
-// github-agent               run the agent (the container's CMD)
-// github-agent resume <n>    open issue <n>'s session interactively (over SSH)
+// achq-agent                 run the agent (the container's CMD)
+// achq-agent resume <n>      open issue <n>'s session interactively (over SSH)
 const cfg = loadConfig();
 process.env.HOME = cfg.paths.home;
 for (const dir of [cfg.paths.home, cfg.paths.issues]) fs.mkdirSync(dir, { recursive: true });

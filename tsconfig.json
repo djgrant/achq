@@ -13,5 +13,5 @@
     "skipLibCheck": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["*.ts", "cli/**/*.ts", "github-agent/**/*.ts"]
+  "include": ["*.ts", "cli/**/*.ts", "src/**/*.ts"]
 }

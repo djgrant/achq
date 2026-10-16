@@ -3,8 +3,8 @@ import type { z } from "zod";
 import { createHash, createHmac } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { appJwt } from "../../github-agent/src/github.ts";
-import { serviceName, webhookSecret } from "../../github-agent/src/router.ts";
+import { appJwt } from "../../src/github.ts";
+import { serviceName, webhookSecret } from "../../src/router.ts";
 import { loadEnv } from "./env.ts";
 
 export { serviceName, webhookSecret };
@@ -12,7 +12,7 @@ export { serviceName, webhookSecret };
 const REPO = path.resolve(import.meta.dir, "../..");
 
 /** App credentials, tokens and Railway IDs for `achq`, gitignored. */
-export const AGENT_SECRETS_FILE = path.join(REPO, "github-agent/secrets.env");
+export const AGENT_SECRETS_FILE = path.join(REPO, "secrets.env");
 
 export const agentEnv = () => loadEnv(AGENT_SECRETS_FILE);
 
@@ -119,7 +119,7 @@ export type Hook = { id: number; config: { url?: string } };
 
 /**
  * `railway ssh` into a repo's agent container, interactively or running
- * `command`. The container starts as root; `github-agent` switches to the agent user.
+ * `command`. The container starts as root; `achq-agent` switches to the agent user.
  */
 export const railwaySsh = async (repo: string, command: string[]) => {
   if (!Bun.which("railway")) throw new Error("Needs the Railway CLI: brew install railway");
@@ -161,7 +161,7 @@ const wake = async (railway: Railway, project: Project, key: string, repo: strin
 export const ROUTER = "achq-router";
 const ROUTER_PORT = 8080;
 // The stock Bun image runs router.ts straight from achq at ACHQ_REF, so the router needs no build.
-const ROUTER_START = `bun -e 'const res = await fetch(\`https://raw.githubusercontent.com/djgrant/achq/\${process.env.ACHQ_REF}/github-agent/src/router.ts\`); if (!res.ok) throw new Error(\`router.ts: \${res.status}\`); await Bun.write("/tmp/router.ts", res); (await import("/tmp/router.ts")).start()'`;
+const ROUTER_START = `bun -e 'const res = await fetch(\`https://raw.githubusercontent.com/djgrant/achq/\${process.env.ACHQ_REF}/src/router.ts\`); if (!res.ok) throw new Error(\`router.ts: \${res.status}\`); await Bun.write("/tmp/router.ts", res); (await import("/tmp/router.ts")).start()'`;
 
 type Project = Awaited<ReturnType<Railway["project"]>>;
 
@@ -330,11 +330,16 @@ export const fingerprint = (config: object) =>
 export type ServiceSettings = { dockerfilePath: string; watchPatterns: string[]; healthcheckPath: string; sleepApplication: boolean };
 
 /**
- * The latest achq commit that changed `path`, so a service only redeploys
- * when the code it runs changed.
+ * The latest achq commit that changed any of `paths`, so a service only
+ * redeploys when the code it runs changed.
  */
-export const lastCommit = async (path: string) =>
-  (await ghApi<{ sha: string }[]>("GET", `repos/djgrant/achq/commits?sha=main&per_page=1&path=${path}`))[0].sha;
+export const lastCommit = async (...paths: string[]) => {
+  type Commit = { sha: string; commit: { committer: { date: string } } };
+  const latest = await Promise.all(
+    paths.map(async (p) => (await ghApi<Commit[]>("GET", `repos/djgrant/achq/commits?sha=main&per_page=1&path=${p}`))[0]),
+  );
+  return latest.filter(Boolean).sort((a, b) => b.commit.committer.date.localeCompare(a.commit.committer.date))[0].sha;
+};
 
 type Edges<T> = { edges: { node: T }[] };
 type RailwayProject = {

@@ -1,14 +1,14 @@
 #!/bin/sh
-# Installs github-agent into a Debian-based image that already has bun.
+# Installs achq-agent into a Debian-based image that already has bun.
 # Usage in a repo's .achq/Dockerfile:
 #   ARG ACHQ_REF=main
-#   RUN curl -fsSL "https://raw.githubusercontent.com/djgrant/achq/$ACHQ_REF/github-agent/install.sh" | sh -s "$ACHQ_REF"
-#   CMD ["github-agent"]
-# Set GITHUB_AGENT_SOURCE to a local github-agent directory to install from it instead.
+#   RUN curl -fsSL "https://raw.githubusercontent.com/djgrant/achq/$ACHQ_REF/install.sh" | sh -s "$ACHQ_REF"
+#   CMD ["achq-agent"]
+# Set ACHQ_SOURCE to a local achq checkout to install from it instead.
 set -eu
 
 ref=${1:-main}
-command -v bun > /dev/null || { echo "github-agent needs bun on PATH" >&2; exit 1; }
+command -v bun > /dev/null || { echo "achq-agent needs bun on PATH" >&2; exit 1; }
 
 # git, flock/setpriv (util-linux), and gh from GitHub's apt repo.
 apt-get update -q
@@ -29,17 +29,15 @@ install -m 755 "$(readlink -f "$tmp/.local/bin/claude")" /usr/local/bin/claude
 rm -rf "$tmp"
 
 # The agent itself.
-rm -rf /opt/github-agent
-if [ -n "${GITHUB_AGENT_SOURCE:-}" ]; then
-  cp -R "$GITHUB_AGENT_SOURCE" /opt/github-agent
+rm -rf /opt/achq
+mkdir -p /opt/achq
+if [ -n "${ACHQ_SOURCE:-}" ]; then
+  cp -R "$ACHQ_SOURCE/bin" "$ACHQ_SOURCE/src" "$ACHQ_SOURCE/prompts" /opt/achq
 else
-  mkdir -p /opt/achq
   curl -fsSL "https://codeload.github.com/djgrant/achq/tar.gz/$ref" \
-    | tar -xz --strip-components=1 -C /opt/achq --wildcards '*/github-agent/*'
-  mv /opt/achq/github-agent /opt/github-agent
-  rm -rf /opt/achq
+    | tar -xz --strip-components=1 -C /opt/achq --wildcards '*/bin/achq-agent' '*/src/*' '*/prompts/*'
 fi
-chmod 755 /opt/github-agent/bin/github-agent
-ln -sf /opt/github-agent/bin/github-agent /usr/local/bin/github-agent
+chmod 755 /opt/achq/bin/achq-agent
+ln -sf /opt/achq/bin/achq-agent /usr/local/bin/achq-agent
 
 id agent > /dev/null 2>&1 || useradd --create-home --shell /bin/bash agent

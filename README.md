@@ -29,15 +29,15 @@ A repo opts in with one file, `.achq/Dockerfile`. It installs the repo's toolcha
 FROM node:22.18-bookworm
 RUN npm install -g bun@1.3.14 pnpm@11.17.0
 ARG ACHQ_REF=main
-RUN curl -fsSL "https://raw.githubusercontent.com/djgrant/achq/$ACHQ_REF/github-agent/install.sh" | sh -s "$ACHQ_REF"
-CMD ["github-agent"]
+RUN curl -fsSL "https://raw.githubusercontent.com/djgrant/achq/$ACHQ_REF/install.sh" | sh -s "$ACHQ_REF"
+CMD ["achq-agent"]
 ```
 
 - **Base image:** Debian-based, because the install script uses apt. The image needs `bun` on `PATH`.
 - **System-wide tools:** the agent runs as the unprivileged `agent` user, so install tools system-wide, not under `/root`.
 - **Instructions:** Claude follows the repo's `AGENTS.md` or `CLAUDE.md`, including how to set up a fresh worktree.
 
-Railway only redeploys when `.achq/**` changes. To update the agent itself, push achq and re-run `achq deploy`: it sets the service's `ACHQ_REF` build arg to the latest achq commit that changed `github-agent/`, and redeploys if that or anything else it manages changed. A redeploy stops running sessions; the agent reports them on the issues when it comes back.
+Railway only redeploys when `.achq/**` changes. To update the agent itself, push achq and re-run `achq deploy`: it sets the service's `ACHQ_REF` build arg to the latest achq commit that changed the agent (`bin/achq-agent`, `src/`, `prompts/` or `install.sh`), and redeploys if that or anything else it manages changed. A redeploy stops running sessions; the agent reports them on the issues when it comes back.
 
 ## The GitHub contract
 
@@ -64,17 +64,17 @@ achq resume <n> [owner/repo]   # the issue's current session, interactively, in 
 achq ssh [owner/repo]          # a shell in the container
 ```
 
-Both wake a sleeping service first, through the router, and `resume` keeps it awake while you're in. `resume` opens the issue's current session. It fails if a run is in progress. While you're in, the agent's next run for the issue waits until you exit. Inside the container it's `github-agent resume <n>`.
+Both wake a sleeping service first, through the router, and `resume` keeps it awake while you're in. `resume` opens the issue's current session. It fails if a run is in progress. While you're in, the agent's next run for the issue waits until you exit. Inside the container it's `achq-agent resume <n>`.
 
 ## Setting it up
 
-`achq` commands, run through `bin/achq` (put it on your `PATH`; it needs [pok](https://github.com/djgrant/pok) and `bun install`), with credentials in `github-agent/secrets.env`, which is gitignored. `deploy`, `destroy`, `ssh` and `resume` default to the repo of the directory you run them in:
+`achq` commands, run through `bin/achq` (put it on your `PATH`; it needs [pok](https://github.com/djgrant/pok) and `bun install`), with credentials in `secrets.env`, which is gitignored. `deploy`, `destroy`, `ssh` and `resume` default to the repo of the directory you run them in:
 
 1. `achq app [--org <org>]` creates the GitHub App through GitHub's manifest flow and saves its ID, slug and private key. Install the App on each repo afterwards.
 2. Add `CLAUDE_CODE_OAUTH_TOKEN` (from `claude setup-token`) and `RAILWAY_API_TOKEN` (an account or workspace token) to `secrets.env`. A value can be a 1Password reference, `op://vault/item/field`. If you have more than one Railway workspace, also set `RAILWAY_WORKSPACE_ID`.
 3. `achq deploy <owner/repo>` does the rest. Re-running it only changes what differs:
    - creates the `achq` Railway project if it doesn't exist
    - creates the repo's service with a volume, sets its variables, and connects it to the repo, or updates them and redeploys if they changed
-   - creates the router, or redeploys it if `router.ts` changed. It runs `github-agent/src/router.ts` on the stock Bun image, so it needs no build
+   - creates the router, or redeploys it if `router.ts` changed. It runs `src/router.ts` on the stock Bun image, so it needs no build
    - creates the repo's webhook, pointing at the router
 4. `achq status` lists the deployed agents. `achq destroy <owner/repo>` deletes a repo's service, volume and webhook.

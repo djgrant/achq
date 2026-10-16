@@ -12,7 +12,7 @@ afterEach(() => {
 
 /** A remote with `main` and an existing `issue-2` branch. */
 const setup = async () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "github-agent-"));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "achq-agent-"));
   dirs.push(root);
   const remote = path.join(root, "remote.git");
   const seed = path.join(root, "seed");

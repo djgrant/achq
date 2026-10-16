@@ -66,7 +66,7 @@ export const command = defineCommand({
     let service: { id: string; deployment?: unknown } | undefined = project.services.find((s) => s.name === name);
 
     // Pins the image's achq, as a build arg; a changed ref also busts Railway's layer cache.
-    const achqRef = await lastCommit("github-agent");
+    const achqRef = await lastCommit("bin/achq-agent", "src", "prompts", "install.sh");
     const variables = {
       ACHQ_REF: achqRef,
       AGENT_REPO: repo,
@@ -126,7 +126,7 @@ export const command = defineCommand({
     }
 
     r.reporter.step("Router");
-    const routerRef = await lastCommit("github-agent/src/router.ts");
+    const routerRef = await lastCommit("src/router.ts");
     const router = await ensureRouter(railway, project, { ACHQ_REF: routerRef, AGENT_WEBHOOK_KEY: env.AGENT_WEBHOOK_KEY });
     r.reporter.info(router.deployed ? `Deploying ${ROUTER} with achq ${routerRef.slice(0, 7)}` : `${ROUTER} is up to date`);
 

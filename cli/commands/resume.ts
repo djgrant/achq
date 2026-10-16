@@ -26,6 +26,6 @@ export const command = defineCommand({
     const term = ["TERM", "COLORTERM", "TERM_PROGRAM", "TERM_PROGRAM_VERSION"].flatMap((name) =>
       process.env[name] ? [`${name}=${process.env[name]}`] : [],
     );
-    process.exitCode = await railwaySsh(context.repo, ["env", ...term, "github-agent", "resume", String(context.issue)]);
+    process.exitCode = await railwaySsh(context.repo, ["env", ...term, "achq-agent", "resume", String(context.issue)]);
   },
 });

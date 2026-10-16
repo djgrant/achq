@@ -37,5 +37,5 @@ export const serve = async (cfg: Config) => {
     },
   });
 
-  console.log(`github-agent for ${cfg.repo} as ${gh.bot.login}, listening on :${cfg.port}`);
+  console.log(`achq-agent for ${cfg.repo} as ${gh.bot.login}, listening on :${cfg.port}`);
 };
