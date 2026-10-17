@@ -4,7 +4,7 @@ Decisions for moving achq from one App with per-repo webhooks to a system that r
 
 ## Layers
 
-- **ACHQ tool**: The CLI, the router, the deployer, the agent, and the resource library. Nothing user-specific. npm-ready (correct `bin` and `exports`) but not published; `bin/achq` stays for putting on `PATH`.
+- **ACHQ library**: The CLI, the router, the deployer, the agent, and the resource library. Nothing user-specific. npm-ready (correct `bin` and `exports`) but not published; `bin/achq` stays for putting on `PATH`.
 - **ACHQ infra**: Declares the router, deployer and Apps as resources. Reads secrets from its environment; how they get there (`op run`, direnv, CI, a `.env` file) is up to the user.
 - **ACHQ repos**: `.achq/config.ts` and an image. Defines the conditions an agent works in, and the events on which it is dispatched.
 
@@ -20,7 +20,7 @@ export default achq(() => {
   const deployer = new railway.Deployer("deployer", {
     project: "achq",
     router,
-    containers: railway.containers({ project: "achq" }),
+    containerHost: railway.containerHost({ project: "achq" }),
     owners: ["djgrant", "notationlabs"],
   });
   new github.App("personal", { name: "djgrant-claude", router, deployer });
@@ -30,7 +30,7 @@ export default achq(() => {
 
 - **Router**: receives events and wakes the deployer and containers.
 - **Deployer**: creates and updates containers. Containers are a property of the deployer: it's configured with the host it deploys them to.
-- **Sources** (a GitHub App) bind to both. The App's webhook points at the router, and the router holds the App's key to check deliveries and mint tokens. The App's installations decide which repos the deployer serves.
+- **A GitHub App** binds to both. It's a channel and an access provider (see Primitives). The App's webhook points at the router, and the router holds the App's key to check deliveries and mint tokens. The App's installations decide which repos the deployer serves.
 - Each component could in principle be hosted on a different platform. That needs bindings the current design assumes away: reaching containers without a private network, and waking them through the container host's API. Only Railway is built for now.
 - **`owners`**: the deployer only serves repos owned by these accounts. A public App can be installed by anyone, and without this a stranger's install would get a container on your Railway account running on your Claude token.
 
@@ -38,28 +38,109 @@ export default achq(() => {
 
 ```ts
 // .achq/config.ts
-import { container, claude, github } from "achq";
+import { Container, Workspace, Trigger, Claude } from "achq";
+import * as github from "achq/github";
 
-const notation = github.App.get("notation-achq");
+const app = github.App.get("notation-achq");
 
-export default [
-  container({
-    source: notation,
-    image: "./Dockerfile",
-    permissions: { contents: "write", issues: "write", pull_requests: "write" },
-    agents: [
-      claude({ on: [notation.issueComment({ actions: ["created", "edited"], mention: "@claude" })] }),
-      claude({ on: [notation.issue({ actions: ["opened"] })], model: "claude-haiku-5-5", prompt: "triage.md" }),
-    ],
-  }),
-];
+const code = new github.RepoPolicy("code", { app, permissions: { contents: "write", issues: "write", pull_requests: "write" } });
+
+const dev = new Container("dev", {
+  image: "./Dockerfile",
+  policies: [code],
+  files: { "~/.config/foo.toml": "./foo.toml" },
+});
+
+new Workspace("docs", { container: dev, threads: app.issues.where({ labels: ["docs"] }), branch: "docs/{number}", base: "docs" });
+new Workspace("issues", { container: dev, threads: app.issues, branch: "issue-{number}", base: "main" });
+
+const coder = new Claude("coder", { model: "claude-opus-5-5", effort: "high", systemPrompt: "./prompts/system.md", settings: { /* … */ } });
+const triage = new Claude("triage", { model: "claude-haiku-5-5", systemPrompt: "./prompts/triage.md" });
+
+new Trigger("mention", { event: app.issueComment({ actions: ["created", "edited"], mention: "@claude" }), agent: coder });
+new Trigger("triage", { event: app.issue({ actions: ["opened"] }), agent: triage });
 ```
 
+- Resources take config. The framework decides how to apply it (files, flags, directories).
+- Every resource has a name. Names are identities: in plans, in `resume`, and in session keys.
 - A repo **adopts** an App by slug with `github.App.get`. It's typed as a GitHub App, so every GitHub event and permission is typed, but not which ones this App has enabled. That's checked at runtime against the live App (see Checks).
-- A repo can define several **containers**. A container is an image, permissions (its token's scope) and a volume.
-- A container runs several **agents**. Each agent has its own triggers and settings. Agents in one container share its worktrees and token. Anything needing different permissions goes in a different container.
 - The trigger (`mention`) belongs to the repo, not the ACHQ infra.
-- Triggers must be plain data, because the router filters on them without waking anything. Agent settings can be code.
+- Events, thread selectors and policies must be plain data, because they cross into the router: it filters on events without waking anything, and mints credentials for policies. Agent settings can be code.
+
+## Primitives
+
+| Primitive | Declared | What it is |
+|---|---|---|
+| **Channel** | No: provided, e.g. by a GitHub App | Where threads live. Hears events, reads a thread, posts replies, and says which messages are trusted. |
+| **Thread** | No: lives in the channel | A GitHub issue, a Linear issue |
+| **Policy** | Yes | What a container can access |
+| **Container** | Yes | An image, its policies, startup files and a volume |
+| **Workspace** | Yes | Which threads are worked on in which container, and how each thread's worktree is set up |
+| **Agent** | Yes | Who does the work: model, effort, prompts, settings |
+| **Trigger** | Yes | When an agent acts: an event and an agent |
+
+An event finds its container through its thread: event → thread (issue 42) → the workspace that claims it → that workspace's container. The trigger says when and who; the workspace says where.
+
+### Channels and threads
+
+- A GitHub App is both a channel and an access provider. Others needn't be: Linear would be a channel, with code access still through a GitHub App's policy, and optionally an access provider for Linear's own API.
+- Listening and replying stay one interface. A reply goes to the thread it came from. Sending somewhere else, such as a Slack notification, would be an extra output on an agent, not half a channel.
+- Each channel defines who's trusted. For GitHub: users with write access. Only trusted messages go into the prompt.
+- Threads are keyed by channel, e.g. `github:notationlabs/yieldstar#42` or `linear:ENG-123`.
+- A thread selector (`app.issues`, `app.issues.where({ labels: ["docs"] })`) is a plain-data description of which threads match, not a list.
+
+### Containers
+
+- A repo can define several containers. A policy can be passed to several.
+- `files` are written at startup. Agent config is applied the same way, per agent.
+
+### Workspaces
+
+- A workspace is a thread's working state in a container: its worktree, its lock, and a session per agent.
+- `branch` and `base` set up the worktree the first time the thread appears.
+- Several workspaces can claim the same kind of thread with filters. Declaration order decides; the first match wins, and one with no filter catches the rest.
+- A thread sticks to the workspace that claimed it first, so relabelling an issue doesn't move it to another branch.
+- Workspaces in two containers can claim the same thread; events on it then run in both. Each replies on the thread as the same App, and branch templates should differ so they don't push to the same branch.
+- One run per thread per workspace at a time, across all agents, since they share the worktree.
+
+### Agents
+
+- Agents are reusable: one agent can be attached to several triggers.
+- Each agent has its own Claude config directory, so agents in one container can have different settings.
+- **Prompts**: achq's runner prompt, which describes how the runner works (the final message is posted as the reply; the agent can't comment or read issues itself), is always applied. Everything else comes from the repo. The infra has no prompts.
+- **Sessions**: each agent has its own Claude session per thread, shared across the triggers it's attached to. The session key is a hash of everything in the cached prefix: the agent's name and config, the resolved system prompt (runner prompt and the repo's), and the container's and agent's startup files. Changing any of them starts a fresh session rather than resuming with changed config, which would break caching. An achq update that changes the runner prompt starts fresh sessions everywhere. Claude Code's own version isn't pinned or keyed; if its built-in prompt changes, the cache misses once.
+- Replies all come from the App. They aren't labelled with the agent.
+
+### Triggers
+
+- A trigger is an event and an agent. It doesn't name a container or a workspace.
+- A trigger whose events no workspace's threads cover never runs. The deployer reports it.
+
+### Policies and access providers
+
+A policy is plain data, e.g. `{ provider: "github", app: "notation-achq", repos: [...], permissions: {...} }`. A repo can also grant access to other repos, or to another provider's API:
+
+```ts
+new github.RepoPolicy("shared", { app, repo: "notationlabs/shared", permissions: { contents: "read" } });
+new linear.ApiPolicy("linear", { workspace: "notation" });   // Linear's whole workspace: it can't be narrowed
+```
+
+An access provider is code with a part for each side:
+
+```ts
+defineAccess({
+  provider: "github",
+  validate: async (policy, ctx) => {},                     // router: the policy is within what the provider allows
+  mint: async (policy, secret) => ({ value, expiresAt }),  // router: holds the secret, mints a credential
+  install: async (credential, dir) => {},                  // container: makes the credential usable by the agent
+});
+```
+
+- The router and the container load the same provider code and each calls its own part. The container having `mint` doesn't matter: the code is public, and without the router's secret it fails.
+- **Providers come from achq or the infra repo, never from subscriber repos.** A repo only refers to providers that exist; its policies reach the router as data. A repo-supplied provider would run repo code in the router, next to every App's key.
+- The deployer runs `validate` on every policy at deploy time. For GitHub: the App is installed on the repos, their owner is in `owners`, and the permissions are within the App's. Failures go to `ACHQ_STATUS`.
+- GitHub policies under one installation become one token covering their repos. Policies across installations get separate tokens, which git picks between with `credential.useHttpPath`.
+- A policy decides what untrusted content the agent could fetch itself (a token with `issues` can read anyone's comments). Not guarded beyond Claude Code's own tool denials.
 
 ## Running repo config
 
@@ -68,7 +149,7 @@ Repo config is code. It never runs anywhere that holds secrets.
 1. The deployer downloads `.achq/` from the default branch, with a repo-scoped token from the router.
 2. It bundles the config into one file with `Bun.build`, with macros off. Bundling doesn't run the config's code.
 3. It runs the bundle in QuickJS compiled to WebAssembly, which has no filesystem, network or environment access. A Bun subprocess isn't enough: it runs as the same user and could read the deployer's secrets from `/proc/<pid>/environ`.
-4. The config returns a plain-data plan: containers, images, permissions, agents' triggers. The deployer creates the containers and pushes the triggers to the router. Each container runs its own config again at runtime for the agent settings, which can be code.
+4. The config returns a plain-data plan: every resource and its inputs. The deployer creates the containers and pushes events, thread selectors and policies to the router. Each container runs its own config again at runtime for the agent settings, which can be code.
 
 Config can only import `achq` and its own files under `.achq/`.
 
@@ -78,20 +159,28 @@ Config can only import `achq` and its own files under `.achq/`.
 |---|---|---|---|
 | Router | Public, always on | `AGENT_WEBHOOK_KEY`, App private keys, router config | Receives every App's webhooks, filters them, forwards them; mints installation tokens for containers |
 | Deployer | Private, sleeps when idle; the router wakes it | Railway token, Claude token | Evaluates repo config, creates and updates containers |
-| Container | Private, sleeps when idle | Claude token, its current installation token | Runs agents |
+| Container | Private, sleeps when idle | Claude token, its current credentials | Runs agents |
 
 ## Webhooks
 
 - Each App's webhook points at the router. There are no repo webhooks; deploys delete old ones.
 - Each App's webhook secret is derived from `AGENT_WEBHOOK_KEY` and the App ID. GitHub sends the App ID in `X-GitHub-Hook-Installation-Target-ID`, so the router can check any App's deliveries without a list of Apps.
-- A container only accepts events from its own source, so a repo with two Apps installed doesn't run twice.
 - For `edited` events, a mention only counts if it wasn't in the text before the edit (`changes.body.from`).
 
 ## Router config
 
 - The deployer pushes the router's config to an endpoint signed with `AGENT_WEBHOOK_KEY`. The router stores it on a small volume, so it changes without a redeploy.
-- The config says which repos are deployed and each container's triggers. The router drops everything else, so it doesn't wake containers that would ignore the event. The container checks again.
-- A router redeploy loses forwards in flight. GitHub doesn't redeliver automatically; redeliver by hand or comment again. A queue would fix this later.
+- The config says which repos are deployed, and each repo's triggers and workspaces. The router drops everything else, so it doesn't wake containers that would ignore the event. The container checks again.
+
+## Persisted events
+
+The router writes every event it accepts to its volume before answering GitHub, so a crash or restart doesn't lose it.
+
+- Each accepted delivery is written to `inbox/<delivery-id>.json`, then forwarded. It's deleted once its target answers.
+- On startup the router replays everything left in `inbox/`.
+- A delivery that runs out of retries moves to `failed/`, for inspection and replay by hand.
+- A crash between forwarding and deleting means a delivery can arrive twice. Containers and the deployer ignore a delivery ID they've already handled.
+- This isn't a queue: there's no ordering, priority or backpressure. That stays deferred.
 
 ## App keys
 
@@ -99,27 +188,43 @@ Config can only import `achq` and its own files under `.achq/`.
 - `up` writes the App's private key straight to the router's Railway variables. It never touches the local machine. The ACHQ infra's local environment only needs the Railway token and the Claude token.
 - Anything else that needs an App key goes through the router's signed endpoint.
 
-## Installation tokens
+## Credentials
 
-- Containers never hold App private keys. They ask the router for an installation token.
+How the GitHub provider's credentials work. Other providers follow the same pattern where they can.
+
+- Containers never hold App private keys. They ask the router for credentials for their policies.
 - The token endpoint listens on a second port with no public domain, so only the private network reaches it.
-- A container proves its identity with a secret derived from `AGENT_WEBHOOK_KEY` and its repo and container name. The router only mints a token for that repo, with that container's permissions.
+- A container proves its identity with a secret derived from `AGENT_WEBHOOK_KEY` and its repo and container name. The router only mints credentials for that container's policies.
 - Tokens last an hour. A container fetches one when it starts, then refreshes in the background when 30 minutes remain, so a failed refresh retries for half an hour before anything breaks. A stored token with more than 30 minutes left is reused on wake.
-- The token is stored on the container's volume at `/data/github/` (mode `600`). Claude can read it, which is acceptable because it's scoped to one repo and expires within an hour.
+- The token is stored on the container's volume at `/data/github/` (mode `600`). Claude can read it, which is acceptable because it's scoped to the container's policies and expires within an hour.
 - Accepted risk: the App keys sit on the public router. A bug in its webhook handling would expose them. The router is small and only parses JSON and checks signatures.
 
 ## Subscribing
 
 Installing an App on a repo subscribes it; uninstalling unsubscribes it.
 
-- **Install:** the deployer evaluates the repo's config and deploys its containers, if the repo's owner is in `owners` and the config's `source` is the App that was installed.
+- **Install:** the deployer evaluates the repo's config and deploys its containers, if the repo's owner is in `owners` and its policies name the App that was installed.
 - **Uninstall:** the repo is removed from the router config, so events stop reaching it. Its containers and volumes are kept, asleep, costing only storage. Reinstalling adds it back and everything is as it was.
 - **Deletion** is explicit: `achq up --prune` deletes the containers and volumes of repos no longer installed. Railway can't restore a deleted service, and a deleted volume only through an emailed link within 48 hours, so achq never deletes on an event.
+
+- The router forwards `installation` and `installation_repositories` events to the deployer whether or not the repo is deployed yet, since a repo isn't deployed until its install is handled.
+- Installing on many repos at once arrives as one event listing them all. The deployer handles them one by one, each with its own `ACHQ_STATUS`.
 
 Phasing:
 
 1. First: `achq up` handles installs and uninstalls when it syncs.
-2. Later: the router forwards `installation` and `installation_repositories` events to the deployer, which handles them as they happen.
+2. Later: the deployer handles install events as they happen. `achq up` keeps syncing too, to catch anything missed.
+
+## Config changes
+
+The App owns the whole lifecycle, including keeping a repo's deployment in line with its config.
+
+- The App subscribes to `push`. The router forwards to the deployer pushes to a deployed repo's default branch that touch `.achq/`. A push payload's commit list is capped for very large pushes (the exact limit is to be checked against GitHub's docs), so a push that hits the cap is forwarded whatever it touches.
+- The deployer compares the `.achq/` tree at the new head with the one it last deployed. If it's the same, it stops.
+- Otherwise it evaluates the config again and compares the resulting plan with the deployed one. It redeploys only what changed: a container whose image or policies changed is rebuilt; router config is updated for triggers and workspaces.
+- The deployer starts builds itself. Railway no longer watches `.achq/**` on its own.
+- Containers removed from the config are handled like uninstalls: kept asleep, deleted only by `achq up --prune`.
+- The outcome goes to `ACHQ_STATUS`.
 
 ## Checks
 
@@ -152,13 +257,16 @@ Installing is done to a repo, from its settings or with `achq install`, not to a
 |---|---|---|
 | `achq up [--prune] [--dry-run]` | Infra | Brings the infra's resources in line with its code, and is safe to re-run: router and its config, deployer, each App (creating any that are missing) and its webhook settings, then syncs installed repos |
 | `achq status` | Infra or repo | From the infra: Apps, their installations, and each repo's containers and last deploy. From a repo: its `ACHQ_STATUS` |
-| `achq install [--dry-run]` | Repo | Reads the repo's config, checks it, and installs its `source` App on the repo, then waits for the deploy's outcome in `ACHQ_STATUS`. Opens GitHub's install page if the App has no installation on the account yet. |
+| `achq install [--dry-run]` | Repo | Reads the repo's config, checks it, and installs the App its policies name on the repo, then waits for the deploy's outcome in `ACHQ_STATUS`. Opens GitHub's install page if the App has no installation on the account yet. |
 | `achq uninstall` | Repo | Removes the repo from its App's installation; the uninstall flow above follows |
-| `achq ssh`, `achq resume <n>` | Repo | As now |
+| `achq ssh` | Repo | As now |
+| `achq resume <n> [session]` | Repo | Opens a thread's session. With one session it opens it; otherwise it lists them (ID, agent, last run) as a picker, or prints the list when not interactive. |
 
 These replace `app`, `deploy` and `destroy`.
 
-## Still to decide
+## Deferred
 
-- Whether agents in one container share an issue's session or each have their own.
-- What else an agent's settings control: Claude settings, prompts, branch strategy (item 1). Repo config is read from the default branch, never from the issue's worktree.
+- A real queue between the router and containers: ordering, backpressure. The router's persisted events cover crashes and restarts.
+- Handling install and uninstall events as they happen (phase 2 of Subscribing).
+- Hosting the router, deployer and containers on different platforms.
+- Channels and access providers other than GitHub.
