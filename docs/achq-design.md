@@ -6,13 +6,13 @@ Decisions for moving achq from one App with per-repo webhooks to a system that r
 
 - **ACHQ tool**: The CLI, the router, the deployer, the agent, and the resource library. Nothing user-specific. npm-ready (correct `bin` and `exports`) but not published; `bin/achq` stays for putting on `PATH`.
 - **ACHQ infra**: Declares the router, deployer and Apps as resources. Reads secrets from its environment; how they get there (`op run`, direnv, CI, a `.env` file) is up to the user.
-- **ACHQ repos**: `.achq/config.ts` and an image. Defines the conditions an agent works in, and the events on whcih it is dispatched.
+- **ACHQ repos**: `.achq/config.ts` and an image. Defines the conditions an agent works in, and the events on which it is dispatched.
 
 ## Resources
 
 Both the infra and repos are written as a resource graph, Pulumi-shaped: resources take other resources as inputs, and those inputs are the bindings. achq has its own small resource model: each resource can `diff` against what exists and `apply`. A dry run stops after the diff.
 
-### The HQ
+### The infra
 
 ```ts
 export default achq(() => {
@@ -128,19 +128,31 @@ The types can't know which events and permissions an App has enabled, so they're
 | When | Who | Checks against | On failure |
 |---|---|---|---|
 | `achq install --dry-run`, and `install` | CLI, with your `gh` login | `GET /apps/{slug}` | Refuses to install and lists what's missing |
-| Deploy | Deployer, through the router | The App's settings, read as the App | Doesn't deploy; reports why (to be decided) |
+| Deploy | Deployer, through the router | The App's settings, read as the App | Doesn't deploy; writes why to `ACHQ_STATUS` |
 | Container start | Container, through the router | The App's settings | Logs triggers the App doesn't send |
 
 - The deploy check is the authoritative one.
 - `GET /apps/{slug}` returns 404 for a private App, even to its owner's `gh` login (checked against `djgrant-claude`). For private Apps the CLI check skips the App comparison and only checks the repo's own config.
 
+## Deploy results
+
+Installing is done to a repo, from its settings or with `achq install`, not to a commit. So the deployer reports each deploy's outcome on the repo, in a repository variable, `ACHQ_STATUS`:
+
+```json
+{ "state": "failed", "at": "2026-10-17T10:02:00Z", "error": "container default wants issue_comment, which notation-achq doesn't send" }
+```
+
+- `achq install` installs the App, then polls `ACHQ_STATUS` with your `gh` login until it shows a result newer than the install, or times out.
+- `achq status` from a repo reads the same variable, so it reports a failed install made from the repo's settings. From the infra, it reads the deployer's own records for every repo.
+- The App needs the "Variables: write" permission. Containers don't get it: their tokens only carry their own permissions.
+
 ## Commands
 
 | Command | Run from | Does |
 |---|---|---|
-| `achq up [--prune] [--dry-run]` | HQ | Brings the HQ's resources in line with its code, and is safe to re-run: router and its config, deployer, each App (creating any that are missing) and its webhook settings, then syncs installed repos |
-| `achq status` | ACHQ infra | Apps, their installations, and each repo's containers |
-| `achq install [--dry-run]` | Repo | Reads the repo's config, checks it, and installs its `source` App on the repo. Opens GitHub's install page if the App has no installation on the account yet. |
+| `achq up [--prune] [--dry-run]` | Infra | Brings the infra's resources in line with its code, and is safe to re-run: router and its config, deployer, each App (creating any that are missing) and its webhook settings, then syncs installed repos |
+| `achq status` | Infra or repo | From the infra: Apps, their installations, and each repo's containers and last deploy. From a repo: its `ACHQ_STATUS` |
+| `achq install [--dry-run]` | Repo | Reads the repo's config, checks it, and installs its `source` App on the repo, then waits for the deploy's outcome in `ACHQ_STATUS`. Opens GitHub's install page if the App has no installation on the account yet. |
 | `achq uninstall` | Repo | Removes the repo from its App's installation; the uninstall flow above follows |
 | `achq ssh`, `achq resume <n>` | Repo | As now |
 
@@ -148,6 +160,5 @@ These replace `app`, `deploy` and `destroy`.
 
 ## Still to decide
 
-- Where deploy failures are reported. A failed commit status on the default branch is the likeliest.
 - Whether agents in one container share an issue's session or each have their own.
 - What else an agent's settings control: Claude settings, prompts, branch strategy (item 1). Repo config is read from the default branch, never from the issue's worktree.
