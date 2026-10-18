@@ -15,8 +15,8 @@ export const ENV = {
   privatePort: "PRIVATE_PORT",
   /** The deployer's private base URL. Router. */
   deployerUrl: "ACHQ_DEPLOYER_URL",
-  /** `{ [slug]: { id, privateKey } }` as JSON. Router only. */
-  githubApps: "ACHQ_GITHUB_APPS",
+  /** Each App's credential, `{ slug, id, privateKey }` as JSON, is in a variable starting with this. Router only. */
+  githubAppPrefix: "ACHQ_GITHUB_APP_",
   /** Repo owners the deployer serves, comma-separated. */
   owners: "ACHQ_OWNERS",
   repo: "ACHQ_REPO",
@@ -32,3 +32,6 @@ export const STATUS_VARIABLE = "ACHQ_STATUS";
 
 /** Resource names: lowercase letters, digits and dashes, starting with a letter. */
 export const RESOURCE_NAME = /^[a-z][a-z0-9-]{0,30}$/;
+
+/** The variable holding an App's credential, e.g. ACHQ_GITHUB_APP_DJGRANT_CLAUDE. */
+export const githubAppVariable = (slug: string) => ENV.githubAppPrefix + slug.toUpperCase().replace(/[^A-Z0-9]/g, "_");

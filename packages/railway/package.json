@@ -9,7 +9,8 @@
     "./runtime": "./src/runtime/index.ts"
   },
   "dependencies": {
-    "@achq/core": "workspace:*"
+    "@achq/core": "workspace:*",
+    "@achq/reconcile": "workspace:*"
   },
   "devDependencies": {
     "@achq/test-utils": "workspace:*"

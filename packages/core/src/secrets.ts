@@ -1,6 +1,6 @@
 // Every secret derives from AGENT_WEBHOOK_KEY. Each derivation has its own
 // label, so no two collide.
-import { createHmac } from "node:crypto";
+import { createHash, createHmac } from "node:crypto";
 
 const derive = (key: string, label: string) => createHmac("sha256", key).update(label).digest("hex");
 
@@ -13,3 +13,6 @@ export const containerSecret = (key: string, repo: string, container: string) =>
 
 /** Signs requests between the router, the deployer and the infra CLI. */
 export const adminSecret = (key: string) => derive(key, "admin");
+
+/** Identifies a secret's value without revealing it, so a change to it can be noticed. */
+export const secretDigest = (value: string) => createHash("sha256").update(value).digest("hex").slice(0, 16);

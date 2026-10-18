@@ -47,3 +47,16 @@ export const GH_CONFIG_DIR = "gh";
 export const GH_HOSTS_FILE = "hosts.yml";
 export const GIT_CONFIG_FILE = "gitconfig";
 export const TOKEN_SUFFIX = ".token";
+
+export const GITHUB_WEB = "https://github.com";
+
+/** What every achq App sends and is allowed. Installation events are always sent. */
+export const APP_EVENTS = ["issues", "issue_comment", "push"];
+export const APP_PERMISSIONS: Record<string, string> = {
+  contents: "write",
+  issues: "write",
+  pull_requests: "write",
+  metadata: "read",
+  // For the deployer's ACHQ_STATUS repository variable.
+  actions_variables: "write",
+};

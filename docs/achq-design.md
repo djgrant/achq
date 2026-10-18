@@ -185,10 +185,20 @@ The router writes every event it accepts to its volume before answering GitHub, 
 - A crash between forwarding and deleting means a delivery can arrive twice. Containers and the deployer ignore a delivery ID they've already handled.
 - This isn't a queue: there's no ordering, priority or backpressure. That stays deferred.
 
-## App keys
+## Infra
 
-- An App is added by declaring it in the ACHQ infra. `up` notices it has no credentials and runs GitHub's manifest flow.
-- `up` writes the App's private key straight to the router's Railway variables. It never touches the local machine. The ACHQ infra's local environment only needs the Railway token and the Claude token.
+- `up` builds one graph from the infra. Each resource is expanded by its platform (`railway.Router`, `railway.Deployer`, `github.App`) into live resources: the project, each service's settings, private hostname, volume, public domains, variables and deploy, the secrets, the Apps.
+- Resources reach each other through handles (the router's public URL, its secret store, the variables others give it), never through a platform's internals. An App gives the router its credential; the deployer gives it its URL. A resource on another platform only needs its own expander.
+- Nothing is stored between runs: each live resource reads what exists, and the plan is the difference. A dry run reads and changes nothing. A resource whose inputs depend on one that doesn't exist yet shows as `?`.
+- Resources are evaluated on demand, so the order is what they depend on: an App is created once the router has a domain, and the router's variables are set once each App's credential is stored. The router deploys once, with everything in place.
+- The container host builds each container's service from the same Railway resources.
+
+## Secrets
+
+- The infra's secrets are kept as shared variables in its Railway environment: `AGENT_WEBHOOK_KEY`, each App's credential (`ACHQ_GITHUB_APP_<SLUG>`, its slug, ID and private key as JSON), `RAILWAY_API_TOKEN` and `CLAUDE_CODE_OAUTH_TOKEN`. A service's variables only refer to them (`${{shared.NAME}}`), and Railway only gives a service the shared variables it refers to. Plans and logs carry names, never values.
+- An App is added by declaring it in the ACHQ infra. `up` notices it has no credential and runs GitHub's manifest flow, then writes the private key straight to its shared variable. It never touches the local machine. The ACHQ infra's local environment only needs the Railway token and the Claude token.
+- A new Railway or Claude token in that environment replaces the kept one. A deploy's fingerprint includes a digest of each secret its variables refer to, so the services that use a changed secret redeploy, and nothing else does.
+- Infra set up before shared variables kept `AGENT_WEBHOOK_KEY` and every App's credential (`ACHQ_GITHUB_APPS`) in the router's own variables. `up` finds them there and moves them, rather than making a new key and new Apps. The old `ACHQ_GITHUB_APPS` variable stays on the router, unused.
 - Anything else that needs an App key goes through the router's signed endpoint.
 
 ## Credentials
@@ -256,7 +266,7 @@ Installing is done to a repo, from its settings or with `achq install`, not to a
 
 | Command | Run from | Does |
 |---|---|---|
-| `achq up [--prune] [--dry-run]` | Infra | Brings the infra's resources in line with its code, and is safe to re-run: router and its config, deployer, each App (creating any that are missing) and its webhook settings, then syncs installed repos |
+| `achq up [--prune] [--dry-run]` | Infra | Brings the infra's resources in line with its code, and is safe to re-run: the router and deployer, their secrets, each App (creating any that are missing) and its webhook settings, then syncs installed repos |
 | `achq status` | Infra or repo | From the infra: Apps, their installations, and each repo's containers and last deploy. From a repo: its `ACHQ_STATUS` |
 | `achq install [--dry-run]` | Repo | Reads the repo's config, checks it, and installs the App its policies name on the repo, then waits for the deploy's outcome in `ACHQ_STATUS`. Opens GitHub's install page if the App has no installation on the account yet. |
 | `achq uninstall` | Repo | Removes the repo from its App's installation; the uninstall flow above follows |

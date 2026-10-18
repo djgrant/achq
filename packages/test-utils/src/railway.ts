@@ -19,6 +19,8 @@ type FakeProject = {
   id: string;
   name: string;
   environmentId: string;
+  /** The environment's shared variables. */
+  shared: Record<string, string>;
   services: FakeService[];
   volumes: { id: string; serviceId: string; mountPath: string }[];
 };
@@ -59,7 +61,7 @@ export const startFakeRailway = (seed: { workspaces?: string[] } = {}): FakeRail
     apiToken: () => ({ workspaces }),
     projects: () => ({ edges: projects.map((p) => ({ node: { id: p.id, name: p.name } })) }),
     projectCreate: ({ input }) => {
-      const p: FakeProject = { id: id("proj"), name: input.name, environmentId: id("env"), services: [], volumes: [] };
+      const p: FakeProject = { id: id("proj"), name: input.name, environmentId: id("env"), shared: {}, services: [], volumes: [] };
       projects.push(p);
       return { id: p.id };
     },
@@ -113,9 +115,16 @@ export const startFakeRailway = (seed: { workspaces?: string[] } = {}): FakeRail
     },
     serviceInstanceDeploy: ({ serviceId }) => (deploy(findService(serviceId).service), true),
     serviceInstanceDeployV2: ({ serviceId }) => (deploy(findService(serviceId).service), id("dep")),
-    variables: ({ serviceId }) => ({ ...findService(serviceId).service.variables }),
+    // Without a service, the environment's shared variables. Rendered, `${{shared.NAME}}` is replaced by its value, as Railway does.
+    variables: ({ projectId, serviceId, unrendered }) => {
+      if (!serviceId) return { ...projects.find((p) => p.id === projectId)!.shared };
+      const { project, service } = findService(serviceId);
+      if (unrendered) return { ...service.variables };
+      return Object.fromEntries(Object.entries(service.variables).map(([k, v]) => [k, v.replace(/\$\{\{shared\.(\w+)\}\}/g, (_, name) => project.shared[name] ?? "")]));
+    },
     variableCollectionUpsert: ({ input }) => {
-      Object.assign(findService(input.serviceId).service.variables, input.variables);
+      if (!input.serviceId) Object.assign(projects.find((p) => p.id === input.projectId)!.shared, input.variables);
+      else Object.assign(findService(input.serviceId).service.variables, input.variables);
       return true;
     },
     volumeCreate: ({ input }) => {

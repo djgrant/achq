@@ -11,6 +11,7 @@ import { need } from "../lib/env.ts";
 import { userGitHub } from "../lib/gh.ts";
 import { loadInfra } from "../lib/load/infra.ts";
 import { manifestFlow } from "../lib/manifest.ts";
+import { infraExpanders } from "../lib/up/expanders.ts";
 import { formatSync } from "../lib/up/format.ts";
 import { up } from "../lib/up/up.ts";
 import { infraFile } from "../lib/workdir.ts";
@@ -27,12 +28,12 @@ export const command = defineCommand({
     if (!file) throw new Error(`Run this in the ACHQ infra repo, which has ${INFRA_FILE} at its root`);
     const infra = await loadInfra(file);
     const railwayToken = need(CLI_ENV.railwayToken, "Create a token at https://railway.com/account/tokens.");
-    const result = await up(infra, { prune: context.prune, dryRun: context.dryRun }, {
+    const log = (line: string) => console.log(line);
+    const expanders = infraExpanders({
       railway: new RailwayClient(railwayToken),
-      railwayToken,
-      claudeToken: need(ENV.claudeToken, "Run `claude setup-token`."),
       workspaceId: process.env[CLI_ENV.railwayWorkspace],
-      achqRef: () => lastCommit(userGitHub(), ACHQ_SOURCE),
+      ref: await lastCommit(userGitHub(), ACHQ_SOURCE),
+      tokens: { railway: railwayToken, claude: need(ENV.claudeToken, "Run `claude setup-token`.") },
       createApp: (request) =>
         manifestFlow(request, {
           open: async (url) => {
@@ -40,8 +41,9 @@ export const command = defineCommand({
             await openInBrowser(url);
           },
         }),
-      log: (line) => console.log(line),
+      log,
     });
+    const result = await up(infra, { prune: context.prune, dryRun: context.dryRun }, { expanders, log });
     if (result) for (const line of formatSync(result, context.dryRun)) console.log(`  sync: ${line}`);
   }),
 });

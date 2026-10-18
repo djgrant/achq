@@ -1,11 +1,12 @@
-export { PUSH_COMMIT_CAP, TRUSTED } from "../constants.ts";
+export { APP_EVENTS, APP_PERMISSIONS, GITHUB_WEB, PUSH_COMMIT_CAP, TRUSTED } from "../constants.ts";
 export { GitHubAccess } from "./access.ts";
-export { type AppKeys, parseApps } from "./app-keys.ts";
+export { type AppKeys, parseAppCredential, parseApps } from "./app-keys.ts";
 export { Apps } from "./apps.ts";
 export { GitHubChannel } from "./channel.ts";
 export { GitHubChannelClient } from "./client.ts";
 export { parseEvent } from "./events.ts";
 export { gitConfig } from "./git-credentials.ts";
+export * from "./infra/index.ts";
 export { createGitHub, type GitHubOptions } from "./github.ts";
 export { matchEvent, matchThread } from "./match.ts";
 export { messageId } from "./messages.ts";

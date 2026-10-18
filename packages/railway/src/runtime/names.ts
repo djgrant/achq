@@ -23,3 +23,6 @@ export const containerServiceName = (repo: string, name: string) => serviceName(
 export const privateUrl = (service: string, port: number) => `http://${service}.${PRIVATE_DOMAIN}:${port}`;
 
 export const containerUrl = (service: string) => privateUrl(service, CONTAINER_PORT);
+
+/** A service's public base URL, from its domain. */
+export const publicBase = (domain: string) => `https://${domain}`;

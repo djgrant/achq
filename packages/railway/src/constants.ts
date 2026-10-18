@@ -23,3 +23,10 @@ export const DEPLOYED = "ACHQ_DEPLOYED";
 export const CONNECTED = "ACHQ_CONNECTED";
 /** The branch a container's service builds from. */
 export const BRANCH = "ACHQ_BRANCH";
+
+/** How often `achq up` checks the router's new deploy, and how many times: five minutes in all. */
+export const DEPLOY_POLL_INTERVAL_MS = 5000;
+export const DEPLOY_POLL_ATTEMPTS = 60;
+
+/** Where the router's variables kept every App's credential, as JSON, before they moved to shared variables. */
+export const LEGACY_GITHUB_APPS = "ACHQ_GITHUB_APPS";
