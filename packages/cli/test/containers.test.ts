@@ -4,6 +4,7 @@ import { containersOf, pickContainer } from "../src/lib/remote/containers.ts";
 
 const location = (service: string) => ({ platform: "railway", project: "p1", environment: "e1", service });
 const status: Status = {
+  host: "github",
   repo: "notationlabs/yieldstar",
   source: "notation-achq",
   state: "deployed",

@@ -18,7 +18,8 @@ const toDeployer = async (ctx: RouterContext, method: string, path: string, body
 const putRepo = async (ctx: RouterContext, path: string, body: string) => {
   const config = parse<RouterRepoConfig>(body);
   const valid =
-    config?.repo?.toLowerCase() === path.toLowerCase() &&
+    typeof config?.host === "string" &&
+    config.repo?.toLowerCase() === path.toLowerCase() &&
     typeof config.commit === "string" &&
     [config.containers, config.workspaces, config.triggers].every(Array.isArray);
   if (!valid) return text("bad config", 400);

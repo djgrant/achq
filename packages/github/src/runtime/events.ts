@@ -61,37 +61,31 @@ export const parseEvent = (source: string, headers: Headers, body: string): Chan
     const touchesConfig = commits.some((c) =>
       [...(c.added ?? []), ...(c.modified ?? []), ...(c.removed ?? [])].some((f: string) => f.startsWith(CONFIG_DIR)),
     );
+    // A list that hit the cap may have dropped commits, so it can't say `.achq/` didn't change.
+    const truncated = commits.length >= PUSH_COMMIT_CAP;
     return {
       ...base,
       type: "push",
       repo,
-      detail: {
-        ref: p.ref ?? "",
-        defaultBranch: p.repository?.default_branch ?? "",
-        after: p.after ?? "",
-        deleted: Boolean(p.deleted),
-        touchesConfig,
-        truncated: commits.length >= PUSH_COMMIT_CAP,
-      },
+      configChanged: p.ref === `refs/heads/${p.repository?.default_branch}` && (touchesConfig || truncated),
+      detail: { ref: p.ref ?? "", after: p.after ?? "", deleted: Boolean(p.deleted) },
     };
   }
 
   if (name === "installation" || name === "installation_repositories") {
     const actions = name === "installation" ? INSTALLATION_ACTIONS : INSTALLATION_REPOS_ACTIONS;
     if (!actions.has(p.action)) return undefined;
-    const added = name === "installation" ? (p.action === "created" ? fullNames(p.repositories) : []) : fullNames(p.repositories_added);
-    const removed = name === "installation" ? (p.action === "deleted" ? fullNames(p.repositories) : []) : fullNames(p.repositories_removed);
+    // For an installation, the repos it covers (when GitHub lists them): suspending removes them, unsuspending adds them back.
+    const listed = fullNames(p.repositories);
+    const adds = p.action === "created" || p.action === "unsuspend";
     return {
       ...base,
       type: `${name}.${p.action}`,
-      detail: {
-        installation: p.installation?.id ?? 0,
-        account: p.installation?.account?.login ?? "",
-        // For suspend and unsuspend, the repos the installation covers (when GitHub lists them).
-        repos: fullNames(p.repositories),
-        added,
-        removed,
+      installation: {
+        added: name === "installation" ? (adds ? listed : []) : fullNames(p.repositories_added),
+        removed: name === "installation" ? (adds ? [] : listed) : fullNames(p.repositories_removed),
       },
+      detail: { installation: p.installation?.id ?? 0, account: p.installation?.account?.login ?? "" },
     };
   }
   return undefined;

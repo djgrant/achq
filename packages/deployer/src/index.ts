@@ -8,5 +8,4 @@ export * from "./server.ts";
 export * from "./store.ts";
 export * from "./atomic-write.ts";
 export * from "./clients/router.ts";
-export * from "./clients/github.ts";
-export { DEFAULT_FILE_LIMITS, DEPLOYER_PERMISSIONS } from "./constants.ts";
+export { DEFAULT_FILE_LIMITS } from "./constants.ts";

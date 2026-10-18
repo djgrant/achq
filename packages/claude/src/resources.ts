@@ -1,3 +1,4 @@
+import { AGENT_KIND } from "./constants.ts";
 import { Agent } from "@achq/core";
 
 export type ClaudeConfig = {
@@ -12,5 +13,5 @@ export type ClaudeConfig = {
 };
 
 export class Claude extends Agent<ClaudeConfig> {
-  readonly agentKind = "claude";
+  readonly agentKind = AGENT_KIND;
 }

@@ -2,7 +2,7 @@
 // are turned off once a service is connected.
 import { type Change, ENV, type ContainerHost, type ContainerSpec, type ServiceState } from "@achq/core";
 import { type ProjectSnapshot, RailwayClient } from "../api.ts";
-import { BRANCH, CONNECTED, PLATFORM, RAILWAY_API } from "../constants.ts";
+import { BRANCH, CONNECTED, PLATFORM, RAILWAY_API, SOURCE_HOST } from "../constants.ts";
 import { containerServiceName, containerUrl } from "./names.ts";
 import { planService } from "./plan.ts";
 import { containerServiceSpec } from "./specs.ts";
@@ -61,6 +61,7 @@ export class RailwayContainerHost implements ContainerHost {
   }
 
   async ensure(spec: ContainerSpec) {
+    if (spec.host !== SOURCE_HOST) throw new Error(`Railway builds containers from ${SOURCE_HOST} repos, not ${spec.host}`);
     const service = containerServiceName(spec.repo, spec.name);
     await (await this.planEnsure(spec)).apply();
     return { url: containerUrl(service), service };

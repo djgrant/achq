@@ -6,7 +6,7 @@ import { type FakeRailway, startFakeRailway } from "@achq/test-utils/railway";
 let fake: FakeRailway;
 let host: ReturnType<typeof railwayContainerHost>;
 
-const spec = { repo: "NotationLabs/yieldstar", name: "dev", dockerfile: ".achq/Dockerfile", branch: "main", env: { CLAUDE_CODE_OAUTH_TOKEN: "tok" } };
+const spec = { host: "github", repo: "NotationLabs/yieldstar", name: "dev", dockerfile: ".achq/Dockerfile", branch: "main", env: { CLAUDE_CODE_OAUTH_TOKEN: "tok" } };
 
 beforeEach(async () => {
   fake = startFakeRailway();
@@ -98,4 +98,8 @@ test("list reads services' repo and container, locate says where, remove deletes
   expect(project.volumes).toHaveLength(1);
   expect(await host.state(spec.repo, "dev")).toBe("missing");
   await host.remove(spec.repo, "dev"); // already gone: nothing to do
+});
+
+test("only builds repos on GitHub", async () => {
+  await expect(host.ensure({ ...spec, host: "gitlab" })).rejects.toThrow("Railway builds containers from github repos, not gitlab");
 });

@@ -15,14 +15,19 @@ export const ENV = {
   privatePort: "PRIVATE_PORT",
   /** The deployer's private base URL. Router. */
   deployerUrl: "ACHQ_DEPLOYER_URL",
-  /** `{ [slug]: { id, privateKey } }` as JSON. Router only. */
-  githubApps: "ACHQ_GITHUB_APPS",
   /** Repo owners the deployer serves, comma-separated. */
   owners: "ACHQ_OWNERS",
   repo: "ACHQ_REPO",
   container: "ACHQ_CONTAINER",
   containerSecret: "ACHQ_CONTAINER_SECRET",
-  claudeToken: "CLAUDE_CODE_OAUTH_TOKEN",
+  /** Where the container clones its repo from: `RepoHost.cloneUrl`. */
+  repoUrl: "ACHQ_REPO_URL",
+  /** What the deployer gives every container, as JSON: the agent runtimes' variables. */
+  containerEnv: "ACHQ_CONTAINER_ENV",
+  /** Comma-separated: variables a container never hands to an agent, from the platform and providers. */
+  privateEnv: "ACHQ_PRIVATE_ENV",
+  /** A URL a container fetches every few minutes while it's working, on platforms that sleep idle services. */
+  keepAwakeUrl: "ACHQ_KEEP_AWAKE_URL",
   /** The achq commit a container or service runs. */
   ref: "ACHQ_REF",
   /** Where a service's or container's volume is. Each platform sets it. */
@@ -31,8 +36,15 @@ export const ENV = {
   platform: "ACHQ_PLATFORM",
 } as const;
 
-/** Where achq's own code is, as `owner/repo` on GitHub. The router and deployer run it from there. */
-export const ACHQ_SOURCE = "djgrant/achq";
+/** Where achq's own code is. The router and deployer run it from there. */
+export const ACHQ_SOURCE = {
+  /** The `Provider` hosting it. */
+  host: "github",
+  repo: "djgrant/achq",
+  branch: "main",
+  /** A tarball of it, followed by a commit. */
+  archive: "https://codeload.github.com/djgrant/achq/tar.gz/",
+};
 
 /** The repository variable the deployer reports each deploy's outcome in. */
 export const STATUS_VARIABLE = "ACHQ_STATUS";

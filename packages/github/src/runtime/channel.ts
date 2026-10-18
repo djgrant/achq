@@ -1,5 +1,5 @@
 import type { Channel, ChannelClient, ChannelEvent, Credential, SelectorData, ThreadRef } from "@achq/core";
-import { appWebhookSecret } from "@achq/core/secrets";
+import { appWebhookSecret } from "./webhook-secret.ts";
 import { CHANNEL, CLIENT_PERMISSIONS, REPO } from "../constants.ts";
 import type { Apps } from "./apps.ts";
 import { GitHubChannelClient } from "./client.ts";
@@ -36,7 +36,7 @@ export class GitHubChannel implements Channel {
       provider: CHANNEL,
       value: token.token,
       expiresAt: token.expires_at,
-      scope: { app: source, installation: installation.id, repos: [repo], permissions: CLIENT_PERMISSIONS },
+      scope: { source, app: source, installation: installation.id, repos: [repo], permissions: CLIENT_PERMISSIONS },
     };
   }
 

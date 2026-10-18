@@ -1,6 +1,6 @@
 // `achq install` and `uninstall` act with your gh login, not as the App.
-import type { GitHubClient } from "@achq/github/api";
-import { GITHUB_WEB } from "../../constants.ts";
+import type { GitHubClient } from "../api/client.ts";
+import { GITHUB_WEB } from "../constants.ts";
 
 type InstallationRow = { id: number; app_slug: string; account: { login: string; type: string }; repository_selection: "all" | "selected" };
 

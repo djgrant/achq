@@ -1,5 +1,5 @@
-import { ENV, ROUTER_PRIVATE_PORT, ROUTER_PUBLIC_PORT } from "@achq/core";
-import { createGitHub, parseApps } from "@achq/github/runtime";
+import { ENV, ROUTER_PRIVATE_PORT, ROUTER_PUBLIC_PORT, type RepoHost } from "@achq/core";
+import { PROVIDERS } from "achq/registry";
 import { DEFAULT_DATA_DIR } from "./constants.ts";
 import { createRouter } from "./router.ts";
 
@@ -10,22 +10,24 @@ const need = (name: string) => {
 };
 
 export const main = async () => {
+  const env = process.env;
   const key = need(ENV.key);
-  const github = createGitHub({ apps: parseApps(need(ENV.githubApps)), key });
+  const sides = PROVIDERS.map((p) => p.router(env, key));
   const router = createRouter({
-    channels: [github.channel],
-    providers: [github.access],
+    channels: sides.flatMap((s) => (s.channel ? [s.channel] : [])),
+    providers: sides.flatMap((s) => (s.access ? [s.access] : [])),
+    hosts: Object.fromEntries(PROVIDERS.flatMap((p): [string, RepoHost][] => (p.repos ? [[p.id, p.repos(env)]] : []))),
     key,
     deployerUrl: need(ENV.deployerUrl),
-    dataDir: process.env[ENV.dataDir] ?? DEFAULT_DATA_DIR,
-    installations: github.installations,
-    sources: github.sources,
+    dataDir: env[ENV.dataDir] ?? DEFAULT_DATA_DIR,
+    installations: async () => (await Promise.all(sides.map((s) => s.installations()))).flat(),
+    sources: async () => (await Promise.all(sides.map((s) => s.sources()))).flat(),
   });
   // Loaded before serving, so no event is routed against an empty config.
   await router.start();
-  const publicPort = Number(process.env.PORT ?? ROUTER_PUBLIC_PORT);
-  const privatePort = Number(process.env[ENV.privatePort] ?? ROUTER_PRIVATE_PORT);
-  // "::" so Railway's private network (IPv6) reaches it.
+  const publicPort = Number(env.PORT ?? ROUTER_PUBLIC_PORT);
+  const privatePort = Number(env[ENV.privatePort] ?? ROUTER_PRIVATE_PORT);
+  // "::" so private networks over IPv6 reach it.
   Bun.serve({ port: publicPort, hostname: "::", fetch: router.publicFetch });
   Bun.serve({ port: privatePort, hostname: "::", fetch: router.privateFetch });
   console.log(`achq router listening on :${publicPort} (public) and :${privatePort} (private)`);

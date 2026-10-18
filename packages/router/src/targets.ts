@@ -9,20 +9,11 @@ export type Target =
 /** Per thread key, per container: the workspace the container says claimed it. */
 export type Claims = Record<string, Record<string, string>>;
 
-/**
- * A push the deployer should look at: to the default branch, touching `.achq/`.
- * A truncated commit list can't say what it touched, so it counts.
- */
-const redeploys = (event: ChannelEvent) => {
-  const { ref, defaultBranch, touchesConfig, truncated } = event.detail;
-  return ref === `refs/heads/${defaultBranch}` && (touchesConfig === true || truncated === true);
-};
-
 export const targetsFor = (channel: Channel, event: ChannelEvent, config: RouterRepoConfig | undefined, claims: Claims): Target[] => {
   // A repo isn't deployed until its install is handled, so installs always go through.
-  if (event.type.startsWith("installation")) return [{ kind: "deployer" }];
+  if (event.installation) return [{ kind: "deployer" }];
   if (!config) return [];
-  if (event.type === "push") return redeploys(event) ? [{ kind: "deployer" }] : [];
+  if (event.configChanged) return [{ kind: "deployer" }];
 
   // Only wake a container for something it would act on. It checks again.
   if (!event.actor?.trusted || event.actor.bot || !event.thread) return [];

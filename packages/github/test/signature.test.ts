@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { appWebhookSecret } from "@achq/core/secrets";
+import { appWebhookSecret } from "../src/runtime/webhook-secret.ts";
 import { hmacHex } from "@achq/core/signing";
 import { verifyGitHubSignature } from "../src/runtime/signature.ts";
 

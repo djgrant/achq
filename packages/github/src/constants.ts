@@ -1,4 +1,5 @@
 export const GITHUB_API = "https://api.github.com";
+export const GITHUB_WEB = "https://github.com";
 export const API_VERSION = "2022-11-28";
 export const USER_AGENT = "achq";
 
@@ -47,3 +48,46 @@ export const GH_CONFIG_DIR = "gh";
 export const GH_HOSTS_FILE = "hosts.yml";
 export const GIT_CONFIG_FILE = "gitconfig";
 export const TOKEN_SUFFIX = ".token";
+
+/** The variables GitHub's parts read. */
+export const GITHUB_ENV = {
+  /** `{ [slug]: { id, privateKey } }` as JSON. Router only: `achq up` sets it. */
+  apps: "ACHQ_GITHUB_APPS",
+  /** Points the API client at a fake. */
+  api: "GITHUB_API_URL",
+  /** Points web links and clone URLs at a fake. */
+  web: "GITHUB_WEB_URL",
+} as const;
+
+/** Variables that only exist on the router, or that an App's own tooling sets. */
+export const PRIVATE_ENV = [GITHUB_ENV.apps, "GITHUB_APP_PRIVATE_KEY", "GITHUB_WEBHOOK_SECRET", "GITHUB_APP_ID"];
+
+/**
+ * What the deployer's own token needs on a repo: read `.achq/` and write the
+ * ACHQ_STATUS variable. `actions_variables` is the token key for the
+ * "Variables" repository permission. The OpenAPI `app-permissions` schema
+ * doesn't list it, but GitHub's endpoint docs do:
+ * https://docs.github.com/en/rest/authentication/permissions-required-for-github-apps
+ */
+export const DEPLOYER_PERMISSIONS = { contents: "read", metadata: "read", actions_variables: "write" } as const;
+
+/** GitHub's rules for owner and repository names. */
+export const REPO_NAME = /^[A-Za-z0-9-]{1,39}\/[A-Za-z0-9._-]{1,100}$/;
+
+/** What every achq App sends and is allowed. Installation events are always sent. */
+export const APP_EVENTS = ["issues", "issue_comment", "push"];
+export const APP_PERMISSIONS: Record<string, string> = {
+  contents: "write",
+  issues: "write",
+  pull_requests: "write",
+  metadata: "read",
+  // For the deployer's ACHQ_STATUS repository variable.
+  actions_variables: "write",
+};
+
+/** What any repo's config needs from its App: pushes keep the deployment in line with the config, and the deployer writes ACHQ_STATUS. */
+export const CONFIG_EVENTS = ["push"];
+export const CONFIG_PERMISSIONS: Record<string, string> = { metadata: "read", actions_variables: "write" };
+
+/** The homepage every App's manifest links to. */
+export const ACHQ_HOMEPAGE = "https://github.com/djgrant/achq";

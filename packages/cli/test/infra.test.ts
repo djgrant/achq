@@ -62,5 +62,6 @@ export default achq(() => {
   const loaded = await loadInfra(path.join(tmp, "achq.infra.ts"));
   expect(loaded.platform.id).toBe("railway");
   expect(loaded.deployer.inputs.owners).toEqual(["djgrant", "notationlabs"]);
-  expect(loaded.apps.map((a) => [a.inputs.name, a.inputs.org])).toEqual([["djgrant-claude", undefined], ["notation-achq", "notationlabs"]]);
+  const github = loaded.providers.find((p) => p.id === "github")!;
+  expect(github.resources.map((a) => [(a as any).inputs.name, (a as any).inputs.org])).toEqual([["djgrant-claude", undefined], ["notation-achq", "notationlabs"]]);
 });

@@ -4,8 +4,8 @@ import { infraStatusTable } from "../src/lib/status/format.ts";
 test("the infra status lists installed and deployed repos, with errors underneath", () => {
   const table = infraStatusTable(
     [
-      { repo: "notationlabs/yieldstar", source: "notation-achq", state: "deployed", at: "2026-10-17T10:00:00Z", containers: [{ name: "dev", location: {} }] },
-      { repo: "djgrant/rfcs", source: "djgrant-claude", state: "failed", at: "2026-10-17T11:00:00Z", error: "no .achq/config.ts" },
+      { host: "github", repo: "notationlabs/yieldstar", source: "notation-achq", state: "deployed", at: "2026-10-17T10:00:00Z", containers: [{ name: "dev", location: {} }] },
+      { host: "github", repo: "djgrant/rfcs", source: "djgrant-claude", state: "failed", at: "2026-10-17T11:00:00Z", error: "no .achq/config.ts" },
     ],
     [
       { provider: "github", source: "notation-achq", repo: "NotationLabs/yieldstar" },

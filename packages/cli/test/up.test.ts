@@ -4,14 +4,14 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { achq, type SyncResult } from "@achq/core";
-import { adminSecret, appWebhookSecret } from "@achq/core/secrets";
+import { adminSecret } from "@achq/core/secrets";
 import { verifySigned } from "@achq/core/signing";
 import * as github from "@achq/github";
+import { appWebhookSecret } from "@achq/github/runtime";
 import { type FakeRailway, startFakeRailway } from "@achq/test-utils/railway";
 import * as railway from "@achq/railway";
 import { railwayInfra } from "@achq/railway/runtime";
 import { checkInfra } from "../src/lib/load/infra.ts";
-import { manifestFlow } from "../src/lib/manifest.ts";
 import { up, type UpDeps } from "../src/lib/up/up.ts";
 
 const { privateKey: pem, publicKey } = generateKeyPairSync("rsa", { modulusLength: 2048, privateKeyEncoding: { type: "pkcs8", format: "pem" }, publicKeyEncoding: { type: "spki", format: "pem" } });
@@ -24,6 +24,8 @@ const infra = () =>
       const deployer = new railway.Deployer("deployer", { project: "achq", router, owners: ["djgrant", "notationlabs"] });
       new github.App("personal", { name: "djgrant-claude", router, deployer });
     })(),
+    // GitHub's API and web both point at the fake.
+    { GITHUB_API_URL: `http://localhost:${gh.port}`, GITHUB_WEB_URL: `http://localhost:${gh.port}` },
   );
 
 let fake: FakeRailway;
@@ -93,26 +95,23 @@ afterEach(() => {
 
 const deps = (log: string[] = []): UpDeps => ({
   platform: railwayInfra({ project: "achq", token: "railway-token", workspaceId: "ws", endpoint: fake.url, sleep: async () => {} }),
-  claudeToken: "claude-token",
+  containerEnv: { CLAUDE_CODE_OAUTH_TOKEN: "claude-token" },
   achqRef: async () => "abc123",
-  githubApi: `http://localhost:${gh.port}`,
   routerUrl: () => `http://localhost:${routerServer.port}`,
   log: (line) => log.push(line),
   // The real manifest flow, with a "browser" that follows the page to GitHub and back.
-  createApp: (request) =>
-    manifestFlow(request, {
-      githubApi: `http://localhost:${gh.port}`,
-      open: async (page) => {
-        const html = await (await fetch(page)).text();
-        const state = html.match(/state=([0-9a-f]+)/)![1];
-        const manifest = JSON.parse(html.match(/value='([^']*)'/)![1].replace(/&#39;/g, "'"));
-        expect(manifest.hook_attributes).toEqual({ url: `http://localhost:${routerServer.port}/webhook`, active: true });
-        expect(manifest.default_events).toEqual(["issues", "issue_comment", "push"]);
-        expect(manifest.public).toBe(true);
-        const res = await fetch(`${manifest.redirect_url}?code=the-code&state=${state}`);
-        expect(res.ok).toBe(true);
-      },
-    }),
+  open: async (page, what) => {
+    expect(what).toBe("create djgrant-claude on GitHub");
+    const html = await (await fetch(page)).text();
+    expect(html).toContain(`action="http://localhost:${gh.port}/settings/apps/new?state=`);
+    const state = html.match(/state=([0-9a-f]+)/)![1];
+    const manifest = JSON.parse(html.match(/value='([^']*)'/)![1].replace(/&#39;/g, "'"));
+    expect(manifest.hook_attributes).toEqual({ url: `http://localhost:${routerServer.port}/webhook`, active: true });
+    expect(manifest.default_events).toEqual(["issues", "issue_comment", "push"]);
+    expect(manifest.public).toBe(true);
+    const res = await fetch(`${manifest.redirect_url}?code=the-code&state=${state}`);
+    expect(res.ok).toBe(true);
+  },
 });
 
 const scan = (dir: string): string[] =>
@@ -162,7 +161,7 @@ test("up creates everything, puts the App's key only in the router's variables, 
     ACHQ_OWNERS: "djgrant,notationlabs",
     RAILWAY_API_TOKEN: "railway-token",
     ACHQ_RAILWAY_PROJECT_ID: fake.project("achq")!.id,
-    CLAUDE_CODE_OAUTH_TOKEN: "claude-token",
+    ACHQ_CONTAINER_ENV: JSON.stringify({ CLAUDE_CODE_OAUTH_TOKEN: "claude-token" }),
     ACHQ_REF: "abc123",
   });
   // The router deployed again with the new key.

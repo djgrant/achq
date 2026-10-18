@@ -1,6 +1,5 @@
-// GitHub as your `gh` login. Commands take a `GitHubClient`, so tests point it at a fake.
-import { GITHUB_API, GitHubClient } from "@achq/github/api";
-import { CLI_ENV } from "../constants.ts";
+// GitHub as your `gh` login: `achq install`, `uninstall` and the repo commands act as you, not as the App.
+import { GitHubClient } from "../api/client.ts";
 
 export const ghToken = () => {
   const { stdout, success, stderr } = Bun.spawnSync(["gh", "auth", "token"], { stderr: "pipe" });
@@ -8,7 +7,7 @@ export const ghToken = () => {
   return stdout.toString().trim();
 };
 
-export const userGitHub = (baseUrl = process.env[CLI_ENV.githubApi] ?? GITHUB_API) => {
+export const userGitHub = (baseUrl: string) => {
   let token: string | undefined;
   return new GitHubClient(() => `token ${(token ??= ghToken())}`, baseUrl);
 };

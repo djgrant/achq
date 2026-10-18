@@ -1,11 +1,12 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { CONFIG_IMPORTS } from "../constants.ts";
+import { CONFIG_MODULES } from "achq/registry";
 
-/** What a config's `achq` and `achq/github` imports resolve to. */
-const MODULES: Record<string, string> = Object.fromEntries(CONFIG_IMPORTS.map((specifier) => [specifier, Bun.resolveSync(specifier, import.meta.dir)]));
+/** What a config's bare imports resolve to. */
+const MODULES: Record<string, string> = Object.fromEntries(CONFIG_MODULES.map((specifier) => [specifier, Bun.resolveSync(specifier, import.meta.dir)]));
+const ALLOWED = `${CONFIG_MODULES.join(", ")} and its own files`;
 
-/** Bundles `.achq/config.ts`, refusing imports other than `achq`, `achq/github` and files in `.achq/`. */
+/** Bundles `.achq/config.ts`, refusing imports other than CONFIG_MODULES and files in `.achq/`. */
 export const bundleConfig = async (root: string, outdir: string) => {
   const entry = path.join(root, "config.ts");
   if (!fs.existsSync(entry)) throw new Error("There's no .achq/config.ts");
@@ -24,7 +25,7 @@ export const bundleConfig = async (root: string, outdir: string) => {
           // same module instance the runner reads them from.
           build.onResolve({ filter: /^[^./]/ }, (args) => {
             const target = modules[args.path];
-            if (!target) throw new Error(`.achq/ can only import achq, achq/github and its own files, not "${args.path}"`);
+            if (!target) throw new Error(`.achq/ can only import ${ALLOWED}, not "${args.path}"`);
             return { path: target, external: true };
           });
           build.onResolve({ filter: /^\.\.?\// }, (args) => {
@@ -42,6 +43,6 @@ export const bundleConfig = async (root: string, outdir: string) => {
   const allowed = new Set(Object.values(modules));
   const imports = new Bun.Transpiler({ loader: "js" }).scanImports(fs.readFileSync(bundle, "utf8"));
   const refused = imports.map((i) => i.path).filter((p) => !allowed.has(p));
-  if (refused.length) throw new Error(`.achq/ can only import achq, achq/github and its own files, not ${refused.map((p) => `"${p}"`).join(", ")}`);
+  if (refused.length) throw new Error(`.achq/ can only import ${ALLOWED}, not ${refused.map((p) => `"${p}"`).join(", ")}`);
   return bundle;
 };

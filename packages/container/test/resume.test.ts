@@ -29,7 +29,7 @@ describe("sessions and resume", () => {
     expect(sessionsFor(w.paths, "9")).toEqual([]);
 
     const out: string[] = [];
-    const base = { paths: w.paths, number: "8", loadConfig: w.load, container: "dev", bin: { claude: w.claude.bin }, env: w.env, stdio: ["ignore", "ignore", "ignore"] as ["ignore", "ignore", "ignore"], out: (t: string) => out.push(t) };
+    const base = { paths: w.paths, number: "8", loadConfig: w.load, container: "dev", env: w.env, stdio: ["ignore", "ignore", "ignore"] as ["ignore", "ignore", "ignore"], out: (t: string) => out.push(t) };
     expect(await resume(base)).toBe(1);
     expect(out.join("\n")).toContain("several sessions");
 

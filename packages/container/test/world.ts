@@ -40,6 +40,7 @@ export const world = async (opts: { maxRuns?: number } = {}) => {
     FAKE_CLAUDE_LOG: claude.log,
     ACHQ_CONTAINER_SECRET: SECRET,
     CLAUDE_CODE_OAUTH_TOKEN: "oauth-token",
+    ACHQ_CLAUDE_BIN: claude.bin,
   };
   const logs: string[] = [];
   const runner = new Runner({
@@ -52,7 +53,6 @@ export const world = async (opts: { maxRuns?: number } = {}) => {
     dataDir,
     repoUrl: git.origin,
     loadConfig: (commit) => load(commit ?? git.first),
-    bin: { claude: claude.bin },
     env,
     maxRuns: opts.maxRuns,
     keepAwake: async () => {},

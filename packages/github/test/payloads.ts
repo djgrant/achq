@@ -1,4 +1,4 @@
-import { appWebhookSecret } from "@achq/core/secrets";
+import { appWebhookSecret } from "../src/runtime/webhook-secret.ts";
 import { hmacHex } from "@achq/core/signing";
 import { makeApp } from "@achq/test-utils/github";
 import { createGitHub } from "../src/runtime/index.ts";

@@ -1,5 +1,5 @@
 import { ENV } from "@achq/core";
-import { createGitHub } from "@achq/github/runtime";
+import { PROVIDERS } from "achq/registry";
 import { createConfigLoader } from "./config/loader.ts";
 import { DEFAULT_MAX_RUNS, DEFAULT_RUN_TIMEOUT_MINUTES } from "./constants.ts";
 import { paths as layout } from "./paths.ts";
@@ -9,9 +9,9 @@ import { type Env, requiredIn, settings } from "./settings.ts";
 
 /** The serving runner, wired from the container's environment. */
 export const createAgent = (env: Env, options: { log?: (line: string) => void } = {}) => {
-  const { repo, container, dataDir, repoUrl, bin } = settings(env);
+  const { repo, container, dataDir, repoUrl } = settings(env);
   const paths = layout(dataDir);
-  const { channel, access } = createGitHub({ baseUrl: env.GITHUB_API_URL || undefined });
+  const parts = PROVIDERS.map((p) => p.container(env));
   let runner: Runner;
   const gitEnv = async () => ({ ...env, ...(await runner.credentials.get()).env });
   const load = createConfigLoader({
@@ -22,13 +22,12 @@ export const createAgent = (env: Env, options: { log?: (line: string) => void } 
   runner = new Runner({
     repo,
     container,
-    channels: [channel],
-    providers: [access],
+    channels: parts.flatMap((p) => (p.channel ? [p.channel] : [])),
+    providers: parts.flatMap((p) => (p.access ? [p.access] : [])),
     routerUrl: requiredIn(env, ENV.routerUrl),
     containerSecret: requiredIn(env, ENV.containerSecret),
     dataDir,
     repoUrl,
-    bin,
     env,
     maxRuns: Number(env.ACHQ_MAX_RUNS ?? DEFAULT_MAX_RUNS),
     runTimeoutMs: Number(env.ACHQ_RUN_TIMEOUT_MINUTES ?? DEFAULT_RUN_TIMEOUT_MINUTES) * 60_000,

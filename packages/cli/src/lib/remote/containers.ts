@@ -1,5 +1,5 @@
 import type { ContainerShell, Status } from "@achq/core";
-import { findPlatform } from "../platforms.ts";
+import { findPlatform } from "achq/registry";
 
 export type Located = { name: string; location: Record<string, string>; shell: ContainerShell };
 

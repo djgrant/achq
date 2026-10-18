@@ -27,7 +27,7 @@ const setup = () => {
     home: path.join(root, "home"),
     runnerPrompt: "Runner prompt.\n",
     containerFiles: { "~/.config/tool.toml": "level = 1\n" },
-    bin: { claude: claude.bin },
+    env: { ACHQ_CLAUDE_BIN: claude.bin },
   };
   const runtime = (config: ClaudeConfig, c: RuntimeContext = ctx, name = "coder") => claudeRuntime(new Claude(name, config), c);
   return { root, achq, ctx, runtime, claude };
@@ -59,7 +59,7 @@ describe("session keys", () => {
 
     // The binary isn't part of it (Claude Code's version isn't keyed).
     fs.writeFileSync(path.join(achq, "statusline.sh"), "echo hi\n");
-    expect(await runtime(base, { ...ctx, bin: { claude: "/elsewhere/claude" } }).sessionKey()).toBe(key);
+    expect(await runtime(base, { ...ctx, env: { ACHQ_CLAUDE_BIN: "/elsewhere/claude" } }).sessionKey()).toBe(key);
   });
 });
 
@@ -144,7 +144,7 @@ describe("run", () => {
   test("resumeCommand opens the session interactively with the agent's config", () => {
     const { root, runtime, ctx } = setup();
     const cmd = runtime({ effort: "max" }).resumeCommand("abc", path.join(root, "agents/coder"));
-    expect(cmd.argv[0]).toBe(ctx.bin.claude!);
+    expect(cmd.argv[0]).toBe(ctx.env.ACHQ_CLAUDE_BIN!);
     expect(cmd.argv).toContain("--resume=abc");
     expect(cmd.argv).not.toContain("-p");
     expect(cmd.argv.join(" ")).toContain("--effort max");

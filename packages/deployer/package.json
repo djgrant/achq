@@ -9,13 +9,12 @@
   },
   "dependencies": {
     "@achq/core": "workspace:*",
-    "@achq/github": "workspace:*",
-    "@achq/railway": "workspace:*",
     "@achq/sandbox": "workspace:*",
     "achq": "workspace:*",
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@achq/github": "workspace:*",
     "@achq/test-utils": "workspace:*"
   }
 }

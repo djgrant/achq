@@ -1,6 +1,8 @@
 export type ServiceState = "building" | "running" | "sleeping" | "failed" | "missing";
 
 export type ContainerSpec = {
+  /** The `RepoHost` the repo is on. */
+  host: string;
   repo: string;
   name: string;
   /** Dockerfile path in the repo, e.g. `.achq/Dockerfile`. */

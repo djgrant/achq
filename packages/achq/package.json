@@ -6,7 +6,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./github": "./src/github.ts",
-    "./railway": "./src/railway.ts"
+    "./railway": "./src/railway.ts",
+    "./registry": "./src/registry.ts"
   },
   "dependencies": {
     "@achq/claude": "workspace:*",

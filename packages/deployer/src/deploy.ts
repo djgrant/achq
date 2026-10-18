@@ -1,11 +1,9 @@
 // See "Subscribing", "Config changes", "Checks" and "Deploy results" in
 // docs/achq-design.md.
-import { CONTAINER_PORT, ENV, type DeployRecord, type RepoPlan, type RouterRepoConfig, type Status } from "@achq/core";
+import { CONTAINER_PORT, type ConfigTree, ENV, type DeployRecord, type RepoClient, type RepoPlan, type RouterRepoConfig, type Status } from "@achq/core";
 import { containerSecret } from "@achq/core/secrets";
 import { checkPlan } from "./checks.ts";
-import { type AchqTree, type GitHubRepo, githubRepo } from "./clients/github.ts";
 import { isSourceFile, normaliseRepoPath } from "./config/index.ts";
-import { DEPLOYER_PERMISSIONS, REPO } from "./constants.ts";
 import type { DeployerContext } from "./context.ts";
 import { resolvePolicy } from "./policies.ts";
 import type { ImageRecord, StoredRecord } from "./store.ts";
@@ -24,28 +22,30 @@ class DeployFailure extends Error {}
 
 const message = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
-const writeStatus = async (ctx: DeployerContext, gh: GitHubRepo | undefined, record: StoredRecord) => {
-  if (!gh) return;
+const writeStatus = async (ctx: DeployerContext, client: RepoClient | undefined, record: StoredRecord) => {
+  if (!client) return;
   const { plan: _plan, tree: _tree, deployed: _deployed, ...status } = record;
   try {
-    await gh.writeStatus({ ...status, ...(ctx.env.routerPublicUrl && { router: ctx.env.routerPublicUrl }) } satisfies Status);
+    await client.writeStatus({ ...status, ...(ctx.env.routerPublicUrl && { router: ctx.env.routerPublicUrl }) } satisfies Status);
   } catch (error) {
     ctx.log(`${record.repo}: couldn't write ACHQ_STATUS: ${message(error)}`);
   }
 };
 
-/** Deploys `repo`'s `.achq/` as `source` (the App) sees it. Run one per repo at a time. */
-export const deploy = async (ctx: DeployerContext, repo: string, source: string, dryRun: boolean): Promise<DeployOutcome> => {
+/** Deploys `repo`'s `.achq/` on `hostId`, as `source` (e.g. the App) sees it. Run one per repo at a time. */
+export const deploy = async (ctx: DeployerContext, hostId: string, repo: string, source: string, dryRun: boolean): Promise<DeployOutcome> => {
   const { store, log } = ctx;
   const previous = await store.get(repo);
   const at = () => ctx.now().toISOString();
-  let gh: GitHubRepo | undefined;
-  let tree: AchqTree | undefined;
+  const host = ctx.hosts[hostId];
+  let client: RepoClient | undefined;
+  let tree: ConfigTree | undefined;
 
   const fail = async (error: string, warnings?: string[]): Promise<DeployOutcome> => {
     log(`${repo}: deploy failed: ${error}`);
     if (!dryRun) {
       const record: StoredRecord = {
+        host: hostId,
         repo,
         source,
         state: "failed",
@@ -56,33 +56,35 @@ export const deploy = async (ctx: DeployerContext, repo: string, source: string,
         ...(previous?.deployed && { deployed: previous.deployed }),
       };
       await store.put(record);
-      await writeStatus(ctx, gh, record);
+      await writeStatus(ctx, client, record);
     }
     return { repo, outcome: "failed", error, ...(warnings?.length && { warnings }) };
   };
 
-  if (!REPO.test(repo)) return fail(`"${repo}" isn't a repository name`);
+  if (!host) return fail(`achq doesn't know the repo host "${hostId}"`);
+  if (!host.repoName.test(repo)) return fail(`"${repo}" isn't a repository name on ${hostId}`);
   // A stranger can install a public App. Their repo is recorded as failed but
   // never touched: no token is minted and nothing is read or evaluated.
   if (!ctx.owners.has(repo.split("/")[0]!.toLowerCase())) return fail(`${repo.split("/")[0]} isn't an owner this deployer serves`);
 
   try {
-    const credentials = await ctx.router.mint({ repo, policies: [{ provider: "github", app: source, repo, permissions: { ...DEPLOYER_PERMISSIONS } }] });
-    const token = credentials.find((c) => c.provider === "github")?.value;
-    if (!token) throw new DeployFailure(`the router minted no GitHub token for ${source} on ${repo}`);
-    gh = githubRepo(repo, token, ctx.githubBaseUrl);
+    const policy = host.deployerPolicy(source, repo);
+    const credentials = await ctx.router.mint({ repo, policies: [policy] });
+    const credential = credentials.find((c) => c.provider === policy.provider);
+    if (!credential) throw new DeployFailure(`the router minted no ${policy.provider} credential for ${source} on ${repo}`);
+    client = host.repo(repo, credential);
   } catch (error) {
     return fail(`couldn't get a token for ${repo} from ${source}: ${message(error)}`);
   }
 
   try {
-    tree = await gh.achqTree();
-    if (previous?.state === "deployed" && previous.source === source && tree.tree && previous.tree === tree.tree) {
+    tree = await client.config();
+    if (previous?.state === "deployed" && previous.host === hostId && previous.source === source && tree.tree && previous.tree === tree.tree) {
       log(`${repo}: .achq/ unchanged at ${tree.commit}`);
       return { repo, outcome: "unchanged", ...(previous.warnings && { warnings: previous.warnings }), ...(previous.plan && { plan: previous.plan }) };
     }
     if (!tree.tree || !tree.blobs.has("config.ts")) throw new DeployFailure(`there's no .achq/config.ts on ${tree.branch}`);
-    const files = await gh.download(tree, [...tree.blobs.keys()].filter(isSourceFile), ctx.fileLimits);
+    const files = await client.download(tree, [...tree.blobs.keys()].filter(isSourceFile), ctx.fileLimits);
 
     let plan: RepoPlan;
     try {
@@ -91,7 +93,7 @@ export const deploy = async (ctx: DeployerContext, repo: string, source: string,
       throw new DeployFailure(`.achq/config.ts: ${message(error)}`);
     }
 
-    const { failures, warnings } = checkPlan(plan, { source, tree, sources: await ctx.router.sources() });
+    const { failures, warnings } = checkPlan(plan, { source, tree, sources: await ctx.router.sources(), policySource: ctx.policySource });
     const policies = plan.policies.map((p) => resolvePolicy(p.policy, repo));
     if (policies.length) {
       const { problems } = await ctx.router.validate({ repo, policies });
@@ -110,17 +112,20 @@ export const deploy = async (ctx: DeployerContext, repo: string, source: string,
       const dockerfile = `.achq/${normaliseRepoPath(c.image)!}`;
       const blob = tree.blobs.get(dockerfile.slice(".achq/".length))!.sha;
       const { url } = await ctx.containerHost.ensure({
+        host: hostId,
         repo,
         name: c.name,
         dockerfile,
         branch: tree.branch,
         env: {
+          ...ctx.env.containerEnv,
           [ENV.repo]: repo,
+          [ENV.repoUrl]: host.cloneUrl(repo),
           [ENV.container]: c.name,
           [ENV.containerSecret]: containerSecret(ctx.env.key, repo, c.name),
           [ENV.routerUrl]: ctx.env.routerUrl,
-          [ENV.claudeToken]: ctx.env.claudeToken,
           [ENV.ref]: ctx.env.ref,
+          [ENV.privateEnv]: ctx.env.privateEnv.join(","),
           PORT: String(CONTAINER_PORT),
         },
       });
@@ -135,6 +140,7 @@ export const deploy = async (ctx: DeployerContext, repo: string, source: string,
     // Containers removed from the config are left alone, asleep; only `sync({ prune })` deletes them.
 
     await ctx.router.putRepo({
+      host: hostId,
       repo,
       commit: tree.commit,
       containers: routerContainers,
@@ -144,6 +150,7 @@ export const deploy = async (ctx: DeployerContext, repo: string, source: string,
     for (const c of plan.containers) located.push({ name: c.name, location: await ctx.containerHost.locate(repo, c.name) });
 
     const record: StoredRecord = {
+      host: hostId,
       repo,
       source,
       state: "deployed",
@@ -156,7 +163,7 @@ export const deploy = async (ctx: DeployerContext, repo: string, source: string,
       deployed: { commit: tree.commit, tree: tree.tree, plan, images },
     };
     await store.put(record);
-    await writeStatus(ctx, gh, record);
+    await writeStatus(ctx, client, record);
     log(`${repo}: deployed ${tree.commit}`);
     return { repo, outcome: "deployed", plan, ...(warnings.length && { warnings }) };
   } catch (error) {

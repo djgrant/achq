@@ -7,28 +7,8 @@ export const CLI_ENV = {
   callerCwd: "ACHQ_CALLER_CWD",
   /** Set to keep stacks on every error. */
   debug: "ACHQ_DEBUG",
-  /** Points the CLI's GitHub client at a fake. */
-  githubApi: "ACHQ_GITHUB_API",
 } as const;
 
-/** What every achq App sends and is allowed. Installation events are always sent. */
-export const APP_EVENTS = ["issues", "issue_comment", "push"];
-export const APP_PERMISSIONS: Record<string, string> = {
-  contents: "write",
-  issues: "write",
-  pull_requests: "write",
-  metadata: "read",
-  // For the deployer's ACHQ_STATUS repository variable.
-  actions_variables: "write",
-};
-
-/** What any repo's config needs from its App: pushes keep the deployment in line with the config, and the deployer writes ACHQ_STATUS. */
-export const CONFIG_EVENTS = ["push"];
-export const CONFIG_PERMISSIONS: Record<string, string> = { metadata: "read", actions_variables: "write" };
-
-export const GITHUB_WEB = "https://github.com";
-/** The homepage every App's manifest links to. */
-export const ACHQ_HOMEPAGE = "https://github.com/djgrant/achq";
 /** The paths in achq whose latest commit is the version the router and deployer run. */
 export const ACHQ_CODE_PATHS = ["packages", "package.json", "bun.lock"];
 
@@ -36,5 +16,5 @@ export const ACHQ_CODE_PATHS = ["packages", "package.json", "bun.lock"];
 export const STATUS_TIMEOUT_MS = 180_000;
 export const STATUS_INTERVAL_MS = 5000;
 
-/** The terminal's variables, passed on to the container's shell, which may set only TERM=xterm (Railway's does). */
+/** The terminal's variables, passed on to the container's shell, which may set only TERM=xterm. */
 export const TERMINAL_ENV = ["TERM", "COLORTERM", "TERM_PROGRAM", "TERM_PROGRAM_VERSION"];

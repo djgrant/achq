@@ -1,6 +1,6 @@
 import type { RepoPlan } from "@achq/core";
-import type { GitHubClient } from "@achq/github/api";
-import { covers } from "@achq/github/runtime";
+import type { GitHubClient } from "../api/client.ts";
+import { covers } from "../runtime/permissions.ts";
 import { configNeeds } from "./config-app.ts";
 
 export type AppCheck = { private: true } | { private: false; missing: string[] };

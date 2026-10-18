@@ -7,7 +7,7 @@
 // Router, public port (ROUTER_PUBLIC_PORT):
 //   GET  /                         health
 //   POST /webhook                  channel deliveries (each channel verifies its own)
-//   POST /wake                     WakeRequest, `authorization: Bearer <GitHub user token>` with push access to the repo
+//   POST /wake                     WakeRequest, `authorization: Bearer <token>` from someone who can push to the repo, on its host
 //   *    /admin/...                as on the private port, admin-signed, for the infra CLI
 //
 // Router, private port (ROUTER_PRIVATE_PORT):
@@ -44,6 +44,8 @@ export type EventEnvelope = {
 
 /** What the deployer tells the router about a deployed repo. Plain data. */
 export type RouterRepoConfig = {
+  /** The `RepoHost` the repo is on. */
+  host: string;
   repo: string;
   /** The commit whose `.achq/` config this is. Forwarded with events so containers run the same config. */
   commit: string;
@@ -52,7 +54,7 @@ export type RouterRepoConfig = {
   triggers: { name: string; event: SelectorData }[];
 };
 
-export type WakeRequest = { repo: string; container: string };
+export type WakeRequest = { host: string; repo: string; container: string };
 
 export type CredentialsRequest = { repo: string; container: string };
 export type CredentialsResponse = {
@@ -69,7 +71,7 @@ export type ValidateRequest = { repo: string; policies: PolicyData[] };
 
 export type Installation = { provider: string; source: string; repo: string };
 
-/** What a source (a GitHub App) is set up to send and allow, for checks. */
+/** What a source (e.g. a GitHub App) is set up to send and allow, for checks. */
 export type SourceSettings = { channel: string; source: string; events: string[]; permissions: Record<string, string> };
 
 export type SyncRequest = { prune?: boolean; dryRun?: boolean };
@@ -79,6 +81,8 @@ export type DeployState = "deployed" | "failed" | "uninstalled";
 
 /** The deployer's record of a repo. ACHQ_STATUS holds it without `plan` and `tree`. */
 export type DeployRecord = {
+  /** The `RepoHost` the repo is on, and the source that installed it there. */
+  host: string;
   repo: string;
   source: string;
   state: DeployState;

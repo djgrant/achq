@@ -1,5 +1,5 @@
 import type { Platform } from "@achq/core";
-import { PLATFORM, RAILWAY_ENV } from "../constants.ts";
+import { PLATFORM, PRIVATE_ENV, RAILWAY_ENV } from "../constants.ts";
 import { Deployer, Router } from "../resources.ts";
 import { railwayContainerHost } from "./container-host.ts";
 import { railwayInfra } from "./infra.ts";
@@ -25,4 +25,5 @@ export const railwayPlatform: Platform = {
     railwayContainerHost({ token: need(env, RAILWAY_ENV.token), projectId: need(env, RAILWAY_ENV.projectId), environmentId: need(env, RAILWAY_ENV.environmentId) }),
 
   shell: railwayShell,
+  privateEnv: PRIVATE_ENV,
 };

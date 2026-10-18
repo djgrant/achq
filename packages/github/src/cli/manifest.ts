@@ -2,8 +2,7 @@
 // your browser. GitHub redirects back with a code, which converts into the
 // App's credentials. They stay in memory.
 import { randomBytes } from "node:crypto";
-import { GITHUB_API } from "@achq/github/api";
-import { ACHQ_HOMEPAGE, APP_EVENTS, APP_PERMISSIONS, GITHUB_WEB } from "../constants.ts";
+import { ACHQ_HOMEPAGE, APP_EVENTS, APP_PERMISSIONS, GITHUB_API, GITHUB_WEB, USER_AGENT } from "../constants.ts";
 
 export type CreatedApp = { id: number; slug: string; pem: string; html_url: string };
 
@@ -49,7 +48,7 @@ export const manifestFlow = async (
       if (url.pathname !== "/callback" || !code || url.searchParams.get("state") !== state) return new Response("not found", { status: 404 });
       const res = await fetch(`${api}/app-manifests/${code}/conversions`, {
         method: "POST",
-        headers: { accept: "application/vnd.github+json", "user-agent": "achq" },
+        headers: { accept: "application/vnd.github+json", "user-agent": USER_AGENT },
       });
       if (!res.ok) {
         settle.reject(new Error(`GitHub: ${res.status} ${await res.text()}`));

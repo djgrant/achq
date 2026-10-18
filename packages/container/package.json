@@ -7,13 +7,12 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@achq/claude": "workspace:*",
     "@achq/core": "workspace:*",
     "@achq/flock": "workspace:*",
-    "@achq/github": "workspace:*",
     "achq": "workspace:*"
   },
   "devDependencies": {
+    "@achq/claude": "workspace:*",
     "@achq/test-utils": "workspace:*"
   },
   "bin": {

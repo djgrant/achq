@@ -3,8 +3,8 @@ import type { DeployerContext } from "./context.ts";
 import type { DeployOutcome } from "./deploy.ts";
 
 type Actions = {
-  deploy: (repo: string, source: string, options: { dryRun: boolean }) => Promise<DeployOutcome>;
-  uninstall: (repo: string, source: undefined, options: { dryRun: boolean }) => Promise<void>;
+  deploy: (host: string, repo: string, source: string, options: { dryRun: boolean }) => Promise<DeployOutcome>;
+  uninstall: (host: undefined, repo: string, source: undefined, options: { dryRun: boolean }) => Promise<void>;
 };
 
 /** Deploys every installed repo, uninstalls the rest, and with `prune` deletes containers no plan has. */
@@ -15,14 +15,14 @@ export const sync = async (ctx: DeployerContext, actions: Actions, { prune = fal
   const plans = new Map<string, RepoPlan | undefined>();
 
   for (const i of installed.values()) {
-    const outcome = await actions.deploy(i.repo, i.source, { dryRun });
+    const outcome = await actions.deploy(i.provider, i.repo, i.source, { dryRun });
     if (outcome.outcome === "failed") result.failed.push({ repo: i.repo, error: outcome.error ?? "failed" });
     else result[outcome.outcome].push(i.repo);
     if (outcome.plan) plans.set(i.repo.toLowerCase(), outcome.plan);
   }
   for (const record of await ctx.store.all()) {
     if (record.state === "uninstalled" || installed.has(record.repo.toLowerCase())) continue;
-    await actions.uninstall(record.repo, undefined, { dryRun });
+    await actions.uninstall(undefined, record.repo, undefined, { dryRun });
     result.uninstalled.push(record.repo);
   }
   if (prune) {

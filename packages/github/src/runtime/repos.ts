@@ -1,28 +1,18 @@
-// Uses the repo-scoped token the router minted for the deployer.
-import { STATUS_VARIABLE, type Status } from "@achq/core";
-import { GitHubClient } from "@achq/github/api";
-import { DEFAULT_FILE_LIMITS } from "../constants.ts";
-
-export type AchqTree = {
-  commit: string;
-  branch: string;
-  /** The `.achq` tree's sha, or undefined when the commit has no `.achq/`. */
-  tree?: string;
-  /** Every blob under `.achq/`, by path relative to it. */
-  blobs: Map<string, { sha: string; size: number }>;
-};
-
-export type FileLimits = { maxFiles: number; maxBytes: number };
+// The deployer reads `.achq/` and writes ACHQ_STATUS with the repo-scoped token
+// the router minted for it. The router checks `/wake` with the caller's token.
+import { type ConfigTree, type Credential, type FileLimits, type RepoClient, type RepoHost, STATUS_VARIABLE, type Status } from "@achq/core";
+import { GitHubClient } from "../api/client.ts";
+import { DEPLOYER_PERMISSIONS, GITHUB_API, GITHUB_WEB, PROVIDER, REPO_NAME } from "../constants.ts";
+import type { RepoPolicyData } from "../resources/policy.ts";
 
 type TreeEntry = { path: string; mode: string; type: "blob" | "tree" | "commit"; sha: string; size?: number };
 
-export const githubRepo = (repo: string, token: string, baseUrl?: string) => {
+const repoClient = (repo: string, token: string, baseUrl: string): RepoClient => {
   const gh = new GitHubClient(`token ${token}`, baseUrl);
   const route = `/repos/${repo}`;
 
   return {
-    /** The default branch's head, and the `.achq` tree in it. */
-    async achqTree(): Promise<AchqTree> {
+    async config(): Promise<ConfigTree> {
       const { default_branch: branch } = await gh.request<{ default_branch: string }>("GET", route);
       const ref = await gh.request<{ object: { sha: string } }>("GET", `${route}/git/ref/heads/${encodeURIComponent(branch)}`);
       const commit = ref.object.sha;
@@ -38,8 +28,7 @@ export const githubRepo = (repo: string, token: string, baseUrl?: string) => {
       return { commit, branch, tree: achq.sha, blobs };
     },
 
-    /** Downloads `paths` (relative to `.achq/`) as UTF-8, within `limits`. */
-    async download(tree: AchqTree, paths: string[], limits: FileLimits = DEFAULT_FILE_LIMITS): Promise<Record<string, string>> {
+    async download(tree: ConfigTree, paths: string[], limits: FileLimits) {
       if (paths.length > limits.maxFiles) throw new Error(`.achq/ has ${paths.length} source files; the limit is ${limits.maxFiles}`);
       const total = paths.reduce((sum, p) => sum + (tree.blobs.get(p)?.size ?? 0), 0);
       if (total > limits.maxBytes) throw new Error(`.achq/'s source files total ${total} bytes; the limit is ${limits.maxBytes}`);
@@ -58,7 +47,7 @@ export const githubRepo = (repo: string, token: string, baseUrl?: string) => {
       return files;
     },
 
-    /** Creates or updates the ACHQ_STATUS repository variable. */
+    /** ACHQ_STATUS is a repository variable. */
     async writeStatus(status: Status) {
       const value = JSON.stringify(status);
       const res = await gh.raw("PATCH", `${route}/actions/variables/${STATUS_VARIABLE}`, { name: STATUS_VARIABLE, value });
@@ -68,4 +57,19 @@ export const githubRepo = (repo: string, token: string, baseUrl?: string) => {
   };
 };
 
-export type GitHubRepo = ReturnType<typeof githubRepo>;
+export const githubRepos = (options: { api?: string; web?: string } = {}): RepoHost => {
+  const api = options.api ?? GITHUB_API;
+  const web = options.web ?? GITHUB_WEB;
+  return {
+    repoName: REPO_NAME,
+    deployerPolicy: (source, repo): RepoPolicyData => ({ provider: PROVIDER, app: source, repo, permissions: { ...DEPLOYER_PERMISSIONS } }),
+    repo: (repo: string, credential: Credential) => repoClient(repo, credential.value, api),
+    async canPush(repo, token) {
+      const res = await new GitHubClient(`Bearer ${token}`, api).raw("GET", `/repos/${repo}`);
+      if (!res.ok) return false;
+      const data = (await res.json()) as { permissions?: { push?: boolean } };
+      return data.permissions?.push === true;
+    },
+    cloneUrl: (repo) => `${web}/${repo}.git`,
+  };
+};

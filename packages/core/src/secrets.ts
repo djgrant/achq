@@ -4,8 +4,8 @@ import { createHmac } from "node:crypto";
 
 const derive = (key: string, label: string) => createHmac("sha256", key).update(label).digest("hex");
 
-/** A GitHub App's webhook secret, from its App ID (sent in X-GitHub-Hook-Installation-Target-ID). */
-export const appWebhookSecret = (key: string, appId: string | number) => derive(key, `github-app-webhook:${appId}`);
+/** A secret for a provider's own use, e.g. a webhook secret. Its label must start with the provider's id. */
+export const providerSecret = (key: string, label: string) => derive(key, label);
 
 /** A container signs its requests to the router with this. The router signs events to the container with it too. */
 export const containerSecret = (key: string, repo: string, container: string) =>

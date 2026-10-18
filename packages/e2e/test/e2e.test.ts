@@ -12,7 +12,7 @@ import { randomUUID } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { ENV, STATUS_VARIABLE, type ContainerHost, type ContainerSpec, type RouterRepoConfig, type ServiceState } from "@achq/core";
-import { adminSecret, appWebhookSecret, containerSecret } from "@achq/core/secrets";
+import { adminSecret, containerSecret } from "@achq/core/secrets";
 import { hmacHex, signedFetch } from "@achq/core/signing";
 import { paths as layout, createAgent, type Runner, readState } from "@achq/container";
 import { fakeClaude } from "@achq/test-utils/fake-claude";
@@ -21,7 +21,8 @@ import { tempDir } from "@achq/test-utils/temp-dir";
 import { wake } from "@achq/cli/remote";
 import { createDeployer, routerClient, deployerHandler } from "@achq/deployer";
 import { FakeGitHub, makeApp } from "@achq/test-utils/github";
-import { createGitHub } from "@achq/github/runtime";
+import { githubProvider } from "@achq/github/provider";
+import { appWebhookSecret } from "@achq/github/runtime";
 import { createRouter } from "@achq/router";
 
 const KEY = "e2e-agent-webhook-key";
@@ -403,12 +404,14 @@ beforeAll(async () => {
 
   // The router: the side that holds the App's key.
   routerDir = path.join(root, "router");
-  const routerGitHub = createGitHub({ apps: github.keys(), key: KEY, baseUrl: github.url });
+  const githubEnv = { ACHQ_GITHUB_APPS: JSON.stringify(github.keys()), GITHUB_API_URL: github.url };
+  const routerGitHub = githubProvider.router(githubEnv, KEY);
+  const hosts = { github: githubProvider.repos!(githubEnv) };
   let deployerFetch: (req: Request) => Promise<Response> = async () => new Response("starting", { status: 503 });
   const deployerUrl = serve((req) => deployerFetch(req));
   router = createRouter({
-    channels: [routerGitHub.channel],
-    providers: [routerGitHub.access],
+    channels: [routerGitHub.channel!],
+    providers: [routerGitHub.access!],
     key: KEY,
     dataDir: routerDir,
     deployerUrl,
@@ -416,7 +419,7 @@ beforeAll(async () => {
     sources: routerGitHub.sources,
     delays: [20, 50, 100, 200],
     attemptTimeout: 30_000,
-    githubApi: github.url,
+    hosts,
     log: (line) => logs.push(`router: ${line}`),
   });
   await router.start();
@@ -446,8 +449,9 @@ beforeAll(async () => {
     router: routerClient({ url: routerPrivate, key: KEY }),
     owners: [OWNER],
     dataDir: path.join(root, "deployer"),
-    githubBaseUrl: github.url,
-    env: { claudeToken: "claude-oauth-token", key: KEY, routerUrl: routerPrivate, routerPublicUrl: routerPublic, ref: "e2e" },
+    hosts,
+    policySource: githubProvider.policySource,
+    env: { containerEnv: { CLAUDE_CODE_OAUTH_TOKEN: "claude-oauth-token" }, privateEnv: githubProvider.privateEnv, key: KEY, routerUrl: routerPrivate, routerPublicUrl: routerPublic, ref: "e2e" },
     log: (line) => logs.push(`deployer: ${line}`),
   });
   deployerFetch = deployerHandler(deployer, KEY, (line) => logs.push(`deployer: ${line}`));
@@ -477,6 +481,7 @@ describe("achq end to end", () => {
 
     const status = github.variable(REPO, STATUS_VARIABLE);
     expect(status).toEqual({
+      host: "github",
       repo: REPO,
       source: SLUG,
       state: "deployed",
@@ -493,11 +498,13 @@ describe("achq end to end", () => {
     expect(spec).toMatchObject({ repo: REPO, name: "dev", dockerfile: ".achq/Dockerfile", branch: "main" });
     expect(spec.env[ENV.containerSecret]).toBe(containerSecret(KEY, REPO, "dev"));
     expect(spec.env[ENV.routerUrl]).toBe(routerPrivate);
-    expect(spec.env[ENV.claudeToken]).toBe("claude-oauth-token");
+    expect(spec.env.CLAUDE_CODE_OAUTH_TOKEN).toBe("claude-oauth-token");
+    expect(spec.env[ENV.repoUrl]).toBe(`https://github.com/${REPO}.git`);
 
     const [config, ...others] = await admin<RouterRepoConfig[]>("GET", "/admin/repos");
     expect(others).toEqual([]);
     expect(config).toEqual({
+      host: "github",
       repo: REPO,
       commit: repo.first,
       containers: [
@@ -518,9 +525,9 @@ describe("achq end to end", () => {
   });
 
   test("`achq ssh`'s wake reaches the container through the router, for someone who can push to the repo", async () => {
-    await expect(wake(routerPublic, REPO, "dev", "gho_mallory")).rejects.toThrow("403 no push access");
+    await expect(wake(routerPublic, { host: "github", repo: REPO, container: "dev" }, "gho_mallory")).rejects.toThrow("403 no push access");
     expect(dev().requests).toEqual([]);
-    await wake(routerPublic, REPO, "dev", "gho_djgrant");
+    await wake(routerPublic, { host: "github", repo: REPO, container: "dev" }, "gho_djgrant");
     expect(dev().requests).toEqual([{ method: "GET", path: "/" }]);
   });
 
