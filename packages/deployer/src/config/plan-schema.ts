@@ -2,10 +2,9 @@
 // including collectPlan, so the plan's shape and references are checked again
 // here, strictly.
 import { z } from "zod";
-import type { Data, RepoPlan } from "@achq/core";
+import { type Data, RESOURCE_NAME, type RepoPlan } from "@achq/core";
 
-const NAME = /^[a-z][a-z0-9-]{0,30}$/;
-const name = z.string().regex(NAME, "must be lowercase letters, digits and dashes, starting with a letter");
+const name = z.string().regex(RESOURCE_NAME, "must be lowercase letters, digits and dashes, starting with a letter");
 const text = z.string().max(10_000);
 
 const data: z.ZodType<Data> = z.lazy(() =>

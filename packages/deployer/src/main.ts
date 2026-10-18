@@ -1,6 +1,7 @@
 import { DEPLOYER_PORT, ENV } from "@achq/core";
 import { railwayContainerHost } from "@achq/railway/runtime";
 import { createDeployer } from "./deployer.ts";
+import { DEFAULT_DATA_DIR, DEFAULT_REF } from "./constants.ts";
 import { routerClient } from "./clients/router.ts";
 import { deployerHandler } from "./server.ts";
 
@@ -14,9 +15,9 @@ export const main = () => {
     containerHost: railwayContainerHost({ token: need("RAILWAY_API_TOKEN"), projectId: need("ACHQ_RAILWAY_PROJECT_ID"), environmentId: need("ACHQ_RAILWAY_ENVIRONMENT_ID") }),
     router: routerClient({ url: routerUrl, key }),
     owners: need(ENV.owners).split(",").map((o) => o.trim()).filter(Boolean),
-    dataDir: env.ACHQ_DATA_DIR || "/data",
+    dataDir: env.ACHQ_DATA_DIR || DEFAULT_DATA_DIR,
     githubBaseUrl: env.GITHUB_API_URL || undefined,
-    env: { claudeToken: need(ENV.claudeToken), key, routerUrl, routerPublicUrl: env[ENV.routerPublicUrl] || undefined, ref: env[ENV.ref] || "main" },
+    env: { claudeToken: need(ENV.claudeToken), key, routerUrl, routerPublicUrl: env[ENV.routerPublicUrl] || undefined, ref: env[ENV.ref] || DEFAULT_REF },
   });
 
   const port = Number(env.DEPLOYER_PORT || DEPLOYER_PORT);

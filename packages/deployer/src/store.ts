@@ -1,7 +1,8 @@
-// Every write goes to a temp file and is renamed into place.
-import { mkdir, readdir, rename, writeFile } from "node:fs/promises";
+import { mkdir, readdir } from "node:fs/promises";
 import { join } from "node:path";
 import type { DeployRecord, RepoPlan } from "@achq/core";
+import { atomicWrite } from "./atomic-write.ts";
+import { MAX_DELIVERIES } from "./constants.ts";
 
 /** What a container was last deployed from: a change to either means a rebuild. */
 export type ImageRecord = { dockerfile: string; blob: string };
@@ -10,14 +11,6 @@ export type ImageRecord = { dockerfile: string; blob: string };
 export type DeployedSnapshot = { commit: string; tree: string; plan: RepoPlan; images: Record<string, ImageRecord> };
 
 export type StoredRecord = DeployRecord & { deployed?: DeployedSnapshot };
-
-const MAX_DELIVERIES = 5000;
-
-export const atomicWrite = async (path: string, contents: string) => {
-  const tmp = `${path}.${process.pid}.${Math.random().toString(36).slice(2)}.tmp`;
-  await writeFile(tmp, contents, { mode: 0o600 });
-  await rename(tmp, path);
-};
 
 export const recordFile = (repo: string) => `${repo.toLowerCase().replace("/", "__").replace(/[^a-z0-9_.-]/g, "_")}.json`;
 

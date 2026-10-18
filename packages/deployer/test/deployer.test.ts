@@ -8,8 +8,11 @@ import { adminSecret, containerSecret } from "@achq/core/secrets";
 import { signedFetch } from "@achq/core/signing";
 import { evaluateConfig } from "../src/config/index.ts";
 import { DOC_CONFIG, DOC_PLAN } from "@achq/test-utils/config";
-import { createDeployer, DEPLOYER_PERMISSIONS } from "../src/deployer.ts";
-import { FakeGitHub, FakeRouter, MemoryContainerHost } from "@achq/test-utils/deployer";
+import { createDeployer } from "../src/deployer.ts";
+import { DEPLOYER_PERMISSIONS } from "../src/constants.ts";
+import { FakeGitHub } from "@achq/test-utils/deployer/github";
+import { FakeRouter } from "@achq/test-utils/deployer/router";
+import { MemoryContainerHost } from "@achq/test-utils/deployer/container-host";
 import { routerClient } from "../src/clients/router.ts";
 import { deployerHandler } from "../src/server.ts";
 

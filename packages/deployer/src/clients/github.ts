@@ -1,6 +1,7 @@
 // Uses the repo-scoped token the router minted for the deployer.
 import { STATUS_VARIABLE, type Status } from "@achq/core";
 import { GitHubClient } from "@achq/github/api";
+import { DEFAULT_FILE_LIMITS } from "../constants.ts";
 
 export type AchqTree = {
   commit: string;
@@ -12,7 +13,6 @@ export type AchqTree = {
 };
 
 export type FileLimits = { maxFiles: number; maxBytes: number };
-export const DEFAULT_FILE_LIMITS: FileLimits = { maxFiles: 200, maxBytes: 1024 * 1024 };
 
 type TreeEntry = { path: string; mode: string; type: "blob" | "tree" | "commit"; sha: string; size?: number };
 

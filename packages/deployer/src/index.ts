@@ -1,5 +1,12 @@
 export * from "./deployer.ts";
+export * from "./context.ts";
+export * from "./deploy.ts";
+export * from "./checks.ts";
+export * from "./events.ts";
+export * from "./policies.ts";
 export * from "./server.ts";
 export * from "./store.ts";
+export * from "./atomic-write.ts";
 export * from "./clients/router.ts";
 export * from "./clients/github.ts";
+export { DEFAULT_FILE_LIMITS, DEPLOYER_PERMISSIONS } from "./constants.ts";
