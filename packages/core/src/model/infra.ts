@@ -1,16 +1,19 @@
 // The infra's resources say what to run. A platform package (railway) subclasses
-// them with where to run it, and `achq up` reads that.
+// them with where to run it, and `achq up` hands them to that platform.
 import { registered, resetRegistry } from "./registry.ts";
 import { Resource } from "./resources.ts";
 
 /** Receives, stores, filters and forwards events, and mints credentials. */
 export abstract class Router extends Resource {
   readonly kind = "router";
+  /** The `Platform` it runs on. */
+  abstract readonly platform: string;
 }
 
 /** Evaluates repo config and deploys its containers. */
 export abstract class Deployer extends Resource {
   readonly kind = "deployer";
+  abstract readonly platform: string;
   abstract readonly inputs: { router: Router; owners: string[] };
 }
 

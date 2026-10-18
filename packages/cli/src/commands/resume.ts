@@ -1,7 +1,6 @@
 import { defineCommand } from "@pokit/core";
 import { clean } from "../lib/errors.ts";
 import { z } from "zod";
-import { railwayRun, railwaySsh } from "../lib/remote/railway-ssh.ts";
 import { reachContainer } from "../lib/remote/reach.ts";
 import { parseSessions, pickSession, sessionLabel, sessionTable } from "../lib/remote/sessions.ts";
 import { interactive, terminalEnv } from "../lib/terminal.ts";
@@ -18,7 +17,7 @@ export const command = defineCommand({
   run: clean(async (r, { context }) => {
     const thread = String(context.thread);
     const container = await reachContainer(r.prompter, needRepo(), context.container);
-    const sessions = parseSessions(await railwayRun(container, ["achq-agent", "sessions", thread]));
+    const sessions = parseSessions(await container.shell.run(container.location, ["achq-agent", "sessions", thread]));
     let session = pickSession(sessions, context.session);
     if (!session) {
       if (!interactive()) {
@@ -31,6 +30,6 @@ export const command = defineCommand({
       });
       session = sessions.find((s) => s.id === id)!;
     }
-    process.exitCode = await railwaySsh(container, ["env", ...terminalEnv(), "achq-agent", "resume", thread, session.id]);
+    process.exitCode = await container.shell.open(container.location, ["env", ...terminalEnv(), "achq-agent", "resume", thread, session.id]);
   }),
 });

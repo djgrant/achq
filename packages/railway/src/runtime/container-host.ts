@@ -1,10 +1,10 @@
 // The deployer starts containers' builds itself, so automatic deploys on push
 // are turned off once a service is connected.
-import { ENV, type ContainerHost, type ContainerSpec, type ServiceState } from "@achq/core";
+import { type Change, ENV, type ContainerHost, type ContainerSpec, type ServiceState } from "@achq/core";
 import { type ProjectSnapshot, RailwayClient } from "../api.ts";
-import { BRANCH, CONNECTED, RAILWAY_API } from "../constants.ts";
+import { BRANCH, CONNECTED, PLATFORM, RAILWAY_API } from "../constants.ts";
 import { containerServiceName, containerUrl } from "./names.ts";
-import { type Change, planService } from "./plan.ts";
+import { planService } from "./plan.ts";
 import { containerServiceSpec } from "./specs.ts";
 
 export type RailwayContainerHostOptions = {
@@ -113,7 +113,7 @@ export class RailwayContainerHost implements ContainerHost {
   }
 
   async locate(repo: string, name: string) {
-    return { platform: "railway", project: this.options.projectId, environment: this.options.environmentId, service: containerServiceName(repo, name) };
+    return { platform: PLATFORM, project: this.options.projectId, environment: this.options.environmentId, service: containerServiceName(repo, name) };
   }
 }
 

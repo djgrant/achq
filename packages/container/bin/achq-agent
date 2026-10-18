@@ -4,7 +4,7 @@
 # Claude refuses --dangerously-skip-permissions as root.
 set -eu
 
-data=${DATA_DIR:-${RAILWAY_VOLUME_MOUNT_PATH:-/data}}
+data=${DATA_DIR:-/data}
 if [ "$(id -u)" = 0 ]; then
   mkdir -p "$data"
   chown agent:agent "$data"

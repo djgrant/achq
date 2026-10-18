@@ -28,7 +28,7 @@ export default achq(() => {
 });
 ```
 
-`achq up` needs `RAILWAY_API_TOKEN` and `CLAUDE_CODE_OAUTH_TOKEN` (from `claude setup-token`) in its environment; how they get there is up to you (`op run`, direnv, …). It creates or updates, in order: the Railway project, the router, the deployer, and each App. An App that doesn't exist yet is created through GitHub's manifest flow in your browser. Its private key goes straight into the router's Railway variables and never touches your machine. Then it syncs every installed repo. Re-running it changes only what differs; `--dry-run` shows what would change.
+`achq up` needs `RAILWAY_API_TOKEN` and `CLAUDE_CODE_OAUTH_TOKEN` (from `claude setup-token`) in its environment; how they get there is up to you (`op run`, direnv, …). It creates or updates, in order: the Railway project, the router, the deployer, and each App. An App that doesn't exist yet is created through GitHub's manifest flow in your browser. Its private key goes straight into the router's variables on the platform and never touches your machine. Then it syncs every installed repo. Re-running it changes only what differs; `--dry-run` shows what would change.
 
 | Service | Exposure | Does |
 |---|---|---|
@@ -122,7 +122,7 @@ In every package, a module has one purpose and its name says what it is. Fixed v
 | Kind | Packages | Layout |
 |---|---|---|
 | Kernel | `core` | `model/` (resources, the registry, the plan), `contracts/` (the interfaces platforms implement, the HTTP protocol), `secrets.ts`, `signing.ts`. Entries: `.`, `/secrets`, `/signing` |
-| Provider | `github`, `railway`, `claude` | `resources` (what config or the infra declares), `runtime/` (implementations of core's interfaces), `api` (the platform's API client). Entries: `.`, `/runtime`, `/api` |
+| Provider | `github`, `railway`, `claude` | `resources` (what config or the infra declares), `runtime/` (implementations of core's interfaces: `railway` implements `Platform`), `api` (the platform's API client). Entries: `.`, `/runtime`, `/api` |
 | Service | `router`, `deployer`, `container` | `main.ts` (reads the service's settings from the environment and wires it up), one module per part of its logic, `store.ts`, `clients/` |
 | Library | `sandbox`, `flock` | Know nothing about achq |
 | Tool | `cli` | `commands/` (one per command), `lib/` (a folder per command area) |

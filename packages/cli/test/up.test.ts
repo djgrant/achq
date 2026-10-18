@@ -7,9 +7,9 @@ import { achq, type SyncResult } from "@achq/core";
 import { adminSecret, appWebhookSecret } from "@achq/core/secrets";
 import { verifySigned } from "@achq/core/signing";
 import * as github from "@achq/github";
-import { RailwayClient } from "@achq/railway/api";
 import { type FakeRailway, startFakeRailway } from "@achq/test-utils/railway";
 import * as railway from "@achq/railway";
+import { railwayInfra } from "@achq/railway/runtime";
 import { checkInfra } from "../src/lib/load/infra.ts";
 import { manifestFlow } from "../src/lib/manifest.ts";
 import { up, type UpDeps } from "../src/lib/up/up.ts";
@@ -92,15 +92,12 @@ afterEach(() => {
 });
 
 const deps = (log: string[] = []): UpDeps => ({
-  railway: new RailwayClient("t", fake.url),
-  railwayToken: "railway-token",
+  platform: railwayInfra({ project: "achq", token: "railway-token", workspaceId: "ws", endpoint: fake.url, sleep: async () => {} }),
   claudeToken: "claude-token",
-  workspaceId: "ws",
   achqRef: async () => "abc123",
   githubApi: `http://localhost:${gh.port}`,
-  routerBase: () => `http://localhost:${routerServer.port}`,
+  routerUrl: () => `http://localhost:${routerServer.port}`,
   log: (line) => log.push(line),
-  sleep: async () => {},
   // The real manifest flow, with a "browser" that follows the page to GitHub and back.
   createApp: (request) =>
     manifestFlow(request, {

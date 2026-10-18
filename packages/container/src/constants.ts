@@ -4,7 +4,7 @@ import * as path from "node:path";
 export const PROMPTS = path.join(import.meta.dir, "..", "prompts");
 export const RUNNER_PROMPT_FILE = "system.md";
 
-/** Where the volume is when neither DATA_DIR nor RAILWAY_VOLUME_MOUNT_PATH says. */
+/** Where the volume is when DATA_DIR doesn't say. */
 export const DEFAULT_DATA_DIR = "/data";
 export const DEFAULT_MAX_RUNS = 2;
 export const DEFAULT_RUN_TIMEOUT_MINUTES = 360;

@@ -1,7 +1,7 @@
 // The router and deployer run on the stock Bun image. Their start command
 // downloads achq at ACHQ_REF, installs its dependencies once, and runs the
 // service's entry point.
-import { ACHQ_SOURCE } from "../constants.ts";
+import { ACHQ_SOURCE } from "@achq/core";
 
 /**
  * Runs `entry` (e.g. `packages/router/src/main.ts`) from achq at ACHQ_REF.

@@ -2,7 +2,7 @@ import { afterEach, beforeEach, expect, test } from "bun:test";
 import { RailwayClient } from "../src/api.ts";
 import { type FakeRailway, startFakeRailway } from "@achq/test-utils/railway";
 import { planService } from "../src/runtime/plan.ts";
-import { routerServiceSpec } from "../src/runtime/specs.ts";
+import { achqServiceSpec } from "../src/runtime/specs.ts";
 
 let fake: FakeRailway;
 
@@ -17,7 +17,8 @@ test("an image service redeploys only when its config changed, and keeps exactly
   const railway = new RailwayClient("t", fake.url);
   const project = () => railway.project(fake.project("achq")!.id);
   const target = { projectId: fake.project("achq")!.id, environmentId: fake.project("achq")!.environmentId };
-  const router = (ref: string) => routerServiceSpec({ name: "achq-router", key: "k", apps: {}, deployerUrl: "http://d", ref });
+  const router = (ref: string) =>
+    achqServiceSpec({ name: "router", entry: "packages/router/src/main.ts", env: { AGENT_WEBHOOK_KEY: "k", ACHQ_REF: ref }, port: 8080, public: true, sleeps: false });
 
   const first = await planService(railway, target, router("a"), await project());
   expect(first.changes.map((c) => `${c.op} ${c.target}`)).toEqual(["+ service achq-router", "+ achq-router volume", "+ achq-router public domain", "~ achq-router deploy"]);

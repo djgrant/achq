@@ -1,7 +1,19 @@
 export const RAILWAY_API = "https://backboard.railway.com/graphql/v2";
 
-/** Where achq's own code is downloaded from. */
-export const ACHQ_SOURCE = "djgrant/achq";
+/** The `Platform` id the infra's Railway resources name. */
+export const PLATFORM = "railway";
+
+/** Where the CLI and the deployer read their Railway settings from. */
+export const RAILWAY_ENV = {
+  token: "RAILWAY_API_TOKEN",
+  workspace: "RAILWAY_WORKSPACE_ID",
+  projectId: "ACHQ_RAILWAY_PROJECT_ID",
+  environmentId: "ACHQ_RAILWAY_ENVIRONMENT_ID",
+} as const;
+
+/** How often `waitForDeploy` checks a deploy, and how many times: five minutes in all. */
+export const DEPLOY_POLL_INTERVAL_MS = 5000;
+export const DEPLOY_POLL_ATTEMPTS = 60;
 /** The router and deployer run on the stock Bun image. */
 export const BUN_IMAGE = "oven/bun:1-slim";
 

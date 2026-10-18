@@ -1,5 +1,6 @@
-import type { SyncResult } from "@achq/core";
-import { type Change, formatChange } from "@achq/railway/runtime";
+import type { Change, SyncResult } from "@achq/core";
+
+export const formatChange = (c: Change) => `${c.op} ${c.target}${c.detail ? ` ${c.detail}` : ""}`;
 
 /** Prints a step's planned changes, or that it's up to date. */
 export const showChanges = (log: (line: string) => void, subject: string, changes: Change[]) => {

@@ -1,9 +1,7 @@
 import { defineCommand } from "@pokit/core";
 import { clean } from "../lib/errors.ts";
 import type { DeployRecord, Installation } from "@achq/core";
-import { RailwayClient } from "@achq/railway/api";
-import { CLI_ENV } from "../constants.ts";
-import { need } from "../lib/env.ts";
+import { secretEnv } from "../lib/env.ts";
 import { userGitHub } from "../lib/gh.ts";
 import { loadInfra } from "../lib/load/infra.ts";
 import { adminRequest, routerAccess } from "../lib/router.ts";
@@ -18,7 +16,7 @@ export const command = defineCommand({
     const file = infraFile();
     if (file) {
       const infra = await loadInfra(file);
-      const router = await routerAccess(new RailwayClient(need(CLI_ENV.railwayToken)), infra.project, infra.router.name, process.env[CLI_ENV.railwayWorkspace]);
+      const router = await routerAccess(infra.platform.infra(infra, secretEnv()), infra.router.name);
       const [records, installations] = await Promise.all([
         adminRequest<DeployRecord[]>(router, "GET", "/admin/status"),
         adminRequest<Installation[]>(router, "GET", "/admin/installations"),

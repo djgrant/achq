@@ -1,12 +1,8 @@
 // Planning reads everything first and changes nothing. Only `apply` makes changes.
 import { createHash } from "node:crypto";
+import type { Change } from "@achq/core";
 import type { InstanceSettings, ProjectSnapshot, RailwayClient } from "../api.ts";
 import { DEPLOYED } from "../constants.ts";
-
-/** A planned change, for printing. Variable changes name the variables, never their values. */
-export type Change = { op: "+" | "~" | "-"; target: string; detail?: string };
-
-export const formatChange = (c: Change) => `${c.op} ${c.target}${c.detail ? ` ${c.detail}` : ""}`;
 
 export type ServiceSpec = {
   name: string;
@@ -23,15 +19,15 @@ export type ServiceSpec = {
 /** Where in Railway a plan applies. A plan made before the project exists fills this in when applying. */
 export type Target = { projectId?: string; environmentId?: string };
 
-export type ServiceState = {
+export type ServiceSnapshot = {
   serviceId?: string;
   variables: Record<string, string>;
   domain?: string;
 };
 
-export type ServicePlan = {
+export type RailwayServicePlan = {
   changes: Change[];
-  current: ServiceState;
+  current: ServiceSnapshot;
   apply(): Promise<{ serviceId: string; domain?: string; deployed: boolean }>;
 };
 
@@ -61,7 +57,7 @@ export const planService = async (
   target: Target,
   spec: ServiceSpec,
   project?: ProjectSnapshot,
-): Promise<ServicePlan> => {
+): Promise<RailwayServicePlan> => {
   const name = spec.name;
   const service = project?.services.find((s) => s.name === name);
   const changes: Change[] = [];

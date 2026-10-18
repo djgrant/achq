@@ -17,7 +17,7 @@ export const main = async () => {
     providers: [github.access],
     key,
     deployerUrl: need(ENV.deployerUrl),
-    dataDir: process.env.RAILWAY_VOLUME_MOUNT_PATH ?? process.env.DATA_DIR ?? DEFAULT_DATA_DIR,
+    dataDir: process.env[ENV.dataDir] ?? DEFAULT_DATA_DIR,
     installations: github.installations,
     sources: github.sources,
   });

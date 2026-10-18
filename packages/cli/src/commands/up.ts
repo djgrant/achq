@@ -1,13 +1,11 @@
 import { defineCommand } from "@pokit/core";
 import { clean } from "../lib/errors.ts";
 import { z } from "zod";
-import { RailwayClient } from "@achq/railway/api";
-import { ACHQ_SOURCE } from "@achq/railway/runtime";
-import { ENV } from "@achq/core";
-import { CLI_ENV, INFRA_FILE } from "../constants.ts";
+import { ACHQ_SOURCE, ENV } from "@achq/core";
+import { INFRA_FILE } from "../constants.ts";
 import { lastCommit } from "../lib/achq-ref.ts";
 import { openInBrowser } from "../lib/browser.ts";
-import { need } from "../lib/env.ts";
+import { need, secretEnv } from "../lib/env.ts";
 import { userGitHub } from "../lib/gh.ts";
 import { loadInfra } from "../lib/load/infra.ts";
 import { manifestFlow } from "../lib/manifest.ts";
@@ -26,12 +24,9 @@ export const command = defineCommand({
     const file = infraFile();
     if (!file) throw new Error(`Run this in the ACHQ infra repo, which has ${INFRA_FILE} at its root`);
     const infra = await loadInfra(file);
-    const railwayToken = need(CLI_ENV.railwayToken, "Create a token at https://railway.com/account/tokens.");
     const result = await up(infra, { prune: context.prune, dryRun: context.dryRun }, {
-      railway: new RailwayClient(railwayToken),
-      railwayToken,
+      platform: infra.platform.infra(infra, secretEnv()),
       claudeToken: need(ENV.claudeToken, "Run `claude setup-token`."),
-      workspaceId: process.env[CLI_ENV.railwayWorkspace],
       achqRef: () => lastCommit(userGitHub(), ACHQ_SOURCE),
       createApp: (request) =>
         manifestFlow(request, {

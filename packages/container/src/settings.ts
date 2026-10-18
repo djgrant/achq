@@ -15,7 +15,7 @@ export const settings = (env: Env) => {
   return {
     repo,
     container: requiredIn(env, ENV.container),
-    dataDir: env.DATA_DIR ?? env.RAILWAY_VOLUME_MOUNT_PATH ?? DEFAULT_DATA_DIR,
+    dataDir: env[ENV.dataDir] ?? DEFAULT_DATA_DIR,
     repoUrl: env.ACHQ_REPO_URL ?? `https://github.com/${repo}.git`,
     bin: { claude: env.ACHQ_CLAUDE_BIN ?? "claude" },
   };

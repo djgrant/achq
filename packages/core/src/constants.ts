@@ -25,7 +25,14 @@ export const ENV = {
   claudeToken: "CLAUDE_CODE_OAUTH_TOKEN",
   /** The achq commit a container or service runs. */
   ref: "ACHQ_REF",
+  /** Where a service's or container's volume is. Each platform sets it. */
+  dataDir: "DATA_DIR",
+  /** The `Platform` the deployer puts containers on. */
+  platform: "ACHQ_PLATFORM",
 } as const;
+
+/** Where achq's own code is, as `owner/repo` on GitHub. The router and deployer run it from there. */
+export const ACHQ_SOURCE = "djgrant/achq";
 
 /** The repository variable the deployer reports each deploy's outcome in. */
 export const STATUS_VARIABLE = "ACHQ_STATUS";
