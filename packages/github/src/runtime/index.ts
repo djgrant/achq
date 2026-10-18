@@ -66,5 +66,5 @@ export const parseApps = (json: string | undefined): AppKeys => {
 };
 
 export { GitHubAccess, gitConfig } from "./access.ts";
-export { Apps, type AppKeys } from "./apps.ts";
+export { Apps, covers, maxLevel, type AppKeys } from "./apps.ts";
 export { GitHubChannel, GitHubChannelClient, matchEvent, matchThread, messageId, parseEvent, PUSH_COMMIT_CAP, TRUSTED } from "./channel.ts";
