@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { type ClaimRequest, type EventEnvelope, type RepoPlan, type AccessProvider, type Channel, type ChannelClient, type ChannelEvent, type Thread, threadKey, type RuntimeContext, type RuntimeFactory } from "@achq/core";
-import { signedFetch, verifySigned } from "@achq/core/secrets";
+import { signedFetch, verifySigned } from "@achq/core/signing";
 import { parseCommand, type Command } from "./command.ts";
 import type { LoadedConfig } from "./config.ts";
 import { Credentials } from "./credentials.ts";

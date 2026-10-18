@@ -1,26 +1,23 @@
-// Used by the ACHQ infra:
-//
-//   const router = new railway.Router("router", { project: "achq" });
-//   const deployer = new railway.Deployer("deployer", { project: "achq", router, containerHost: railway.containerHost({ project: "achq" }), owners });
+// The router, the deployer and the containers it deploys share one Railway
+// project, for its private network.
 import * as core from "@achq/core";
-import type { ContainerHost } from "@achq/core";
-import { RailwayProjectContainerHost } from "./runtime/container-host.ts";
-import { RailwayDeployerHost, RailwayRouterHost } from "./runtime/hosts.ts";
 
 /** The router, as a Railway service in `project`: public, always on, with a volume. */
 export class Router extends core.Router {
-  declare readonly inputs: { host: RailwayRouterHost };
-  constructor(name: string, inputs: { project: string }) {
-    super(name, { host: new RailwayRouterHost(inputs.project) });
+  constructor(
+    name: string,
+    readonly inputs: { project: string },
+  ) {
+    super(name);
   }
 }
 
-/** The deployer, as a Railway service in `project`: private, sleeping when idle. */
+/** The deployer, as a Railway service in `project`: private, sleeping when idle. It deploys containers to the same project. */
 export class Deployer extends core.Deployer {
-  declare readonly inputs: core.Deployer["inputs"] & { host: RailwayDeployerHost };
-  constructor(name: string, inputs: { project: string; router: core.Router; containerHost: ContainerHost & { readonly platform: string }; owners: string[] }) {
-    super(name, { router: inputs.router, host: new RailwayDeployerHost(inputs.project), containerHost: inputs.containerHost, owners: inputs.owners });
+  constructor(
+    name: string,
+    readonly inputs: { project: string; router: core.Router; owners: string[] },
+  ) {
+    super(name);
   }
 }
-
-export const containerHost = (options: { project: string }) => new RailwayProjectContainerHost(options.project);

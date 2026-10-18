@@ -2,7 +2,8 @@
 // and the router checks admin signatures. The container host is in memory.
 import { createHash } from "node:crypto";
 import type { Installation, MintRequest, SourceSettings, ValidateRequest, PolicyData, ContainerHost, ContainerSpec, RouterRepoConfig, ServiceState } from "@achq/core";
-import { adminSecret, verifySigned } from "@achq/core/secrets";
+import { adminSecret } from "@achq/core/secrets";
+import { verifySigned } from "@achq/core/signing";
 
 type Obj = { type: "blob"; content: Buffer } | { type: "tree"; entries: { path: string; mode: string; type: "blob" | "tree"; sha: string }[] } | { type: "commit"; tree: string };
 type FakeRepo = { full_name: string; default_branch: string; heads: Map<string, string>; variables: Map<string, string> };

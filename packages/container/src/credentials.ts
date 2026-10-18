@@ -2,7 +2,7 @@
 // runner's channel credentials are kept in memory only.
 import * as fs from "node:fs";
 import type { CredentialsRequest, CredentialsResponse, AccessProvider, Credential } from "@achq/core";
-import { signedFetch } from "@achq/core/secrets";
+import { signedFetch } from "@achq/core/signing";
 import type { Paths } from "./paths.ts";
 
 /** Refresh when this little is left, so a failing refresh has half an hour of retries before anything breaks. */

@@ -3,7 +3,7 @@ import { $ } from "bun";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { type ChannelEvent, threadKey } from "@achq/core";
-import { signedHeaders } from "@achq/core/secrets";
+import { signedHeaders } from "@achq/core/signing";
 import { formatSessions, pickSession, resume, sessionsFor } from "../src/cli.ts";
 import { createConfigLoader } from "../src/config.ts";
 import { acquire, BUSY, lockedArgv } from "@achq/flock";

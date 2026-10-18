@@ -1,38 +1,17 @@
-// The infra's code runs locally under `achq up` and is trusted, so these
-// resources can hold host objects with real implementations.
-import { registered, resetRegistry, Resource } from "./resources.ts";
-import type { ContainerHost } from "../contracts/interfaces.ts";
-
-/** Where the router runs: public, always on, with a volume. Implemented per platform. */
-export interface RouterHost {
-  readonly platform: string;
-}
-
-/** Where the deployer runs: private, sleeping when idle. */
-export interface DeployerHost {
-  readonly platform: string;
-}
+// The infra's resources say what to run. A platform package (railway) subclasses
+// them with where to run it, and `achq up` reads that.
+import { registered, resetRegistry } from "./registry.ts";
+import { Resource } from "./resources.ts";
 
 /** Receives, stores, filters and forwards events, and mints credentials. */
-export class Router extends Resource {
+export abstract class Router extends Resource {
   readonly kind = "router";
-  constructor(
-    name: string,
-    readonly inputs: { host: RouterHost },
-  ) {
-    super(name);
-  }
 }
 
 /** Evaluates repo config and deploys its containers. */
-export class Deployer extends Resource {
+export abstract class Deployer extends Resource {
   readonly kind = "deployer";
-  constructor(
-    name: string,
-    readonly inputs: { router: Router; host: DeployerHost; containerHost: ContainerHost & { readonly platform: string }; owners: string[] },
-  ) {
-    super(name);
-  }
+  abstract readonly inputs: { router: Router; owners: string[] };
 }
 
 export type Infra = { resources: Resource[] };

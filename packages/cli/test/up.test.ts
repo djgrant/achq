@@ -4,7 +4,8 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { achq, type SyncResult } from "@achq/core";
-import { adminSecret, appWebhookSecret, verifySigned } from "@achq/core/secrets";
+import { adminSecret, appWebhookSecret } from "@achq/core/secrets";
+import { verifySigned } from "@achq/core/signing";
 import * as github from "@achq/github";
 import { RailwayClient } from "@achq/railway/api";
 import { type FakeRailway, startFakeRailway } from "@achq/test-utils/railway";
@@ -20,7 +21,7 @@ const infra = () =>
   checkInfra(
     achq(() => {
       const router = new railway.Router("router", { project: "achq" });
-      const deployer = new railway.Deployer("deployer", { project: "achq", router, containerHost: railway.containerHost({ project: "achq" }), owners: ["djgrant", "notationlabs"] });
+      const deployer = new railway.Deployer("deployer", { project: "achq", router, owners: ["djgrant", "notationlabs"] });
       new github.App("personal", { name: "djgrant-claude", router, deployer });
     })(),
   );
@@ -216,12 +217,12 @@ test("a changed achq ref shows as variables and a deploy, and a dry run applies 
   expect(fake.mutations).toEqual([]);
 });
 
-test("the infra must keep the router, deployer and containers in one project", () => {
+test("the infra must keep the router and deployer in one project", () => {
   expect(() =>
     checkInfra(
       achq(() => {
         const router = new railway.Router("router", { project: "achq" });
-        new railway.Deployer("deployer", { project: "achq", router, containerHost: railway.containerHost({ project: "other" }), owners: [] });
+        new railway.Deployer("deployer", { project: "other", router, owners: [] });
       })(),
     ),
   ).toThrow("share one Railway project");
@@ -239,7 +240,6 @@ export default achq(() => {
   const deployer = new railway.Deployer("deployer", {
     project: "achq",
     router,
-    containerHost: railway.containerHost({ project: "achq" }),
     owners: ["djgrant", "notationlabs"],
   });
   new github.App("personal", { name: "djgrant-claude", router, deployer });

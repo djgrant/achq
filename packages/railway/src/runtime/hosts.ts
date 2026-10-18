@@ -1,22 +1,12 @@
 // The router and deployer run on the stock Bun image. Their start command
 // downloads achq at ACHQ_REF, installs its dependencies once, and runs the
 // service's entry point.
-import { DEPLOYER_PORT, ENV, ROUTER_PRIVATE_PORT, ROUTER_PUBLIC_PORT, type DeployerHost, type RouterHost } from "@achq/core";
+import { DEPLOYER_PORT, ENV, ROUTER_PRIVATE_PORT, ROUTER_PUBLIC_PORT } from "@achq/core";
 import { type ServiceSpec, serviceName } from "./service.ts";
 
 /** Where achq's own code is downloaded from. */
 export const ACHQ_SOURCE = "djgrant/achq";
 export const BUN_IMAGE = "oven/bun:1-slim";
-
-export class RailwayRouterHost implements RouterHost {
-  readonly platform = "railway";
-  constructor(readonly project: string) {}
-}
-
-export class RailwayDeployerHost implements DeployerHost {
-  readonly platform = "railway";
-  constructor(readonly project: string) {}
-}
 
 /** The service a router or deployer resource runs as. */
 export const hostServiceName = (resource: string) => serviceName("achq", resource);

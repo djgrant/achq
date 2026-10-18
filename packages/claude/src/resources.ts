@@ -1,4 +1,3 @@
-// Runs in the config sandbox.
 import { Agent } from "@achq/core";
 
 export type ClaudeConfig = {

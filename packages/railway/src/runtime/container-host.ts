@@ -41,7 +41,6 @@ export const containerServiceSpec = (spec: ContainerSpec): ServiceSpec => ({
 });
 
 export class RailwayContainerHost implements ContainerHost {
-  readonly platform = "railway";
   readonly railway: RailwayClient;
 
   constructor(readonly options: RailwayContainerHostOptions) {
@@ -162,46 +161,3 @@ export const deploymentState = (status: string | undefined): ServiceState => {
 };
 
 export const railwayContainerHost = (options: RailwayContainerHostOptions) => new RailwayContainerHost(options);
-
-/**
- * Names a Railway project. In the infra, this says where the deployer puts
- * containers. The deployer itself builds a `railwayContainerHost` from its
- * environment. Used directly, it looks the project up with RAILWAY_API_TOKEN.
- */
-export class RailwayProjectContainerHost implements ContainerHost {
-  readonly platform = "railway";
-  private host?: Promise<RailwayContainerHost>;
-  constructor(readonly project: string) {}
-
-  private resolve() {
-    this.host ??= (async () => {
-      const token = process.env.RAILWAY_API_TOKEN;
-      if (!token) throw new Error("Missing RAILWAY_API_TOKEN");
-      const railway = new RailwayClient(token);
-      const found = await railway.projectByName(this.project, process.env.RAILWAY_WORKSPACE_ID);
-      if (!found) throw new Error(`No Railway project ${this.project}`);
-      const project = await railway.project(found.id);
-      return new RailwayContainerHost({ token, projectId: project.id, environmentId: project.environmentId });
-    })();
-    return this.host;
-  }
-
-  async ensure(spec: ContainerSpec) {
-    return (await this.resolve()).ensure(spec);
-  }
-  async deploy(repo: string, name: string) {
-    return (await this.resolve()).deploy(repo, name);
-  }
-  async state(repo: string, name: string) {
-    return (await this.resolve()).state(repo, name);
-  }
-  async list() {
-    return (await this.resolve()).list();
-  }
-  async remove(repo: string, name: string) {
-    return (await this.resolve()).remove(repo, name);
-  }
-  async locate(repo: string, name: string) {
-    return (await this.resolve()).locate(repo, name);
-  }
-}

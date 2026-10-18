@@ -1,5 +1,6 @@
 import { ENV } from "@achq/core";
-import { adminSecret, signedFetch } from "@achq/core/secrets";
+import { adminSecret } from "@achq/core/secrets";
+import { signedFetch } from "@achq/core/signing";
 import type { RailwayClient } from "@achq/railway/api";
 import { hostServiceName } from "@achq/railway/runtime";
 

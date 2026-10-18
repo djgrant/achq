@@ -5,7 +5,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import type { CredentialsResponse, SelectorData, AccessProvider, Channel, ChannelClient, ChannelEvent, Credential, Message, Thread, ThreadRef } from "@achq/core";
-import { verifySigned } from "@achq/core/secrets";
+import { verifySigned } from "@achq/core/signing";
 
 export const tempDir = (dirs: string[]) => {
   const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "achq-container-")));

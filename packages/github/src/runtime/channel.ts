@@ -1,5 +1,6 @@
 import type { Data, SelectorData, Channel, ChannelClient, ChannelEvent, Credential, Message, Thread, ThreadRef } from "@achq/core";
-import { appWebhookSecret, verifyGitHubSignature } from "@achq/core/secrets";
+import { appWebhookSecret } from "@achq/core/secrets";
+import { verifyGitHubSignature } from "./signature.ts";
 import { GITHUB_API, GitHubClient } from "../api.ts";
 import { Apps, REPO, type Permissions } from "./apps.ts";
 import { CHANNEL, type EventSelectorData, type IssueSelectorData } from "../resources.ts";

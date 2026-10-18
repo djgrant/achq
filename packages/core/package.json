@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./secrets": "./src/secrets.ts"
+    "./secrets": "./src/secrets.ts",
+    "./signing": "./src/signing.ts"
   }
 }

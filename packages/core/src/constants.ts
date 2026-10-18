@@ -29,3 +29,6 @@ export const ENV = {
 
 /** The repository variable the deployer reports each deploy's outcome in. */
 export const STATUS_VARIABLE = "ACHQ_STATUS";
+
+/** Resource names: lowercase letters, digits and dashes, starting with a letter. */
+export const RESOURCE_NAME = /^[a-z][a-z0-9-]{0,30}$/;

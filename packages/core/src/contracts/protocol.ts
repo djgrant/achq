@@ -32,13 +32,24 @@
 // Container (CONTAINER_PORT, private):
 //   GET  /                         health
 //   POST /events                   EventEnvelope → 202                          container-signed
-import type { PolicyData, RepoPlan } from "../model/resources.ts";
-import type { ChannelEvent, Credential, ThreadRef } from "./interfaces.ts";
+import type { RepoPlan } from "../model/plan.ts";
+import type { PolicyData, SelectorData } from "../model/resources.ts";
+import type { ChannelEvent, Credential, ThreadRef } from "./channel.ts";
 
 export type EventEnvelope = {
   event: ChannelEvent;
   /** For containers: the commit whose `.achq/` config the router was given, so the container runs the same one. */
   commit?: string;
+};
+
+/** What the deployer tells the router about a deployed repo. Plain data. */
+export type RouterRepoConfig = {
+  repo: string;
+  /** The commit whose `.achq/` config this is. Forwarded with events so containers run the same config. */
+  commit: string;
+  containers: { name: string; url: string; policies: PolicyData[] }[];
+  workspaces: RepoPlan["workspaces"];
+  triggers: { name: string; event: SelectorData }[];
 };
 
 export type WakeRequest = { repo: string; container: string };

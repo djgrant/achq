@@ -5,7 +5,8 @@ import { existsSync, mkdtempSync, readdirSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { CredentialsResponse, EventEnvelope, PolicyData, SelectorData, AccessProvider, Channel, ChannelEvent, RouterRepoConfig } from "@achq/core";
-import { adminSecret, containerSecret, hmacHex, safeEqual, signedHeaders, verifySigned } from "@achq/core/secrets";
+import { adminSecret, containerSecret } from "@achq/core/secrets";
+import { hmacHex, safeEqual, signedHeaders, verifySigned } from "@achq/core/signing";
 import { createRouter } from "../src/router.ts";
 
 const key = "test-key";

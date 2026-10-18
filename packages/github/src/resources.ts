@@ -1,4 +1,3 @@
-// Runs in the config sandbox.
 import { type Deployer, type Router, EventSelector, Policy, Resource, ThreadSelector } from "@achq/core";
 
 export const CHANNEL = "github";

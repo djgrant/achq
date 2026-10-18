@@ -23,19 +23,14 @@ Both the infra and repos are written as a resource graph, Pulumi-shaped: resourc
 // achq.infra.ts, at the infra repo's root
 export default achq(() => {
   const router = new railway.Router("router", { project: "achq" });
-  const deployer = new railway.Deployer("deployer", {
-    project: "achq",
-    router,
-    containerHost: railway.containerHost({ project: "achq" }),
-    owners: ["djgrant", "notationlabs"],
-  });
+  const deployer = new railway.Deployer("deployer", { project: "achq", router, owners: ["djgrant", "notationlabs"] });
   new github.App("personal", { name: "djgrant-claude", router, deployer });
   new github.App("notation", { name: "notation-achq", org: "notationlabs", router, deployer });
 });
 ```
 
 - **Router**: receives events and wakes the deployer and containers.
-- **Deployer**: creates and updates containers. Containers are a property of the deployer: it's configured with the host it deploys them to.
+- **Deployer**: creates and updates containers, in its own Railway project.
 - **A GitHub App** binds to both. It's a channel and an access provider (see Primitives). The App's webhook points at the router, and the router holds the App's key to check deliveries and mint tokens. The App's installations decide which repos the deployer serves.
 - Each component could in principle be hosted on a different platform. That needs bindings the current design assumes away: reaching containers without a private network, and waking them through the container host's API. Only Railway is built for now.
 - **`owners`**: the deployer only serves repos owned by these accounts. A public App can be installed by anyone, and without this a stranger's install would get a container on your Railway account running on your Claude token.

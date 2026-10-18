@@ -9,7 +9,6 @@ import * as railway from "achq/railway";
 import { Deployer, type Infra, Router, collectPlan, type RepoPlan, resetRegistry } from "@achq/core";
 import { evaluateConfig } from "@achq/deployer/config";
 import { App } from "@achq/github";
-import { RailwayDeployerHost, RailwayRouterHost } from "@achq/railway/runtime";
 
 let registered = false;
 let loads = 0;
@@ -26,8 +25,8 @@ const registerModules = () => {
 };
 
 export type InfraResources = {
-  router: Router & { inputs: { host: RailwayRouterHost } };
-  deployer: Deployer & { inputs: { host: RailwayDeployerHost } };
+  router: railway.Router;
+  deployer: railway.Deployer;
   apps: App[];
   /** The Railway project the router, deployer and containers share. */
   project: string;
@@ -47,13 +46,12 @@ export const checkInfra = (infra: Infra): InfraResources => {
   const apps = infra.resources.filter((r): r is App => r instanceof App);
   if (routers.length !== 1 || deployers.length !== 1) throw new Error("The infra must declare one router and one deployer");
   const [router, deployer] = [routers[0], deployers[0]];
-  if (!(router.inputs.host instanceof RailwayRouterHost) || !(deployer.inputs.host instanceof RailwayDeployerHost)) {
+  if (!(router instanceof railway.Router) || !(deployer instanceof railway.Deployer)) {
     throw new Error("Only Railway routers and deployers are supported: use railway.Router and railway.Deployer");
   }
-  const project = router.inputs.host.project;
-  const containerProject = (deployer.inputs.containerHost as { project?: unknown }).project;
-  if (deployer.inputs.host.project !== project || deployer.inputs.containerHost.platform !== "railway" || containerProject !== project) {
-    throw new Error(`The router, deployer and containers must share one Railway project (${project}), for its private network`);
+  const project = router.inputs.project;
+  if (deployer.inputs.project !== project) {
+    throw new Error(`The router and deployer must share one Railway project (${project}), for its private network`);
   }
   if (deployer.inputs.router !== router) throw new Error(`Deployer ${deployer.name} must use router ${router.name}`);
   for (const app of apps) {
@@ -62,7 +60,7 @@ export const checkInfra = (infra: Infra): InfraResources => {
   const slugs = apps.map((a) => appSlug(a.inputs.name));
   const dupe = slugs.find((s, i) => slugs.indexOf(s) !== i);
   if (dupe) throw new Error(`Two Apps are named ${dupe}`);
-  return { router: router as InfraResources["router"], deployer: deployer as InfraResources["deployer"], apps, project };
+  return { router, deployer, apps, project };
 };
 
 /** The slug GitHub gives an App with this name. */

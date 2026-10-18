@@ -1,5 +1,3 @@
-// What crosses from repo config into the deployer and router. Also runs in the config sandbox.
-
 export type Data = string | number | boolean | null | Data[] | { [key: string]: Data };
 
 /** JSON with object keys sorted, so equal data always serialises the same way. */

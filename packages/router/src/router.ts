@@ -3,7 +3,8 @@
  * checks signatures. Everything else lives behind the interfaces it's handed.
  */
 import { type CredentialsRequest, type ClaimRequest, type EventEnvelope, type Installation, type MintRequest, type SourceSettings, type ValidateRequest, type WakeRequest, type PolicyData, type AccessProvider, type Channel, type ChannelEvent, type Credential, type RouterRepoConfig, threadKey } from "@achq/core";
-import { adminSecret, containerSecret, signedHeaders, verifySigned } from "@achq/core/secrets";
+import { adminSecret, containerSecret } from "@achq/core/secrets";
+import { signedHeaders, verifySigned } from "@achq/core/signing";
 import { createStore, repoFile, safeName } from "./store.ts";
 import { type Claims, type Target, targetsFor } from "./targets.ts";
 

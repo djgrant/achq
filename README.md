@@ -22,12 +22,7 @@ import * as railway from "achq/railway";
 
 export default achq(() => {
   const router = new railway.Router("router", { project: "achq" });
-  const deployer = new railway.Deployer("deployer", {
-    project: "achq",
-    router,
-    containerHost: railway.containerHost({ project: "achq" }),
-    owners: ["djgrant", "notationlabs"],
-  });
+  const deployer = new railway.Deployer("deployer", { project: "achq", router, owners: ["djgrant", "notationlabs"] });
   new github.App("personal", { name: "djgrant-claude", router, deployer });
   new github.App("notation", { name: "notation-achq", org: "notationlabs", router, deployer });
 });

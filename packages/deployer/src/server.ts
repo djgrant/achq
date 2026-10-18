@@ -1,6 +1,7 @@
 // Every route but health must be admin-signed (see core's protocol.ts).
 import type { EventEnvelope, SyncRequest } from "@achq/core";
-import { adminSecret, verifySigned } from "@achq/core/secrets";
+import { adminSecret } from "@achq/core/secrets";
+import { verifySigned } from "@achq/core/signing";
 import type { Deployer } from "./deployer.ts";
 
 export const deployerHandler = (deployer: Deployer, key: string, log: (line: string) => void = console.error) => {

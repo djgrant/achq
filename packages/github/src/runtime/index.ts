@@ -1,4 +1,3 @@
-// Loaded by the router and the container, never the config sandbox.
 import type { Installation, SourceSettings } from "@achq/core";
 import { GITHUB_API, GitHubClient } from "../api.ts";
 import { GitHubAccess } from "./access.ts";

@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { appWebhookSecret, hmacHex } from "@achq/core/secrets";
+import { appWebhookSecret } from "@achq/core/secrets";
+import { hmacHex } from "@achq/core/signing";
 import type { ChannelEvent } from "@achq/core";
 import { FakeGitHub, makeApp } from "@achq/test-utils/github";
 import { messageId, mentions, slugify } from "../src/runtime/channel.ts";
