@@ -72,21 +72,23 @@ describe("parse", () => {
     installation,
   });
 
-  test("push says whether any commit touched .achq/, by any kind of change", () => {
-    expect(parse("push", push([{ modified: ["src/a.ts"] }]))!.detail.touchesConfig).toBe(false);
-    expect(parse("push", push([{ modified: ["src/a.ts"] }, { removed: [".achq/Dockerfile"] }]))!.detail.touchesConfig).toBe(true);
-    expect(parse("push", push([{ added: [".achq/config.ts"] }]))!.detail.touchesConfig).toBe(true);
+  test("a push to the default branch changes the config when any commit touched .achq/, by any kind of change", () => {
+    const changed = (...args: Parameters<typeof push>) => parse("push", push(...args))!.configChanged;
+    expect(changed([{ modified: ["src/a.ts"] }])).toBe(false);
+    expect(changed([{ modified: ["src/a.ts"] }, { removed: [".achq/Dockerfile"] }])).toBe(true);
+    expect(changed([{ added: [".achq/config.ts"] }])).toBe(true);
     // Not a prefix match on the name alone.
-    expect(parse("push", push([{ added: [".achqx/config.ts", "docs/.achq/x"] }]))!.detail.touchesConfig).toBe(false);
+    expect(changed([{ added: [".achqx/config.ts", "docs/.achq/x"] }])).toBe(false);
+    expect(changed([{ added: [".achq/config.ts"] }], "refs/heads/feature")).toBe(false);
     const event = parse("push", push([], "refs/heads/feature"))!;
     expect(event.type).toBe("push");
     expect(event.repo).toBe("notationlabs/yieldstar");
-    expect(event.detail).toMatchObject({ ref: "refs/heads/feature", defaultBranch: "main", after: "b".repeat(40), truncated: false });
+    expect(event.detail).toEqual({ ref: "refs/heads/feature", after: "b".repeat(40), deleted: false });
   });
 
-  test("a push listing GitHub's maximum of 2048 commits is marked truncated", () => {
-    expect(parse("push", push(Array.from({ length: 2047 }, () => ({}))))!.detail.truncated).toBe(false);
-    expect(parse("push", push(Array.from({ length: 2048 }, () => ({}))))!.detail.truncated).toBe(true);
+  test("a push listing GitHub's maximum of 2048 commits may have changed the config", () => {
+    expect(parse("push", push(Array.from({ length: 2047 }, () => ({}))))!.configChanged).toBe(false);
+    expect(parse("push", push(Array.from({ length: 2048 }, () => ({}))))!.configChanged).toBe(true);
   });
 
   test("installations list the repos added and removed, and the account", () => {
@@ -99,10 +101,15 @@ describe("parse", () => {
     })!;
     expect(created.type).toBe("installation.created");
     expect(created.repo).toBeUndefined();
-    expect(created.detail).toEqual({ installation: 77, account: "notationlabs", repos: ["notationlabs/a", "notationlabs/b"], added: ["notationlabs/a", "notationlabs/b"], removed: [] });
+    expect(created.detail).toEqual({ installation: 77, account: "notationlabs" });
+    expect(created.installation).toEqual({ added: ["notationlabs/a", "notationlabs/b"], removed: [] });
     const deleted = parse("installation", { action: "deleted", installation: { id: 77, account }, repositories: [{ full_name: "notationlabs/a" }] })!;
-    expect(deleted.detail).toMatchObject({ added: [], removed: ["notationlabs/a"] });
-    expect(parse("installation", { action: "suspend", installation: { id: 77, account } })!.type).toBe("installation.suspend");
+    expect(deleted.installation).toEqual({ added: [], removed: ["notationlabs/a"] });
+    const suspended = parse("installation", { action: "suspend", installation: { id: 77, account }, repositories: [{ full_name: "notationlabs/a" }] })!;
+    expect(suspended.type).toBe("installation.suspend");
+    expect(suspended.installation).toEqual({ added: [], removed: ["notationlabs/a"] });
+    const unsuspended = parse("installation", { action: "unsuspend", installation: { id: 77, account }, repositories: [{ full_name: "notationlabs/a" }] })!;
+    expect(unsuspended.installation).toEqual({ added: ["notationlabs/a"], removed: [] });
     const changed = parse("installation_repositories", {
       action: "removed",
       installation: { id: 77, account },
@@ -111,7 +118,8 @@ describe("parse", () => {
       repositories_removed: [{ id: 3, name: "c", full_name: "notationlabs/c" }],
     })!;
     expect(changed.type).toBe("installation_repositories.removed");
-    expect(changed.detail).toMatchObject({ account: "notationlabs", added: [], removed: ["notationlabs/c"] });
+    expect(changed.detail).toMatchObject({ account: "notationlabs" });
+    expect(changed.installation).toEqual({ added: [], removed: ["notationlabs/c"] });
     expect(parse("installation", { action: "new_permissions_accepted", installation: { id: 77, account } })).toBeUndefined();
   });
 });

@@ -10,7 +10,8 @@ import { firstDelivery } from "./deliveries.ts";
 import { eventsHandler } from "./events-handler.ts";
 import { resolveFiles, writeFiles } from "./files.ts";
 import { reportInterrupted } from "./interrupted.ts";
-import { ping, stayAwake } from "./keep-awake.ts";
+import { withoutPrivate } from "./env.ts";
+import { keepAwake, stayAwake } from "./keep-awake.ts";
 import { paths as layout, type Paths } from "./paths.ts";
 import { fillBranch } from "./branch.ts";
 import { reply } from "./reply.ts";
@@ -34,7 +35,6 @@ export type RunnerOptions = {
   /** The mirror's remote. */
   repoUrl: string;
   loadConfig: (commit: string | undefined) => Promise<LoadedConfig>;
-  bin?: Record<string, string>;
   runtimes?: Record<string, RuntimeFactory>;
   /** How many runs may go at once, across all threads. */
   maxRuns?: number;
@@ -42,7 +42,7 @@ export type RunnerOptions = {
   /** The base env agents get, before credentials. Private variables are removed. */
   env?: Record<string, string | undefined>;
   now?: () => number;
-  /** Outbound traffic while runs are going, so the host doesn't sleep the container. */
+  /** Outbound traffic while runs are going, so the platform doesn't sleep the container. Defaults to fetching ENV.keepAwakeUrl, when it's set. */
   keepAwake?: () => Promise<unknown>;
   log?: (line: string) => void;
 };
@@ -85,11 +85,12 @@ export class Runner {
     // refreshes credentials near expiry, and `install` rewrites them in place
     // for the running agents.
     let stop = () => {};
+    const ping = opts.keepAwake ?? keepAwake(opts.env ?? process.env);
     this.slots = new RunSlots(opts.maxRuns ?? DEFAULT_MAX_RUNS, {
       onBusy: () => {
         stop = stayAwake(() => {
           this.credentials.get().catch((e) => this.log(`credentials: ${e}`));
-          (opts.keepAwake ?? ping)().catch(() => {});
+          ping?.().catch(() => {});
         });
       },
       onIdle: () => stop(),
@@ -195,7 +196,7 @@ export class Runner {
         home: this.paths.home,
         runnerPrompt: runnerPrompt(),
         containerFiles,
-        bin: this.opts.bin ?? {},
+        env: withoutPrivate(this.opts.env ?? process.env),
       });
       this.contexts.set(config.commit, ctx);
     }

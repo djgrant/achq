@@ -16,7 +16,7 @@ describe("runtimeContext", () => {
     fs.mkdirSync(achq);
     fs.writeFileSync(path.join(achq, "prompt.md"), "in\n");
     fs.writeFileSync(path.join(root, "secret"), "out\n");
-    const ctx = runtimeContext(achq, { home: root, runnerPrompt: "", containerFiles: {}, bin: {} });
+    const ctx = runtimeContext(achq, { home: root, runnerPrompt: "", containerFiles: {}, env: {} });
     expect(ctx.readFile("./prompt.md")).toBe("in\n");
     expect(ctx.resolveFiles({ "~/a": "./prompt.md", "~/b": { x: 1 } })).toEqual({ "~/a": "in\n", "~/b": '{\n  "x": 1\n}\n' });
     expect(() => ctx.readFile("../secret")).toThrow("outside .achq/");

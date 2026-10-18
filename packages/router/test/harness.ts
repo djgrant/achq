@@ -4,7 +4,7 @@ import { afterEach, expect } from "bun:test";
 import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { EventEnvelope, PolicyData, SelectorData, AccessProvider, Channel, ChannelEvent, RouterRepoConfig } from "@achq/core";
+import type { EventEnvelope, PolicyData, SelectorData, AccessProvider, Channel, ChannelEvent, RepoHost, RouterRepoConfig } from "@achq/core";
 import { adminSecret, containerSecret } from "@achq/core/secrets";
 import { hmacHex, safeEqual, signedHeaders, verifySigned } from "@achq/core/signing";
 import { createRouter } from "../src/router.ts";
@@ -48,6 +48,17 @@ export const testProvider: AccessProvider = {
   mint: async (policies, forRepo) =>
     policies.map((p) => ({ provider: "test", value: `token:${p.name}`, expiresAt: hour(), scope: { repo: forRepo, policy: p.name } })),
   install: async () => ({ env: {} }),
+};
+
+/** `push-token` can push to `repo`; `read-token` and anything else can't. */
+export const testHost: RepoHost = {
+  repoName: /^[\w.-]+\/[\w.-]+$/,
+  deployerPolicy: (source, forRepo) => ({ provider: "test", source, repo: forRepo }),
+  repo() {
+    throw new Error("not on the router");
+  },
+  canPush: async (forRepo, token) => forRepo === repo && token === "push-token",
+  cloneUrl: (forRepo) => `https://test.example/${forRepo}.git`,
 };
 
 // ─── Fake services ───────────────────────────────────────────────────────────
@@ -107,31 +118,21 @@ export const fakeDeployer = () => {
   return fake;
 };
 
-/** GitHub's `GET /repos/{repo}`: `push-token` can push, `read-token` can't. */
-export const fakeGitHub = () =>
-  serve((req) => {
-    const token = req.headers.get("authorization");
-    if (new URL(req.url).pathname !== `/repos/${repo}`) return new Response("not found", { status: 404 });
-    if (token === "Bearer push-token") return Response.json({ permissions: { push: true, pull: true } });
-    if (token === "Bearer read-token") return Response.json({ permissions: { push: false, pull: true } });
-    return new Response("bad credentials", { status: 401 });
-  });
-
 // ─── The router ──────────────────────────────────────────────────────────────
 
-export type Boot = { dir?: string; deployer?: string; github?: string; delays?: number[] };
+export type Boot = { dir?: string; deployer?: string; delays?: number[] };
 
-export const boot = async ({ dir = mkdtempSync(join(tmpdir(), "achq-router-")), deployer = "http://localhost:1", github, delays = [0, 0] }: Boot = {}) => {
+export const boot = async ({ dir = mkdtempSync(join(tmpdir(), "achq-router-")), deployer = "http://localhost:1", delays = [0, 0] }: Boot = {}) => {
   const router = createRouter({
     channels: [testChannel],
     providers: [testProvider],
+    hosts: { test: testHost },
     key,
     dataDir: dir,
     deployerUrl: deployer,
     installations: async () => [{ provider: "test", source: "app", repo }],
     sources: async () => [{ channel: "test", source: "app", events: ["comment"], permissions: {} }],
     delays,
-    githubApi: github,
     log: () => {},
   });
   await router.start();
@@ -163,6 +164,7 @@ export const boot = async ({ dir = mkdtempSync(join(tmpdir(), "achq-router-")), 
 export const selector = (labels?: string[]): SelectorData => ({ channel: "test", source: "app", ...(labels && { labels }) });
 export const policy = (name: string): PolicyData => ({ provider: "test", name });
 export const config = (dev: { url: string }, docsbox: { url: string }): RouterRepoConfig => ({
+  host: "test",
   repo,
   commit: "abc123",
   containers: [

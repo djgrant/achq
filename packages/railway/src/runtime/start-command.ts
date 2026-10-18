@@ -16,7 +16,7 @@ export const startCommand = (entry: string) => {
     `if (!ref) throw new Error("Missing ACHQ_REF");`,
     `const dir = (process.env.RAILWAY_VOLUME_MOUNT_PATH ?? "/tmp") + "/achq/" + ref;`,
     `if (!fs.existsSync(dir)) {`,
-    `  const res = await fetch("https://codeload.github.com/${ACHQ_SOURCE}/tar.gz/" + ref);`,
+    `  const res = await fetch("${ACHQ_SOURCE.archive}" + ref);`,
     `  if (!res.ok) throw new Error("achq " + ref + ": " + res.status);`,
     `  const tmp = dir + ".tmp";`,
     `  fs.rmSync(tmp, { recursive: true, force: true });`,

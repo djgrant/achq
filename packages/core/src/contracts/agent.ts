@@ -42,8 +42,16 @@ export type RuntimeContext = {
   runnerPrompt: string;
   /** The container's startup files' contents, by target path. Part of every session key. */
   containerFiles: Record<string, string>;
-  /** Executables, e.g. `{ claude: "/usr/local/bin/claude" }`. */
-  bin: Record<string, string>;
+  /** The container's environment, without its private variables. A runtime reads its own settings from it, e.g. which binary to run. */
+  env: Record<string, string | undefined>;
 };
 
 export type RuntimeFactory = (agent: Agent, ctx: RuntimeContext) => AgentRuntime;
+
+/** An agent runtime package, e.g. Claude. Its id is its agents' `agentKind`. */
+export interface AgentProvider {
+  readonly id: string;
+  /** What every container needs for it. `achq up` reads these from your environment. */
+  readonly containerEnv: { name: string; hint?: string }[];
+  runtime: RuntimeFactory;
+}

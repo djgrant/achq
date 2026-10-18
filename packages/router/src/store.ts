@@ -6,7 +6,7 @@ import { SAFE_NAME } from "./constants.ts";
 
 export const safeName = (name: string) => SAFE_NAME.test(name);
 
-/** `owner/repo` as a file name. GitHub names are case-insensitive, so lowercase. */
+/** `owner/repo` as a file name. Repo names are case-insensitive, so lowercase. */
 export const repoFile = (repo: string) => repo.toLowerCase().replace("/", "__");
 
 export const createStore = (root: string) => {

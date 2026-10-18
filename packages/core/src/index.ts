@@ -8,5 +8,7 @@ export * from "./contracts/access.ts";
 export * from "./contracts/agent.ts";
 export * from "./contracts/host.ts";
 export * from "./contracts/platform.ts";
+export * from "./contracts/provider.ts";
+export * from "./contracts/repos.ts";
 export * from "./contracts/protocol.ts";
 export * from "./constants.ts";

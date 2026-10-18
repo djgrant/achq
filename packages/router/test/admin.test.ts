@@ -29,6 +29,8 @@ describe("admin", () => {
     expect((await fetch(`${r.priv}${path}`, { headers: signedHeaders(containerSecret(key, repo, "dev"), "GET", path, "") })).status).toBe(401);
     // A config for another repo than the path names.
     expect((await r.admin("PUT", "/admin/repos/acme/other", config(r.dev, r.docsbox))).status).toBe(400);
+    const { host: _host, ...hostless } = config(r.dev, r.docsbox);
+    expect((await r.admin("PUT", `/admin/repos/${repo}`, hostless)).status).toBe(400);
   });
 
   test("mint, validate, installations and sources", async () => {

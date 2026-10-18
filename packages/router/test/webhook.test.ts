@@ -106,23 +106,21 @@ describe("routing events to the deployer", () => {
   test("installation events reach the deployer even for undeployed repos", async () => {
     const deployer = fakeDeployer();
     const r = await boot({ deployer: deployer.url });
-    const install = { delivery: "inst-1", type: "installation_repositories.added", repo: "acme/new" };
+    const install = { delivery: "inst-1", type: "installed", installation: { added: ["acme/new"], removed: [] } };
     expect((await r.webhook(install)).status).toBe(202);
     await r.router.settled();
     expect(deployer.events.map((e) => e.event.delivery)).toEqual(["inst-1"]);
   });
 
-  test("only pushes to a deployed repo's default branch that touch .achq/ (or can't say) reach the deployer", async () => {
+  test("only config changes to a deployed repo reach the deployer", async () => {
     const deployer = fakeDeployer();
     const r = await deployed({ deployer: deployer.url });
-    const push = (delivery: string, detail: object, forRepo = repo) => ({ delivery, type: "push", repo: forRepo, detail: { defaultBranch: "main", ...detail } });
-    await r.webhook(push("p-touch", { ref: "refs/heads/main", touchesConfig: true }));
-    await r.webhook(push("p-truncated", { ref: "refs/heads/main", touchesConfig: false, truncated: true }));
-    await r.webhook(push("p-untouched", { ref: "refs/heads/main", touchesConfig: false }));
-    await r.webhook(push("p-branch", { ref: "refs/heads/feature", touchesConfig: true }));
-    await r.webhook(push("p-undeployed", { ref: "refs/heads/main", touchesConfig: true }, "acme/other"));
+    const push = (delivery: string, configChanged: boolean, forRepo = repo) => ({ delivery, type: "push", repo: forRepo, configChanged });
+    await r.webhook(push("p-changed", true));
+    await r.webhook(push("p-unchanged", false));
+    await r.webhook(push("p-undeployed", true, "acme/other"));
     await r.router.settled();
-    expect(deployer.events.map((e) => e.event.delivery).sort()).toEqual(["p-touch", "p-truncated"]);
+    expect(deliveryIds(deployer)).toEqual(["p-changed"]);
     expect(r.dev.attempts).toBe(0);
   });
 });

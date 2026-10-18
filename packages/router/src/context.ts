@@ -1,11 +1,13 @@
-import type { AccessProvider, Channel, Installation, RouterRepoConfig, SourceSettings } from "@achq/core";
-import { ATTEMPT_TIMEOUT_MS, DELAYS, GITHUB_API } from "./constants.ts";
+import type { AccessProvider, Channel, Installation, RepoHost, RouterRepoConfig, SourceSettings } from "@achq/core";
+import { ATTEMPT_TIMEOUT_MS, DELAYS } from "./constants.ts";
 import { createStore, type Store } from "./store.ts";
 import type { Claims } from "./targets.ts";
 
 export type RouterDeps = {
   channels: Channel[];
   providers: AccessProvider[];
+  /** Where repos live, by provider id: `/wake` checks push access with them. */
+  hosts: Record<string, RepoHost>;
   /** AGENT_WEBHOOK_KEY. */
   key: string;
   /** The router's volume. */
@@ -18,8 +20,6 @@ export type RouterDeps = {
   /** How long one attempt to deliver an event or wake a service may take. */
   attemptTimeout?: number;
   now?: () => number;
-  /** For `/wake`'s permission check. */
-  githubApi?: string;
   log?: (line: string) => void;
 };
 
@@ -39,7 +39,6 @@ export const createContext = (deps: RouterDeps): RouterContext => ({
   delays: deps.delays ?? DELAYS,
   attemptTimeout: deps.attemptTimeout ?? ATTEMPT_TIMEOUT_MS,
   now: deps.now ?? Date.now,
-  githubApi: deps.githubApi ?? GITHUB_API,
   log: deps.log ?? console.log,
   store: createStore(deps.dataDir),
   repos: new Map(),

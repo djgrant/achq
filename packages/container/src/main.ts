@@ -12,7 +12,7 @@ import { formatSessions, sessionsFor } from "./sessions.ts";
 import { settings } from "./settings.ts";
 
 const main = async () => {
-  const { repo, container, dataDir, repoUrl, bin } = settings(process.env);
+  const { repo, container, dataDir, repoUrl } = settings(process.env);
   const paths = layout(dataDir);
   const [command, ...args] = process.argv.slice(2);
   const required1 = (arg: string | undefined) => {
@@ -33,7 +33,7 @@ const main = async () => {
       dir: (commit) => `${paths.config(commit)}-resume`,
       fetch: () => fetchMirror(paths.mirror, repoUrl, { ...process.env, ...savedAgentEnv(paths.agentEnv) }),
     });
-    process.exit(await resume({ paths, number: required1(args[0]), session: args[1], loadConfig, container, bin }));
+    process.exit(await resume({ paths, number: required1(args[0]), session: args[1], loadConfig, container }));
   } else if (command) {
     console.error(`Unknown command: ${command}`);
     process.exit(2);
@@ -42,7 +42,7 @@ const main = async () => {
     const runner = createAgent(process.env);
     await runner.reportInterrupted().catch((e) => console.error("reporting interrupted runs failed", e));
     const port = Number(process.env.PORT ?? CONTAINER_PORT);
-    // Railway's private network is IPv6.
+    // "::" so private networks over IPv6 reach it.
     Bun.serve({ port, hostname: "::", fetch: runner.fetch });
     console.log(`achq-agent for ${repo} (${container}), listening on :${port}`);
   }

@@ -9,7 +9,7 @@ export class MemoryContainerHost implements ContainerHost {
 
   /** Containers that exist without the deployer having made them in this test, e.g. from an earlier run. */
   seed(repo: string, name: string) {
-    this.services.set(this.id(repo, name), { spec: { repo, name, dockerfile: ".achq/Dockerfile", branch: "main", env: {} }, builds: 1 });
+    this.services.set(this.id(repo, name), { spec: { host: "github", repo, name, dockerfile: ".achq/Dockerfile", branch: "main", env: {} }, builds: 1 });
   }
 
   ops(op?: "ensure" | "deploy" | "remove") {

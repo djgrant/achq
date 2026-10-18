@@ -11,6 +11,12 @@ export const RAILWAY_ENV = {
   environmentId: "ACHQ_RAILWAY_ENVIRONMENT_ID",
 } as const;
 
+/** What only the CLI and deployer have; the second is what Railway's own CLI reads. */
+export const PRIVATE_ENV = [RAILWAY_ENV.token, "RAILWAY_TOKEN"];
+
+/** Railway builds a container's service from its repo through its GitHub integration. */
+export const SOURCE_HOST = "github";
+
 /** How often `waitForDeploy` checks a deploy, and how many times: five minutes in all. */
 export const DEPLOY_POLL_INTERVAL_MS = 5000;
 export const DEPLOY_POLL_ATTEMPTS = 60;

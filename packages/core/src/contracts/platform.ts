@@ -62,4 +62,6 @@ export interface Platform {
   /** The deployer's container host, from the env `InfraPlatform.containerHostEnv` gave it. */
   containerHost(env: Env): ContainerHost;
   shell: ContainerShell;
+  /** Variables only the router and deployer have. A container never hands them to an agent, in case they're set anyway. */
+  readonly privateEnv: string[];
 }

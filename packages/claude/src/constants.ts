@@ -1,5 +1,13 @@
 export const DEFAULT_MODEL = "claude-opus-5-5";
 
+/** The `AgentProvider` id, and Claude agents' `agentKind`. */
+export const AGENT_KIND = "claude";
+
+/** What every container needs: Claude Code's login. */
+export const TOKEN_ENV = "CLAUDE_CODE_OAUTH_TOKEN";
+/** Which `claude` binary to run, when it isn't on PATH. */
+export const BIN_ENV = "ACHQ_CLAUDE_BIN";
+
 /**
  * The agent only sees the trusted context the runner gives it. These commands
  * could read anyone's thread content, so they're denied. Commenting is denied

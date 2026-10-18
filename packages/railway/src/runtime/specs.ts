@@ -31,6 +31,8 @@ export const containerServiceSpec = (spec: ContainerSpec): ServiceSpec => ({
     [BRANCH]: spec.branch,
     [ENV.dataDir]: VOLUME,
     PORT: String(CONTAINER_PORT),
+    // Railway sleeps a service 5–10 minutes after its last outbound packet, and private traffic counts.
+    ...(spec.env[ENV.routerUrl] && { [ENV.keepAwakeUrl]: `${spec.env[ENV.routerUrl]}/` }),
   },
   volume: VOLUME,
 });

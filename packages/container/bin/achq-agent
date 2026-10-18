@@ -1,7 +1,7 @@
 #!/bin/sh
-# Entry point. Railway mounts the volume root-owned, so when started as root
-# this hands the volume to the `agent` user and re-runs itself as that user.
-# Claude refuses --dangerously-skip-permissions as root.
+# Entry point. A platform may mount the volume root-owned, so when started as
+# root this hands the volume to the `agent` user and re-runs itself as that
+# user. Agents such as Claude refuse to skip permission prompts as root.
 set -eu
 
 data=${DATA_DIR:-/data}

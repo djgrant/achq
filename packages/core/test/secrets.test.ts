@@ -1,12 +1,12 @@
 import { describe, expect, test } from "bun:test";
-import { adminSecret, appWebhookSecret, containerSecret } from "../src/secrets.ts";
+import { adminSecret, providerSecret, containerSecret } from "../src/secrets.ts";
 
 describe("derived secrets", () => {
   test("differ by purpose, App, repo and container, and don't depend on repo case", () => {
     const all = [
       adminSecret("k"),
-      appWebhookSecret("k", 1),
-      appWebhookSecret("k", 2),
+      providerSecret("k", "github-app-webhook:1"),
+      providerSecret("k", "github-app-webhook:2"),
       containerSecret("k", "o/r", "dev"),
       containerSecret("k", "o/r", "ops"),
       containerSecret("k", "o/s", "dev"),

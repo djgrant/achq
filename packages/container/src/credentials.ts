@@ -47,7 +47,7 @@ export class Credentials {
   async channel(channel: string, source: string): Promise<Credential> {
     const { channels } = await this.get();
     const mine = channels.filter((c) => c.provider === channel);
-    const found = mine.find((c) => c.scope.source === source || c.scope.app === source) ?? mine[0];
+    const found = mine.find((c) => c.scope.source === source) ?? mine[0];
     if (!found) throw new Error(`The router gave no credential for channel ${channel} (${source})`);
     return found;
   }

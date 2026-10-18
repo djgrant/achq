@@ -121,13 +121,15 @@ In every package, a module has one purpose and its name says what it is. Fixed v
 
 | Kind | Packages | Layout |
 |---|---|---|
-| Kernel | `core` | `model/` (resources, the registry, the plan), `contracts/` (the interfaces platforms implement, the HTTP protocol), `secrets.ts`, `signing.ts`. Entries: `.`, `/secrets`, `/signing` |
-| Provider | `github`, `railway`, `claude` | `resources` (what config or the infra declares), `runtime/` (implementations of core's interfaces: `railway` implements `Platform`), `api` (the platform's API client). Entries: `.`, `/runtime`, `/api` |
+| Kernel | `core` | `model/` (resources, the registry, the plan), `contracts/` (the interfaces providers implement, the HTTP protocol), `secrets.ts`, `signing.ts`. Entries: `.`, `/secrets`, `/signing` |
+| Provider | `github`, `railway`, `claude` | `resources` (what config or the infra declares), `runtime/` (implementations of core's interfaces), `api` (the provider's API client). `github` implements `Provider` (`/provider`, with the CLI's parts in `cli/`), `railway` implements `Platform`, `claude` implements `AgentProvider` |
 | Service | `router`, `deployer`, `container` | `main.ts` (reads the service's settings from the environment and wires it up), one module per part of its logic, `store.ts`, `clients/` |
 | Library | `sandbox`, `flock` | Know nothing about achq |
 | Tool | `cli` | `commands/` (one per command), `lib/` (a folder per command area) |
-| Facade | `achq` | What repos and the infra import: `achq`, `achq/github`, `achq/railway` |
+| Facade | `achq` | What repos and the infra import: `achq`, `achq/github`, `achq/railway`. `achq/registry` lists the built-in platforms, providers and agent runtimes |
 | Testing | `test-utils`, `e2e` | Fakes shared across packages, one per module (`@achq/test-utils/github`, …); the whole system end to end |
+
+The services and the CLI never import a provider package. They use core's interfaces (`Platform`, `Provider`, `AgentProvider`) and look the implementation up by id in `achq/registry`. Adding a provider means implementing the interface and listing it there.
 
 Code that runs in the config sandbox (everything `achq` and `achq/github` import) is typechecked without Bun or Node types (`tsconfig.sandbox.json`).
 

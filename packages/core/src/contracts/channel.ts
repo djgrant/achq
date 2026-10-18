@@ -8,7 +8,7 @@ export const threadKey = (ref: ThreadRef) => `${ref.channel}:${ref.id}`;
 
 /** An event a channel delivered, normalised. Kept small, because the router persists and forwards it. */
 export type ChannelEvent = {
-  channel: string; // "github"
+  channel: string;
   /** Which configured sender it came through, e.g. the App's slug. Selectors name one. */
   source: string;
   /** Unique per delivery; containers and the deployer ignore ones they've handled. */
@@ -25,6 +25,10 @@ export type ChannelEvent = {
   previousText?: string;
   /** The message the event is about, as a `Message.id` from `ChannelClient.messages`, when it's one. */
   message?: string;
+  /** For the deployer: the repos the source was installed on (`added`) or removed from. */
+  installation?: { added: string[]; removed: string[] };
+  /** For the deployer: the repo's `.achq/` may have changed on its default branch. */
+  configChanged?: boolean;
   /** Anything else the channel needs later, e.g. the comment ID to react to. */
   detail: { [key: string]: Data };
 };
@@ -69,7 +73,7 @@ export interface Channel {
   verify(headers: Headers, body: string): Promise<string | undefined>;
   /** Normalises a verified delivery, or returns undefined for ones achq never acts on. */
   parse(source: string, headers: Headers, body: string): ChannelEvent | undefined;
-  /** A credential the container's runner (not the agent) uses for `ChannelClient`. */
+  /** A credential the container's runner (not the agent) uses for `ChannelClient`. Its scope names the `source`. */
   mintClient(source: string, repo: string): Promise<Credential>;
 
   // ── Both sides: selectors are plain data ──

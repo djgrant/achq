@@ -10,3 +10,4 @@ export { createGitHub, type GitHubOptions } from "./github.ts";
 export { matchEvent, matchThread } from "./match.ts";
 export { messageId } from "./messages.ts";
 export { covers, maxLevel } from "./permissions.ts";
+export { appWebhookSecret } from "./webhook-secret.ts";

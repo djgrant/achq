@@ -41,8 +41,6 @@
       "dependencies": {
         "@achq/core": "workspace:*",
         "@achq/deployer": "workspace:*",
-        "@achq/github": "workspace:*",
-        "@achq/railway": "workspace:*",
         "@pokit/core": "^0.6.0",
         "@pokit/terminal": "^0.6.0",
         "achq": "workspace:*",
@@ -50,6 +48,8 @@
       },
       "devDependencies": {
         "@achq/container": "workspace:*",
+        "@achq/github": "workspace:*",
+        "@achq/railway": "workspace:*",
         "@achq/test-utils": "workspace:*",
       },
     },
@@ -60,13 +60,12 @@
         "achq-agent": "bin/achq-agent",
       },
       "dependencies": {
-        "@achq/claude": "workspace:*",
         "@achq/core": "workspace:*",
         "@achq/flock": "workspace:*",
-        "@achq/github": "workspace:*",
         "achq": "workspace:*",
       },
       "devDependencies": {
+        "@achq/claude": "workspace:*",
         "@achq/test-utils": "workspace:*",
       },
     },
@@ -79,13 +78,12 @@
       "version": "0.1.0",
       "dependencies": {
         "@achq/core": "workspace:*",
-        "@achq/github": "workspace:*",
-        "@achq/railway": "workspace:*",
         "@achq/sandbox": "workspace:*",
         "achq": "workspace:*",
         "zod": "^4.3.6",
       },
       "devDependencies": {
+        "@achq/github": "workspace:*",
         "@achq/test-utils": "workspace:*",
       },
     },
@@ -134,7 +132,7 @@
       "version": "0.1.0",
       "dependencies": {
         "@achq/core": "workspace:*",
-        "@achq/github": "workspace:*",
+        "achq": "workspace:*",
       },
       "devDependencies": {
         "@achq/test-utils": "workspace:*",

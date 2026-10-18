@@ -12,8 +12,10 @@ export const createDeployer = (deps: DeployerDeps) => {
   const serial = createSerial();
 
   const actions = {
-    deploy: (repo: string, source: string, options: { dryRun?: boolean } = {}) => serial(repo.toLowerCase(), () => deploy(ctx, repo, source, Boolean(options.dryRun))),
-    uninstall: (repo: string, source?: string, options: { dryRun?: boolean } = {}) => serial(repo.toLowerCase(), () => uninstall(ctx, repo, source, Boolean(options.dryRun))),
+    deploy: (host: string, repo: string, source: string, options: { dryRun?: boolean } = {}) =>
+      serial(repo.toLowerCase(), () => deploy(ctx, host, repo, source, Boolean(options.dryRun))),
+    uninstall: (host: string | undefined, repo: string, source?: string, options: { dryRun?: boolean } = {}) =>
+      serial(repo.toLowerCase(), () => uninstall(ctx, host, repo, source, Boolean(options.dryRun))),
   };
 
   /** Every repo's record, without plans: what `achq status` shows from the infra. */

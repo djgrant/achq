@@ -1,8 +1,8 @@
-import { DEPLOYER_PORT, ENV } from "@achq/core";
+import { DEPLOYER_PORT, ENV, type RepoHost } from "@achq/core";
+import { platformNamed, PROVIDERS } from "achq/registry";
 import { createDeployer } from "./deployer.ts";
 import { DEFAULT_DATA_DIR, DEFAULT_REF } from "./constants.ts";
 import { routerClient } from "./clients/router.ts";
-import { platformNamed } from "./platforms.ts";
 import { deployerHandler } from "./server.ts";
 
 export const main = () => {
@@ -11,13 +11,23 @@ export const main = () => {
 
   const key = need(ENV.key);
   const routerUrl = need(ENV.routerUrl);
+  const platform = platformNamed(need(ENV.platform));
+  const hosts: Record<string, RepoHost> = Object.fromEntries(PROVIDERS.flatMap((p) => (p.repos ? [[p.id, p.repos(env)]] : [])));
   const deployer = createDeployer({
-    containerHost: platformNamed(need(ENV.platform)).containerHost(env),
+    containerHost: platform.containerHost(env),
     router: routerClient({ url: routerUrl, key }),
+    hosts,
+    policySource: (policy) => PROVIDERS.find((p) => p.id === policy.provider)?.policySource(policy),
     owners: need(ENV.owners).split(",").map((o) => o.trim()).filter(Boolean),
     dataDir: env[ENV.dataDir] || DEFAULT_DATA_DIR,
-    githubBaseUrl: env.GITHUB_API_URL || undefined,
-    env: { claudeToken: need(ENV.claudeToken), key, routerUrl, routerPublicUrl: env[ENV.routerPublicUrl] || undefined, ref: env[ENV.ref] || DEFAULT_REF },
+    env: {
+      containerEnv: JSON.parse(need(ENV.containerEnv)),
+      privateEnv: [...platform.privateEnv, ...PROVIDERS.flatMap((p) => p.privateEnv)],
+      key,
+      routerUrl,
+      routerPublicUrl: env[ENV.routerPublicUrl] || undefined,
+      ref: env[ENV.ref] || DEFAULT_REF,
+    },
   });
 
   const port = Number(env.DEPLOYER_PORT || DEPLOYER_PORT);

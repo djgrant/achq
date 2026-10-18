@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { stableStringify, toData, type AgentRuntime, type RunContext, type RunResult, type RuntimeContext } from "@achq/core";
-import { CLAUDE_ENV, DENIED, SETTINGS_FILE, SYSTEM_PROMPT_FILE } from "../constants.ts";
+import { BIN_ENV, CLAUDE_ENV, DENIED, SETTINGS_FILE, SYSTEM_PROMPT_FILE } from "../constants.ts";
 import type { Claude } from "../resources.ts";
 import { transcriptExists, updateClaudeJson, writeFiles } from "./config-dir.ts";
 import { claudeSettings, effortFlags } from "./settings.ts";
@@ -10,7 +10,7 @@ import { eachLine, StreamStats, tokens } from "./stream.ts";
 
 export const claudeRuntime = (agent: Claude, ctx: RuntimeContext): AgentRuntime => {
   const config = agent.config;
-  const claude = ctx.bin.claude ?? "claude";
+  const claude = ctx.env[BIN_ENV] || "claude";
   const repoPrompt = config.systemPrompt ? ctx.readFile(config.systemPrompt) : "";
   const systemPrompt = [ctx.runnerPrompt.trim(), repoPrompt.trim()].filter(Boolean).join("\n\n") + "\n";
   const agentFiles = ctx.resolveFiles(config.files);

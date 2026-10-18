@@ -4,7 +4,7 @@ import { savedAgentEnv } from "./agent-env.ts";
 import type { LoadedConfig } from "./config/loader.ts";
 import { withoutPrivate } from "./env.ts";
 import { resolveFiles } from "./files.ts";
-import { ping, stayAwake } from "./keep-awake.ts";
+import { keepAwake, stayAwake } from "./keep-awake.ts";
 import type { Paths } from "./paths.ts";
 import { runnerPrompt } from "./runner-prompt.ts";
 import { runtimeContext } from "./runtime-context.ts";
@@ -17,7 +17,6 @@ export type ResumeOptions = {
   session?: string;
   loadConfig: (commit: string) => Promise<LoadedConfig>;
   container: string;
-  bin?: Record<string, string>;
   runtimes?: Record<string, RuntimeFactory>;
   env?: Record<string, string | undefined>;
   /** Defaults to inheriting the terminal. */
@@ -50,7 +49,7 @@ export const resume = async (opts: ResumeOptions): Promise<number> => {
     home: opts.paths.home,
     runnerPrompt: runnerPrompt(),
     containerFiles: resolveFiles(container?.files, config.root),
-    bin: opts.bin ?? {},
+    env: withoutPrivate(opts.env ?? process.env),
   }));
   const configDir = opts.paths.agent(agent.name);
   await runtime.configure(configDir);
@@ -67,7 +66,8 @@ export const resume = async (opts: ResumeOptions): Promise<number> => {
   const parent = process.ppid;
   const orphaned = setInterval(() => process.ppid !== parent && proc.kill("SIGHUP"), 1000);
   // An idle session makes no outbound traffic.
-  const stopPinging = stayAwake(() => ping().catch(() => {}));
+  const ping = keepAwake(opts.env ?? process.env);
+  const stopPinging = ping ? stayAwake(() => ping().catch(() => {})) : () => {};
   const forward = (signal: NodeJS.Signals) => () => proc.kill(signal);
   const handlers = (["SIGHUP", "SIGTERM"] as const).map((signal) => [signal, forward(signal)] as const);
   for (const [signal, handler] of handlers) process.on(signal, handler);

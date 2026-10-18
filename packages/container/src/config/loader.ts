@@ -1,7 +1,7 @@
 // The container runs its repo's config natively, at the commit the router
 // forwarded, for the parts that are code (agent settings).
 //
-// `.achq/` comes from the bare mirror rather than GitHub's contents API. The
+// `.achq/` comes from the bare mirror rather than the repo host's API. The
 // mirror is already there for worktrees and is fetched with the agents'
 // credentials, so no extra permission or API client is needed. A commit
 // already fetched also loads offline, which `resume` needs.

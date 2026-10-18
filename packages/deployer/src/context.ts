@@ -1,12 +1,14 @@
-import type { ContainerHost } from "@achq/core";
-import type { FileLimits } from "./clients/github.ts";
+import type { ContainerHost, FileLimits, PolicyData, RepoHost } from "@achq/core";
 import type { RouterClient } from "./clients/router.ts";
 import { type Evaluate, evaluateConfig } from "./config/index.ts";
 import { DEFAULT_FILE_LIMITS } from "./constants.ts";
 import { createStore, type Store } from "./store.ts";
 
 export type DeployerEnv = {
-  claudeToken: string;
+  /** What every container gets: the agent runtimes' variables. */
+  containerEnv: Record<string, string>;
+  /** Variables a container never hands to an agent: the platform's and providers'. */
+  privateEnv: string[];
   /** AGENT_WEBHOOK_KEY, for each container's secret. */
   key: string;
   routerUrl: string;
@@ -18,9 +20,12 @@ export type DeployerEnv = {
 export type DeployerDeps = {
   containerHost: ContainerHost;
   router: RouterClient;
+  /** The repo hosts, by provider id. */
+  hosts: Record<string, RepoHost>;
+  /** The source a policy goes through, from its provider. */
+  policySource: (policy: PolicyData) => string | undefined;
   owners: string[];
   dataDir: string;
-  githubBaseUrl?: string;
   evaluate?: Evaluate;
   now?: () => Date;
   env: DeployerEnv;
@@ -29,8 +34,7 @@ export type DeployerDeps = {
 };
 
 /** What deploys, uninstalls and syncs share: the deps with their defaults filled in, and the store. */
-export type DeployerContext = Required<Omit<DeployerDeps, "githubBaseUrl" | "owners">> & {
-  githubBaseUrl?: string;
+export type DeployerContext = Required<Omit<DeployerDeps, "owners">> & {
   /** Lowercased. */
   owners: Set<string>;
   store: Store;
