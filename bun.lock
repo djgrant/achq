@@ -43,7 +43,6 @@
         "@achq/deployer": "workspace:*",
         "@achq/github": "workspace:*",
         "@achq/railway": "workspace:*",
-        "@achq/reconcile": "workspace:*",
         "@pokit/core": "^0.6.0",
         "@pokit/terminal": "^0.6.0",
         "achq": "workspace:*",
@@ -74,9 +73,6 @@
     "packages/core": {
       "name": "@achq/core",
       "version": "0.1.0",
-      "dependencies": {
-        "@achq/reconcile": "workspace:*",
-      },
     },
     "packages/deployer": {
       "name": "@achq/deployer",
@@ -118,7 +114,6 @@
       "version": "0.1.0",
       "dependencies": {
         "@achq/core": "workspace:*",
-        "@achq/reconcile": "workspace:*",
       },
       "devDependencies": {
         "@achq/test-utils": "workspace:*",
@@ -129,15 +124,10 @@
       "version": "0.1.0",
       "dependencies": {
         "@achq/core": "workspace:*",
-        "@achq/reconcile": "workspace:*",
       },
       "devDependencies": {
         "@achq/test-utils": "workspace:*",
       },
-    },
-    "packages/reconcile": {
-      "name": "@achq/reconcile",
-      "version": "0.1.0",
     },
     "packages/router": {
       "name": "@achq/router",
@@ -183,8 +173,6 @@
     "@achq/github": ["@achq/github@workspace:packages/github"],
 
     "@achq/railway": ["@achq/railway@workspace:packages/railway"],
-
-    "@achq/reconcile": ["@achq/reconcile@workspace:packages/reconcile"],
 
     "@achq/router": ["@achq/router@workspace:packages/router"],
 

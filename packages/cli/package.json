@@ -11,7 +11,6 @@
     "@achq/deployer": "workspace:*",
     "@achq/github": "workspace:*",
     "@achq/railway": "workspace:*",
-    "@achq/reconcile": "workspace:*",
     "@pokit/core": "^0.6.0",
     "@pokit/terminal": "^0.6.0",
     "achq": "workspace:*",

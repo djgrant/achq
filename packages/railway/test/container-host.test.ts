@@ -43,18 +43,18 @@ test("ensure removes a public domain and fixes the private hostname, and only ch
   fake.mutations.length = 0;
 
   const changes = await host.plan({ ...spec, env: { CLAUDE_CODE_OAUTH_TOKEN: "new" } });
-  expect(changes.map((c) => `${c.op} ${c.target} ${c.detail}`)).toEqual([
-    "~ notationlabs-yieldstar-dev private hostname name",
-    "~ notationlabs-yieldstar-dev public domains ports",
-    "~ notationlabs-yieldstar-dev variables CLAUDE_CODE_OAUTH_TOKEN", // names, never values
+  expect(changes.map((c) => `${c.op} ${c.target}`)).toEqual([
+    "~ notationlabs-yieldstar-dev variables",
+    "~ notationlabs-yieldstar-dev private hostname",
+    "- notationlabs-yieldstar-dev public domain",
   ]);
+  expect(changes[0].detail).toBe("CLAUDE_CODE_OAUTH_TOKEN"); // names, never values
   expect(fake.mutations).toEqual([]); // planning mutates nothing
 
   await host.ensure({ ...spec, env: { CLAUDE_CODE_OAUTH_TOKEN: "new" } });
   expect(service.domains).toEqual([]);
   expect(service.endpoint!.dnsName).toBe("notationlabs-yieldstar-dev");
-  expect(service.variables.CLAUDE_CODE_OAUTH_TOKEN).toBe("new");
-  expect(fake.mutations).toEqual(["privateNetworkEndpointRename", "serviceDomainDelete", "variableCollectionUpsert"]);
+  expect(fake.mutations).toEqual(["variableCollectionUpsert", "privateNetworkEndpointRename", "serviceDomainDelete"]);
 });
 
 test("the first deploy connects the repo and turns automatic deploys off; later ones deploy the latest commit", async () => {

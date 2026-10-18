@@ -6,7 +6,7 @@ import { GitHubChannel } from "./channel.ts";
 import { installations, sources } from "./installations.ts";
 
 export type GitHubOptions = {
-  /** Router only: each App's ID and private key, from `parseApps`. */
+  /** Router only: `{ [slug]: { id, privateKey } }`, from ENV.githubApps. */
   apps?: AppKeys;
   /** Router only: AGENT_WEBHOOK_KEY, which each App's webhook secret derives from. */
   key?: string;

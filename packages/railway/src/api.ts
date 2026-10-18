@@ -198,13 +198,12 @@ export class RailwayClient {
 
   // ── Variables ──────────────────────────────────────────────────────────────
 
-  /** A service's variables. Rendered, references like `${{shared.NAME}}` are replaced by their values; unrendered, they're as written. */
-  async variables(projectId: string, environmentId: string, serviceId: string, options: { unrendered?: boolean } = {}) {
+  async variables(projectId: string, environmentId: string, serviceId: string) {
     const { variables } = await this.gql<{ variables: Record<string, string> }>(
-      `query ($projectId: String!, $environmentId: String!, $serviceId: String!, $unrendered: Boolean) {
-        variables(projectId: $projectId, environmentId: $environmentId, serviceId: $serviceId, unrendered: $unrendered)
+      `query ($projectId: String!, $environmentId: String!, $serviceId: String!) {
+        variables(projectId: $projectId, environmentId: $environmentId, serviceId: $serviceId)
       }`,
-      { projectId, environmentId, serviceId, unrendered: options.unrendered ?? false },
+      { projectId, environmentId, serviceId },
     );
     return variables;
   }
@@ -213,21 +212,6 @@ export class RailwayClient {
   async setVariables(projectId: string, environmentId: string, serviceId: string, variables: Record<string, string>) {
     await this.gql(`mutation ($input: VariableCollectionUpsertInput!) { variableCollectionUpsert(input: $input) }`, {
       input: { projectId, environmentId, serviceId, variables, skipDeploys: true },
-    });
-  }
-
-  /** The environment's shared variables. A service only sees one it refers to, as `${{shared.NAME}}`. */
-  async sharedVariables(projectId: string, environmentId: string) {
-    const { variables } = await this.gql<{ variables: Record<string, string> }>(
-      `query ($projectId: String!, $environmentId: String!) { variables(projectId: $projectId, environmentId: $environmentId) }`,
-      { projectId, environmentId },
-    );
-    return variables;
-  }
-
-  async setSharedVariables(projectId: string, environmentId: string, variables: Record<string, string>) {
-    await this.gql(`mutation ($input: VariableCollectionUpsertInput!) { variableCollectionUpsert(input: $input) }`, {
-      input: { projectId, environmentId, variables, skipDeploys: true },
     });
   }
 

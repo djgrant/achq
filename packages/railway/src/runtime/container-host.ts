@@ -1,12 +1,11 @@
 // The deployer starts containers' builds itself, so automatic deploys on push
 // are turned off once a service is connected.
-import { CONTAINER_PORT, ENV, type ContainerHost, type ContainerSpec, type ServiceState } from "@achq/core";
-import { type Change, graph } from "@achq/reconcile";
+import { ENV, type ContainerHost, type ContainerSpec, type ServiceState } from "@achq/core";
 import { type ProjectSnapshot, RailwayClient } from "../api.ts";
 import { BRANCH, CONNECTED, RAILWAY_API } from "../constants.ts";
 import { containerServiceName, containerUrl } from "./names.ts";
-import { autoDeploy } from "./resources/auto-deploy.ts";
-import { addService } from "./service-nodes.ts";
+import { type Change, planService } from "./plan.ts";
+import { containerServiceSpec } from "./specs.ts";
 
 export type RailwayContainerHostOptions = {
   token: string;
@@ -38,31 +37,32 @@ export class RailwayContainerHost implements ContainerHost {
     return { name: service, id: project.services.find((s) => s.name === service)?.id, project };
   }
 
-  /** One Railway service per repo and container: private, sleeping when idle (the router wakes it), with automatic deploys off. */
-  private graph(spec: ContainerSpec) {
-    const g = graph();
-    const name = containerServiceName(spec.repo, spec.name);
-    const place = g.derive(`railway project ${this.options.projectId}`, () => this.target());
-    const added = addService(g, this.railway, {
-      name,
-      place,
-      // Setting a Dockerfile path is what makes Railway build with Docker.
-      settings: { dockerfilePath: spec.dockerfile, healthcheckPath: "/", sleepApplication: true },
-      ports: [],
-      variables: async () => ({ ...spec.env, [ENV.repo]: spec.repo, [ENV.container]: spec.name, [BRANCH]: spec.branch, PORT: String(CONTAINER_PORT) }),
-    });
-    g.add(`${name} automatic deploys`, autoDeploy(this.railway), async (o) => ({ ...(await added.on(o)), enabled: false }));
-    return g;
-  }
-
   /** What `ensure` would change, without changing it. */
   async plan(spec: ContainerSpec): Promise<Change[]> {
-    return (await this.graph(spec).plan()).changes;
+    return (await this.planEnsure(spec)).changes;
+  }
+
+  private async planEnsure(spec: ContainerSpec) {
+    const project = await this.snapshot();
+    const plan = await planService(this.railway, this.target(), containerServiceSpec(spec), project);
+    const { serviceId } = plan.current;
+    // Once connected, Railway would deploy every push to the branch. achq starts builds itself.
+    const autoDeploy = serviceId ? await this.railway.autoDeploy(this.options.projectId, this.options.environmentId, serviceId).catch(() => false) : false;
+    const changes: Change[] = [...plan.changes];
+    if (autoDeploy) changes.push({ op: "-", target: `${containerServiceName(spec.repo, spec.name)} automatic deploys` });
+    return {
+      changes,
+      apply: async () => {
+        const result = await plan.apply();
+        if (autoDeploy) await this.railway.setAutoDeploy(this.options.projectId, this.options.environmentId, result.serviceId, false);
+        return result;
+      },
+    };
   }
 
   async ensure(spec: ContainerSpec) {
     const service = containerServiceName(spec.repo, spec.name);
-    await this.graph(spec).apply();
+    await (await this.planEnsure(spec)).apply();
     return { url: containerUrl(service), service };
   }
 

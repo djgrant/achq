@@ -11,7 +11,7 @@ const need = (name: string) => {
 
 export const main = async () => {
   const key = need(ENV.key);
-  const github = createGitHub({ apps: parseApps(process.env), key });
+  const github = createGitHub({ apps: parseApps(need(ENV.githubApps)), key });
   const router = createRouter({
     channels: [github.channel],
     providers: [github.access],

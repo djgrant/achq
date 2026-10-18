@@ -1,8 +1,12 @@
-import { ENV, type RouterAccess } from "@achq/core";
+import { ENV } from "@achq/core";
 import { adminSecret } from "@achq/core/secrets";
 import { signedFetch } from "@achq/core/signing";
 import type { RailwayClient } from "@achq/railway/api";
-import { hostServiceName, publicBase } from "@achq/railway/runtime";
+import { hostServiceName } from "@achq/railway/runtime";
+
+export type RouterAccess = { base: string; key: string };
+
+export const routerBase = (domain: string) => `https://${domain}`;
 
 /** The router's public URL and AGENT_WEBHOOK_KEY, read from Railway. */
 export const routerAccess = async (railway: RailwayClient, projectName: string, routerName: string, workspaceId?: string): Promise<RouterAccess> => {
@@ -15,7 +19,7 @@ export const routerAccess = async (railway: RailwayClient, projectName: string, 
   const [vars, domains] = await Promise.all([railway.variables(project.id, project.environmentId, service.id), railway.domains(project.id, project.environmentId, service.id)]);
   const key = vars[ENV.key];
   if (!key || !domains[0]) throw new Error(`${name} isn't set up. Run \`achq up\`.`);
-  return { base: publicBase(domains[0].domain), key };
+  return { base: routerBase(domains[0].domain), key };
 };
 
 /** An admin-signed request to the router. Throws on anything but 2xx. */

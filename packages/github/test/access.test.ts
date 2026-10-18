@@ -111,11 +111,10 @@ describe("installations and sources", () => {
     ]);
   });
 
-  test("parseApps reads each App's credential from its own variable, and ignores the rest", () => {
-    const env = { ACHQ_GITHUB_APP_A: JSON.stringify({ slug: "a", id: 5, privateKey: "k" }), ACHQ_GITHUB_APPS: "{}", PATH: "/bin" };
-    expect(parseApps(env)).toEqual({ a: { id: "5", privateKey: "k" } });
-    expect(parseApps({})).toEqual({});
-    expect(() => parseApps({ ACHQ_GITHUB_APP_A: JSON.stringify({ slug: "a", id: 5 }) })).toThrow(/privateKey/);
+  test("parseApps reads ENV.githubApps", () => {
+    expect(parseApps(JSON.stringify({ a: { id: 5, privateKey: "k" } }))).toEqual({ a: { id: "5", privateKey: "k" } });
+    expect(parseApps(undefined)).toEqual({});
+    expect(() => parseApps(JSON.stringify({ a: { id: 5 } }))).toThrow(/privateKey/);
   });
 });
 

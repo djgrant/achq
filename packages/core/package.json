@@ -7,8 +7,5 @@
     ".": "./src/index.ts",
     "./secrets": "./src/secrets.ts",
     "./signing": "./src/signing.ts"
-  },
-  "dependencies": {
-    "@achq/reconcile": "workspace:*"
   }
 }

@@ -1,4 +1,11 @@
 import type { SyncResult } from "@achq/core";
+import { type Change, formatChange } from "@achq/railway/runtime";
+
+/** Prints a step's planned changes, or that it's up to date. */
+export const showChanges = (log: (line: string) => void, subject: string, changes: Change[]) => {
+  if (!changes.length) log(`  ${subject}: up to date`);
+  for (const c of changes) log(`  ${formatChange(c)}`);
+};
 
 export const formatSync = (result: SyncResult, dryRun: boolean) => {
   const lines: string[] = [];

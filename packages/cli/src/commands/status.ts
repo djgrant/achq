@@ -1,7 +1,6 @@
 import { defineCommand } from "@pokit/core";
 import { clean } from "../lib/errors.ts";
 import type { DeployRecord, Installation } from "@achq/core";
-import * as railway from "@achq/railway";
 import { RailwayClient } from "@achq/railway/api";
 import { CLI_ENV } from "../constants.ts";
 import { need } from "../lib/env.ts";
@@ -19,8 +18,7 @@ export const command = defineCommand({
     const file = infraFile();
     if (file) {
       const infra = await loadInfra(file);
-      if (!(infra.router instanceof railway.Router)) throw new Error("achq status can only reach a Railway router");
-      const router = await routerAccess(new RailwayClient(need(CLI_ENV.railwayToken)), infra.router.inputs.project, infra.router.name, process.env[CLI_ENV.railwayWorkspace]);
+      const router = await routerAccess(new RailwayClient(need(CLI_ENV.railwayToken)), infra.project, infra.router.name, process.env[CLI_ENV.railwayWorkspace]);
       const [records, installations] = await Promise.all([
         adminRequest<DeployRecord[]>(router, "GET", "/admin/status"),
         adminRequest<Installation[]>(router, "GET", "/admin/installations"),

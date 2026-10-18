@@ -3,8 +3,7 @@
 // App's credentials. They stay in memory.
 import { randomBytes } from "node:crypto";
 import { GITHUB_API } from "@achq/github/api";
-import { APP_EVENTS, APP_PERMISSIONS, GITHUB_WEB } from "@achq/github/runtime";
-import { ACHQ_HOMEPAGE } from "../constants.ts";
+import { ACHQ_HOMEPAGE, APP_EVENTS, APP_PERMISSIONS, GITHUB_WEB } from "../constants.ts";
 
 export type CreatedApp = { id: number; slug: string; pem: string; html_url: string };
 
