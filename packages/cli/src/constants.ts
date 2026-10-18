@@ -9,8 +9,6 @@ export const CLI_ENV = {
   debug: "ACHQ_DEBUG",
   /** Points the CLI's GitHub client at a fake. */
   githubApi: "ACHQ_GITHUB_API",
-  railwayToken: "RAILWAY_API_TOKEN",
-  railwayWorkspace: "RAILWAY_WORKSPACE_ID",
 } as const;
 
 /** What every achq App sends and is allowed. Installation events are always sent. */
@@ -38,9 +36,5 @@ export const ACHQ_CODE_PATHS = ["packages", "package.json", "bun.lock"];
 export const STATUS_TIMEOUT_MS = 180_000;
 export const STATUS_INTERVAL_MS = 5000;
 
-/** How often `achq up` checks the router's deploy, and how many times: five minutes in all. */
-export const DEPLOY_POLL_INTERVAL_MS = 5000;
-export const DEPLOY_POLL_ATTEMPTS = 60;
-
-/** The terminal's variables, passed through Railway's SSH, which sets only TERM=xterm. */
+/** The terminal's variables, passed on to the container's shell, which may set only TERM=xterm (Railway's does). */
 export const TERMINAL_ENV = ["TERM", "COLORTERM", "TERM_PROGRAM", "TERM_PROGRAM_VERSION"];

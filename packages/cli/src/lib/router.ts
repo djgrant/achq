@@ -1,25 +1,16 @@
-import { ENV } from "@achq/core";
+import { ENV, type InfraPlatform } from "@achq/core";
 import { adminSecret } from "@achq/core/secrets";
 import { signedFetch } from "@achq/core/signing";
-import type { RailwayClient } from "@achq/railway/api";
-import { hostServiceName } from "@achq/railway/runtime";
 
 export type RouterAccess = { base: string; key: string };
 
-export const routerBase = (domain: string) => `https://${domain}`;
-
-/** The router's public URL and AGENT_WEBHOOK_KEY, read from Railway. */
-export const routerAccess = async (railway: RailwayClient, projectName: string, routerName: string, workspaceId?: string): Promise<RouterAccess> => {
-  const found = await railway.projectByName(projectName, workspaceId);
-  if (!found) throw new Error(`No Railway project ${projectName}. Run \`achq up\`.`);
-  const project = await railway.project(found.id);
-  const name = hostServiceName(routerName);
-  const service = project.services.find((s) => s.name === name);
-  if (!service) throw new Error(`No ${name} in ${projectName}. Run \`achq up\`.`);
-  const [vars, domains] = await Promise.all([railway.variables(project.id, project.environmentId, service.id), railway.domains(project.id, project.environmentId, service.id)]);
-  const key = vars[ENV.key];
-  if (!key || !domains[0]) throw new Error(`${name} isn't set up. Run \`achq up\`.`);
-  return { base: routerBase(domains[0].domain), key };
+/** The router's public URL and AGENT_WEBHOOK_KEY, read from where it runs. */
+export const routerAccess = async (platform: InfraPlatform, routerName: string): Promise<RouterAccess> => {
+  const router = await platform.current(routerName);
+  if (!router) throw new Error(`There's no router ${routerName}. Run \`achq up\`.`);
+  const key = router.env[ENV.key];
+  if (!key || !router.publicUrl) throw new Error(`Router ${routerName} isn't set up. Run \`achq up\`.`);
+  return { base: router.publicUrl, key };
 };
 
 /** An admin-signed request to the router. Throws on anything but 2xx. */

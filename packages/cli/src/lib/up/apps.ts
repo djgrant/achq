@@ -1,8 +1,8 @@
+import type { Change } from "@achq/core";
 import { appWebhookSecret } from "@achq/core/secrets";
 import type { App } from "@achq/github";
 import { appJwt, GitHubClient } from "@achq/github/api";
 import { covers } from "@achq/github/runtime";
-import type { Change } from "@achq/railway/runtime";
 import { APP_EVENTS, APP_PERMISSIONS, GITHUB_WEB } from "../../constants.ts";
 import { appSlug } from "../app-slug.ts";
 import type { CreatedApp, ManifestRequest } from "../manifest.ts";

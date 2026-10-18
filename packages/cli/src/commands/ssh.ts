@@ -1,7 +1,6 @@
 import { defineCommand } from "@pokit/core";
 import { clean } from "../lib/errors.ts";
 import { z } from "zod";
-import { railwaySsh } from "../lib/remote/railway-ssh.ts";
 import { reachContainer } from "../lib/remote/reach.ts";
 import { needRepo } from "../lib/workdir.ts";
 
@@ -14,6 +13,6 @@ export const command = defineCommand({
   run: clean(async (r, { context }) => {
     const container = await reachContainer(r.prompter, needRepo(), context.container);
     const separator = process.argv.indexOf("--");
-    process.exitCode = await railwaySsh(container, separator < 0 ? [] : process.argv.slice(separator + 1));
+    process.exitCode = await container.shell.open(container.location, separator < 0 ? [] : process.argv.slice(separator + 1));
   }),
 });

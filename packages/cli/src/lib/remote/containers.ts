@@ -1,12 +1,13 @@
-import type { Status } from "@achq/core";
+import type { ContainerShell, Status } from "@achq/core";
+import { findPlatform } from "../platforms.ts";
 
-export type Located = { name: string; platform: string; project: string; environment: string; service: string };
+export type Located = { name: string; location: Record<string, string>; shell: ContainerShell };
 
-/** The containers ACHQ_STATUS says the repo has, with where to find them. */
+/** The containers ACHQ_STATUS says the repo has, that a platform achq knows can reach. */
 export const containersOf = (status: Status): Located[] =>
   (status.containers ?? []).flatMap((c) => {
-    const { platform, project, environment, service } = c.location;
-    return platform === "railway" && project && environment && service ? [{ name: c.name, platform, project, environment, service }] : [];
+    const shell = findPlatform(c.location.platform)?.shell;
+    return shell?.reachable(c.location) ? [{ name: c.name, location: c.location, shell }] : [];
   });
 
 /** The one container, the one `wanted` names, or `undefined` when the caller has to ask. */

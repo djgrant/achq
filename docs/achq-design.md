@@ -32,7 +32,7 @@ export default achq(() => {
 - **Router**: receives events and wakes the deployer and containers.
 - **Deployer**: creates and updates containers, in its own Railway project.
 - **A GitHub App** binds to both. It's a channel and an access provider (see Primitives). The App's webhook points at the router, and the router holds the App's key to check deliveries and mint tokens. The App's installations decide which repos the deployer serves.
-- Each component could in principle be hosted on a different platform. That needs bindings the current design assumes away: reaching containers without a private network, and waking them through the container host's API. Only Railway is built for now.
+- **The platform**: the router and deployer name the platform they run on, and the deployer puts containers on the same one. A platform implements core's `Platform`: running the router and deployer for `achq up`, a `ContainerHost` for the deployer, and a shell into containers for `achq ssh` and `resume`. achq's services and CLI only use that interface, and pick an implementation by id. Only Railway is built for now. Putting the router, deployer and containers on different platforms needs bindings this design assumes away: reaching containers without a private network, and waking them through the container host's API.
 - **`owners`**: the deployer only serves repos owned by these accounts. A public App can be installed by anyone, and without this a stranger's install would get a container on your Railway account running on your Claude token.
 
 ### A repo
