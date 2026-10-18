@@ -89,20 +89,20 @@ describe("imports are limited to achq and .achq/", () => {
   const rejects = (config: string, message: string) => expect(evaluateConfig({ "config.ts": config, "lib/x.ts": "export const x = 1;" })).rejects.toThrow(message);
 
   test("node and bun builtins", async () => {
-    await rejects(`import { readFileSync } from "node:fs"; readFileSync("/etc/passwd");`, `imports "node:fs": config can only import "achq"`);
+    await rejects(`import { readFileSync } from "node:fs"; readFileSync("/etc/passwd");`, `.achq/config.ts imports "node:fs", which doesn't exist`);
     await rejects(`import fs from "fs"; fs.readFileSync("/etc/passwd");`, `imports "fs"`);
-    await rejects(`const fs = require("fs");`, `imports "fs"`);
+    await rejects(`const fs = require("fs");`, `'require' is not defined`);
     await rejects(`import { $ } from "bun"; $\`id\`;`, `imports "bun"`);
   });
 
   test("files outside .achq/, absolute paths, URLs and packages", async () => {
-    await rejects(`import "../../secrets.env";`, `imports "../../secrets.env", which is outside .achq/`);
-    await rejects(`import "./lib/../../package.json";`, "outside .achq/");
+    await rejects(`import "../../secrets.env";`, `imports "../../secrets.env", which doesn't exist`);
+    await rejects(`import "./lib/../../package.json";`, `imports "./lib/../../package.json"`);
     await rejects(`import "/etc/passwd";`, `imports "/etc/passwd"`);
     await rejects(`import "https://example.com/x.js";`, `imports "https://example.com/x.js"`);
     await rejects(`import { z } from "zod"; z.string();`, `imports "zod"`);
     await rejects(`import "achq/../core/secrets.ts";`, `imports "achq/../core/secrets.ts"`);
-    await rejects(`import "./nope.ts";`, `"./nope.ts", which isn't a file in .achq/`);
+    await rejects(`import "./nope.ts";`, `imports "./nope.ts", which doesn't exist`);
   });
 
   test("files under .achq/ resolve, with or without an extension", async () => {
@@ -154,7 +154,7 @@ describe("macros don't run", () => {
 
 describe("errors read well in ACHQ_STATUS", () => {
   test("a syntax error says where", async () => {
-    await expect(evaluateConfig({ "config.ts": `const x = ;` })).rejects.toThrow(/Bundling \.achq\/config\.ts failed: .*\(\.achq\/config\.ts:1:/);
+    await expect(evaluateConfig({ "config.ts": `const a = 1;\nconst x = ;` })).rejects.toThrow(".achq/config.ts:2:11: Unexpected ;");
   });
 
   test("a throw in config, and collectPlan's own checks", async () => {
@@ -165,14 +165,14 @@ describe("errors read well in ACHQ_STATUS", () => {
 
   test("a config that forges its plan is still checked", async () => {
     const forge = (plan: string) => evaluateConfig({
-        "config.ts": `import { Container } from "achq"; new Container("dev", { image: "x" }); Object.defineProperty(globalThis, "__achqPlan", { get: () => ${plan}, set() {} });`,
+        "config.ts": `import { Container } from "achq"; new Container("dev", { image: "x" }); const s = JSON.stringify; JSON.stringify = () => ${plan};`,
       });
     await expect(forge(`"not json"`)).rejects.toThrow("isn't valid JSON");
-    await expect(forge(`JSON.stringify({ policies: [] })`)).rejects.toThrow("invalid at containers");
+    await expect(forge(`s({ policies: [] })`)).rejects.toThrow("invalid at containers");
     await expect(
-      forge(`JSON.stringify({ policies: [], containers: [{ name: "dev", image: "x", policies: ["ghost"], files: {} }], workspaces: [], agents: [], triggers: [] })`),
+      forge(`s({ policies: [], containers: [{ name: "dev", image: "x", policies: ["ghost"], files: {} }], workspaces: [], agents: [], triggers: [] })`),
     ).rejects.toThrow(`refers to policy "ghost"`);
-    await expect(forge(`({ toString() { return "x" } })`)).rejects.toThrow("didn't produce a plan");
+    await expect(forge(`({ toString() { return "x" } })`)).rejects.toThrow("The config returned an object, not a string");
   });
 });
 

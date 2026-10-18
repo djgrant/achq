@@ -153,8 +153,8 @@ defineAccess({
 Repo config is code. It never runs anywhere that holds secrets.
 
 1. The deployer downloads `.achq/` from the default branch, with a repo-scoped token from the router.
-2. It bundles the config into one file with `Bun.build`, with macros off. Bundling doesn't run the config's code.
-3. It runs the bundle in QuickJS compiled to WebAssembly, which has no filesystem, network or environment access. A Bun subprocess isn't enough: it runs as the same user and could read the deployer's secrets from `/proc/<pid>/environ`.
+2. It strips the types from each file on its own with `Bun.Transpiler`, with macros off. That doesn't run the config's code.
+3. It runs the files as ES modules in QuickJS compiled to WebAssembly, which has no filesystem, network or environment access. The only modules there are the repo's `.achq/` files and a prebuilt `achq`, so any other import fails. A Bun subprocess isn't enough: it runs as the same user and could read the deployer's secrets from `/proc/<pid>/environ`.
 4. The config returns a plain-data plan: every resource and its inputs. The deployer creates the containers and pushes events, thread selectors and policies to the router. Each container runs its own config again at runtime for the agent settings, which can be code.
 
 Config can only import `achq` and its own files under `.achq/`.
