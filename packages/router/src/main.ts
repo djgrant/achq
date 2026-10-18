@@ -1,5 +1,6 @@
 import { ENV, ROUTER_PRIVATE_PORT, ROUTER_PUBLIC_PORT } from "@achq/core";
 import { createGitHub, parseApps } from "@achq/github/runtime";
+import { DEFAULT_DATA_DIR } from "./constants.ts";
 import { createRouter } from "./router.ts";
 
 const need = (name: string) => {
@@ -16,7 +17,7 @@ export const main = async () => {
     providers: [github.access],
     key,
     deployerUrl: need(ENV.deployerUrl),
-    dataDir: process.env.RAILWAY_VOLUME_MOUNT_PATH ?? process.env.DATA_DIR ?? "./data",
+    dataDir: process.env.RAILWAY_VOLUME_MOUNT_PATH ?? process.env.DATA_DIR ?? DEFAULT_DATA_DIR,
     installations: github.installations,
     sources: github.sources,
   });

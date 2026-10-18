@@ -2,10 +2,9 @@
 // leaves half a file.
 import { mkdir, readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { SAFE_NAME } from "./constants.ts";
 
-/** File names come from delivery IDs and repo names, so only allow characters that can't escape the directory. */
-const SAFE = /^[\w-][\w.-]*$/;
-export const safeName = (name: string) => SAFE.test(name);
+export const safeName = (name: string) => SAFE_NAME.test(name);
 
 /** `owner/repo` as a file name. GitHub names are case-insensitive, so lowercase. */
 export const repoFile = (repo: string) => repo.toLowerCase().replace("/", "__");
