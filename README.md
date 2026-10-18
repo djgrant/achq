@@ -117,15 +117,17 @@ A thread is named from its ID, e.g. `notationlabs-yieldstar-42`.
 
 Each folder in `packages/` is a workspace package. Packages import each other by name, never by relative path, and each has its tests and their helpers in `test/`.
 
+In every package, a module has one purpose and its name says what it is. Fixed values (URLs, env and variable names, limits, timeouts, permission sets) go in `src/constants.ts`. `index.ts` files only re-export. A file becomes a folder of the same name once it has several parts.
+
 | Kind | Packages | Layout |
 |---|---|---|
-| Kernel | `core` | `model/` (resources, plain data), `contracts/` (the interfaces platforms implement, the HTTP protocol), `secrets.ts`, `constants.ts` |
-| Provider | `github`, `railway`, `claude` | `resources.ts` (what config or the infra declares), `runtime/` (implementations of core's interfaces), `api.ts` (the platform's API client). Entries: `.`, `/runtime`, `/api` |
-| Service | `router`, `deployer`, `container` | `main.ts` (reads the service's settings from the environment and wires it up), its logic, `store.ts`, `clients/` |
+| Kernel | `core` | `model/` (resources, the registry, the plan), `contracts/` (the interfaces platforms implement, the HTTP protocol), `secrets.ts`, `signing.ts`. Entries: `.`, `/secrets`, `/signing` |
+| Provider | `github`, `railway`, `claude` | `resources` (what config or the infra declares), `runtime/` (implementations of core's interfaces), `api` (the platform's API client). Entries: `.`, `/runtime`, `/api` |
+| Service | `router`, `deployer`, `container` | `main.ts` (reads the service's settings from the environment and wires it up), one module per part of its logic, `store.ts`, `clients/` |
 | Library | `sandbox`, `flock` | Know nothing about achq |
-| Tool | `cli` | `commands/`, `lib/` |
+| Tool | `cli` | `commands/` (one per command), `lib/` (a folder per command area) |
 | Facade | `achq` | What repos and the infra import: `achq`, `achq/github`, `achq/railway` |
-| Testing | `test-utils`, `e2e` | Fakes shared across packages (`@achq/test-utils/github`, …); the whole system end to end |
+| Testing | `test-utils`, `e2e` | Fakes shared across packages, one per module (`@achq/test-utils/github`, …); the whole system end to end |
 
 Code that runs in the config sandbox (everything `achq` and `achq/github` import) is typechecked without Bun or Node types (`tsconfig.sandbox.json`).
 
