@@ -3,17 +3,7 @@
 // App's credentials. They stay in memory.
 import { randomBytes } from "node:crypto";
 import { GITHUB_API } from "@achq/github/api";
-
-/** What every achq App sends and is allowed. Installation events are always sent. */
-export const APP_EVENTS = ["issues", "issue_comment", "push"];
-export const APP_PERMISSIONS: Record<string, string> = {
-  contents: "write",
-  issues: "write",
-  pull_requests: "write",
-  metadata: "read",
-  // For the deployer's ACHQ_STATUS repository variable.
-  actions_variables: "write",
-};
+import { ACHQ_HOMEPAGE, APP_EVENTS, APP_PERMISSIONS, GITHUB_WEB } from "../constants.ts";
 
 export type CreatedApp = { id: number; slug: string; pem: string; html_url: string };
 
@@ -21,7 +11,7 @@ export type ManifestRequest = { name: string; org?: string; hookUrl: string };
 
 export const appManifest = (request: ManifestRequest, redirectUrl: string) => ({
   name: request.name,
-  url: "https://github.com/djgrant/achq",
+  url: ACHQ_HOMEPAGE,
   hook_attributes: { url: request.hookUrl, active: true },
   redirect_url: redirectUrl,
   // Without an org it's your account's, and public so others (orgs) can install it.
@@ -38,7 +28,7 @@ export const manifestFlow = async (
   request: ManifestRequest,
   options: { open: (url: string) => Promise<void> | void; githubWeb?: string; githubApi?: string },
 ): Promise<CreatedApp> => {
-  const web = options.githubWeb ?? "https://github.com";
+  const web = options.githubWeb ?? GITHUB_WEB;
   const api = options.githubApi ?? GITHUB_API;
   const state = randomBytes(16).toString("hex");
   let settle!: { resolve: (app: CreatedApp) => void; reject: (e: Error) => void };
@@ -81,9 +71,4 @@ export const manifestFlow = async (
     process.off("SIGINT", stop);
     setTimeout(() => server.stop(), 100);
   }
-};
-
-export const openInBrowser = async (url: string) => {
-  const opener = process.platform === "darwin" ? "open" : "xdg-open";
-  Bun.spawnSync([opener, url], { stdout: "ignore", stderr: "ignore" });
 };

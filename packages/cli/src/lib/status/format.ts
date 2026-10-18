@@ -1,4 +1,11 @@
-import type { DeployRecord, Installation } from "@achq/core";
+import type { DeployRecord, Installation, Status } from "@achq/core";
+
+export const formatStatus = (status: Status) => {
+  const lines = [`${status.state} at ${status.at}${status.commit ? ` (${status.commit.slice(0, 7)})` : ""}${status.error ? `: ${status.error}` : ""}`];
+  if (status.containers?.length) lines.push(`containers: ${status.containers.map((c) => c.name).join(", ")}`);
+  for (const w of status.warnings ?? []) lines.push(`! ${w}`);
+  return lines;
+};
 
 /** Every installed or deployed repo, one row each, with errors underneath. */
 export const infraStatusTable = (records: DeployRecord[], installations: Installation[]) => {

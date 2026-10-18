@@ -1,8 +1,9 @@
 import type { Prompter } from "@pokit/core";
-import { ghToken, readStatus, userGitHub } from "./gh.ts";
-import { containersOf, type Located, pickContainer, wake } from "./remote.ts";
-
-export const interactive = () => Boolean(process.stdin.isTTY && process.stdout.isTTY);
+import { ghToken, userGitHub } from "../gh.ts";
+import { readStatus } from "../status/read.ts";
+import { interactive } from "../terminal.ts";
+import { containersOf, type Located, pickContainer } from "./containers.ts";
+import { wake } from "./wake.ts";
 
 /** The repo's container, picked and woken through the router. */
 export const reachContainer = async (prompter: Prompter, repo: string, wanted?: string): Promise<Located> => {

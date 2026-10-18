@@ -2,12 +2,14 @@ import { defineCommand } from "@pokit/core";
 import { clean } from "../lib/errors.ts";
 import type { DeployRecord, Installation } from "@achq/core";
 import { RailwayClient } from "@achq/railway/api";
-import { infraFile, need, needRepo } from "../lib/env.ts";
-import { readStatus, userGitHub } from "../lib/gh.ts";
-import { formatStatus } from "../lib/install.ts";
-import { loadInfra } from "../lib/load.ts";
+import { CLI_ENV } from "../constants.ts";
+import { need } from "../lib/env.ts";
+import { userGitHub } from "../lib/gh.ts";
+import { loadInfra } from "../lib/load/infra.ts";
 import { adminRequest, routerAccess } from "../lib/router.ts";
-import { infraStatusTable } from "../lib/status.ts";
+import { formatStatus, infraStatusTable } from "../lib/status/format.ts";
+import { readStatus } from "../lib/status/read.ts";
+import { infraFile, needRepo } from "../lib/workdir.ts";
 
 export const command = defineCommand({
   label: "From the infra: every repo's deploy. From a repo: its ACHQ_STATUS",
@@ -16,7 +18,7 @@ export const command = defineCommand({
     const file = infraFile();
     if (file) {
       const infra = await loadInfra(file);
-      const router = await routerAccess(new RailwayClient(need("RAILWAY_API_TOKEN")), infra.project, infra.router.name, process.env.RAILWAY_WORKSPACE_ID);
+      const router = await routerAccess(new RailwayClient(need(CLI_ENV.railwayToken)), infra.project, infra.router.name, process.env[CLI_ENV.railwayWorkspace]);
       const [records, installations] = await Promise.all([
         adminRequest<DeployRecord[]>(router, "GET", "/admin/status"),
         adminRequest<Installation[]>(router, "GET", "/admin/installations"),

@@ -1,9 +1,11 @@
 import { defineCommand } from "@pokit/core";
 import { clean } from "../lib/errors.ts";
 import { z } from "zod";
-import { needRepo } from "../lib/env.ts";
-import { interactive, reachContainer } from "../lib/reach.ts";
-import { parseSessions, pickSession, railwayRun, railwaySsh, sessionLabel, sessionTable, terminalEnv } from "../lib/remote.ts";
+import { railwayRun, railwaySsh } from "../lib/remote/railway-ssh.ts";
+import { reachContainer } from "../lib/remote/reach.ts";
+import { parseSessions, pickSession, sessionLabel, sessionTable } from "../lib/remote/sessions.ts";
+import { interactive, terminalEnv } from "../lib/terminal.ts";
+import { needRepo } from "../lib/workdir.ts";
 
 export const command = defineCommand({
   label: "Open a thread's agent session",

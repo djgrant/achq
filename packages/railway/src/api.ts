@@ -1,7 +1,8 @@
 // The fake Railway in `@achq/test-utils` answers every query and mutation here,
 // so keep the two in step.
+import { RAILWAY_API } from "./constants.ts";
 
-export const RAILWAY_API = "https://backboard.railway.com/graphql/v2";
+export { RAILWAY_API };
 
 /** What a service instance is configured with. Only the fields achq sets. */
 export type InstanceSettings = {

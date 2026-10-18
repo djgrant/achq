@@ -1,4 +1,5 @@
 import { markOperational } from "@pokit/core";
+import { CLI_ENV } from "../constants.ts";
 
 const BUGS = [TypeError, ReferenceError, SyntaxError, RangeError];
 
@@ -12,7 +13,7 @@ export const clean =
     try {
       return await run(...args);
     } catch (error) {
-      if (error instanceof Error && !process.env.ACHQ_DEBUG && !BUGS.some((type) => error instanceof type)) markOperational(error);
+      if (error instanceof Error && !process.env[CLI_ENV.debug] && !BUGS.some((type) => error instanceof type)) markOperational(error);
       throw error;
     }
   };

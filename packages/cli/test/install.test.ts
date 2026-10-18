@@ -3,8 +3,11 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { GitHubClient } from "@achq/github/api";
-import { checkApp, configApp, configNeeds, installRepo, uninstallRepo, waitForStatus } from "../src/lib/install.ts";
-import { loadRepoPlan } from "../src/lib/load.ts";
+import { checkApp } from "../src/lib/install/app-check.ts";
+import { configApp, configNeeds } from "../src/lib/install/config-app.ts";
+import { installRepo, uninstallRepo } from "../src/lib/install/installation.ts";
+import { loadRepoPlan } from "../src/lib/load/repo-config.ts";
+import { waitForStatus } from "../src/lib/status/read.ts";
 
 // A real .achq/ directory, as the design's example writes it, with a local import.
 const CONFIG = `

@@ -1,6 +1,7 @@
 // Planning reads everything first and changes nothing. Only `apply` makes changes.
 import { createHash } from "node:crypto";
 import type { InstanceSettings, ProjectSnapshot, RailwayClient } from "../api.ts";
+import { DEPLOYED } from "../constants.ts";
 
 /** A planned change, for printing. Variable changes name the variables, never their values. */
 export type Change = { op: "+" | "~" | "-"; target: string; detail?: string };
@@ -33,9 +34,6 @@ export type ServicePlan = {
   current: ServiceState;
   apply(): Promise<{ serviceId: string; domain?: string; deployed: boolean }>;
 };
-
-/** A variable holding a hash of the settings and variables a service was last deployed with. */
-export const DEPLOYED = "ACHQ_DEPLOYED";
 
 const fingerprint = (spec: ServiceSpec) =>
   createHash("sha256")
@@ -142,17 +140,4 @@ const deploy = async (railway: RailwayClient, projectId: string, environmentId: 
 const need = (target: Target) => {
   if (!target.projectId || !target.environmentId) throw new Error("No Railway project to apply to");
   return { projectId: target.projectId, environmentId: target.environmentId };
-};
-
-/** A Railway service name (and private hostname): lowercase letters, digits and dashes, at most 63 characters. */
-export const serviceName = (...parts: string[]) => {
-  const name = parts
-    .join("-")
-    .toLowerCase()
-    .replace(/[^a-z0-9-]+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "");
-  if (name.length <= 63) return name;
-  const hash = createHash("sha256").update(name).digest("hex").slice(0, 8);
-  return `${name.slice(0, 54).replace(/-$/, "")}-${hash}`;
 };

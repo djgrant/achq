@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./remote": "./src/lib/remote.ts"
+    "./remote": "./src/lib/remote/index.ts"
   },
   "dependencies": {
     "@achq/core": "workspace:*",

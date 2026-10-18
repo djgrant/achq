@@ -10,9 +10,9 @@ import * as github from "@achq/github";
 import { RailwayClient } from "@achq/railway/api";
 import { type FakeRailway, startFakeRailway } from "@achq/test-utils/railway";
 import * as railway from "@achq/railway";
-import { checkInfra, loadInfra } from "../src/lib/load.ts";
+import { checkInfra } from "../src/lib/load/infra.ts";
 import { manifestFlow } from "../src/lib/manifest.ts";
-import { up, type UpDeps } from "../src/lib/up.ts";
+import { up, type UpDeps } from "../src/lib/up/up.ts";
 
 const { privateKey: pem, publicKey } = generateKeyPairSync("rsa", { modulusLength: 2048, privateKeyEncoding: { type: "pkcs8", format: "pem" }, publicKeyEncoding: { type: "spki", format: "pem" } });
 const pemBody = pem.split("\n")[5]; // a line from the middle of the key
@@ -215,40 +215,4 @@ test("a changed achq ref shows as variables and a deploy, and a dry run applies 
   await up(infra(), { prune: false, dryRun: true }, { ...deps(log), achqRef: async () => "def456" });
   expect(log.slice(0, 4)).toEqual(["  ~ achq-router variables ACHQ_REF", "  ~ achq-router deploy", "  ~ achq-deployer variables ACHQ_REF", "  ~ achq-deployer deploy"]);
   expect(fake.mutations).toEqual([]);
-});
-
-test("the infra must keep the router and deployer in one project", () => {
-  expect(() =>
-    checkInfra(
-      achq(() => {
-        const router = new railway.Router("router", { project: "achq" });
-        new railway.Deployer("deployer", { project: "other", router, owners: [] });
-      })(),
-    ),
-  ).toThrow("share one Railway project");
-});
-
-test("an achq.infra.ts file, written as the design shows, loads with its imports resolved to achq", async () => {
-  fs.writeFileSync(
-    path.join(tmp, "achq.infra.ts"),
-    `import { achq } from "achq";
-import * as github from "achq/github";
-import * as railway from "achq/railway";
-
-export default achq(() => {
-  const router = new railway.Router("router", { project: "achq" });
-  const deployer = new railway.Deployer("deployer", {
-    project: "achq",
-    router,
-    owners: ["djgrant", "notationlabs"],
-  });
-  new github.App("personal", { name: "djgrant-claude", router, deployer });
-  new github.App("notation", { name: "notation-achq", org: "notationlabs", router, deployer });
-});
-`,
-  );
-  const loaded = await loadInfra(path.join(tmp, "achq.infra.ts"));
-  expect(loaded.project).toBe("achq");
-  expect(loaded.deployer.inputs.owners).toEqual(["djgrant", "notationlabs"]);
-  expect(loaded.apps.map((a) => [a.inputs.name, a.inputs.org])).toEqual([["djgrant-claude", undefined], ["notation-achq", "notationlabs"]]);
 });

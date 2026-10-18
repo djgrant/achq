@@ -1,9 +1,10 @@
 import { defineCommand } from "@pokit/core";
 import { clean } from "../lib/errors.ts";
-import { needRepo, repoRoot } from "../lib/env.ts";
 import { userGitHub } from "../lib/gh.ts";
-import { configApp, uninstallRepo } from "../lib/install.ts";
-import { loadRepoPlan } from "../lib/load.ts";
+import { configApp } from "../lib/install/config-app.ts";
+import { uninstallRepo } from "../lib/install/installation.ts";
+import { loadRepoPlan } from "../lib/load/repo-config.ts";
+import { needRepo, repoRoot } from "../lib/workdir.ts";
 
 export const command = defineCommand({
   label: "Remove this repo from its App's installation",

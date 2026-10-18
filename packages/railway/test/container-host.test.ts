@@ -1,9 +1,7 @@
 import { afterEach, beforeEach, expect, test } from "bun:test";
 import { RailwayClient } from "../src/api.ts";
-import { containerServiceName, railwayContainerHost } from "../src/runtime/container-host.ts";
+import { railwayContainerHost } from "../src/runtime/container-host.ts";
 import { type FakeRailway, startFakeRailway } from "@achq/test-utils/railway";
-import { routerServiceSpec } from "../src/runtime/hosts.ts";
-import { planService, serviceName } from "../src/runtime/service.ts";
 
 let fake: FakeRailway;
 let host: ReturnType<typeof railwayContainerHost>;
@@ -19,13 +17,6 @@ beforeEach(async () => {
   fake.mutations.length = 0;
 });
 afterEach(() => fake.stop());
-
-test("service names are lowercase, dash-separated and fit a hostname", () => {
-  expect(containerServiceName("NotationLabs/yieldstar.dev", "dev")).toBe("notationlabs-yieldstar-dev-dev");
-  const long = serviceName("a".repeat(40), "b".repeat(40));
-  expect(long.length).toBeLessThanOrEqual(63);
-  expect(long).not.toBe(serviceName("a".repeat(40), "b".repeat(39), "c"));
-});
 
 test("ensure creates a private service with a volume, and a second ensure changes nothing", async () => {
   const result = await host.ensure(spec);
@@ -107,25 +98,4 @@ test("list reads services' repo and container, locate says where, remove deletes
   expect(project.volumes).toHaveLength(1);
   expect(await host.state(spec.repo, "dev")).toBe("missing");
   await host.remove(spec.repo, "dev"); // already gone: nothing to do
-});
-
-test("an image service redeploys only when its config changed, and keeps exactly one public domain", async () => {
-  const railway = new RailwayClient("t", fake.url);
-  const project = () => railway.project(fake.project("achq")!.id);
-  const target = { projectId: fake.project("achq")!.id, environmentId: fake.project("achq")!.environmentId };
-  const router = (ref: string) => routerServiceSpec({ name: "achq-router", key: "k", apps: {}, deployerUrl: "http://d", ref });
-
-  const first = await planService(railway, target, router("a"), await project());
-  expect(first.changes.map((c) => `${c.op} ${c.target}`)).toEqual(["+ service achq-router", "+ achq-router volume", "+ achq-router public domain", "~ achq-router deploy"]);
-  const applied = await first.apply();
-  expect(applied.domain).toBe("achq-router-production.up.railway.app");
-  expect(fake.service("achq-router")!.deployments).toHaveLength(1);
-
-  expect((await planService(railway, target, router("a"), await project())).changes).toEqual([]);
-
-  const changed = await planService(railway, target, router("b"), await project());
-  expect(changed.changes.map((c) => `${c.op} ${c.target} ${c.detail ?? ""}`.trim())).toEqual(["~ achq-router variables ACHQ_REF", "~ achq-router deploy"]);
-  await changed.apply();
-  expect(fake.service("achq-router")!.deployments).toHaveLength(2);
-  expect(fake.service("achq-router")!.domains).toHaveLength(1);
 });

@@ -1,11 +1,15 @@
 import { defineCommand } from "@pokit/core";
 import { clean } from "../lib/errors.ts";
 import { z } from "zod";
-import { needRepo, repoRoot } from "../lib/env.ts";
+import { needRepo, repoRoot } from "../lib/workdir.ts";
 import { userGitHub } from "../lib/gh.ts";
-import { checkApp, configApp, formatStatus, installRepo, waitForStatus } from "../lib/install.ts";
-import { loadRepoPlan } from "../lib/load.ts";
-import { openInBrowser } from "../lib/manifest.ts";
+import { openInBrowser } from "../lib/browser.ts";
+import { checkApp } from "../lib/install/app-check.ts";
+import { configApp } from "../lib/install/config-app.ts";
+import { installRepo } from "../lib/install/installation.ts";
+import { loadRepoPlan } from "../lib/load/repo-config.ts";
+import { formatStatus } from "../lib/status/format.ts";
+import { waitForStatus } from "../lib/status/read.ts";
 
 export const command = defineCommand({
   label: "Install the App this repo's .achq/config.ts names, and wait for the deploy",

@@ -1,17 +1,11 @@
-// One Railway service per repo and container: private, sleeping when idle, with
-// a volume at /data. The deployer starts their builds. Automatic deploys on push
+// The deployer starts containers' builds itself, so automatic deploys on push
 // are turned off once a service is connected.
-import { CONTAINER_PORT, ENV, type ContainerHost, type ContainerSpec, type ServiceState } from "@achq/core";
-import { type ProjectSnapshot, RAILWAY_API, RailwayClient } from "../api.ts";
-import { type Change, planService, type ServiceSpec, serviceName } from "./service.ts";
-
-/** The branch the service was last connected to, as `owner/repo@branch`. */
-const CONNECTED = "ACHQ_CONNECTED";
-const BRANCH = "ACHQ_BRANCH";
-
-export const containerServiceName = (repo: string, name: string) => serviceName(repo.replace("/", "-"), name);
-
-export const containerUrl = (service: string) => `http://${service}.railway.internal:${CONTAINER_PORT}`;
+import { ENV, type ContainerHost, type ContainerSpec, type ServiceState } from "@achq/core";
+import { type ProjectSnapshot, RailwayClient } from "../api.ts";
+import { BRANCH, CONNECTED, RAILWAY_API } from "../constants.ts";
+import { containerServiceName, containerUrl } from "./names.ts";
+import { type Change, planService } from "./plan.ts";
+import { containerServiceSpec } from "./specs.ts";
 
 export type RailwayContainerHostOptions = {
   token: string;
@@ -20,25 +14,6 @@ export type RailwayContainerHostOptions = {
   /** Railway's GraphQL endpoint, for tests. */
   endpoint?: string;
 };
-
-export const containerServiceSpec = (spec: ContainerSpec): ServiceSpec => ({
-  name: containerServiceName(spec.repo, spec.name),
-  settings: {
-    // Setting a Dockerfile path is what makes Railway build with Docker.
-    dockerfilePath: spec.dockerfile,
-    healthcheckPath: "/",
-    // Sleeps when idle; the router wakes it over the private network.
-    sleepApplication: true,
-  },
-  variables: {
-    ...spec.env,
-    [ENV.repo]: spec.repo,
-    [ENV.container]: spec.name,
-    [BRANCH]: spec.branch,
-    PORT: String(CONTAINER_PORT),
-  },
-  volume: "/data",
-});
 
 export class RailwayContainerHost implements ContainerHost {
   readonly railway: RailwayClient;
