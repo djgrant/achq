@@ -7,7 +7,8 @@ import type { LoadedConfig } from "./config.ts";
 import { withoutPrivate } from "./env.ts";
 import { BUSY, lockedArgv } from "@achq/flock";
 import type { Paths } from "./paths.ts";
-import { defaultRuntimes, type RuntimeFactory } from "./runtimes.ts";
+import type { RuntimeFactory } from "@achq/core";
+import { defaultRuntimes, runtimeContext } from "./runtimes.ts";
 import { allStates, type ThreadState } from "./state.ts";
 import { PROMPTS } from "./prompt.ts";
 import { resolveFiles } from "./files.ts";
@@ -79,13 +80,12 @@ export const resume = async (opts: ResumeOptions): Promise<number> => {
   const factory = agent && (opts.runtimes ?? defaultRuntimes)[agent.agentKind];
   if (!agent || !factory) throw new Error(`Agent ${session.agent} isn't in the config at ${session.commit}`);
   const container = config.plan.containers.find((c) => c.name === opts.container);
-  const runtime = factory(agent, {
-    root: config.root,
+  const runtime = factory(agent, runtimeContext(config.root, {
     home: opts.paths.home,
     runnerPrompt: fs.readFileSync(path.join(PROMPTS, "system.md"), "utf8"),
     containerFiles: resolveFiles(container?.files, config.root),
     bin: opts.bin ?? {},
-  });
+  }));
   const configDir = opts.paths.agent(agent.name);
   await runtime.configure(configDir);
   const command = runtime.resumeCommand(session.id, configDir);

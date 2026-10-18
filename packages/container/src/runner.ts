@@ -16,7 +16,8 @@ import { acquire } from "@achq/flock";
 import { paths as layout, type Paths } from "./paths.ts";
 import { buildPrompt, PROMPTS } from "./prompt.ts";
 import { describeHead, ensureWorktree, fetchMirror, fillBranch } from "./repo.ts";
-import { defaultRuntimes, type RuntimeContext, type RuntimeFactory } from "./runtimes.ts";
+import type { RuntimeContext, RuntimeFactory } from "@achq/core";
+import { defaultRuntimes, runtimeContext } from "./runtimes.ts";
 import { allStates, readState, type ThreadState, writeState } from "./state.ts";
 
 export type RunnerOptions = {
@@ -213,7 +214,7 @@ export class Runner {
       } catch (e) {
         return await this.reply(client, ref, `⚠️ Couldn't set up the worktree: ${e instanceof Error ? e.message : e}`, log);
       }
-      const ctx = this.runtimeContext(config);
+      const ctx = this.contextFor(config);
       const identity = await client.identity();
       const env: Record<string, string> = {
         ...withoutPrivate(this.opts.env ?? process.env),
@@ -238,20 +239,19 @@ export class Runner {
 
   /** Session keys and runtimes read the container's startup files; they're written here, once per config. */
   private contexts = new Map<string, RuntimeContext>();
-  private runtimeContext(config: LoadedConfig): RuntimeContext {
+  private contextFor(config: LoadedConfig): RuntimeContext {
     let ctx = this.contexts.get(config.commit);
     if (!ctx) {
       const container = config.plan.containers.find((c) => c.name === this.opts.container);
       if (!container) throw new Error(`The config at ${config.commit} has no container "${this.opts.container}"`);
       const containerFiles = resolveFiles(container.files, config.root);
       writeFiles(containerFiles, this.paths.home);
-      ctx = {
-        root: config.root,
+      ctx = runtimeContext(config.root, {
         home: this.paths.home,
         runnerPrompt: fs.readFileSync(path.join(PROMPTS, "system.md"), "utf8"),
         containerFiles,
         bin: this.opts.bin ?? {},
-      };
+      });
       this.contexts.set(config.commit, ctx);
     }
     return ctx;

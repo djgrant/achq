@@ -2,8 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { resetRegistry } from "@achq/core";
-import type { RunContext } from "@achq/core";
-import type { RuntimeContext } from "@achq/container";
+import type { RunContext, RuntimeContext } from "@achq/core";
 import { fakeClaude, tempDir } from "@achq/test-utils/container";
 import { Claude, type ClaudeConfig } from "../src/resources.ts";
 import { claudeRuntime, DENIED } from "../src/runtime.ts";
@@ -21,8 +20,10 @@ const setup = () => {
   fs.writeFileSync(path.join(achq, "prompts/system.md"), "Repo prompt.\n");
   fs.writeFileSync(path.join(achq, "statusline.sh"), "echo hi\n");
   const claude = fakeClaude(root);
+  const read = (relative: string) => fs.readFileSync(path.join(achq, relative), "utf8");
   const ctx: RuntimeContext = {
-    root: achq,
+    readFile: read,
+    resolveFiles: (files) => Object.fromEntries(Object.entries(files ?? {}).map(([k, v]) => [k, typeof v === "string" ? read(v) : `${JSON.stringify(v, null, 2)}\n`])),
     home: path.join(root, "home"),
     runnerPrompt: "Runner prompt.\n",
     containerFiles: { "~/.config/tool.toml": "level = 1\n" },
@@ -79,10 +80,6 @@ describe("configure", () => {
     expect(fs.readFileSync(path.join(configDir, "achq-system-prompt.md"), "utf8")).toBe("Runner prompt.\n");
   });
 
-  test("refuses files outside .achq/", () => {
-    const { runtime } = setup();
-    expect(() => runtime({ systemPrompt: "../../etc/passwd" })).toThrow("outside .achq/");
-  });
 });
 
 describe("run", () => {
@@ -93,7 +90,7 @@ describe("run", () => {
       thread: { channel: "test", id: "o/r#1" },
       cwd,
       configDir: path.join(root, "agents/coder"),
-      env: { PATH: process.env.PATH!, FAKE_CLAUDE_LOG: path.join(root, "calls"), ACHQ_CONTAINER_SECRET: "nope", CLAUDE_CODE_OAUTH_TOKEN: "oauth" },
+      env: { PATH: process.env.PATH!, FAKE_CLAUDE_LOG: path.join(root, "calls"), CLAUDE_CODE_OAUTH_TOKEN: "oauth" },
       prompt: "do the thing",
       session: { new: "11111111-1111-1111-1111-111111111111" },
       signal: new AbortController().signal,
@@ -117,7 +114,6 @@ describe("run", () => {
     expect(call!.cwd).toBe(ctx.cwd);
     expect(call!.env.CLAUDE_CONFIG_DIR).toBe(ctx.configDir);
     expect(call!.env.CLAUDE_CODE_OAUTH_TOKEN).toBe("oauth");
-    expect(call!.env.ACHQ_CONTAINER_SECRET).toBeUndefined();
     // The worktree is trusted for an interactive resume.
     expect(JSON.parse(fs.readFileSync(path.join(ctx.configDir, ".claude.json"), "utf8")).projects[ctx.cwd].hasTrustDialogAccepted).toBe(true);
 

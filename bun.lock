@@ -26,7 +26,6 @@
       "name": "@achq/claude",
       "version": "0.1.0",
       "dependencies": {
-        "@achq/container": "workspace:*",
         "@achq/core": "workspace:*",
       },
       "devDependencies": {

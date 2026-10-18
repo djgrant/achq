@@ -8,7 +8,6 @@
     "./runtime": "./src/runtime.ts"
   },
   "dependencies": {
-    "@achq/container": "workspace:*",
     "@achq/core": "workspace:*"
   },
   "devDependencies": {

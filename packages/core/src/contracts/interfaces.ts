@@ -1,7 +1,7 @@
 // The extension points: what a platform (GitHub, Railway, Claude) implements.
 // The router, deployer and container are written against these.
 import type { Data } from "../model/data.ts";
-import type { PolicyData, RepoPlan, SelectorData } from "../model/resources.ts";
+import type { Agent, PolicyData, RepoPlan, SelectorData } from "../model/resources.ts";
 
 // ─── Channels ────────────────────────────────────────────────────────────────
 
@@ -119,6 +119,7 @@ export type RunContext = {
   cwd: string;
   /** This agent's own config directory. */
   configDir: string;
+  /** Already without the container's private variables. */
   env: Record<string, string>;
   prompt: string;
   /** Resume this session, or start `newSession`. */
@@ -140,6 +141,24 @@ export interface AgentRuntime {
   /** The command that opens a session interactively, for `achq resume`. */
   resumeCommand(session: string, configDir: string): { argv: string[]; env: Record<string, string> };
 }
+
+/** What the container gives an agent's runtime, once per config commit. */
+export type RuntimeContext = {
+  /** A file in `.achq/` at the config's commit, refusing paths that leave it. */
+  readFile(relative: string): string;
+  /** Startup files' contents by target path: a string names a file in `.achq/`, anything else is written as JSON. */
+  resolveFiles(files: Record<string, unknown> | undefined): Record<string, string>;
+  /** HOME, where `~` in startup files points. */
+  home: string;
+  /** achq's runner prompt, always applied before the repo's. */
+  runnerPrompt: string;
+  /** The container's startup files' contents, by target path: part of every session key. */
+  containerFiles: Record<string, string>;
+  /** Executables, e.g. `{ claude: "/usr/local/bin/claude" }`. */
+  bin: Record<string, string>;
+};
+
+export type RuntimeFactory = (agent: Agent, ctx: RuntimeContext) => AgentRuntime;
 
 // ─── Hosts ───────────────────────────────────────────────────────────────────
 

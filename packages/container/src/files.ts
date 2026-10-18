@@ -21,19 +21,15 @@ export const resolveFiles = (files: Record<string, unknown> | undefined, root: s
   return out;
 };
 
-/**
- * Where a startup file goes: `~/…` and relative paths under `home`, absolute
- * paths as they are. With `configDir`, `~/.claude/…` goes there instead.
- */
-export const targetPath = (key: string, home: string, configDir?: string) => {
-  if (configDir && (key === "~/.claude" || key.startsWith("~/.claude/"))) return path.join(configDir, key.slice("~/.claude".length));
+/** Where a startup file goes: `~/…` and relative paths under `home`, absolute paths as they are. */
+export const targetPath = (key: string, home: string) => {
   if (key.startsWith("~/")) return path.join(home, key.slice(2));
   return path.isAbsolute(key) ? key : path.join(home, key);
 };
 
-export const writeFiles = (resolved: Record<string, string>, home: string, configDir?: string) => {
+export const writeFiles = (resolved: Record<string, string>, home: string) => {
   for (const [key, content] of Object.entries(resolved)) {
-    const file = targetPath(key, home, configDir);
+    const file = targetPath(key, home);
     fs.mkdirSync(path.dirname(file), { recursive: true });
     fs.writeFileSync(file, content);
   }

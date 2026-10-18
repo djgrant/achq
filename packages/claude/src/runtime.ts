@@ -3,10 +3,7 @@ import { createHash } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { stableStringify, toData } from "@achq/core";
-import type { AgentRuntime, RunContext, RunResult } from "@achq/core";
-import { withoutPrivate } from "@achq/container";
-import { inRoot, resolveFiles, writeFiles } from "@achq/container";
-import type { RuntimeContext } from "@achq/container";
+import type { AgentRuntime, RunContext, RunResult, RuntimeContext } from "@achq/core";
 import type { Claude, ClaudeConfig } from "./resources.ts";
 
 export const DEFAULT_MODEL = "claude-opus-5-5";
@@ -37,9 +34,9 @@ const effortFlags = (config: ClaudeConfig) => (config.effort === "max" ? ["--eff
 export const claudeRuntime = (agent: Claude, ctx: RuntimeContext): AgentRuntime => {
   const config = agent.config;
   const claude = ctx.bin.claude ?? "claude";
-  const repoPrompt = config.systemPrompt ? fs.readFileSync(inRoot(ctx.root, config.systemPrompt), "utf8") : "";
+  const repoPrompt = config.systemPrompt ? ctx.readFile(config.systemPrompt) : "";
   const systemPrompt = [ctx.runnerPrompt.trim(), repoPrompt.trim()].filter(Boolean).join("\n\n") + "\n";
-  const agentFiles = resolveFiles(config.files, ctx.root);
+  const agentFiles = ctx.resolveFiles(config.files);
   const promptFile = (configDir: string) => path.join(configDir, SYSTEM_PROMPT_FILE);
 
   return {
@@ -92,7 +89,7 @@ export const claudeRuntime = (agent: Claude, ctx: RuntimeContext): AgentRuntime 
         "--disallowedTools",
         ...DENIED,
       ];
-      const env = { ...withoutPrivate(context.env), CLAUDE_CONFIG_DIR: configDir, DISABLE_AUTOUPDATER: "1" };
+      const env = { ...context.env, CLAUDE_CONFIG_DIR: configDir, DISABLE_AUTOUPDATER: "1" };
       const proc = Bun.spawn(argv, { cwd, env, stdin: "pipe", stdout: "pipe", stderr: "pipe" });
       const stop = () => proc.kill();
       if (context.signal.aborted) stop();
@@ -143,6 +140,22 @@ export const claudeRuntime = (agent: Claude, ctx: RuntimeContext): AgentRuntime 
       };
     },
   };
+};
+
+/** Writes the agent's startup files: `~/.claude/…` into its own config directory, the rest as the container would. */
+const writeFiles = (resolved: Record<string, string>, home: string, configDir: string) => {
+  for (const [key, content] of Object.entries(resolved)) {
+    const file =
+      key === "~/.claude" || key.startsWith("~/.claude/")
+        ? path.join(configDir, key.slice("~/.claude".length))
+        : key.startsWith("~/")
+          ? path.join(home, key.slice(2))
+          : path.isAbsolute(key)
+            ? key
+            : path.join(home, key);
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, content);
+  }
 };
 
 const updateClaudeJson = (configDir: string, fn: (config: any) => void) => {
