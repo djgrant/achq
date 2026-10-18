@@ -29,22 +29,19 @@ curl -fsSL https://claude.ai/install.sh | HOME="$tmp" bash
 install -m 755 "$(readlink -f "$tmp/.local/bin/claude")" /usr/local/bin/claude
 rm -rf "$tmp"
 
-# The agent itself. The runtime needs only bun: no node_modules (its npm
-# dependencies are the CLI's and the deployer's). Repo configs' `achq` and
-# `achq/github` imports resolve to /opt/achq/src.
+# The agent itself, with its workspace packages linked by `bun install`.
+# Repo configs' `achq` and `achq/github` imports resolve to /opt/achq/packages/achq.
 rm -rf /opt/achq
 mkdir -p /opt/achq
 if [ -n "${ACHQ_SOURCE:-}" ]; then
-  mkdir -p /opt/achq/bin
-  cp "$ACHQ_SOURCE/bin/achq-agent" /opt/achq/bin/
-  cp -R "$ACHQ_SOURCE/src" "$ACHQ_SOURCE/prompts" /opt/achq
+  cp -R "$ACHQ_SOURCE/packages" "$ACHQ_SOURCE/package.json" "$ACHQ_SOURCE/bun.lock" /opt/achq
 else
   curl -fsSL "https://codeload.github.com/djgrant/achq/tar.gz/$ref" \
-    | tar -xz --strip-components=1 -C /opt/achq --wildcards '*/bin/achq-agent' '*/src/*' '*/prompts/*'
+    | tar -xz --strip-components=1 -C /opt/achq --wildcards '*/packages/*' '*/package.json' '*/bun.lock'
 fi
-# Tests and test helpers aren't needed at runtime.
-find /opt/achq/src -name '*.test.ts' -delete
-chmod 755 /opt/achq/bin/achq-agent
-ln -sf /opt/achq/bin/achq-agent /usr/local/bin/achq-agent
+rm -rf /opt/achq/packages/*/node_modules
+(cd /opt/achq && bun install --production --frozen-lockfile)
+chmod 755 /opt/achq/packages/container/bin/achq-agent
+ln -sf /opt/achq/packages/container/bin/achq-agent /usr/local/bin/achq-agent
 
 id agent > /dev/null 2>&1 || useradd --create-home --shell /bin/bash agent

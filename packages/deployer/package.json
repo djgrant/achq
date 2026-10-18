@@ -1,0 +1,21 @@
+{
+  "name": "@achq/deployer",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./config": "./src/config/index.ts"
+  },
+  "dependencies": {
+    "@achq/core": "workspace:*",
+    "@achq/github": "workspace:*",
+    "@achq/railway": "workspace:*",
+    "@achq/sandbox": "workspace:*",
+    "achq": "workspace:*",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@achq/test-utils": "workspace:*"
+  }
+}

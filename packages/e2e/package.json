@@ -1,0 +1,19 @@
+{
+  "name": "@achq/e2e",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {},
+  "dependencies": {
+    "@achq/cli": "workspace:*",
+    "@achq/container": "workspace:*",
+    "@achq/core": "workspace:*",
+    "@achq/deployer": "workspace:*",
+    "@achq/github": "workspace:*",
+    "@achq/router": "workspace:*",
+    "achq": "workspace:*"
+  },
+  "devDependencies": {
+    "@achq/test-utils": "workspace:*"
+  }
+}

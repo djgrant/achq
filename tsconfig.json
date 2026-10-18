@@ -13,5 +13,5 @@
     "skipLibCheck": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["*.ts", "cli/**/*.ts", "src/**/*.ts", "test/**/*.ts"]
+  "include": ["packages/**/*.ts"]
 }

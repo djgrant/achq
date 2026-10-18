@@ -4,19 +4,183 @@
   "workspaces": {
     "": {
       "name": "achq",
-      "dependencies": {
-        "@pokit/core": "^0.6.0",
-        "@pokit/terminal": "^0.6.0",
-        "quickjs-emscripten": "^0.32.0",
-        "zod": "^4.3.6",
-      },
       "devDependencies": {
         "@types/bun": "^1.3.14",
         "typescript": "^7.0.2",
       },
     },
+    "packages/achq": {
+      "name": "achq",
+      "version": "0.1.0",
+      "dependencies": {
+        "@achq/claude": "workspace:*",
+        "@achq/core": "workspace:*",
+        "@achq/github": "workspace:*",
+        "@achq/railway": "workspace:*",
+      },
+      "devDependencies": {
+        "@achq/test-utils": "workspace:*",
+      },
+    },
+    "packages/claude": {
+      "name": "@achq/claude",
+      "version": "0.1.0",
+      "dependencies": {
+        "@achq/container": "workspace:*",
+        "@achq/core": "workspace:*",
+      },
+      "devDependencies": {
+        "@achq/test-utils": "workspace:*",
+      },
+    },
+    "packages/cli": {
+      "name": "@achq/cli",
+      "version": "0.1.0",
+      "bin": {
+        "achq": "bin/achq",
+      },
+      "dependencies": {
+        "@achq/core": "workspace:*",
+        "@achq/deployer": "workspace:*",
+        "@achq/github": "workspace:*",
+        "@achq/railway": "workspace:*",
+        "@pokit/core": "^0.6.0",
+        "@pokit/terminal": "^0.6.0",
+        "achq": "workspace:*",
+        "zod": "^4.3.6",
+      },
+      "devDependencies": {
+        "@achq/container": "workspace:*",
+        "@achq/test-utils": "workspace:*",
+      },
+    },
+    "packages/container": {
+      "name": "@achq/container",
+      "version": "0.1.0",
+      "bin": {
+        "achq-agent": "bin/achq-agent",
+      },
+      "dependencies": {
+        "@achq/claude": "workspace:*",
+        "@achq/core": "workspace:*",
+        "@achq/flock": "workspace:*",
+        "@achq/github": "workspace:*",
+        "achq": "workspace:*",
+      },
+      "devDependencies": {
+        "@achq/test-utils": "workspace:*",
+      },
+    },
+    "packages/core": {
+      "name": "@achq/core",
+      "version": "0.1.0",
+    },
+    "packages/deployer": {
+      "name": "@achq/deployer",
+      "version": "0.1.0",
+      "dependencies": {
+        "@achq/core": "workspace:*",
+        "@achq/github": "workspace:*",
+        "@achq/railway": "workspace:*",
+        "@achq/sandbox": "workspace:*",
+        "achq": "workspace:*",
+        "zod": "^4.3.6",
+      },
+      "devDependencies": {
+        "@achq/test-utils": "workspace:*",
+      },
+    },
+    "packages/e2e": {
+      "name": "@achq/e2e",
+      "version": "0.1.0",
+      "dependencies": {
+        "@achq/cli": "workspace:*",
+        "@achq/container": "workspace:*",
+        "@achq/core": "workspace:*",
+        "@achq/deployer": "workspace:*",
+        "@achq/github": "workspace:*",
+        "@achq/router": "workspace:*",
+        "achq": "workspace:*",
+      },
+      "devDependencies": {
+        "@achq/test-utils": "workspace:*",
+      },
+    },
+    "packages/flock": {
+      "name": "@achq/flock",
+      "version": "0.1.0",
+    },
+    "packages/github": {
+      "name": "@achq/github",
+      "version": "0.1.0",
+      "dependencies": {
+        "@achq/core": "workspace:*",
+      },
+      "devDependencies": {
+        "@achq/test-utils": "workspace:*",
+      },
+    },
+    "packages/railway": {
+      "name": "@achq/railway",
+      "version": "0.1.0",
+      "dependencies": {
+        "@achq/core": "workspace:*",
+      },
+      "devDependencies": {
+        "@achq/test-utils": "workspace:*",
+      },
+    },
+    "packages/router": {
+      "name": "@achq/router",
+      "version": "0.1.0",
+      "dependencies": {
+        "@achq/core": "workspace:*",
+        "@achq/github": "workspace:*",
+      },
+      "devDependencies": {
+        "@achq/test-utils": "workspace:*",
+      },
+    },
+    "packages/sandbox": {
+      "name": "@achq/sandbox",
+      "version": "0.1.0",
+      "dependencies": {
+        "quickjs-emscripten": "^0.32.0",
+      },
+    },
+    "packages/test-utils": {
+      "name": "@achq/test-utils",
+      "version": "0.1.0",
+      "dependencies": {
+        "@achq/core": "workspace:*",
+      },
+    },
   },
   "packages": {
+    "@achq/claude": ["@achq/claude@workspace:packages/claude"],
+
+    "@achq/cli": ["@achq/cli@workspace:packages/cli"],
+
+    "@achq/container": ["@achq/container@workspace:packages/container"],
+
+    "@achq/core": ["@achq/core@workspace:packages/core"],
+
+    "@achq/deployer": ["@achq/deployer@workspace:packages/deployer"],
+
+    "@achq/e2e": ["@achq/e2e@workspace:packages/e2e"],
+
+    "@achq/flock": ["@achq/flock@workspace:packages/flock"],
+
+    "@achq/github": ["@achq/github@workspace:packages/github"],
+
+    "@achq/railway": ["@achq/railway@workspace:packages/railway"],
+
+    "@achq/router": ["@achq/router@workspace:packages/router"],
+
+    "@achq/sandbox": ["@achq/sandbox@workspace:packages/sandbox"],
+
+    "@achq/test-utils": ["@achq/test-utils@workspace:packages/test-utils"],
+
     "@colors/colors": ["@colors/colors@1.5.0", "", {}, "sha512-ooWCrlZP11i8GImSjTHYHLkvFDP48nS4+204nGb1RiX/WXYHmJA2III9/e2DWVabCESdW7hBAEzHRqUn9OUVvQ=="],
 
     "@folder/xdg": ["@folder/xdg@4.0.1", "", { "dependencies": { "ini": "^4.1.1", "picomatch": "^2.3.1", "toml": "^3.0.0", "write": "^2.0.0", "yaml": "^2.3.1" } }, "sha512-mIBEyXvNK6sX341FOR6ZyGBmq84sSSkG2ocwTDmi4kJfAF6z8W//6aeMAi6vD/FuTcd4q0Px0HMVyP3ggOT/bg=="],
@@ -86,6 +250,8 @@
     "@typescript/typescript-win32-arm64": ["@typescript/typescript-win32-arm64@7.0.2", "", { "os": "win32", "cpu": "arm64" }, "sha512-Gyl1Vy6OsWesLzmq+EP0Fb7b4Nid5232AvcA2SFcdYreldpNtYFFofPjnt62y9hQy7VTaZp65ICJjuAQRaVcIQ=="],
 
     "@typescript/typescript-win32-x64": ["@typescript/typescript-win32-x64@7.0.2", "", { "os": "win32", "cpu": "x64" }, "sha512-0BQ3HkAHHlKLSp1qRvf3SUhGpGsDuhB/jgFw75guyqbxJqEaS0Cw/VFO8i2nHglJUzQCRtMMR/IBAKE3ETMC4g=="],
+
+    "achq": ["achq@workspace:packages/achq"],
 
     "add-filename-increment": ["add-filename-increment@1.0.0", "", { "dependencies": { "strip-filename-increment": "^2.0.1" } }, "sha512-pFV8VZX8jxuVMIycKvGZkWF/ihnUubu9lbQVnOnZWp7noVxbKQTNj7zG2y9fXdPcuZ6lAN3Drr517HaivGCjdQ=="],
 

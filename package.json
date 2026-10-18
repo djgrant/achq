@@ -1,25 +1,13 @@
 {
-  "name": "achq",
-  "version": "0.1.0",
+  "name": "achq-workspace",
   "private": true,
   "type": "module",
-  "bin": {
-    "achq": "bin/achq"
-  },
-  "exports": {
-    ".": "./src/index.ts",
-    "./github": "./src/github/index.ts",
-    "./railway": "./src/railway/index.ts"
-  },
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
     "test": "bun test",
     "typecheck": "tsc"
-  },
-  "dependencies": {
-    "@pokit/core": "^0.6.0",
-    "@pokit/terminal": "^0.6.0",
-    "quickjs-emscripten": "^0.32.0",
-    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@types/bun": "^1.3.14",

@@ -91,7 +91,7 @@ The runner posts the agent's final message as a comment. Only messages from user
 
 ## Commands
 
-`bin/achq` (put it on your `PATH`; run `bun install` here first).
+`packages/cli/bin/achq` (put it on your `PATH`; run `bun install` at the root first).
 
 | Command | Run from | Does |
 |---|---|---|
@@ -119,6 +119,8 @@ The runner posts the agent's final message as a comment. Only messages from user
 A thread is named from its ID, e.g. `notationlabs-yieldstar-42`.
 
 ## Development
+
+Each folder in `packages/` is a workspace package (`@achq/core`, `@achq/github`, …); `packages/achq` is the `achq` that repos and the infra import. Packages import each other by name, never by relative path.
 
 ```sh
 bun install

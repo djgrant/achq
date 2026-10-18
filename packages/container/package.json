@@ -1,0 +1,22 @@
+{
+  "name": "@achq/container",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@achq/claude": "workspace:*",
+    "@achq/core": "workspace:*",
+    "@achq/flock": "workspace:*",
+    "@achq/github": "workspace:*",
+    "achq": "workspace:*"
+  },
+  "devDependencies": {
+    "@achq/test-utils": "workspace:*"
+  },
+  "bin": {
+    "achq-agent": "bin/achq-agent"
+  }
+}

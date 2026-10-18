@@ -1,0 +1,20 @@
+{
+  "name": "achq",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./github": "./src/github.ts",
+    "./railway": "./src/railway.ts"
+  },
+  "dependencies": {
+    "@achq/claude": "workspace:*",
+    "@achq/core": "workspace:*",
+    "@achq/github": "workspace:*",
+    "@achq/railway": "workspace:*"
+  },
+  "devDependencies": {
+    "@achq/test-utils": "workspace:*"
+  }
+}
