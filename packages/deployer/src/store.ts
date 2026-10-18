@@ -2,8 +2,7 @@
 // it has handled. Every write goes to a temp file and is renamed into place.
 import { mkdir, readdir, rename, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { DeployRecord } from "@achq/core";
-import type { RepoPlan } from "@achq/core";
+import type { DeployRecord, RepoPlan } from "@achq/core";
 
 /** What a container was last deployed from: a change to either means a rebuild. */
 export type ImageRecord = { dockerfile: string; blob: string };

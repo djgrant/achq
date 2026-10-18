@@ -120,10 +120,22 @@ A thread is named from its ID, e.g. `notationlabs-yieldstar-42`.
 
 ## Development
 
-Each folder in `packages/` is a workspace package (`@achq/core`, `@achq/github`, …); `packages/achq` is the `achq` that repos and the infra import. Packages import each other by name, never by relative path.
+Each folder in `packages/` is a workspace package. Packages import each other by name, never by relative path, and each has its tests and their helpers in `test/`.
+
+| Kind | Packages | Layout |
+|---|---|---|
+| Kernel | `core` | `model/` (resources, plain data), `contracts/` (the interfaces platforms implement, the HTTP protocol), `secrets.ts`, `constants.ts` |
+| Provider | `github`, `railway`, `claude` | `resources.ts` (what config or the infra declares), `runtime/` (implementations of core's interfaces), `api.ts` (the platform's API client). Entries: `.`, `/runtime`, `/api` |
+| Service | `router`, `deployer`, `container` | `main.ts` (reads the service's settings from the environment and wires it up), its logic, `store.ts`, `clients/` |
+| Library | `sandbox`, `flock` | Know nothing about achq |
+| Tool | `cli` | `commands/`, `lib/` |
+| Facade | `achq` | What repos and the infra import: `achq`, `achq/github`, `achq/railway` |
+| Testing | `test-utils`, `e2e` | Fakes shared across packages (`@achq/test-utils/github`, …); the whole system end to end |
+
+Code that runs in the config sandbox (everything `achq` and `achq/github` import) is typechecked without Bun or Node types (`tsconfig.sandbox.json`).
 
 ```sh
 bun install
 bun test
-bunx tsc --noEmit -p .
+bun run typecheck
 ```

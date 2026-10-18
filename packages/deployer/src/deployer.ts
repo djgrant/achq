@@ -2,11 +2,8 @@
 // creates its containers, pushes its router config, and reports the outcome in
 // the repo's ACHQ_STATUS variable. See "Subscribing", "Config changes",
 // "Checks" and "Deploy results" in docs/achq-design.md.
-import { CONTAINER_PORT, ENV } from "@achq/core";
-import type { DeployRecord, EventEnvelope, Installation, SourceSettings, Status, SyncRequest, SyncResult } from "@achq/core";
-import type { PolicyData, RepoPlan } from "@achq/core";
+import { CONTAINER_PORT, ENV, type DeployRecord, type EventEnvelope, type Installation, type SourceSettings, type Status, type SyncRequest, type SyncResult, type PolicyData, type RepoPlan, type ChannelEvent, type ContainerHost, type RouterRepoConfig } from "@achq/core";
 import { containerSecret } from "@achq/core/secrets";
-import type { ChannelEvent, ContainerHost, RouterRepoConfig } from "@achq/core";
 import { type Evaluate, evaluateConfig, isSourceFile, normaliseRepoPath } from "./config/index.ts";
 import { type AchqTree, DEFAULT_FILE_LIMITS, type FileLimits, type GitHubRepo, githubRepo } from "./clients/github.ts";
 import { RouterError, type RouterClient } from "./clients/router.ts";

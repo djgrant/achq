@@ -6,11 +6,10 @@ import * as path from "node:path";
 import * as achq from "achq";
 import * as github from "achq/github";
 import * as railway from "achq/railway";
-import { Deployer, type Infra, Router } from "@achq/core";
-import { collectPlan, type RepoPlan, resetRegistry } from "@achq/core";
+import { Deployer, type Infra, Router, collectPlan, type RepoPlan, resetRegistry } from "@achq/core";
 import { evaluateConfig } from "@achq/deployer/config";
 import { App } from "@achq/github";
-import { RailwayDeployerHost, RailwayRouterHost } from "@achq/railway";
+import { RailwayDeployerHost, RailwayRouterHost } from "@achq/railway/runtime";
 
 let registered = false;
 let loads = 0;

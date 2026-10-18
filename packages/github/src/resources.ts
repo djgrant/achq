@@ -1,7 +1,6 @@
 // What a repo's config uses from GitHub: an adopted App, its selectors, and
 // policies. No Node or Bun imports: this is bundled into the config sandbox.
-import type { Deployer, Router } from "@achq/core";
-import { EventSelector, Policy, Resource, ThreadSelector } from "@achq/core";
+import { type Deployer, type Router, EventSelector, Policy, Resource, ThreadSelector } from "@achq/core";
 
 export const CHANNEL = "github";
 

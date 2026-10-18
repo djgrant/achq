@@ -1,8 +1,7 @@
 // The deployer's client for the router's admin endpoints (protocol.ts), each
 // request signed with adminSecret(AGENT_WEBHOOK_KEY).
-import type { Installation, MintRequest, SourceSettings, ValidateRequest } from "@achq/core";
+import type { Installation, MintRequest, SourceSettings, ValidateRequest, Credential, RouterRepoConfig } from "@achq/core";
 import { adminSecret, signedFetch } from "@achq/core/secrets";
-import type { Credential, RouterRepoConfig } from "@achq/core";
 
 export interface RouterClient {
   mint(request: MintRequest): Promise<Credential[]>;

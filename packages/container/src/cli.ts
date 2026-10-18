@@ -2,12 +2,11 @@
 // by the laptop CLI, which does any picking.
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { threadKey as keyOf } from "@achq/core";
+import { threadKey as keyOf, type RuntimeFactory } from "@achq/core";
 import type { LoadedConfig } from "./config.ts";
 import { withoutPrivate } from "./env.ts";
 import { BUSY, lockedArgv } from "@achq/flock";
 import type { Paths } from "./paths.ts";
-import type { RuntimeFactory } from "@achq/core";
 import { defaultRuntimes, runtimeContext } from "./runtimes.ts";
 import { allStates, type ThreadState } from "./state.ts";
 import { PROMPTS } from "./prompt.ts";

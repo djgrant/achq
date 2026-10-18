@@ -1,7 +1,7 @@
 import { defineCommand } from "@pokit/core";
 import { clean } from "../lib/errors.ts";
 import type { DeployRecord, Installation } from "@achq/core";
-import { RailwayClient } from "@achq/railway";
+import { RailwayClient } from "@achq/railway/api";
 import { infraFile, need, needRepo } from "../lib/env.ts";
 import { readStatus, userGitHub } from "../lib/gh.ts";
 import { formatStatus } from "../lib/install.ts";

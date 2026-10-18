@@ -7,7 +7,7 @@
   ],
   "scripts": {
     "test": "bun test",
-    "typecheck": "tsc"
+    "typecheck": "tsc && tsc -p tsconfig.sandbox.json"
   },
   "devDependencies": {
     "@types/bun": "^1.3.14",

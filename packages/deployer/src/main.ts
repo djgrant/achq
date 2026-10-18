@@ -1,6 +1,6 @@
 // The deployer service: `bun src/deployer/main.ts`.
 import { DEPLOYER_PORT, ENV } from "@achq/core";
-import { railwayContainerHost } from "@achq/railway";
+import { railwayContainerHost } from "@achq/railway/runtime";
 import { createDeployer } from "./deployer.ts";
 import { routerClient } from "./clients/router.ts";
 import { deployerHandler } from "./server.ts";

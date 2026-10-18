@@ -5,10 +5,8 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { existsSync, mkdtempSync, readdirSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { CredentialsResponse, EventEnvelope } from "@achq/core";
-import type { PolicyData, SelectorData } from "@achq/core";
+import type { CredentialsResponse, EventEnvelope, PolicyData, SelectorData, AccessProvider, Channel, ChannelEvent, RouterRepoConfig } from "@achq/core";
 import { adminSecret, containerSecret, hmacHex, safeEqual, signedHeaders, verifySigned } from "@achq/core/secrets";
-import type { AccessProvider, Channel, ChannelEvent, RouterRepoConfig } from "@achq/core";
 import { createRouter } from "../src/router.ts";
 
 const key = "test-key";

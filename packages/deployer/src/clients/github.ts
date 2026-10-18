@@ -1,7 +1,6 @@
 // What the deployer reads from and writes to a repo on GitHub, with the
 // repo-scoped token the router minted for it.
-import { STATUS_VARIABLE } from "@achq/core";
-import type { Status } from "@achq/core";
+import { STATUS_VARIABLE, type Status } from "@achq/core";
 import { GitHubClient } from "@achq/github/api";
 
 export type AchqTree = {

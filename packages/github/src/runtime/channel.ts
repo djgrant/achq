@@ -1,8 +1,6 @@
 // The GitHub channel: an App's webhooks in, its issues and comments out.
-import type { Data } from "@achq/core";
-import type { SelectorData } from "@achq/core";
+import type { Data, SelectorData, Channel, ChannelClient, ChannelEvent, Credential, Message, Thread, ThreadRef } from "@achq/core";
 import { appWebhookSecret, verifyGitHubSignature } from "@achq/core/secrets";
-import type { Channel, ChannelClient, ChannelEvent, Credential, Message, Thread, ThreadRef } from "@achq/core";
 import { GITHUB_API, GitHubClient } from "../api.ts";
 import { Apps, REPO, type Permissions } from "./apps.ts";
 import { CHANNEL, type EventSelectorData, type IssueSelectorData } from "../resources.ts";

@@ -1,10 +1,8 @@
 // The router and deployer as Railway services. Both run achq's own code on the
 // stock Bun image: the start command downloads achq at ACHQ_REF, installs its
 // dependencies once, and runs the service's entry point.
-import { DEPLOYER_PORT, ENV, ROUTER_PRIVATE_PORT, ROUTER_PUBLIC_PORT } from "@achq/core";
-import type { DeployerHost, RouterHost } from "@achq/core";
-import type { ServiceSpec } from "./service.ts";
-import { serviceName } from "./service.ts";
+import { DEPLOYER_PORT, ENV, ROUTER_PRIVATE_PORT, ROUTER_PUBLIC_PORT, type DeployerHost, type RouterHost } from "@achq/core";
+import { type ServiceSpec, serviceName } from "./service.ts";
 
 /** Where achq's own code is downloaded from. */
 export const ACHQ_SOURCE = "djgrant/achq";

@@ -2,8 +2,8 @@
 // its Railway service, and admin requests are signed with the key.
 import { ENV } from "@achq/core";
 import { adminSecret, signedFetch } from "@achq/core/secrets";
-import type { RailwayClient } from "@achq/railway";
-import { hostServiceName } from "@achq/railway";
+import type { RailwayClient } from "@achq/railway/api";
+import { hostServiceName } from "@achq/railway/runtime";
 
 export type RouterAccess = { base: string; key: string };
 

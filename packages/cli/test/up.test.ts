@@ -3,11 +3,10 @@ import { generateKeyPairSync, createPublicKey, createVerify } from "node:crypto"
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { achq } from "@achq/core";
-import type { SyncResult } from "@achq/core";
+import { achq, type SyncResult } from "@achq/core";
 import { adminSecret, appWebhookSecret, verifySigned } from "@achq/core/secrets";
 import * as github from "@achq/github";
-import { RailwayClient } from "@achq/railway";
+import { RailwayClient } from "@achq/railway/api";
 import { type FakeRailway, startFakeRailway } from "@achq/test-utils/railway";
 import * as railway from "@achq/railway";
 import { checkInfra, loadInfra } from "../src/lib/load.ts";

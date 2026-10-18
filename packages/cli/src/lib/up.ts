@@ -2,14 +2,12 @@
 // reads what exists, prints what would change, and applies it unless it's a
 // dry run. Order: Railway project → router → deployer → each App → sync.
 import { randomBytes } from "node:crypto";
-import { DEPLOYER_PORT, ENV, ROUTER_PRIVATE_PORT } from "@achq/core";
-import type { SyncRequest, SyncResult } from "@achq/core";
+import { DEPLOYER_PORT, ENV, ROUTER_PRIVATE_PORT, type SyncRequest, type SyncResult } from "@achq/core";
 import { appWebhookSecret } from "@achq/core/secrets";
 import { appJwt, GITHUB_API, GitHubClient } from "@achq/github/api";
 import type { App } from "@achq/github";
-import type { ProjectSnapshot, RailwayClient } from "@achq/railway";
-import { deployerServiceSpec, hostServiceName, privateUrl, routerServiceSpec } from "@achq/railway";
-import { type Change, formatChange, planService, type Target } from "@achq/railway";
+import type { ProjectSnapshot, RailwayClient } from "@achq/railway/api";
+import { type Change, deployerServiceSpec, formatChange, hostServiceName, planService, privateUrl, routerServiceSpec, type Target } from "@achq/railway/runtime";
 import { appSlug, type InfraResources } from "./load.ts";
 import { APP_EVENTS, APP_PERMISSIONS, type CreatedApp, type ManifestRequest } from "./manifest.ts";
 import { adminRequest, routerBase } from "./router.ts";

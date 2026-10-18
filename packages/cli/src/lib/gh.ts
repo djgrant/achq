@@ -1,6 +1,5 @@
 // GitHub as your `gh` login. Commands take a `GitHubClient`, so tests point it at a fake.
-import { STATUS_VARIABLE } from "@achq/core";
-import type { Status } from "@achq/core";
+import { STATUS_VARIABLE, type Status } from "@achq/core";
 import { GITHUB_API, GitHubClient } from "@achq/github/api";
 
 export const ghToken = () => {

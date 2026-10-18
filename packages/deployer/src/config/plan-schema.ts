@@ -2,8 +2,7 @@
 // anything inside the guest, including collectPlan. So its shape and
 // references are checked here again, strictly.
 import { z } from "zod";
-import type { Data } from "@achq/core";
-import type { RepoPlan } from "@achq/core";
+import type { Data, RepoPlan } from "@achq/core";
 
 const NAME = /^[a-z][a-z0-9-]{0,30}$/;
 const name = z.string().regex(NAME, "must be lowercase letters, digits and dashes, starting with a letter");

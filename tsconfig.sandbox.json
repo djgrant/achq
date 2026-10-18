@@ -1,0 +1,14 @@
+// What runs inside the config sandbox, checked without Bun or Node types: an import of node:fs here fails typecheck.
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": []
+  },
+  "include": [],
+  "files": [
+    "sandbox-globals.d.ts",
+    "packages/achq/src/index.ts",
+    "packages/achq/src/github.ts",
+    "packages/deployer/src/config/plan.ts"
+  ]
+}

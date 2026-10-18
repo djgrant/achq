@@ -3,10 +3,8 @@
 import { randomUUID } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { ClaimRequest, EventEnvelope } from "@achq/core";
-import type { RepoPlan } from "@achq/core";
+import { type ClaimRequest, type EventEnvelope, type RepoPlan, type AccessProvider, type Channel, type ChannelClient, type ChannelEvent, type Thread, threadKey, type RuntimeContext, type RuntimeFactory } from "@achq/core";
 import { signedFetch, verifySigned } from "@achq/core/secrets";
-import { type AccessProvider, type Channel, type ChannelClient, type ChannelEvent, type Thread, threadKey } from "@achq/core";
 import { parseCommand, type Command } from "./command.ts";
 import type { LoadedConfig } from "./config.ts";
 import { Credentials } from "./credentials.ts";
@@ -16,7 +14,6 @@ import { acquire } from "@achq/flock";
 import { paths as layout, type Paths } from "./paths.ts";
 import { buildPrompt, PROMPTS } from "./prompt.ts";
 import { describeHead, ensureWorktree, fetchMirror, fillBranch } from "./repo.ts";
-import type { RuntimeContext, RuntimeFactory } from "@achq/core";
 import { defaultRuntimes, runtimeContext } from "./runtimes.ts";
 import { allStates, readState, type ThreadState, writeState } from "./state.ts";
 

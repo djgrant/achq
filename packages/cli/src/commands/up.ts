@@ -1,8 +1,8 @@
 import { defineCommand } from "@pokit/core";
 import { clean } from "../lib/errors.ts";
 import { z } from "zod";
-import { RailwayClient } from "@achq/railway";
-import { ACHQ_SOURCE } from "@achq/railway";
+import { RailwayClient } from "@achq/railway/api";
+import { ACHQ_SOURCE } from "@achq/railway/runtime";
 import { infraFile, INFRA_FILE, need } from "../lib/env.ts";
 import { lastCommit, userGitHub } from "../lib/gh.ts";
 import { loadInfra } from "../lib/load.ts";

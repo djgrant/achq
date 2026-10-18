@@ -1,9 +1,8 @@
 // The container's credentials, from the router: for agents (installed on the
 // volume by each provider) and for the runner's channel clients (memory only).
 import * as fs from "node:fs";
-import type { CredentialsRequest, CredentialsResponse } from "@achq/core";
+import type { CredentialsRequest, CredentialsResponse, AccessProvider, Credential } from "@achq/core";
 import { signedFetch } from "@achq/core/secrets";
-import type { AccessProvider, Credential } from "@achq/core";
 import type { Paths } from "./paths.ts";
 
 /** Refresh when this little is left, so a failing refresh has half an hour of retries before anything breaks. */

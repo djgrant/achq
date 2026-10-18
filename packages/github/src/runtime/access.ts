@@ -2,8 +2,7 @@
 // on the container, those tokens wired into git and gh.
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { PolicyData } from "@achq/core";
-import type { AccessProvider, Credential } from "@achq/core";
+import type { PolicyData, AccessProvider, Credential } from "@achq/core";
 import { Apps, covers, maxLevel, REPO, type Permissions } from "./apps.ts";
 import { botLogin } from "./channel.ts";
 import type { RepoPolicyData } from "../resources.ts";

@@ -1,8 +1,7 @@
 // `achq install` and `uninstall`: the App a repo's config names, checked
 // against the live App, installed on (or removed from) the repo with your gh
 // login, then the deploy's outcome read from ACHQ_STATUS.
-import type { Status } from "@achq/core";
-import type { RepoPlan } from "@achq/core";
+import type { Status, RepoPlan } from "@achq/core";
 import type { GitHubClient } from "@achq/github/api";
 import { readStatus } from "./gh.ts";
 
