@@ -1,13 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import type { Data } from "@achq/core";
-
-/** A path in `.achq/`, refusing anything that leaves it. */
-export const inRoot = (root: string, relative: string) => {
-  const file = path.resolve(root, relative);
-  if (file !== root && !file.startsWith(root + path.sep)) throw new Error(`${relative} is outside .achq/`);
-  return file;
-};
+import { inRoot } from "./config/path.ts";
 
 /**
  * Startup files' contents: a string value is a file in `.achq/`, anything else

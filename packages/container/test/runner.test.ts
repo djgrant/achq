@@ -1,71 +1,14 @@
-import { afterEach, describe, expect, test } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import { $ } from "bun";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { type ChannelEvent, threadKey } from "@achq/core";
+import { threadKey } from "@achq/core";
 import { signedHeaders } from "@achq/core/signing";
-import { formatSessions, pickSession, resume, sessionsFor } from "../src/cli.ts";
-import { createConfigLoader } from "../src/config.ts";
-import { acquire, BUSY, lockedArgv } from "@achq/flock";
-import { paths as layout } from "../src/paths.ts";
-import { fetchMirror } from "../src/repo.ts";
+import { lockedArgv } from "@achq/flock";
+import { CHANNEL_TOKEN } from "@achq/test-utils/container-router";
 import { Runner } from "../src/runner.ts";
 import { readState } from "../src/state.ts";
-import { CHANNEL_TOKEN, fakeClaude, fakeRouter, makeOrigin, tempDir, TestChannel, testAccess } from "@achq/test-utils/container";
-
-const dirs: string[] = [];
-const cleanups: (() => void)[] = [];
-afterEach(() => {
-  for (const fn of cleanups.splice(0)) fn();
-  for (const dir of dirs.splice(0)) fs.rmSync(dir, { recursive: true, force: true });
-});
-
-const SECRET = "the-container-secret";
-
-const world = async (opts: { maxRuns?: number } = {}) => {
-  const root = tempDir(dirs);
-  const git = await makeOrigin(root);
-  const claude = fakeClaude(root);
-  const router = fakeRouter(SECRET);
-  cleanups.push(router.stop);
-  const channel = new TestChannel();
-  const dataDir = path.join(root, "data");
-  const paths = layout(dataDir);
-  const load = createConfigLoader({ mirror: paths.mirror, dir: paths.config, fetch: () => fetchMirror(paths.mirror, git.origin) });
-  const env: Record<string, string | undefined> = {
-    PATH: process.env.PATH,
-    FAKE_CLAUDE_LOG: claude.log,
-    ACHQ_CONTAINER_SECRET: SECRET,
-    CLAUDE_CODE_OAUTH_TOKEN: "oauth-token",
-  };
-  const logs: string[] = [];
-  const runner = new Runner({
-    repo: "acme/widgets",
-    container: "dev",
-    channels: [channel],
-    providers: [testAccess()],
-    routerUrl: router.url,
-    containerSecret: SECRET,
-    dataDir,
-    repoUrl: git.origin,
-    loadConfig: (commit) => load(commit ?? git.first),
-    bin: { claude: claude.bin },
-    env,
-    maxRuns: opts.maxRuns,
-    keepAwake: async () => {},
-    log: (line) => logs.push(line),
-  });
-  /** POSTs a signed event and waits for everything it started. */
-  const send = async (event: ChannelEvent, commit = git.first) => {
-    const res = await post(JSON.stringify({ event, commit }));
-    await runner.idle();
-    return res.status;
-  };
-  const post = (body: string, headers: Record<string, string> = signedHeaders(SECRET, "POST", "/events", body)) =>
-    runner.fetch(new Request("http://container/events", { method: "POST", body, headers }));
-  const state = (n: number) => readState(paths.thread(threadKey(channel.ref(n))))!;
-  return { root, git, claude, router, channel, paths, env, runner, send, post, state, logs, load };
-};
+import { SECRET, world } from "./world.ts";
 
 const branchOf = async (dir: string) => (await $`git -C ${dir} branch --show-current`.quiet().text()).trim();
 
@@ -366,52 +309,5 @@ describe("startup", () => {
     expect(w.state(6).sessions.coder!.status).toBe("interrupted");
     await w.runner.reportInterrupted();
     expect(w.channel.replies.filter((r) => r.body.includes("restarted"))).toHaveLength(1);
-  });
-});
-
-describe("sessions and resume", () => {
-  const info = (id: string, agent: string, lastRun = "2026-10-01T00:00:00.000Z") => ({ id, agent, workspace: "issues", lastRun });
-
-  test("pickSession takes the only session, or the one named by id or unambiguous agent", () => {
-    expect(pickSession([], undefined)).toEqual({ error: "This thread has no sessions." });
-    expect(pickSession([info("a", "coder")])).toEqual({ session: info("a", "coder") });
-    const two = [info("a", "coder"), info("b", "triage")];
-    expect("error" in pickSession(two)).toBe(true);
-    expect(pickSession(two, "b")).toEqual({ session: info("b", "triage") });
-    expect(pickSession(two, "coder")).toEqual({ session: info("a", "coder") });
-    expect("error" in pickSession(two, "nope")).toBe(true);
-  });
-
-  test("sessions lists a thread's sessions; resume opens the one picked, holding the lock", async () => {
-    const w = await world();
-    w.channel.open(8);
-    await w.send(w.channel.event(8, "opened", "go"));
-    const sessions = sessionsFor(w.paths, "8");
-    expect(sessions.map((s) => s.agent).sort()).toEqual(["coder", "triage"]);
-    const lines = JSON.parse(formatSessions(sessions));
-    expect(Object.keys(lines[0]).sort()).toEqual(["agent", "id", "lastRun", "workspace"]);
-    expect(sessionsFor(w.paths, "9")).toEqual([]);
-
-    const out: string[] = [];
-    const base = { paths: w.paths, number: "8", loadConfig: w.load, container: "dev", bin: { claude: w.claude.bin }, env: w.env, stdio: ["ignore", "ignore", "ignore"] as ["ignore", "ignore", "ignore"], out: (t: string) => out.push(t) };
-    expect(await resume(base)).toBe(1);
-    expect(out.join("\n")).toContain("several sessions");
-
-    const before = w.claude.calls().length;
-    expect(await resume({ ...base, session: "triage" })).toBe(0);
-    const call = w.claude.calls()[before]!;
-    const triage = sessions.find((s) => s.agent === "triage")!;
-    expect(w.claude.flag(call, "--resume")).toBe(triage.id);
-    expect(call.argv).not.toContain("-p");
-    expect(call.argv.join(" ")).toContain("--effort max");
-    expect(call.cwd).toBe(w.paths.worktree("issues", threadKey(w.channel.ref(8))));
-    expect(call.env.CLAUDE_CONFIG_DIR).toBe(w.paths.agent("triage"));
-    expect(call.env.TEST_TOKEN_FILE).toBeDefined();
-    expect(call.env.ACHQ_CONTAINER_SECRET).toBeUndefined();
-
-    // While a run holds the lock, resume refuses.
-    const release = await acquire(w.paths.lock("issues", threadKey(w.channel.ref(8))));
-    expect(await resume({ ...base, session: triage.id })).toBe(BUSY);
-    await release();
   });
 });

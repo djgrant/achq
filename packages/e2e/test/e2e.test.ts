@@ -15,7 +15,9 @@ import { ENV, STATUS_VARIABLE, type ContainerHost, type ContainerSpec, type Rout
 import { adminSecret, appWebhookSecret, containerSecret } from "@achq/core/secrets";
 import { hmacHex, signedFetch } from "@achq/core/signing";
 import { paths as layout, createAgent, type Runner, readState } from "@achq/container";
-import { fakeClaude, makeOrigin, tempDir } from "@achq/test-utils/container";
+import { fakeClaude } from "@achq/test-utils/fake-claude";
+import { makeOrigin } from "@achq/test-utils/origin";
+import { tempDir } from "@achq/test-utils/temp-dir";
 import { wake } from "@achq/cli/remote";
 import { createDeployer, routerClient, deployerHandler } from "@achq/deployer";
 import { FakeGitHub, makeApp } from "@achq/test-utils/github";

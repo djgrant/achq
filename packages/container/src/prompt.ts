@@ -2,9 +2,8 @@ import { createHash } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import type { Message, Thread } from "@achq/core";
+import { PROMPTS } from "./constants.ts";
 import { render } from "./template.ts";
-
-export const PROMPTS = path.join(import.meta.dir, "..", "prompts");
 
 export type PromptInput = {
   mode: "new" | "resume";

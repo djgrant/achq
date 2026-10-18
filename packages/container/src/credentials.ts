@@ -3,10 +3,8 @@
 import * as fs from "node:fs";
 import type { CredentialsRequest, CredentialsResponse, AccessProvider, Credential } from "@achq/core";
 import { signedFetch } from "@achq/core/signing";
+import { REFRESH_BEFORE_MS } from "./constants.ts";
 import type { Paths } from "./paths.ts";
-
-/** Refresh when this little is left, so a failing refresh has half an hour of retries before anything breaks. */
-export const REFRESH_BEFORE_MS = 30 * 60_000;
 
 export type CredentialsOptions = {
   routerUrl: string;
