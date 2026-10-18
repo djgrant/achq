@@ -5,7 +5,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import type { Credential } from "@achq/core";
 import { FakeGitHub, makeApp } from "@achq/test-utils/github";
-import type { RepoPolicyData } from "../src/resources.ts";
+import type { RepoPolicyData } from "../src/resources/index.ts";
 import { createGitHub, parseApps } from "../src/runtime/index.ts";
 
 const appA = makeApp("notation-achq", "101", { issues: "write", contents: "write", pull_requests: "read", metadata: "read" }, ["issues", "issue_comment", "push"]);

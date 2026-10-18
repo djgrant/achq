@@ -2,9 +2,10 @@ import { afterEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { resetRegistry, type RunContext, type RuntimeContext } from "@achq/core";
-import { fakeClaude, tempDir } from "@achq/test-utils/container";
+import { fakeClaude } from "@achq/test-utils/fake-claude";
+import { tempDir } from "@achq/test-utils/temp-dir";
 import { Claude, type ClaudeConfig } from "../src/resources.ts";
-import { claudeRuntime, DENIED } from "../src/runtime.ts";
+import { claudeRuntime, DENIED } from "../src/runtime/index.ts";
 
 const dirs: string[] = [];
 afterEach(() => {

@@ -1,14 +1,4 @@
-import { createSign } from "node:crypto";
-
-export const GITHUB_API = "https://api.github.com";
-
-/** A JWT that authenticates as the GitHub App itself, valid for nine minutes. */
-export const appJwt = (appId: string | number, privateKey: string, now = Date.now()): string => {
-  const iat = Math.floor(now / 1000) - 60;
-  const encode = (value: object) => Buffer.from(JSON.stringify(value)).toString("base64url");
-  const unsigned = `${encode({ alg: "RS256", typ: "JWT" })}.${encode({ iat, exp: iat + 600, iss: String(appId) })}`;
-  return `${unsigned}.${createSign("RSA-SHA256").update(unsigned).sign(privateKey, "base64url")}`;
-};
+import { API_VERSION, GITHUB_API, USER_AGENT } from "../constants.ts";
 
 export class GitHubError extends Error {
   constructor(
@@ -44,8 +34,8 @@ export class GitHubClient {
       method,
       headers: {
         accept: "application/vnd.github+json",
-        "x-github-api-version": "2022-11-28",
-        "user-agent": "achq",
+        "x-github-api-version": API_VERSION,
+        "user-agent": USER_AGENT,
         ...(auth && { authorization: auth }),
         ...(body !== undefined && { "content-type": "application/json" }),
       },

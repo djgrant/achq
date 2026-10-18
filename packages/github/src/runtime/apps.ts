@@ -1,9 +1,9 @@
 // Router only: the container never has App keys.
-import { appJwt, GITHUB_API, GitHubClient } from "../api.ts";
-
-export type AppKeys = Record<string, { id: string; privateKey: string }>;
-
-export type Permissions = Record<string, string>;
+import { GitHubClient } from "../api/client.ts";
+import { appJwt } from "../api/jwt.ts";
+import { GITHUB_API, JWT_REUSE_MS } from "../constants.ts";
+import type { AppKeys } from "./app-keys.ts";
+import type { Permissions } from "./permissions.ts";
 
 /** `GET /repos/{r}/installation`, the fields achq uses. */
 export type InstallationInfo = {
@@ -14,16 +14,6 @@ export type InstallationInfo = {
 };
 
 export type AccessToken = { token: string; expires_at: string; permissions?: Permissions };
-
-const RANK: Record<string, number> = { read: 1, write: 2, admin: 3 };
-
-/** Whether `granted` covers `wanted` (read < write < admin). */
-export const covers = (granted: string | undefined, wanted: string) =>
-  granted !== undefined && (RANK[granted] ?? 0) >= (RANK[wanted] ?? Infinity);
-
-export const maxLevel = (a: string | undefined, b: string) => (a !== undefined && (RANK[a] ?? 0) >= (RANK[b] ?? 0) ? a : b);
-
-export const REPO = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
 
 export class Apps {
   private jwts = new Map<string, { value: string; until: number }>();
@@ -59,7 +49,7 @@ export class Apps {
       const cached = this.jwts.get(slug);
       if (cached && cached.until > now) return `Bearer ${cached.value}`;
       const value = appJwt(id, privateKey, now);
-      this.jwts.set(slug, { value, until: now + 5 * 60_000 });
+      this.jwts.set(slug, { value, until: now + JWT_REUSE_MS });
       return `Bearer ${value}`;
     }, this.baseUrl);
   }

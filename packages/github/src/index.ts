@@ -1,1 +1,1 @@
-export { App, AppRef, Issues, RepoPolicy } from "./resources.ts";
+export { App, AppRef, Issues, RepoPolicy } from "./resources/index.ts";

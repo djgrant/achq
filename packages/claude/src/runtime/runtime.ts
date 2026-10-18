@@ -2,32 +2,11 @@ import { createHash } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { stableStringify, toData, type AgentRuntime, type RunContext, type RunResult, type RuntimeContext } from "@achq/core";
-import type { Claude, ClaudeConfig } from "./resources.ts";
-
-export const DEFAULT_MODEL = "claude-opus-5-5";
-
-/**
- * The agent only sees the trusted context the runner gives it. These commands
- * could read anyone's thread content, so they're denied. Commenting is denied
- * because the runner posts the reply.
- */
-export const DENIED = ["Bash(gh issue view:*)", "Bash(gh issue list:*)", "Bash(gh issue comment:*)", "Bash(gh api:*)", "Bash(gh search:*)"];
-
-/** Effort levels `settings.json` can persist. `max` is per session only, so it's a flag. */
-const PERSISTED_EFFORT = new Set(["low", "medium", "high", "xhigh"]);
-
-const SYSTEM_PROMPT_FILE = "achq-system-prompt.md";
-
-/** `settings.json`: achq's defaults, then the repo's settings on top. */
-export const claudeSettings = (config: ClaudeConfig): Record<string, unknown> => ({
-  model: config.model ?? DEFAULT_MODEL,
-  ...(config.effort && PERSISTED_EFFORT.has(config.effort) && { effortLevel: config.effort }),
-  attribution: { commit: "", pr: "" },
-  ...config.settings,
-});
-
-/** Flags for config that settings.json can't hold. */
-const effortFlags = (config: ClaudeConfig) => (config.effort === "max" ? ["--effort", "max"] : []);
+import { CLAUDE_ENV, DENIED, SETTINGS_FILE, SYSTEM_PROMPT_FILE } from "../constants.ts";
+import type { Claude } from "../resources.ts";
+import { transcriptExists, updateClaudeJson, writeFiles } from "./config-dir.ts";
+import { claudeSettings, effortFlags } from "./settings.ts";
+import { eachLine, StreamStats, tokens } from "./stream.ts";
 
 export const claudeRuntime = (agent: Claude, ctx: RuntimeContext): AgentRuntime => {
   const config = agent.config;
@@ -55,7 +34,7 @@ export const claudeRuntime = (agent: Claude, ctx: RuntimeContext): AgentRuntime 
     async configure(configDir) {
       fs.mkdirSync(configDir, { recursive: true });
       writeFiles(agentFiles, ctx.home, configDir);
-      fs.writeFileSync(path.join(configDir, "settings.json"), `${JSON.stringify(claudeSettings(config), null, 2)}\n`);
+      fs.writeFileSync(path.join(configDir, SETTINGS_FILE), `${JSON.stringify(claudeSettings(config), null, 2)}\n`);
       fs.writeFileSync(promptFile(configDir), systemPrompt);
       updateClaudeJson(configDir, (c) => {
         // The first interactive start asks for a theme; `resume` shouldn't.
@@ -87,7 +66,7 @@ export const claudeRuntime = (agent: Claude, ctx: RuntimeContext): AgentRuntime 
         "--disallowedTools",
         ...DENIED,
       ];
-      const env = { ...context.env, CLAUDE_CONFIG_DIR: configDir, DISABLE_AUTOUPDATER: "1" };
+      const env = { ...context.env, CLAUDE_CONFIG_DIR: configDir, ...CLAUDE_ENV };
       const proc = Bun.spawn(argv, { cwd, env, stdin: "pipe", stdout: "pipe", stderr: "pipe" });
       const stop = () => proc.kill();
       if (context.signal.aborted) stop();
@@ -134,79 +113,8 @@ export const claudeRuntime = (agent: Claude, ctx: RuntimeContext): AgentRuntime 
     resumeCommand(session, configDir) {
       return {
         argv: [claude, `--append-system-prompt-file=${promptFile(configDir)}`, `--resume=${session}`, ...effortFlags(config), "--disallowedTools", ...DENIED],
-        env: { CLAUDE_CONFIG_DIR: configDir, DISABLE_AUTOUPDATER: "1" },
+        env: { CLAUDE_CONFIG_DIR: configDir, ...CLAUDE_ENV },
       };
     },
   };
-};
-
-/** `~/.claude/…` goes in the agent's own config directory. Other files go where the container would put them. */
-const writeFiles = (resolved: Record<string, string>, home: string, configDir: string) => {
-  for (const [key, content] of Object.entries(resolved)) {
-    const file =
-      key === "~/.claude" || key.startsWith("~/.claude/")
-        ? path.join(configDir, key.slice("~/.claude".length))
-        : key.startsWith("~/")
-          ? path.join(home, key.slice(2))
-          : path.isAbsolute(key)
-            ? key
-            : path.join(home, key);
-    fs.mkdirSync(path.dirname(file), { recursive: true });
-    fs.writeFileSync(file, content);
-  }
-};
-
-const updateClaudeJson = (configDir: string, fn: (config: any) => void) => {
-  const file = path.join(configDir, ".claude.json");
-  const config = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, "utf8")) : {};
-  fn(config);
-  fs.mkdirSync(configDir, { recursive: true });
-  fs.writeFileSync(file, JSON.stringify(config, null, 2));
-};
-
-export const transcriptExists = (configDir: string, session: string) => {
-  const projects = path.join(configDir, "projects");
-  return fs.existsSync(projects) && new Bun.Glob(`*/${session}.jsonl`).scanSync(projects).next().done === false;
-};
-
-/** Context and usage figures gathered from Claude's stream-json output. */
-export class StreamStats {
-  session?: string;
-  context?: number;
-  window?: number;
-  turns?: number;
-  compacted?: { pre: number; post: number };
-  result?: { is_error: boolean; subtype: string; result?: string; errors?: string[] };
-
-  push(event: any) {
-    if (event.session_id) this.session = event.session_id;
-    if (event.type === "assistant" && !event.parent_tool_use_id && event.message?.usage) {
-      const u = event.message.usage;
-      this.context = (u.input_tokens ?? 0) + (u.cache_read_input_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0) + (u.output_tokens ?? 0);
-    } else if (event.type === "system" && event.subtype === "compact_boundary") {
-      const { pre_tokens, post_tokens } = event.compact_metadata;
-      this.context = post_tokens;
-      this.compacted = { pre: pre_tokens, post: post_tokens };
-    } else if (event.type === "result") {
-      this.result = event;
-      this.turns = event.num_turns;
-      const windows = Object.values(event.modelUsage ?? {}).map((m: any) => m.contextWindow ?? 0);
-      if (windows.length) this.window = Math.max(...windows);
-    }
-  }
-}
-
-export const tokens = (n: number): string =>
-  n >= 1_000_000 ? `${Math.floor(n / 100_000) / 10}M` : n >= 1000 ? `${Math.floor(n / 1000)}k` : `${n}`;
-
-const eachLine = async (stream: ReadableStream<Uint8Array>, fn: (line: string) => void) => {
-  const decoder = new TextDecoder();
-  let buffer = "";
-  for await (const chunk of stream) {
-    buffer += decoder.decode(chunk, { stream: true });
-    const lines = buffer.split("\n");
-    buffer = lines.pop()!;
-    for (const line of lines) if (line.trim()) fn(line);
-  }
-  if (buffer.trim()) fn(buffer);
 };

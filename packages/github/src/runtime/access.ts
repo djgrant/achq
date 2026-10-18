@@ -1,13 +1,12 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { PolicyData, AccessProvider, Credential } from "@achq/core";
-import { Apps, covers, maxLevel, REPO, type Permissions } from "./apps.ts";
-import { botLogin } from "./channel.ts";
-import type { RepoPolicyData } from "../resources.ts";
-
-export const PROVIDER = "github";
-
-const LEVELS = new Set(["read", "write"]);
+import type { AccessProvider, Credential, PolicyData } from "@achq/core";
+import { GH_CONFIG_DIR, GH_HOSTS_FILE, GIT_CONFIG_FILE, POLICY_LEVELS, PROVIDER, REPO, TOKEN_SUFFIX } from "../constants.ts";
+import type { RepoPolicyData } from "../resources/policy.ts";
+import type { Apps } from "./apps.ts";
+import { botLogin } from "./bot.ts";
+import { gitConfig } from "./git-credentials.ts";
+import { covers, maxLevel, type Permissions } from "./permissions.ts";
 
 /** Writes a file so a reader sees the old content or the new, never half of either. */
 const writeAtomic = (file: string, content: string) => {
@@ -16,42 +15,12 @@ const writeAtomic = (file: string, content: string) => {
   fs.renameSync(tmp, file);
 };
 
-/** A double-quoted git config value. */
-const gitQuote = (s: string) => `"${s.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
-/** A single-quoted shell word. */
-const shQuote = (s: string) => `'${s.replace(/'/g, `'\\''`)}'`;
-
 /** Named by App and installation, so a refresh never points a repo at another installation's token. */
 const tokenFileName = (credential: Credential, index: number) => {
   const { app, installation, repos } = credential.scope;
   const repo = Array.isArray(repos) && repos.length === 1 ? `-${repos[0]}` : "";
   const name = typeof app === "string" && typeof installation === "number" ? `${app}-${installation}${repo}` : String(index);
-  return `${name.replace(/[^A-Za-z0-9_.-]/g, "_")}.token`;
-};
-
-/**
- * Git config that gives each repo URL its own token, so tokens from different
- * installations can coexist. Each repo gets a `credential.<url>` section, which
- * git matches against the remote's full URL.
- *
- * `credential.useHttpPath` passes the path to helpers too, so a caching helper
- * can't hand one repo's token to another.
- *
- * Each section resets the helper list first, so no other helper (a keychain,
- * `gh auth git-credential`) answers for these repos.
- *
- * Both `…/name.git` and `…/name` are listed, because a remote can use either
- * and git matches paths by whole components.
- */
-export const gitConfig = (entries: { repo: string; tokenFile: string }[]) => {
-  const lines = ["[credential]", "\tuseHttpPath = true"];
-  for (const { repo, tokenFile } of entries) {
-    const helper = `!f() { test "$1" = get && echo username=x-access-token && echo "password=$(cat ${shQuote(tokenFile)})"; }; f`;
-    for (const url of [`https://github.com/${repo}.git`, `https://github.com/${repo}`]) {
-      lines.push(`[credential ${gitQuote(url)}]`, "\thelper =", `\thelper = ${gitQuote(helper)}`);
-    }
-  }
-  return lines.join("\n") + "\n";
+  return `${name.replace(/[^A-Za-z0-9_.-]/g, "_")}${TOKEN_SUFFIX}`;
 };
 
 export class GitHubAccess implements AccessProvider {
@@ -67,7 +36,7 @@ export class GitHubAccess implements AccessProvider {
     if (typeof target !== "string" || !REPO.test(target)) return [`"${target}" isn't an owner/name repo`];
     const permissions = p.permissions ?? {};
     const problems = Object.entries(permissions)
-      .filter(([, level]) => !LEVELS.has(level))
+      .filter(([, level]) => !POLICY_LEVELS.has(level))
       .map(([name, level]) => `Permission ${name} is "${level}"; it must be "read" or "write"`);
     if (problems.length) return problems;
 
@@ -147,7 +116,7 @@ export class GitHubAccess implements AccessProvider {
    */
   async install(credentials: Credential[], dir: string): Promise<{ env: Record<string, string> }> {
     const mine = credentials.filter((c) => c.provider === PROVIDER);
-    const ghDir = path.join(dir, "gh");
+    const ghDir = path.join(dir, GH_CONFIG_DIR);
     fs.mkdirSync(ghDir, { recursive: true, mode: 0o700 });
 
     const files = new Set<string>();
@@ -161,11 +130,11 @@ export class GitHubAccess implements AccessProvider {
       for (const repo of repos) if (typeof repo === "string" && REPO.test(repo)) entries.push({ repo, tokenFile: file });
     });
 
-    const gitconfig = path.join(dir, "gitconfig");
+    const gitconfig = path.join(dir, GIT_CONFIG_FILE);
     writeAtomic(gitconfig, gitConfig(entries));
 
     const first = mine[0];
-    const hosts = path.join(ghDir, "hosts.yml");
+    const hosts = path.join(ghDir, GH_HOSTS_FILE);
     if (first) {
       const user = typeof first.scope.app === "string" ? botLogin(first.scope.app) : "x-access-token";
       writeAtomic(hosts, `github.com:\n    oauth_token: ${first.value}\n    user: ${user}\n    git_protocol: https\n`);
@@ -174,7 +143,7 @@ export class GitHubAccess implements AccessProvider {
     }
 
     // Remove token files no credential uses any more.
-    for (const name of fs.readdirSync(dir)) if (name.endsWith(".token") && !files.has(name)) fs.rmSync(path.join(dir, name), { force: true });
+    for (const name of fs.readdirSync(dir)) if (name.endsWith(TOKEN_SUFFIX) && !files.has(name)) fs.rmSync(path.join(dir, name), { force: true });
 
     return {
       env: {
