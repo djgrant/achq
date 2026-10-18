@@ -8,7 +8,6 @@ export const ghToken = () => {
   return stdout.toString().trim();
 };
 
-/** GitHub with your `gh` login. */
 export const userGitHub = (baseUrl = process.env.ACHQ_GITHUB_API ?? GITHUB_API) => {
   let token: string | undefined;
   return new GitHubClient(() => `token ${(token ??= ghToken())}`, baseUrl);
@@ -28,7 +27,7 @@ export const readStatus = async (gh: GitHubClient, repo: string): Promise<Status
 };
 
 /** The latest achq commit that changed the code the router and deployer run. */
-export const lastCommit = async (gh: GitHubClient, source: string, paths = ["src", "package.json", "bun.lock"]) => {
+export const lastCommit = async (gh: GitHubClient, source: string, paths = ["packages", "package.json", "bun.lock"]) => {
   type Commit = { sha: string; commit: { committer: { date: string } } };
   const latest = await Promise.all(paths.map(async (p) => (await gh.request<Commit[]>("GET", `/repos/${source}/commits?sha=main&per_page=1&path=${p}`))[0]));
   const found = latest.filter(Boolean).sort((a, b) => b.commit.committer.date.localeCompare(a.commit.committer.date))[0];
