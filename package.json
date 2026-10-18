@@ -3,6 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "bin": {
+    "achq": "bin/achq"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./github": "./src/github/index.ts",
+    "./railway": "./src/railway/index.ts"
+  },
   "scripts": {
     "test": "bun test",
     "typecheck": "tsc"
@@ -10,6 +18,7 @@
   "dependencies": {
     "@pokit/core": "^0.6.0",
     "@pokit/terminal": "^0.6.0",
+    "quickjs-emscripten": "^0.32.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {

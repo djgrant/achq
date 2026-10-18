@@ -38,7 +38,7 @@ const dev = new Container("dev", {
 new Workspace("docs", {
   container: dev,
   threads: new ThreadSelector(channel, { labels: ["docs"] }),
-  branch: "docs/{number}",
+  branch: "docs-{number}",
   base: "docs",
 });
 new Workspace("issues", {

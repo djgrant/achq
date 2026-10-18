@@ -2,79 +2,126 @@
 
 Agent Communications Headquarters.
 
+Mention `@claude` on a GitHub issue and Claude Code works on it in a container on Railway: it answers questions, edits the issue, and pushes branches and PRs. Each repo declares its own containers, agents and triggers in `.achq/`, and gets them by installing a GitHub App.
 
-Mention `@claude` on a GitHub issue and Claude Code works on it in a container on Railway: it answers questions, edits the issue, and pushes branches and PRs. Each repo gets its own Railway service, built from the repo's own Dockerfile, with a volume that keeps every issue's session and worktree.
+The design and the reasons behind it are in [docs/achq-design.md](docs/achq-design.md).
 
-Repo services sleep when idle and have no public domain. One always-on router, `achq-router`, receives every repo's webhook, ignores comments that don't mention `@claude`, and forwards the rest to the repo's service over Railway's private network, retrying for about five minutes while the service wakes. A service stays awake while a run is in progress and sleeps 5–10 minutes after it ends.
+## Layers
 
-## Using it
+- **achq** (this repo): the CLI, the router, the deployer, the container runtime, and the resource library repos and the infra import.
+- **ACHQ infra**: a repo with `achq.infra.ts`, declaring the router, the deployer and the GitHub Apps. `achq up` runs it.
+- **ACHQ repos**: any repo with `.achq/config.ts` and a Dockerfile. Installing one of the infra's Apps on it deploys it.
 
-Comment on an issue:
+## The infra
 
-| Comment | Does |
-|---|---|
-| `@claude <prompt>` | Resume the issue's session, or start one |
-| `@claude /new <prompt>` | Start a fresh session |
-| `@claude /compact [focus]` | Compact the session |
+```ts
+// achq.infra.ts
+import { achq } from "achq";
+import * as github from "achq/github";
+import * as railway from "achq/railway";
 
-The runner posts Claude's final reply as an issue comment. When a run fails or compacts, it posts that instead. Claude can't comment itself (`gh issue comment` is denied), but it can edit the issue body and open PRs.
+export default achq(() => {
+  const router = new railway.Router("router", { project: "achq" });
+  const deployer = new railway.Deployer("deployer", {
+    project: "achq",
+    router,
+    containerHost: railway.containerHost({ project: "achq" }),
+    owners: ["djgrant", "notationlabs"],
+  });
+  new github.App("personal", { name: "djgrant-claude", router, deployer });
+  new github.App("notation", { name: "notation-achq", org: "notationlabs", router, deployer });
+});
+```
 
-One run per issue at a time. Comments made during a run queue up, and the next run picks up all of them.
+`achq up` needs `RAILWAY_API_TOKEN` and `CLAUDE_CODE_OAUTH_TOKEN` (from `claude setup-token`) in its environment; how they get there is up to you (`op run`, direnv, …). It creates or updates, in order: the Railway project, the router, the deployer, and each App. An App that doesn't exist yet is created through GitHub's manifest flow in your browser. Its private key goes straight into the router's Railway variables and never touches your machine. Then it syncs every installed repo. Re-running it changes only what differs; `--dry-run` shows what would change.
 
-## The repo contract
+| Service | Exposure | Does |
+|---|---|---|
+| Router | Public, always on | Receives every App's webhooks, persists them, forwards each to the containers it's for; mints short-lived tokens for containers |
+| Deployer | Private, sleeps | Evaluates repo config in a QuickJS sandbox and deploys its containers |
+| Container | Private, sleeps | Runs the repo's agents |
 
-A repo opts in with one file, `.achq/Dockerfile`. It installs the repo's toolchain, installs the agent, and runs it:
+## A repo
+
+```ts
+// .achq/config.ts
+import { Claude, Container, Trigger, Workspace } from "achq";
+import * as github from "achq/github";
+
+const app = github.App.get("notation-achq");
+
+const code = new github.RepoPolicy("code", { app, permissions: { contents: "write", issues: "write", pull_requests: "write" } });
+const dev = new Container("dev", { image: "./Dockerfile", policies: [code] });
+
+new Workspace("docs", { container: dev, threads: app.issues.where({ labels: ["docs"] }), branch: "docs-{number}", base: "docs" });
+new Workspace("issues", { container: dev, threads: app.issues, branch: "issue-{number}", base: "main" });
+
+const coder = new Claude("coder", { model: "claude-opus-5-5", effort: "high", systemPrompt: "./prompts/system.md" });
+new Trigger("mention", { event: app.issueComment({ actions: ["created", "edited"], mention: "@claude" }), agent: coder });
+```
+
+- **Container**: an image, the policies its agents get tokens for, and startup files.
+- **Workspace**: which threads (issues) are worked on in which container, on which branch. The first matching workspace claims a thread, and keeps it if its labels change.
+- **Agent**: model, effort, the repo's system prompt (after achq's runner prompt), settings. Each agent has its own Claude config directory and its own session per thread.
+- **Trigger**: an event and an agent. A mention counts in a new comment or issue, or when an edit adds it.
+
+The Dockerfile installs the repo's toolchain and achq:
 
 ```dockerfile
 FROM node:22.18-bookworm
-RUN npm install -g bun@1.3.14 pnpm@11.17.0
+RUN npm install -g bun@1.3.14
 ARG ACHQ_REF=main
 RUN curl -fsSL "https://raw.githubusercontent.com/djgrant/achq/$ACHQ_REF/install.sh" | sh -s "$ACHQ_REF"
 CMD ["achq-agent"]
 ```
 
-- **Base image:** Debian-based, because the install script uses apt. The image needs `bun` on `PATH`.
-- **System-wide tools:** the agent runs as the unprivileged `agent` user, so install tools system-wide, not under `/root`.
-- **Instructions:** Claude follows the repo's `AGENTS.md` or `CLAUDE.md`, including how to set up a fresh worktree.
+It must be Debian-based (the install script uses apt), with `bun` on `PATH`, and tools installed system-wide: the agent runs as the unprivileged `agent` user.
 
-Railway only redeploys when `.achq/**` changes. To update the agent itself, push achq and re-run `achq deploy`: it sets the service's `ACHQ_REF` build arg to the latest achq commit that changed the agent (`bin/achq-agent`, `src/`, `prompts/` or `install.sh`), and redeploys if that or anything else it manages changed. A redeploy stops running sessions; the agent reports them on the issues when it comes back.
+Pushing a change to `.achq/` on the default branch redeploys what changed. Only a new container or a changed Dockerfile rebuilds; other changes apply from the next event. Each deploy's outcome is in the repo's `ACHQ_STATUS` variable.
 
-## The GitHub contract
+## Using it
 
-- **Trigger:** a new comment on an issue (not a PR) that mentions `@claude`. Both the commenter and the issue author must be an owner, member or collaborator.
-- **What Claude sees:** the runner renders `prompts/new.md` or `prompts/resume.md` with the issue body and comments by those users only, and says how many others it left out. Claude can't read issues itself (`gh issue view`, `gh issue list`, `gh api` and `gh search` are denied), so text from anyone else never reaches it.
-- **Identity:** Claude acts as the GitHub App, with contents, issues and pull requests set to read/write. PRs opened by the App trigger CI.
-- **Branches:** each issue starts on `issue-<n>`. Claude may switch to a more descriptive branch.
+| Comment | Does |
+|---|---|
+| `@claude <prompt>` | Resume the thread's session, or start one |
+| `@claude /new <prompt>` | Start a fresh session |
+| `@claude /compact [focus]` | Compact the session |
+
+The runner posts the agent's final message as a comment. Only messages from users with write access reach the agent, and it can't read issues itself, so nobody else's text gets in. One run per thread per workspace at a time; comments made during a run are picked up by the next.
+
+## Commands
+
+`bin/achq` (put it on your `PATH`; run `bun install` here first).
+
+| Command | Run from | Does |
+|---|---|---|
+| `achq up [--prune] [--dry-run]` | Infra | Brings the infra in line with `achq.infra.ts`, then syncs installed repos. `--prune` deletes containers of repos no longer installed |
+| `achq status` | Infra or repo | From the infra: every repo's last deploy. From a repo: its `ACHQ_STATUS` |
+| `achq install [--dry-run]` | Repo | Checks the config, installs its App on the repo, and waits for the deploy |
+| `achq uninstall` | Repo | Removes the repo from its App's installation. Its containers are kept, asleep |
+| `achq ssh [-- cmd]` | Repo | A shell in the repo's container |
+| `achq resume <n> [session]` | Repo | Opens issue `n`'s session in its worktree |
+
+`ssh` and `resume` need the Railway CLI and `gh`. They wake the container through the router first.
 
 ## The container
 
 ```
-/data/home/                 HOME: ~/.claude holds every session's transcript
-/data/repo.git              bare mirror
-/data/worktrees/issue-<n>   one worktree per issue, left as Claude leaves it
-/data/issues/<n>.json       session ID, last comment handled, status
-/data/locks/issue-<n>       flock held during a run
-/data/github/               the App's installation token, refreshed every few minutes
+/data/home/                           HOME
+/data/agents/<agent>/                 each agent's CLAUDE_CONFIG_DIR, with its session transcripts
+/data/mirror.git                      bare mirror
+/data/config/<commit>/                `.achq/` as of each deployed commit
+/data/worktrees/<workspace>/<thread>  one worktree per thread, left as the agent leaves it
+/data/threads/<thread>.json           the claiming workspace, and each agent's session
+/data/github/                         tokens for the container's policies, refreshed before they expire
 ```
 
-To get in yourself (needs the Railway CLI):
+A thread is named from its ID, e.g. `notationlabs-yieldstar-42`.
+
+## Development
 
 ```sh
-achq resume <n> [owner/repo]   # the issue's current session, interactively, in its worktree
-achq ssh [owner/repo]          # a shell in the container
+bun install
+bun test
+bunx tsc --noEmit -p .
 ```
-
-Both wake a sleeping service first, through the router, and `resume` keeps it awake while you're in. `resume` opens the issue's current session. It fails if a run is in progress. While you're in, the agent's next run for the issue waits until you exit. Inside the container it's `achq-agent resume <n>`.
-
-## Setting it up
-
-`achq` commands, run through `bin/achq` (put it on your `PATH`; it needs [pok](https://github.com/djgrant/pok) and `bun install`), with credentials in `secrets.env`, which is gitignored. `deploy`, `destroy`, `ssh` and `resume` default to the repo of the directory you run them in:
-
-1. `achq app [--org <org>]` creates the GitHub App through GitHub's manifest flow and saves its ID, slug and private key. Install the App on each repo afterwards.
-2. Add `CLAUDE_CODE_OAUTH_TOKEN` (from `claude setup-token`) and `RAILWAY_API_TOKEN` (an account or workspace token) to `secrets.env`. A value can be a 1Password reference, `op://vault/item/field`. If you have more than one Railway workspace, also set `RAILWAY_WORKSPACE_ID`.
-3. `achq deploy <owner/repo>` does the rest. Re-running it only changes what differs:
-   - creates the `achq` Railway project if it doesn't exist
-   - creates the repo's service with a volume, sets its variables, and connects it to the repo, or updates them and redeploys if they changed
-   - creates the router, or redeploys it if `router.ts` changed. It runs `src/router.ts` on the stock Bun image, so it needs no build
-   - creates the repo's webhook, pointing at the router
-4. `achq status` lists the deployed agents. `achq destroy <owner/repo>` deletes a repo's service, volume and webhook.

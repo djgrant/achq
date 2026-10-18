@@ -1,31 +1,34 @@
 import { defineCommand } from "@pokit/core";
+import { clean } from "../lib/errors.ts";
 import { z } from "zod";
-import { deployedRepos, railwaySsh, recentIssues, repoSchema } from "../lib/agent.ts";
+import { needRepo } from "../lib/env.ts";
+import { interactive, reachContainer } from "../lib/reach.ts";
+import { parseSessions, pickSession, railwayRun, railwaySsh, sessionLabel, sessionTable, terminalEnv } from "../lib/remote.ts";
 
 export const command = defineCommand({
-  label: "Resume the Github agent's last Claude session",
-  examples: ["achq resume 34", "achq resume 34 notationlabs/yieldstar"],
+  label: "Open a thread's agent session",
+  examples: ["achq resume 34", "achq resume 34 <session>"],
   context: {
-    issue: {
-      from: "arg",
-      schema: z.coerce.number().int().positive(),
-      description: "Issue",
-      resolve: recentIssues,
-      dependsOn: ["repo"],
-    },
-    repo: {
-      from: "arg",
-      schema: repoSchema(z.string().regex(/^([\w.-]+\/)?[\w.-]+$/, "Expected owner/repo or repo")),
-      description: "GitHub repo",
-      resolve: deployedRepos,
-    },
+    thread: { from: "arg", schema: z.coerce.number().int().positive(), description: "Issue number" },
+    session: { from: "arg", schema: z.string().optional(), description: "Session ID (or agent name)" },
+    container: { from: "flag", schema: z.string().optional(), description: "Which container, when the repo has several" },
   },
-  run: async (_r, { context }) => {
-    // Railway's SSH sets TERM=xterm and nothing else, so Claude can't tell which
-    // keys your terminal can send (Shift+Enter and the like). Pass your terminal's on.
-    const term = ["TERM", "COLORTERM", "TERM_PROGRAM", "TERM_PROGRAM_VERSION"].flatMap((name) =>
-      process.env[name] ? [`${name}=${process.env[name]}`] : [],
-    );
-    process.exitCode = await railwaySsh(context.repo, ["env", ...term, "achq-agent", "resume", String(context.issue)]);
-  },
+  run: clean(async (r, { context }) => {
+    const thread = String(context.thread);
+    const container = await reachContainer(r.prompter, needRepo(), context.container);
+    const sessions = parseSessions(await railwayRun(container, ["achq-agent", "sessions", thread]));
+    let session = pickSession(sessions, context.session);
+    if (!session) {
+      if (!interactive()) {
+        console.log(sessionTable(sessions));
+        return;
+      }
+      const id = await r.prompter.select({
+        message: "Session",
+        options: sessions.map((s) => ({ value: s.id, label: sessionLabel(s), hint: s.lastRun })),
+      });
+      session = sessions.find((s) => s.id === id)!;
+    }
+    process.exitCode = await railwaySsh(container, ["env", ...terminalEnv(), "achq-agent", "resume", thread, session.id]);
+  }),
 });

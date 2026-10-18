@@ -12,4 +12,4 @@ if [ "$(id -u)" = 0 ]; then
   cd "$data"
   exec setpriv --reuid=agent --regid=agent --init-groups env HOME="$data/home" "$0" "$@"
 fi
-exec bun "$(dirname "$(readlink -f "$0")")/../src/main.ts" "$@"
+exec bun "$(dirname "$(readlink -f "$0")")/../src/container/main.ts" "$@"

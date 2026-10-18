@@ -1,20 +1,19 @@
 import { defineCommand } from "@pokit/core";
+import { clean } from "../lib/errors.ts";
 import { z } from "zod";
-import { deployedRepos, railwaySsh, repoSchema } from "../lib/agent.ts";
+import { needRepo } from "../lib/env.ts";
+import { railwaySsh } from "../lib/remote.ts";
+import { reachContainer } from "../lib/reach.ts";
 
 export const command = defineCommand({
-  label: "Shell into the GitHub agent container",
-  examples: ["achq ssh notationlabs/yieldstar", "achq ssh notationlabs/yieldstar -- ls /data/worktrees"],
+  label: "Shell into one of this repo's containers",
+  examples: ["achq ssh", "achq ssh --container dev -- ls /data"],
   context: {
-    repo: {
-      from: "arg",
-      schema: repoSchema(z.string().regex(/^([\w.-]+\/)?[\w.-]+$/, "Expected owner/repo or repo")),
-      description: "GitHub repo",
-      resolve: deployedRepos,
-    },
+    container: { from: "flag", schema: z.string().optional(), description: "Which container, when the repo has several" },
   },
-  run: async (_r, { context }) => {
+  run: clean(async (r, { context }) => {
+    const container = await reachContainer(r.prompter, needRepo(), context.container);
     const separator = process.argv.indexOf("--");
-    process.exitCode = await railwaySsh(context.repo, separator < 0 ? [] : process.argv.slice(separator + 1));
-  },
+    process.exitCode = await railwaySsh(container, separator < 0 ? [] : process.argv.slice(separator + 1));
+  }),
 });

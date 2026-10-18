@@ -14,7 +14,7 @@ const dev = new Container("dev", {
   files: { "~/.config/pnpm/rc": "./pnpmrc" },
 });
 
-new Workspace("docs", { container: dev, threads: app.issues.where({ labels: ["docs"] }), branch: "docs/{number}", base: "docs" });
+new Workspace("docs", { container: dev, threads: app.issues.where({ labels: ["docs"] }), branch: "docs-{number}", base: "docs" });
 new Workspace("issues", { container: dev, threads: app.issues, branch: "issue-{number}", base: "main" });
 
 const coder = new Claude("coder", {

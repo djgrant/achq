@@ -1,23 +1,23 @@
-You're working on issue #{{issue.number}}: {{issue.title}} ({{issue.url}}).
+You're working on {{thread.id}}: {{thread.title}} ({{thread.url}}).
 
-## Issue body
+## Opening post
 
-{{issue.body}}
+{{thread.body}}
 
-## Comments
+## Replies
 
-{{#comments}}
+{{#messages}}
 ### @{{author}} · {{date}}
 
 {{body}}
 
-{{/comments}}
-{{^comments}}
+{{/messages}}
+{{^messages}}
 (none)
 
-{{/comments}}
+{{/messages}}
 {{#omitted}}
-(Left out {{omitted}} comment(s) from users without write access.)
+(Left out {{omitted}} message(s) from users without write access.)
 
 {{/omitted}}
-You are on branch `{{branch}}` at {{head}}. Respond to @{{mentionedBy}}'s latest mention of you.
+You are on branch `{{branch}}` at {{head}}. Respond to @{{by}}'s latest message.

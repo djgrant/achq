@@ -1,6 +1,11 @@
+---
+samepage:
+  page: A3
+  format: pageless
+---
 # ACHQ design
 
-Decisions for moving achq from one App with per-repo webhooks to a system that runs one router and many Apps. Not built yet.
+Decisions behind achq: one router, many Apps, repos that declare their own agents. Built; see "Not yet verified" for what has only run against fakes.
 
 ## Layers
 
@@ -15,6 +20,7 @@ Both the infra and repos are written as a resource graph, Pulumi-shaped: resourc
 ### The infra
 
 ```ts
+// achq.infra.ts, at the infra repo's root
 export default achq(() => {
   const router = new railway.Router("router", { project: "achq" });
   const deployer = new railway.Deployer("deployer", {
@@ -51,7 +57,7 @@ const dev = new Container("dev", {
   files: { "~/.config/foo.toml": "./foo.toml" },
 });
 
-new Workspace("docs", { container: dev, threads: app.issues.where({ labels: ["docs"] }), branch: "docs/{number}", base: "docs" });
+new Workspace("docs", { container: dev, threads: app.issues.where({ labels: ["docs"] }), branch: "docs-{number}", base: "docs" });
 new Workspace("issues", { container: dev, threads: app.issues, branch: "issue-{number}", base: "main" });
 
 const coder = new Claude("coder", { model: "claude-opus-5-5", effort: "high", systemPrompt: "./prompts/system.md", settings: { /* … */ } });
@@ -97,7 +103,7 @@ An event finds its container through its thread: event → thread (issue 42) →
 ### Workspaces
 
 - A workspace is a thread's working state in a container: its worktree, its lock, and a session per agent.
-- `branch` and `base` set up the worktree the first time the thread appears.
+- `branch` and `base` set up the worktree the first time the thread appears. A branch can't be named under another branch (`docs/42` next to `docs`): git can't hold both refs.
 - Several workspaces can claim the same kind of thread with filters. Declaration order decides; the first match wins, and one with no filter catches the rest.
 - A thread sticks to the workspace that claimed it first, so relabelling an issue doesn't move it to another branch.
 - Workspaces in two containers can claim the same thread; events on it then run in both. Each replies on the thread as the same App, and branch templates should differ so they don't push to the same branch.
@@ -152,6 +158,8 @@ Repo config is code. It never runs anywhere that holds secrets.
 4. The config returns a plain-data plan: every resource and its inputs. The deployer creates the containers and pushes events, thread selectors and policies to the router. Each container runs its own config again at runtime for the agent settings, which can be code.
 
 Config can only import `achq` and its own files under `.achq/`.
+
+In the container, the config runs natively (step 4), in the runner's process. That process holds the container secret, so code in the repo's own `.achq/` can mint the container's credentials, including the runner's channel credential. Anyone who can push to the default branch can already change what the agent does, so this doesn't widen who can act, but it's an exception to "never runs anywhere that holds secrets". Running it in a separate process without the secret would close it.
 
 ## Services
 
@@ -210,19 +218,17 @@ Installing an App on a repo subscribes it; uninstalling unsubscribes it.
 - The router forwards `installation` and `installation_repositories` events to the deployer whether or not the repo is deployed yet, since a repo isn't deployed until its install is handled.
 - Installing on many repos at once arrives as one event listing them all. The deployer handles them one by one, each with its own `ACHQ_STATUS`.
 
-Phasing:
-
-1. First: `achq up` handles installs and uninstalls when it syncs.
-2. Later: the deployer handles install events as they happen. `achq up` keeps syncing too, to catch anything missed.
+- The deployer handles install and uninstall events as they arrive (`achq install` waits on the result), and `achq up` syncs too, to catch anything missed.
 
 ## Config changes
 
 The App owns the whole lifecycle, including keeping a repo's deployment in line with its config.
 
-- The App subscribes to `push`. The router forwards to the deployer pushes to a deployed repo's default branch that touch `.achq/`. A push payload's commit list is capped for very large pushes (the exact limit is to be checked against GitHub's docs), so a push that hits the cap is forwarded whatever it touches.
+- The App subscribes to `push`. The router forwards to the deployer pushes to a deployed repo's default branch that touch `.achq/`. A push payload's commit list is capped for very large pushes (2048 commits, per GitHub's webhook docs), so a push that hits the cap is forwarded whatever it touches.
 - The deployer compares the `.achq/` tree at the new head with the one it last deployed. If it's the same, it stops.
 - Otherwise it evaluates the config again and compares the resulting plan with the deployed one. It redeploys only what changed: a container whose image or policies changed is rebuilt; router config is updated for triggers and workspaces.
-- The deployer starts builds itself. Railway no longer watches `.achq/**` on its own.
+- The deployer starts builds itself; Railway's auto-deploy is turned off. A container is only rebuilt when it's new, or its image path or Dockerfile changed.
+- Everything else in the config reaches containers without a rebuild: the router forwards each event with the commit its config came from, and the container loads that commit's `.achq/` from its mirror (cached per commit).
 - Containers removed from the config are handled like uninstalls: kept asleep, deleted only by `achq up --prune`.
 - The outcome goes to `ACHQ_STATUS`.
 
@@ -249,7 +255,7 @@ Installing is done to a repo, from its settings or with `achq install`, not to a
 
 - `achq install` installs the App, then polls `ACHQ_STATUS` with your `gh` login until it shows a result newer than the install, or times out.
 - `achq status` from a repo reads the same variable, so it reports a failed install made from the repo's settings. From the infra, it reads the deployer's own records for every repo.
-- The App needs the "Variables: write" permission. Containers don't get it: their tokens only carry their own permissions.
+- The App needs the "Variables: write" permission (`actions_variables`). Containers don't get it: their tokens only carry their own permissions.
 
 ## Commands
 
@@ -264,9 +270,16 @@ Installing is done to a repo, from its settings or with `achq install`, not to a
 
 These replace `app`, `deploy` and `destroy`.
 
+## Not yet verified
+
+Every part has run together in one process (`test/e2e.test.ts`) against a fake GitHub, a fake container host and a fake `claude`. Not yet run for real:
+
+- Railway: turning off auto-deploy with `serviceInstanceAutoDeployUpdate`, the router and deployer start command, sleeping and waking over the private network.
+- GitHub: the manifest flow and `PATCH /app/hook/config` on a new App, minting with `actions_variables`, installing with `gh`'s token.
+- The container image: `install.sh`, the `perl`-based lock, Claude Code's `--effort` and `CLAUDE_CONFIG_DIR`.
+
 ## Deferred
 
 - A real queue between the router and containers: ordering, backpressure. The router's persisted events cover crashes and restarts.
-- Handling install and uninstall events as they happen (phase 2 of Subscribing).
 - Hosting the router, deployer and containers on different platforms.
 - Channels and access providers other than GitHub.

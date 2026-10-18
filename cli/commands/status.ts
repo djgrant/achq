@@ -1,19 +1,35 @@
 import { defineCommand } from "@pokit/core";
-import { agentEnv, need, Railway } from "../lib/agent.ts";
+import { clean } from "../lib/errors.ts";
+import type { DeployRecord, Installation } from "../../src/core/protocol.ts";
+import { RailwayClient } from "../../src/railway/client.ts";
+import { infraFile, need, needRepo } from "../lib/env.ts";
+import { readStatus, userGitHub } from "../lib/gh.ts";
+import { formatStatus } from "../lib/install.ts";
+import { loadInfra } from "../lib/load.ts";
+import { adminRequest, routerAccess } from "../lib/router.ts";
+import { infraStatusTable } from "../lib/status.ts";
 
 export const command = defineCommand({
-  label: "List deployed GitHub agents",
+  label: "From the infra: every repo's deploy. From a repo: its ACHQ_STATUS",
   examples: ["achq status"],
-  run: async (r) => {
-    const env = agentEnv();
-    const railway = new Railway(need(env, "RAILWAY_API_TOKEN", ""));
-    const project = await railway.project(need(env, "RAILWAY_PROJECT_ID", "Nothing has been deployed."));
-    const rows = await Promise.all(
-      project.services.map(async (s) => {
-        const domain = await railway.serviceDomain(project.id, project.environmentId, s.id);
-        return `| ${s.name} | ${s.deployment?.status ?? "—"} | ${s.deployment?.createdAt ?? "—"} | ${domain ?? "—"} |`;
-      }),
-    );
-    r.reporter.markdown(["| Service | Deployment | Deployed | Domain |", "| --- | --- | --- | --- |", ...rows].join("\n"));
-  },
+  run: clean(async () => {
+    const file = infraFile();
+    if (file) {
+      const infra = await loadInfra(file);
+      const router = await routerAccess(new RailwayClient(need("RAILWAY_API_TOKEN")), infra.project, infra.router.name, process.env.RAILWAY_WORKSPACE_ID);
+      const [records, installations] = await Promise.all([
+        adminRequest<DeployRecord[]>(router, "GET", "/admin/status"),
+        adminRequest<Installation[]>(router, "GET", "/admin/installations"),
+      ]);
+      console.log(infraStatusTable(records, installations));
+      return;
+    }
+    const repo = needRepo();
+    const status = await readStatus(userGitHub(), repo);
+    if (!status) {
+      console.log(`${repo} has no ACHQ_STATUS: it hasn't been deployed`);
+      return;
+    }
+    for (const line of formatStatus(status)) console.log(line);
+  }),
 });
