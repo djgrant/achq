@@ -1,4 +1,4 @@
-// The extension points: what a platform (GitHub, Railway, Claude) implements.
+// What a platform (GitHub, Railway, Claude) implements.
 // The router, deployer and container are written against these.
 import type { Data } from "../model/data.ts";
 import type { Agent, PolicyData, RepoPlan, SelectorData } from "../model/resources.ts";
@@ -10,7 +10,7 @@ export type ThreadRef = { channel: string; id: string };
 
 export const threadKey = (ref: ThreadRef) => `${ref.channel}:${ref.id}`;
 
-/** An event a channel delivered, normalised. Small: the router persists and forwards it. */
+/** An event a channel delivered, normalised. Kept small, because the router persists and forwards it. */
 export type ChannelEvent = {
   channel: string; // "github"
   /** Which configured sender it came through, e.g. the App's slug. Selectors name one. */
@@ -97,8 +97,8 @@ export interface ChannelClient {
 // ─── Access ──────────────────────────────────────────────────────────────────
 
 /**
- * Turns policies into credentials. The router and container load the same code
- * and each calls its own part; only the router's instance has the secrets.
+ * Turns policies into credentials. The router and container load the same code,
+ * and each calls its own part. Only the router's instance has the secrets.
  * Comes from achq or the infra repo, never a subscriber repo.
  */
 export interface AccessProvider {
@@ -122,7 +122,7 @@ export type RunContext = {
   /** Already without the container's private variables. */
   env: Record<string, string>;
   prompt: string;
-  /** Resume this session, or start `newSession`. */
+  /** Resume an existing session, or start a new one with this ID. */
   session: { resume: string } | { new: string };
   signal: AbortSignal;
   log: (line: string) => void;
@@ -146,13 +146,13 @@ export interface AgentRuntime {
 export type RuntimeContext = {
   /** A file in `.achq/` at the config's commit, refusing paths that leave it. */
   readFile(relative: string): string;
-  /** Startup files' contents by target path: a string names a file in `.achq/`, anything else is written as JSON. */
+  /** Startup files' contents by target path. A string names a file in `.achq/`. Anything else is written as JSON. */
   resolveFiles(files: Record<string, unknown> | undefined): Record<string, string>;
   /** HOME, where `~` in startup files points. */
   home: string;
   /** achq's runner prompt, always applied before the repo's. */
   runnerPrompt: string;
-  /** The container's startup files' contents, by target path: part of every session key. */
+  /** The container's startup files' contents, by target path. Part of every session key. */
   containerFiles: Record<string, string>;
   /** Executables, e.g. `{ claude: "/usr/local/bin/claude" }`. */
   bin: Record<string, string>;

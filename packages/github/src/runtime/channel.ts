@@ -1,4 +1,3 @@
-// The GitHub channel: an App's webhooks in, its issues and comments out.
 import type { Data, SelectorData, Channel, ChannelClient, ChannelEvent, Credential, Message, Thread, ThreadRef } from "@achq/core";
 import { appWebhookSecret, verifyGitHubSignature } from "@achq/core/secrets";
 import { GITHUB_API, GitHubClient } from "../api.ts";
@@ -12,10 +11,10 @@ export const TRUSTED = new Set(["OWNER", "MEMBER", "COLLABORATOR"]);
 export const CLIENT_PERMISSIONS: Permissions = { issues: "write", contents: "read", metadata: "read" };
 
 /**
- * The webhook `push` payload's `commits` array "includes a maximum of 2048
+ * A webhook `push` payload's `commits` array "includes a maximum of 2048
  * commits" (https://docs.github.com/en/webhooks/webhook-events-and-payloads#push).
- * A push listing that many may have dropped some, so it can't be trusted to say
- * whether `.achq/` changed. (The limit of 20 is the Events API's, not webhooks'.)
+ * A push listing that many may have dropped some, so it can't tell us whether
+ * `.achq/` changed. The limit of 20 is the Events API's, not webhooks'.
  */
 export const PUSH_COMMIT_CAP = 2048;
 
@@ -41,9 +40,9 @@ export const slugify = (title: string, max = 40) =>
     .replace(/-+$/, "");
 
 /**
- * Message IDs compare chronologically as strings, because the container keeps
+ * Message IDs must sort chronologically as strings, because the container keeps
  * `id > lastSeen`. GitHub's comment IDs grow over time, so they're zero-padded
- * to 20 digits (enough for any 64-bit ID); the opening post is all zeros, so it
+ * to 20 digits, enough for any 64-bit ID. The opening post is all zeros, so it
  * sorts before every comment.
  */
 export const messageId = (commentId: number | null) => String(commentId ?? 0).padStart(20, "0");
@@ -227,7 +226,7 @@ export class GitHubChannelClient implements ChannelClient {
       body: c.body ?? "",
       at: c.created_at,
     });
-    // `edited` isn't set: REST doesn't say when an issue body last changed (`updated_at` moves with every comment).
+    // `edited` isn't set. REST doesn't say when an issue body last changed, and `updated_at` moves with every comment.
     return [message(OPENING_POST_ID, issue), ...comments.map((c) => message(messageId(c.id), c))].sort((a, b) =>
       a.id < b.id ? -1 : a.id > b.id ? 1 : 0,
     );

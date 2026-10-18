@@ -138,7 +138,7 @@ describe("install", () => {
   });
   afterAll(() => fs.rmSync(root, { recursive: true, force: true }));
 
-  /** What git hands over for `url`, with only the env install returned (isolated from this machine's git config). */
+  /** What git hands over for `url`, using only the env install returned. Isolated from this machine's git config. */
   const fill = async (env: Record<string, string>, url: string) => {
     const out = await $`printf 'url=%s\n\n' ${url} | git credential fill`
       .env({ PATH: process.env.PATH!, HOME: home, GIT_CONFIG_NOSYSTEM: "1", GIT_TERMINAL_PROMPT: "0", ...env })
@@ -188,7 +188,7 @@ describe("install", () => {
     await container.access.install([credential(big("a"), 77, ["o/a"])], dir);
     const file = path.join(dir, "notation-achq-77-o_a.token");
 
-    // Reads the file in a loop until told to stop; counts reads that are neither all-a nor all-b.
+    // Reads the file in a loop until told to stop. Counts reads that are neither all-a nor all-b.
     const watch = () => {
       const script = `const fs = require("fs"); let torn = 0, reads = 0; const stop = Date.now() + 1500;
         while (Date.now() < stop) { const s = fs.readFileSync(process.argv[1], "utf8"); reads++;

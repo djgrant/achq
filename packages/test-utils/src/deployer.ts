@@ -1,6 +1,5 @@
-// Fakes for the deployer's tests: a GitHub REST API and a router, both real
-// HTTP servers, and an in-memory ContainerHost (the boundary the deployer
-// drives). Not used outside tests.
+// Fakes for the deployer's tests. GitHub and the router are real HTTP servers,
+// and the router checks admin signatures. The container host is in memory.
 import { createHash } from "node:crypto";
 import type { Installation, MintRequest, SourceSettings, ValidateRequest, PolicyData, ContainerHost, ContainerSpec, RouterRepoConfig, ServiceState } from "@achq/core";
 import { adminSecret, verifySigned } from "@achq/core/secrets";

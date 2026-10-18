@@ -1,9 +1,8 @@
-// A fake GitHub API for tests. It checks what real GitHub would: App JWTs
-// against the App's public key, installation tokens against the repos and
-// permissions they were minted for, and token requests against what the
-// installation was granted. A repo added with `addRepo` serves its git data
-// (refs, commits, trees, blobs) from a real git repository on disk, so a test
-// can fetch the same commits over git that the API describes.
+// A fake GitHub API that checks what real GitHub would. App JWTs are verified
+// against the App's public key. Installation tokens only reach the repos and
+// permissions they were minted for, and can't be minted beyond the
+// installation's grant. `addRepo` serves git data from a real repository on
+// disk, so git fetches return the commits the API describes.
 import { createVerify, generateKeyPairSync } from "node:crypto";
 
 export type FakeApp = { slug: string; id: string; privateKey: string; publicKey: string; events: string[]; permissions: Record<string, string> };
@@ -111,7 +110,7 @@ export class FakeGitHub {
     });
   }
 
-  /** Adds a comment; without an `id`, it gets one above every comment so far, as GitHub's grow. Returns it. */
+  /** Adds a comment and returns it. Without an `id`, it gets one higher than any so far, as GitHub's ids grow. */
   addComment(repo: string, number: number, comment: Partial<Comment> & { id?: number }) {
     const id = comment.id ?? this.nextComment;
     this.nextComment = Math.max(this.nextComment, id + 1);

@@ -1,5 +1,4 @@
-// The router's GitHub Apps: their keys, and what they do as themselves (App
-// JWT) and as their installations. Router only: the container never has keys.
+// Router only: the container never has App keys.
 import { appJwt, GITHUB_API, GitHubClient } from "../api.ts";
 
 export type AppKeys = Record<string, { id: string; privateKey: string }>;
@@ -22,7 +21,6 @@ const RANK: Record<string, number> = { read: 1, write: 2, admin: 3 };
 export const covers = (granted: string | undefined, wanted: string) =>
   granted !== undefined && (RANK[granted] ?? 0) >= (RANK[wanted] ?? Infinity);
 
-/** The larger of two levels. */
 export const maxLevel = (a: string | undefined, b: string) => (a !== undefined && (RANK[a] ?? 0) >= (RANK[b] ?? 0) ? a : b);
 
 export const REPO = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;

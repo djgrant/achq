@@ -1,5 +1,4 @@
-// `achq/github` at runtime: the channel and access provider the router and
-// container load. Node imports live here, never in ./index.ts (the config sandbox).
+// Loaded by the router and the container, never the config sandbox.
 import type { Installation, SourceSettings } from "@achq/core";
 import { GITHUB_API, GitHubClient } from "../api.ts";
 import { GitHubAccess } from "./access.ts";
@@ -17,9 +16,8 @@ export type GitHubOptions = {
 };
 
 /**
- * The GitHub channel and access provider. The router passes `apps` and `key`;
- * the container passes neither and only uses `channel.client`,
- * `channel.match*` and `access.install`.
+ * The router passes `apps` and `key`. The container passes neither, and only
+ * uses `channel.client`, `channel.match*` and `access.install`.
  */
 export const createGitHub = (options: GitHubOptions = {}) => {
   const apps = new Apps(options.apps ?? {}, options.baseUrl ?? GITHUB_API);

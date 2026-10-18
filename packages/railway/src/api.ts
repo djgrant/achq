@@ -1,5 +1,5 @@
-// Railway's public GraphQL API, the parts achq uses. Every query and mutation
-// here is one the fake in `fake.ts` answers, so keep the two in step.
+// The fake Railway in `@achq/test-utils` answers every query and mutation here,
+// so keep the two in step.
 
 export const RAILWAY_API = "https://backboard.railway.com/graphql/v2";
 
@@ -253,7 +253,7 @@ export class RailwayClient {
   /**
    * The service's private hostname, `<dnsName>.railway.internal`, and what's
    * needed to rename it. Railway takes it from the service's name, so a new
-   * service already has the right one; `undefined` until it has an endpoint.
+   * service already has the right one. `undefined` until it has an endpoint.
    */
   async privateEndpoint(environmentId: string, serviceId: string) {
     const { privateNetworks } = await this.gql<{ privateNetworks: { publicId: string }[] }>(

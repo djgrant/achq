@@ -1,5 +1,4 @@
-// What the deployer reads from and writes to a repo on GitHub, with the
-// repo-scoped token the router minted for it.
+// Uses the repo-scoped token the router minted for the deployer.
 import { STATUS_VARIABLE, type Status } from "@achq/core";
 import { GitHubClient } from "@achq/github/api";
 

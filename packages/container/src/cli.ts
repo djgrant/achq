@@ -1,5 +1,4 @@
-// `achq-agent sessions <n>` and `achq-agent resume <n> [session]`, run over SSH
-// by the laptop CLI, which does any picking.
+// Run over SSH by the laptop CLI, which does any picking.
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { threadKey as keyOf, type RuntimeFactory } from "@achq/core";
@@ -25,7 +24,7 @@ export const sessionsFor = (paths: Paths, number: string): (SessionInfo & { stat
     )
     .sort((a, b) => b.lastRun.localeCompare(a.lastRun));
 
-/** A JSON array, which the laptop's `achq resume` reads over SSH (see cli/lib/remote.ts parseSessions). */
+/** A JSON array. The laptop's `achq resume` parses it (parseSessions in packages/cli/src/lib/remote.ts). */
 export const formatSessions = (sessions: SessionInfo[]) =>
   JSON.stringify(sessions.map(({ id, agent, workspace, lastRun }) => ({ id, agent, workspace, lastRun })));
 

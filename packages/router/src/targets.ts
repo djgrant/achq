@@ -1,9 +1,9 @@
-// Which services an event wakes. Pure: the router's state goes in, targets come out.
+// Pure: the router's state goes in, targets come out.
 import { type Channel, type ChannelEvent, type RouterRepoConfig, threadKey } from "@achq/core";
 
 export type Target =
   | { kind: "deployer" }
-  /** `workspace` is the one that claimed the thread, or would claim it now; for inspecting the inbox. */
+  /** `workspace` is the one that claimed the thread, or would claim it now. It's there for inspecting the inbox. */
   | { kind: "container"; repo: string; container: string; url: string; workspace: string };
 
 /** Per thread key, per container: the workspace the container says claimed it. */

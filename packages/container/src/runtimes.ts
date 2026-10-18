@@ -4,7 +4,6 @@ import { claudeRuntime } from "@achq/claude/runtime";
 import type { RuntimeContext, RuntimeFactory } from "@achq/core";
 import { inRoot, resolveFiles } from "./files.ts";
 
-/** Agent kinds → their runtimes. */
 export const defaultRuntimes: Record<string, RuntimeFactory> = {
   claude: (agent, ctx) => claudeRuntime(agent as Claude, ctx),
 };

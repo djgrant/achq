@@ -1,6 +1,6 @@
-// GitHub's App manifest flow: a local page posts the manifest to GitHub from
-// your browser, GitHub redirects back with a code, and the code converts into
-// the App's credentials. They stay in memory.
+// GitHub's App manifest flow. A local page posts the manifest to GitHub from
+// your browser. GitHub redirects back with a code, which converts into the
+// App's credentials. They stay in memory.
 import { randomBytes } from "node:crypto";
 import { GITHUB_API } from "@achq/github/api";
 

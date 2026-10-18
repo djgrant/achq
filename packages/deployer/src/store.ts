@@ -1,5 +1,4 @@
-// The deployer's state on its volume: a record per repo, and the delivery IDs
-// it has handled. Every write goes to a temp file and is renamed into place.
+// Every write goes to a temp file and is renamed into place.
 import { mkdir, readdir, rename, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { DeployRecord, RepoPlan } from "@achq/core";

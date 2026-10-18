@@ -1,6 +1,4 @@
-// `achq install` and `uninstall`: the App a repo's config names, checked
-// against the live App, installed on (or removed from) the repo with your gh
-// login, then the deploy's outcome read from ACHQ_STATUS.
+// `achq install` and `uninstall` act with your gh login, not as the App.
 import type { Status, RepoPlan } from "@achq/core";
 import type { GitHubClient } from "@achq/github/api";
 import { readStatus } from "./gh.ts";
@@ -115,7 +113,6 @@ export const waitForStatus = async (
   }
 };
 
-/** A status as one or two lines. */
 export const formatStatus = (status: Status) => {
   const lines = [`${status.state} at ${status.at}${status.commit ? ` (${status.commit.slice(0, 7)})` : ""}${status.error ? `: ${status.error}` : ""}`];
   if (status.containers?.length) lines.push(`containers: ${status.containers.map((c) => c.name).join(", ")}`);

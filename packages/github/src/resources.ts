@@ -1,5 +1,4 @@
-// What a repo's config uses from GitHub: an adopted App, its selectors, and
-// policies. No Node or Bun imports: this is bundled into the config sandbox.
+// Runs in the config sandbox.
 import { type Deployer, type Router, EventSelector, Policy, Resource, ThreadSelector } from "@achq/core";
 
 export const CHANNEL = "github";
@@ -74,9 +73,8 @@ export type AppInputs = {
 };
 
 /**
- * A GitHub App, declared in the ACHQ infra. It's a channel (its webhooks go to
- * the router) and an access provider (the router mints its tokens), and its
- * installations decide which repos the deployer serves.
+ * Declared in the ACHQ infra. Its webhooks go to the router, and the router
+ * mints its tokens. Its installations decide which repos the deployer serves.
  */
 export class App extends Resource {
   readonly kind = "github-app";

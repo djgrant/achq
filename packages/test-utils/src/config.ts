@@ -1,5 +1,3 @@
-// Test fixtures shared by the sandbox and deployer tests.
-
 // The design doc's repo config, split across files the way a repo would.
 export const DOC_CONFIG = {
   "config.ts": `

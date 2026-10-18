@@ -138,7 +138,7 @@ test("polling ACHQ_STATUS stops at the first result newer than the install", asy
   };
   const status = await waitForStatus(gh, "notationlabs/yieldstar", since, { sleep, now: () => 0 });
   expect(status?.at).toBe("2026-10-17T10:02:00Z");
-  expect(polls).toBe(2); // 404, an older result, then the newer one
+  expect(polls).toBe(2); // slept after the 404 and after the older result
   expect(fake.calls.filter((c) => c.endsWith("ACHQ_STATUS"))).toHaveLength(3);
 });
 

@@ -1,8 +1,6 @@
-/** Ports and environment variable names shared by achq's services. */
-
 /** The router's public port: webhooks, `/wake`, signed admin requests. */
 export const ROUTER_PUBLIC_PORT = 8080;
-/** The router's private port, with no public domain: credentials and claims for containers, admin for the deployer. */
+/** The router's private port. It has no public domain. Serves credentials and claims to containers, and admin to the deployer. */
 export const ROUTER_PRIVATE_PORT = 8081;
 export const DEPLOYER_PORT = 3000;
 export const CONTAINER_PORT = 3000;
@@ -12,9 +10,8 @@ export const ENV = {
   key: "AGENT_WEBHOOK_KEY",
   /** The router's private base URL. Deployer and containers. */
   routerUrl: "ACHQ_ROUTER_URL",
-  /** The router's public base URL, which the deployer puts in ACHQ_STATUS for the repo CLI's `/wake`. */
+  /** The router's public base URL. The deployer puts it in ACHQ_STATUS so the repo CLI can call `/wake`. */
   routerPublicUrl: "ACHQ_ROUTER_PUBLIC_URL",
-  /** The router's private port. */
   privatePort: "PRIVATE_PORT",
   /** The deployer's private base URL. Router. */
   deployerUrl: "ACHQ_DEPLOYER_URL",

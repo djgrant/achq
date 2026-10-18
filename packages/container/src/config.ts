@@ -1,10 +1,10 @@
-// The container runs its own repo's config natively, at the commit the router
-// was given, for the parts that can be code (agent settings).
+// The container runs its repo's config natively, at the commit the router
+// forwarded, for the parts that are code (agent settings).
 //
-// `.achq/` comes from the bare mirror (`git archive` after a fetch) rather than
-// GitHub's contents API: the mirror is already there for worktrees and is
-// fetched with the agents' credentials, so this needs no extra permission or
-// API client, and a commit already fetched loads offline (as `resume` needs).
+// `.achq/` comes from the bare mirror rather than GitHub's contents API. The
+// mirror is already there for worktrees and is fetched with the agents'
+// credentials, so no extra permission or API client is needed. A commit
+// already fetched also loads offline, which `resume` needs.
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { Agent, collectPlan, registered, resetRegistry, type RepoPlan } from "@achq/core";
@@ -104,7 +104,7 @@ export const createConfigLoader = (opts: ConfigLoaderOptions) => {
     fs.rmSync(dir, { recursive: true, force: true });
     await extractTree(opts.mirror, commit, ".achq", path.join(dir, "tree"));
     const root = path.join(dir, "tree", ".achq");
-    // A new directory per load: a module path that was imported before would come from the module cache.
+    // A new directory per load, because a path imported before would come from the module cache.
     const bundle = await bundleConfig(root, path.join(dir, `bundle-${++loads}`));
     return { commit, root, ...(await evaluateBundle(bundle)) };
   };

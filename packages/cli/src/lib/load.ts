@@ -1,6 +1,6 @@
-// Loading the ACHQ infra and a repo's config locally, with Bun. `achq`,
-// `achq/github` and `achq/railway` resolve to this checkout's modules, so the
-// resources they declare are the same classes the CLI checks against.
+// `achq`, `achq/github` and `achq/railway` imports resolve to this checkout's
+// modules. That way the resources a config declares are the same classes the
+// CLI's `instanceof` checks use.
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as achq from "achq";
@@ -90,15 +90,15 @@ export const readConfigFiles = (repoDir: string) => {
 };
 
 /**
- * The repo's plan, evaluated in the sandbox as the deployer would, or with
- * `sandbox: false` imported with Bun, which is fine here since it's your own checkout.
+ * The repo's plan, evaluated in the sandbox as the deployer does it.
+ * `sandbox: false` imports it with Bun instead. That's safe because it's your own checkout.
  */
 export const loadRepoPlan = async (repoDir: string, options: { sandbox?: boolean } = {}): Promise<RepoPlan> => {
   const files = readConfigFiles(repoDir);
   if (options.sandbox !== false) return evaluateConfig(files);
   registerModules();
   resetRegistry();
-  // A fresh query string makes Bun evaluate it again; a cached module wouldn't register anything.
+  // A cached module wouldn't register anything, so a fresh query string makes Bun evaluate it again.
   await import(`${path.join(repoDir, ".achq", "config.ts")}?load=${++loads}`);
   return collectPlan();
 };

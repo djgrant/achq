@@ -1,5 +1,5 @@
-// achq-agent                          serve: the container's CMD
-// achq-agent sessions <n>             thread <n>'s sessions, one JSON object per line
+// achq-agent                          serve (the container's CMD)
+// achq-agent sessions <n>             print thread <n>'s sessions as a JSON array
 // achq-agent resume <n> [session]     open a session interactively, holding the thread's lock
 import * as fs from "node:fs";
 import { CONTAINER_PORT, ENV } from "@achq/core";
@@ -18,7 +18,6 @@ const requiredIn = (env: Env, name: string) => {
   return value;
 };
 
-/** What the container's environment says, with its defaults. */
 const settings = (env: Env) => {
   const repo = requiredIn(env, ENV.repo);
   return {

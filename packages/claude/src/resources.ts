@@ -1,4 +1,4 @@
-// The Claude agent as a repo declares it. No Node or Bun imports: bundled into the config sandbox.
+// Runs in the config sandbox.
 import { Agent } from "@achq/core";
 
 export type ClaudeConfig = {

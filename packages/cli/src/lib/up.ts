@@ -1,6 +1,5 @@
-// `achq up`: brings the infra's resources in line with its code. Each step
-// reads what exists, prints what would change, and applies it unless it's a
-// dry run. Order: Railway project → router → deployer → each App → sync.
+// Each step reads what exists, prints what would change, then applies it
+// unless it's a dry run. Order: Railway project → router → deployer → each App → sync.
 import { randomBytes } from "node:crypto";
 import { DEPLOYER_PORT, ENV, ROUTER_PRIVATE_PORT, type SyncRequest, type SyncResult } from "@achq/core";
 import { appWebhookSecret } from "@achq/core/secrets";
@@ -181,7 +180,6 @@ const waitForDeploy = async (railway: RailwayClient, environmentId: string, serv
   throw new Error("The router hasn't deployed after five minutes");
 };
 
-/** A sync result as a few lines. */
 export const formatSync = (result: SyncResult, dryRun: boolean) => {
   const lines: string[] = [];
   const verb = (done: string, would: string) => (dryRun ? would : done);

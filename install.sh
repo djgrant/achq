@@ -10,8 +10,8 @@ set -eu
 ref=${1:-main}
 command -v bun > /dev/null || { echo "achq-agent needs bun on PATH" >&2; exit 1; }
 
-# git, tar, perl (thread locks; Debian always has perl-base), setpriv (util-linux),
-# and gh from GitHub's apt repo.
+# perl runs the thread locks, and Debian always has perl-base. setpriv comes
+# from util-linux. gh comes from GitHub's apt repo.
 apt-get update -q
 apt-get install -qy --no-install-recommends ca-certificates curl git perl-base tar util-linux
 curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \

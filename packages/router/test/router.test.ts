@@ -1,6 +1,5 @@
-// The router over real HTTP: its two ports, fake containers, a fake deployer and
-// a fake GitHub API as real servers that check the signatures they receive, and
-// a temp dir as its volume.
+// The router over real HTTP. The fake containers, deployer and GitHub API are
+// real servers that check the signatures they receive. A temp dir is its volume.
 import { afterEach, describe, expect, test } from "bun:test";
 import { existsSync, mkdtempSync, readdirSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";

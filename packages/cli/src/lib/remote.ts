@@ -1,5 +1,3 @@
-// `achq ssh` and `resume`: find a repo's container from its ACHQ_STATUS, wake
-// it through the router, and `railway ssh` in.
 import type { Status } from "@achq/core";
 
 export type Located = { name: string; platform: string; project: string; environment: string; service: string };
@@ -47,7 +45,7 @@ const needRailway = () => {
   if (!Bun.which("railway")) throw new Error("Needs the Railway CLI: brew install railway");
 };
 
-/** `railway ssh` into the container, interactively or running `command`. Its exit code. */
+/** `railway ssh` into the container, interactively or running `command`. Returns the exit code. */
 export const railwaySsh = async (c: Located, command: string[]) => {
   needRailway();
   const proc = Bun.spawn(["railway", ...sshArgs(c, command)], { stdio: ["inherit", "inherit", "inherit"] });

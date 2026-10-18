@@ -1,5 +1,5 @@
-// The resources the ACHQ infra declares. The infra's code runs locally under
-// `achq up`, trusted, so these can hold host objects with real implementations.
+// The infra's code runs locally under `achq up` and is trusted, so these
+// resources can hold host objects with real implementations.
 import { registered, resetRegistry, Resource } from "./resources.ts";
 import type { ContainerHost } from "../contracts/interfaces.ts";
 
@@ -13,7 +13,7 @@ export interface DeployerHost {
   readonly platform: string;
 }
 
-/** Receives events, persists them, filters and forwards them; mints credentials. */
+/** Receives, stores, filters and forwards events, and mints credentials. */
 export class Router extends Resource {
   readonly kind = "router";
   constructor(

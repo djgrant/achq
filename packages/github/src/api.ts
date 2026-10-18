@@ -22,8 +22,8 @@ export class GitHubError extends Error {
 }
 
 /**
- * GitHub's REST API with one authorization: `token …` for an installation or
- * user token, `Bearer …` for an App JWT. `baseUrl` points tests at a fake.
+ * `auth` is `token …` for an installation or user token, or `Bearer …` for an
+ * App JWT. `baseUrl` points tests at a fake.
  */
 export class GitHubClient {
   constructor(

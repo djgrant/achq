@@ -1,5 +1,4 @@
-// The resources a repo declares in `.achq/config.ts`, and the plan they turn into.
-// No Node or Bun imports: this is bundled into the config sandbox (QuickJS).
+// Runs in the config sandbox.
 import { type Data, toData } from "./data.ts";
 
 /** Selector and policy data always says which channel or provider interprets it. */

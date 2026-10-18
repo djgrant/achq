@@ -1,5 +1,5 @@
-// Real things at the container's boundaries, for tests: a git origin, a fake
-// `claude` executable, a fake router and a channel whose client records.
+// What the container talks to, for tests. The git origin is a real repo.
+// `claude`, the router and the channel are fakes that record what they're asked.
 import { $ } from "bun";
 import * as fs from "node:fs";
 import * as os from "node:os";
@@ -43,7 +43,6 @@ export const settingsFor = (name: string) => ({ env: { AGENT: name.toUpperCase()
   ".achq/Dockerfile": "FROM oven/bun\n",
 };
 
-/** A bare origin with `main` (holding `.achq/`) and `docs`, and a clone to commit from. */
 /** A bare repo with `files` on main and `docs` on a `docs` branch, and a way to push more commits. */
 export const makeOrigin = async (root: string, files: Record<string, string> = CONFIG_FILES, docs: Record<string, string> = { "docs.txt": "docs branch\n" }) => {
   const origin = path.join(root, "origin.git");

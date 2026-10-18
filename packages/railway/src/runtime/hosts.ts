@@ -1,6 +1,6 @@
-// The router and deployer as Railway services. Both run achq's own code on the
-// stock Bun image: the start command downloads achq at ACHQ_REF, installs its
-// dependencies once, and runs the service's entry point.
+// The router and deployer run on the stock Bun image. Their start command
+// downloads achq at ACHQ_REF, installs its dependencies once, and runs the
+// service's entry point.
 import { DEPLOYER_PORT, ENV, ROUTER_PRIVATE_PORT, ROUTER_PUBLIC_PORT, type DeployerHost, type RouterHost } from "@achq/core";
 import { type ServiceSpec, serviceName } from "./service.ts";
 
@@ -24,9 +24,10 @@ export const hostServiceName = (resource: string) => serviceName("achq", resourc
 export const privateUrl = (service: string, port: number) => `http://${service}.railway.internal:${port}`;
 
 /**
- * A start command that runs `entry` (e.g. `packages/router/src/main.ts`) from achq at
- * ACHQ_REF. The download and `bun install` land on the service's volume, so a
- * wake doesn't repeat them. No single quotes inside: Railway splits it like a shell.
+ * Runs `entry` (e.g. `packages/router/src/main.ts`) from achq at ACHQ_REF.
+ * The download and `bun install` go on the service's volume, so a wake doesn't
+ * repeat them. The script must not contain single quotes, because Railway
+ * splits the command like a shell.
  */
 export const startCommand = (entry: string) => {
   const script = [

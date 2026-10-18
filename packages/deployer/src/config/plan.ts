@@ -1,4 +1,4 @@
-// The sandbox's last module: the plan the config's resources registered, as JSON.
+// Runs in the sandbox after the config, and returns the plan it registered as JSON.
 import { collectPlan } from "@achq/core";
 
 export default () => JSON.stringify(collectPlan());

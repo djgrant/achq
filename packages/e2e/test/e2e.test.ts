@@ -1,10 +1,11 @@
-// achq end to end, in one process: the real router, deployer (with the real
-// config sandbox), GitHub channel and access provider, and container runner,
-// wired together over real HTTP. Fakes stand only at the true boundaries:
-// GitHub's API (one fake, checking App JWTs against a real RSA key and its
-// repo data served from a real git repository), the container host (which
-// starts a real runner for each container the deployer ensures, from the env
-// the deployer gave it), and the `claude` executable.
+// achq end to end, in one process, over real HTTP. The router, deployer,
+// config sandbox, GitHub channel, access provider and container runner are all
+// real. Fakes stand only at the true boundaries:
+// - GitHub's API. It checks App JWTs against a real RSA key and serves repo
+//   data from a real git repository.
+// - The container host. It starts a real runner for each container the
+//   deployer ensures, with the env the deployer gave it.
+// - The `claude` executable.
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { $ } from "bun";
 import { randomUUID } from "node:crypto";
@@ -65,7 +66,6 @@ export const coder = new Claude("coder", { model: "claude-opus-5-5", effort: "hi
   ".achq/Dockerfile": "FROM oven/bun:1\n",
 };
 
-/** A bare origin with `main` (holding `.achq/`) and `docs`, and a clone to commit from. */
 // ─── The container host ──────────────────────────────────────────────────────
 
 type Hosted = { spec: ContainerSpec; runner: Runner; server: ReturnType<typeof Bun.serve>; requests: { method: string; path: string }[] };

@@ -1,6 +1,6 @@
-// Containers as Railway services: one per (repo, container), private, sleeping
-// when idle, with a volume at /data. The deployer starts their builds; Railway
-// doesn't deploy on pushes (automatic deploys are turned off once connected).
+// One Railway service per repo and container: private, sleeping when idle, with
+// a volume at /data. The deployer starts their builds. Automatic deploys on push
+// are turned off once a service is connected.
 import { CONTAINER_PORT, ENV, type ContainerHost, type ContainerSpec, type ServiceState } from "@achq/core";
 import { type ProjectSnapshot, RAILWAY_API, RailwayClient } from "../api.ts";
 import { type Change, planService, type ServiceSpec, serviceName } from "./service.ts";
@@ -143,7 +143,6 @@ export class RailwayContainerHost implements ContainerHost {
   }
 }
 
-/** Railway's deployment status, as a ServiceState. */
 export const deploymentState = (status: string | undefined): ServiceState => {
   switch (status) {
     case undefined:
@@ -165,10 +164,9 @@ export const deploymentState = (status: string | undefined): ServiceState => {
 export const railwayContainerHost = (options: RailwayContainerHostOptions) => new RailwayContainerHost(options);
 
 /**
- * Containers as services in a Railway project, by name. In the infra this
- * says where the deployer puts containers; the deployer itself builds a
- * `railwayContainerHost` from its environment. Used directly, it finds the
- * project with RAILWAY_API_TOKEN.
+ * Names a Railway project. In the infra, this says where the deployer puts
+ * containers. The deployer itself builds a `railwayContainerHost` from its
+ * environment. Used directly, it looks the project up with RAILWAY_API_TOKEN.
  */
 export class RailwayProjectContainerHost implements ContainerHost {
   readonly platform = "railway";

@@ -1,7 +1,7 @@
 // Evaluates a repo's `.achq/` without trusting it. Each file is transpiled on
-// its own, with macros off, so nothing runs here. They run in the sandbox
-// alongside a prebuilt achq, and nothing else exists there to import. The plan
-// that comes back is checked strictly, since the config could have forged it.
+// its own with macros off, so none of its code runs here. It runs in the
+// sandbox, where a prebuilt achq is the only thing to import. The plan that
+// comes back is checked strictly, since the config could have forged it.
 import { posix } from "node:path";
 import { type Limits, run } from "@achq/sandbox";
 import type { RepoPlan } from "@achq/core";
@@ -34,7 +34,7 @@ const ENTRY = "/entry.js";
 const BARE: Record<string, string> = { achq: `${LIB}/index.js`, "achq/github": `${LIB}/github.js` };
 
 let lib: Promise<Record<string, string>> | undefined;
-/** `achq` and `achq/github`, split so they share one registry. */
+/** `achq` and `achq/github`, built with code splitting so they share one registry. */
 const achqModules = () =>
   (lib ??= (async () => {
     const result = await Bun.build({
@@ -55,7 +55,7 @@ const transpile = (path: string, contents: string): string => {
   const ext = extOf(path);
   if (ext === "json") return `export default ${JSON.stringify(JSON.parse(contents))};`;
   const loader = LOADERS[ext!];
-  // `macro: false` refuses `with { type: "macro" }` imports; without it the transpiler runs them, here, now.
+  // `macro: false` refuses `with { type: "macro" }` imports. Without it the transpiler would run them here, on the host.
   if (!transpilers.has(loader)) transpilers.set(loader, new Bun.Transpiler({ loader, macro: false } as unknown as Bun.TranspilerOptions));
   return transpilers.get(loader)!.transformSync(contents);
 };

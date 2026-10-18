@@ -1,7 +1,5 @@
-// The deployer: evaluates a repo's `.achq/` config in the sandbox, checks it,
-// creates its containers, pushes its router config, and reports the outcome in
-// the repo's ACHQ_STATUS variable. See "Subscribing", "Config changes",
-// "Checks" and "Deploy results" in docs/achq-design.md.
+// See "Subscribing", "Config changes", "Checks" and "Deploy results" in
+// docs/achq-design.md.
 import { CONTAINER_PORT, ENV, type DeployRecord, type EventEnvelope, type Installation, type SourceSettings, type Status, type SyncRequest, type SyncResult, type PolicyData, type RepoPlan, type ChannelEvent, type ContainerHost, type RouterRepoConfig } from "@achq/core";
 import { containerSecret } from "@achq/core/secrets";
 import { type Evaluate, evaluateConfig, isSourceFile, normaliseRepoPath } from "./config/index.ts";
@@ -10,14 +8,11 @@ import { RouterError, type RouterClient } from "./clients/router.ts";
 import { createStore, type ImageRecord, type StoredRecord } from "./store.ts";
 
 /**
- * What the deployer's own token needs on a repo: read `.achq/`, and write the
- * ACHQ_STATUS variable. `actions_variables` is the installation-token key for
- * the "Variables" repository permission: GitHub's REST docs say "GitHub Apps
- * must have the `actions_variables:write` repository permission" for
- * POST/PATCH /repos/{owner}/{repo}/actions/variables, and
+ * What the deployer's own token needs on a repo: read `.achq/` and write the
+ * ACHQ_STATUS variable. `actions_variables` is the token key for the
+ * "Variables" repository permission. The OpenAPI `app-permissions` schema
+ * doesn't list it, but GitHub's endpoint docs do:
  * https://docs.github.com/en/rest/authentication/permissions-required-for-github-apps
- * lists those endpoints under "Variables" (write). (The OpenAPI `app-permissions`
- * schema doesn't list the key, so this is from the endpoint docs.)
  */
 export const DEPLOYER_PERMISSIONS = { contents: "read", metadata: "read", actions_variables: "write" } as const;
 
@@ -212,10 +207,9 @@ export const createDeployer = (deps: DeployerDeps) => {
       if (failures.length) return fail(failures.join("; "), warnings);
       if (dryRun) return { repo, outcome: "deployed", plan, ...(warnings.length && { warnings }) };
 
-      // Containers load their config at runtime for the commit the router
-      // forwards, and fetch credentials for their policies from the router, so
-      // only a new container, a moved image or a changed Dockerfile needs a
-      // build. Everything else is a router config update (the lead's decision).
+      // Only a new container, a moved image or a changed Dockerfile needs a
+      // build. Containers load their config and credentials at runtime, so
+      // anything else is just a router config update.
       const images: Record<string, ImageRecord> = {};
       const routerContainers: RouterRepoConfig["containers"] = [];
       const located: NonNullable<DeployRecord["containers"]> = [];

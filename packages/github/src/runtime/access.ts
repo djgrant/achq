@@ -1,5 +1,3 @@
-// The GitHub access provider: RepoPolicy data in, installation tokens out, and
-// on the container, those tokens wired into git and gh.
 import * as fs from "node:fs";
 import * as path from "node:path";
 import type { PolicyData, AccessProvider, Credential } from "@achq/core";
@@ -23,7 +21,7 @@ const gitQuote = (s: string) => `"${s.replace(/\\/g, "\\\\").replace(/"/g, '\\"'
 /** A single-quoted shell word. */
 const shQuote = (s: string) => `'${s.replace(/'/g, `'\\''`)}'`;
 
-/** The token file for a credential: named by App and installation, so a refresh never points a repo at another installation's token. */
+/** Named by App and installation, so a refresh never points a repo at another installation's token. */
 const tokenFileName = (credential: Credential, index: number) => {
   const { app, installation, repos } = credential.scope;
   const repo = Array.isArray(repos) && repos.length === 1 ? `-${repos[0]}` : "";
@@ -32,14 +30,18 @@ const tokenFileName = (credential: Credential, index: number) => {
 };
 
 /**
- * Writes the git config that gives each repo URL its own token, so tokens for
- * repos under different installations coexist. git picks `credential.<url>`
- * sections by the remote's full URL, path included; `credential.useHttpPath`
- * also keeps the path in what helpers see (and caches key on), so a caching
- * helper can't hand one repo's token to another. Each helper section first resets the
- * helper list, so no other helper (a keychain, `gh auth git-credential`)
- * answers for these repos. Both `…/name.git` and `…/name` are listed, since a
- * remote can be either; helper paths match on whole path components.
+ * Git config that gives each repo URL its own token, so tokens from different
+ * installations can coexist. Each repo gets a `credential.<url>` section, which
+ * git matches against the remote's full URL.
+ *
+ * `credential.useHttpPath` passes the path to helpers too, so a caching helper
+ * can't hand one repo's token to another.
+ *
+ * Each section resets the helper list first, so no other helper (a keychain,
+ * `gh auth git-credential`) answers for these repos.
+ *
+ * Both `…/name.git` and `…/name` are listed, because a remote can use either
+ * and git matches paths by whole components.
  */
 export const gitConfig = (entries: { repo: string; tokenFile: string }[]) => {
   const lines = ["[credential]", "\tuseHttpPath = true"];
@@ -91,9 +93,10 @@ export class GitHubAccess implements AccessProvider {
   }
 
   /**
-   * One token per repo (and App), with the highest level its policies ask for.
-   * Not one per installation: a token's permissions apply to all its repos, so
-   * `contents: read` on another repo would become `write` alongside this one.
+   * One token per repo and App, at the highest level its policies ask for.
+   * Not one per installation, because a token's permissions apply to all its
+   * repos. A repo with `contents: read` would get `write` if it shared a token
+   * with one that needs write.
    * The config's own repo comes first, since gh uses the first token.
    */
   async mint(policies: PolicyData[], repo: string): Promise<Credential[]> {
@@ -129,17 +132,18 @@ export class GitHubAccess implements AccessProvider {
   }
 
   /**
-   * Container side, no network. Writes each token to `dir/<app>-<installation>-<repo>.token`,
-   * gh's `hosts.yml` (for the first credential: gh has one token per host) and
-   * a git config with a helper per repo URL. Every file is replaced atomically,
-   * so a refresh never shows a running git or gh a half-written token.
+   * Container side, no network. Writes each token to
+   * `dir/<app>-<installation>-<repo>.token`, plus gh's `hosts.yml` and a git
+   * config with a helper per repo URL. gh has one token per host, so it gets
+   * the first credential. Every file is replaced atomically, so a running git
+   * or gh never reads a half-written token.
    *
-   * The git config is included through `GIT_CONFIG_COUNT` rather than set as
-   * `GIT_CONFIG_GLOBAL`, which would replace `~/.gitconfig` and lose what's
-   * there (user.name, user.email, anything the image or the startup files set).
-   * Env config is read last, so these helpers win over any others. The env is
-   * the same on every refresh: only the files behind it change. A caller that
-   * sets its own `GIT_CONFIG_COUNT` must merge, not overwrite.
+   * The git config is included through `GIT_CONFIG_COUNT`. Setting
+   * `GIT_CONFIG_GLOBAL` instead would replace `~/.gitconfig`, losing
+   * user.name, user.email and anything the image or startup files set.
+   * Env config is read last, so these helpers win over any others.
+   * The env is the same on every refresh. Only the files behind it change.
+   * A caller that sets its own `GIT_CONFIG_COUNT` must merge, not overwrite.
    */
   async install(credentials: Credential[], dir: string): Promise<{ env: Record<string, string> }> {
     const mine = credentials.filter((c) => c.provider === PROVIDER);
@@ -169,7 +173,7 @@ export class GitHubAccess implements AccessProvider {
       fs.rmSync(hosts, { force: true });
     }
 
-    // Tokens no credential uses any more: after the config stops naming them.
+    // Remove token files no credential uses any more.
     for (const name of fs.readdirSync(dir)) if (name.endsWith(".token") && !files.has(name)) fs.rmSync(path.join(dir, name), { force: true });
 
     return {

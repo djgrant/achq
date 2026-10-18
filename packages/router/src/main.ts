@@ -1,4 +1,3 @@
-// The router's entry point: reads its environment, wires in GitHub, serves both ports.
 import { ENV, ROUTER_PRIVATE_PORT, ROUTER_PUBLIC_PORT } from "@achq/core";
 import { createGitHub, parseApps } from "@achq/github/runtime";
 import { createRouter } from "./router.ts";

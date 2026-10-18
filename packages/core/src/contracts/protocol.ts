@@ -66,7 +66,7 @@ export type SyncResult = { deployed: string[]; unchanged: string[]; uninstalled:
 
 export type DeployState = "deployed" | "failed" | "uninstalled";
 
-/** The deployer's record of a repo, and (minus `plan`) what goes in ACHQ_STATUS. */
+/** The deployer's record of a repo. ACHQ_STATUS holds it without `plan` and `tree`. */
 export type DeployRecord = {
   repo: string;
   source: string;

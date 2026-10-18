@@ -1,5 +1,5 @@
-// The container's credentials, from the router: for agents (installed on the
-// volume by each provider) and for the runner's channel clients (memory only).
+// Agents' credentials are installed on the volume by each provider. The
+// runner's channel credentials are kept in memory only.
 import * as fs from "node:fs";
 import type { CredentialsRequest, CredentialsResponse, AccessProvider, Credential } from "@achq/core";
 import { signedFetch } from "@achq/core/secrets";
@@ -34,7 +34,7 @@ export class Credentials {
   }
 
   /**
-   * Valid credentials. Fetches when there are none or they've expired; when
+   * Valid credentials. Fetches when there are none or they've expired. When
    * fewer than 30 minutes remain, returns these and refreshes in the background.
    */
   async get(): Promise<Current> {

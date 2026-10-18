@@ -1,5 +1,5 @@
-// Everything derived from AGENT_WEBHOOK_KEY, and the signatures achq's services
-// use between themselves. Each derivation has its own label, so no two collide.
+// Every secret derives from AGENT_WEBHOOK_KEY. Each derivation has its own
+// label, so no two collide.
 import { createHmac, timingSafeEqual } from "node:crypto";
 
 const derive = (key: string, label: string) => createHmac("sha256", key).update(label).digest("hex");
@@ -7,7 +7,7 @@ const derive = (key: string, label: string) => createHmac("sha256", key).update(
 /** A GitHub App's webhook secret, from its App ID (sent in X-GitHub-Hook-Installation-Target-ID). */
 export const appWebhookSecret = (key: string, appId: string | number) => derive(key, `github-app-webhook:${appId}`);
 
-/** What a container proves its identity with, to the router; and what the router signs events to it with. */
+/** A container signs its requests to the router with this. The router signs events to the container with it too. */
 export const containerSecret = (key: string, repo: string, container: string) =>
   derive(key, `container:${repo.toLowerCase()}:${container}`);
 
@@ -47,7 +47,7 @@ export const verifySigned = (secret: string, method: string, path: string, body:
   return safeEqual(signature, hmacHex(secret, `${method.toUpperCase()}\n${path}\n${timestamp}\n${body}`));
 };
 
-/** `fetch` with a signed request. `url`'s path (and query) is what's signed. */
+/** `fetch` with a signed request. The signature covers `url`'s path and query. */
 export const signedFetch = (secret: string, url: string, init: { method: string; body?: string; headers?: Record<string, string> }) => {
   const { pathname, search } = new URL(url);
   const body = init.body ?? "";

@@ -1,5 +1,3 @@
-// Reaching the router from the infra CLI: its public domain and key come from
-// its Railway service, and admin requests are signed with the key.
 import { ENV } from "@achq/core";
 import { adminSecret, signedFetch } from "@achq/core/secrets";
 import type { RailwayClient } from "@achq/railway/api";

@@ -1,8 +1,8 @@
 /**
  * Never handed to an agent. The container secret proves the container's
- * identity to the router (it could mint every credential the container has,
- * and post as the channel); the rest only exist on the router or deployer,
- * listed in case an image or a misconfigured service sets them.
+ * identity to the router, so an agent holding it could mint every credential
+ * the container has and post as the channel. The rest only exist on the router
+ * or deployer. They're listed in case an image or a misconfigured service sets them.
  */
 export const PRIVATE_ENV = [
   "ACHQ_CONTAINER_SECRET",

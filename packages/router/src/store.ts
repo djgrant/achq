@@ -1,9 +1,9 @@
-// The router's volume: small JSON files in a few directories. Every write goes
-// to a temp file and is renamed into place, so a crash never leaves half a file.
+// Every write goes to a temp file and is renamed into place, so a crash never
+// leaves half a file.
 import { mkdir, readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
-/** File names come from delivery IDs and repo names: keep them to characters that can't escape the directory. */
+/** File names come from delivery IDs and repo names, so only allow characters that can't escape the directory. */
 const SAFE = /^[\w-][\w.-]*$/;
 export const safeName = (name: string) => SAFE.test(name);
 

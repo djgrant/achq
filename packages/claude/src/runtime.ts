@@ -1,4 +1,3 @@
-// The Claude agent at runtime: its config directory, session key, and Claude Code runs.
 import { createHash } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -8,8 +7,8 @@ import type { Claude, ClaudeConfig } from "./resources.ts";
 export const DEFAULT_MODEL = "claude-opus-5-5";
 
 /**
- * The agent only sees the trusted context the runner gives it. These would let
- * it read anyone's thread content, so they're denied; commenting is denied
+ * The agent only sees the trusted context the runner gives it. These commands
+ * could read anyone's thread content, so they're denied. Commenting is denied
  * because the runner posts the reply.
  */
 export const DENIED = ["Bash(gh issue view:*)", "Bash(gh issue list:*)", "Bash(gh issue comment:*)", "Bash(gh api:*)", "Bash(gh search:*)"];
@@ -27,7 +26,7 @@ export const claudeSettings = (config: ClaudeConfig): Record<string, unknown> =>
   ...config.settings,
 });
 
-/** Flags that apply config settings.json can't hold. */
+/** Flags for config that settings.json can't hold. */
 const effortFlags = (config: ClaudeConfig) => (config.effort === "max" ? ["--effort", "max"] : []);
 
 export const claudeRuntime = (agent: Claude, ctx: RuntimeContext): AgentRuntime => {
@@ -141,7 +140,7 @@ export const claudeRuntime = (agent: Claude, ctx: RuntimeContext): AgentRuntime 
   };
 };
 
-/** Writes the agent's startup files: `~/.claude/…` into its own config directory, the rest as the container would. */
+/** `~/.claude/…` goes in the agent's own config directory. Other files go where the container would put them. */
 const writeFiles = (resolved: Record<string, string>, home: string, configDir: string) => {
   for (const [key, content] of Object.entries(resolved)) {
     const file =

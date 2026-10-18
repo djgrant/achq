@@ -1,7 +1,6 @@
-// A fake of Railway's GraphQL API for tests: keeps projects, services,
-// variables, volumes and domains, answers the operations `client.ts` sends,
-// and counts mutations. It answers by operation name and returns whole
-// objects; the client only reads fields it asked for.
+// A fake of Railway's GraphQL API, with its state in memory. It matches on
+// operation name and returns whole objects, ignoring the query's fields. That
+// works because the client in api.ts only reads the fields it asked for.
 
 type FakeService = {
   id: string;

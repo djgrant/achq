@@ -1,6 +1,6 @@
-// The plan comes out of the sandbox as untrusted JSON: a config can monkeypatch
-// anything inside the guest, including collectPlan. So its shape and
-// references are checked here again, strictly.
+// The plan is untrusted. A config can monkeypatch anything inside the sandbox,
+// including collectPlan, so the plan's shape and references are checked again
+// here, strictly.
 import { z } from "zod";
 import type { Data, RepoPlan } from "@achq/core";
 
@@ -28,7 +28,6 @@ const planSchema = z.strictObject({
   triggers: z.array(z.strictObject({ name, event: selector, agent: name })).max(100),
 });
 
-/** Parses the guest's JSON into a RepoPlan, or throws saying what's wrong with it. */
 export const parsePlan = (json: string): RepoPlan => {
   let value: unknown;
   try {

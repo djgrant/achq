@@ -1,5 +1,4 @@
-// Plain data: what crosses from repo config into the deployer and router.
-// No Node or Bun imports: this runs inside the config sandbox too.
+// What crosses from repo config into the deployer and router. Also runs in the config sandbox.
 
 export type Data = string | number | boolean | null | Data[] | { [key: string]: Data };
 

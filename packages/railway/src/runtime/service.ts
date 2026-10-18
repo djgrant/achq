@@ -1,5 +1,4 @@
-// One Railway service as achq wants it, diffed against what exists. The plan
-// reads everything first and mutates nothing; `apply` makes the changes.
+// Planning reads everything first and changes nothing. Only `apply` makes changes.
 import { createHash } from "node:crypto";
 import type { InstanceSettings, ProjectSnapshot, RailwayClient } from "../api.ts";
 
@@ -31,7 +30,6 @@ export type ServiceState = {
 
 export type ServicePlan = {
   changes: Change[];
-  /** What exists now. */
   current: ServiceState;
   apply(): Promise<{ serviceId: string; domain?: string; deployed: boolean }>;
 };

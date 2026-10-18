@@ -30,8 +30,8 @@ export const acquire = async (file: string): Promise<() => Promise<void>> => {
 };
 
 /**
- * An argv that takes the lock without waiting (exiting with BUSY if it's held)
- * and execs `argv` holding it, so killing the command frees the lock.
+ * An argv that takes the lock without waiting, then execs `argv` holding it.
+ * It exits with BUSY if the lock is held. Killing the command frees the lock.
  * `$^F` keeps the lock's descriptor open across exec.
  */
 export const lockedArgv = (file: string, argv: string[]) => {
@@ -45,7 +45,6 @@ export const lockedArgv = (file: string, argv: string[]) => {
   ];
 };
 
-/** Runs `fn` with the lock held. */
 export const withLock = async <T>(file: string, fn: () => Promise<T>): Promise<T> => {
   const release = await acquire(file);
   try {

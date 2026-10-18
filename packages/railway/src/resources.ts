@@ -1,4 +1,4 @@
-// The ACHQ infra's Railway resources.
+// Used by the ACHQ infra:
 //
 //   const router = new railway.Router("router", { project: "achq" });
 //   const deployer = new railway.Deployer("deployer", { project: "achq", router, containerHost: railway.containerHost({ project: "achq" }), owners });

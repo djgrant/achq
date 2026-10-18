@@ -420,7 +420,7 @@ describe("sync", () => {
     const deployer = makeDeployer();
     expect(await deployer.sync()).toEqual({ deployed: [A, B], unchanged: [], uninstalled: [], pruned: [], failed: [] });
 
-    // B is uninstalled; A drops nothing but has a leftover container; something else lingers from a repo never recorded.
+    // B is uninstalled. A keeps its plan but has a leftover container. notationlabs/gone was never recorded.
     router.installations = [{ provider: "github", source: APP, repo: A }];
     host.seed(A, "old");
     host.seed("notationlabs/gone", "dev");

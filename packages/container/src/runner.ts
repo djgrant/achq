@@ -1,5 +1,3 @@
-// The container's runner: hears events from the router, finds the workspace
-// that claims each thread, and runs the triggered agents in its worktree.
 import { randomUUID } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -32,7 +30,7 @@ export type RunnerOptions = {
   loadConfig: (commit: string | undefined) => Promise<LoadedConfig>;
   bin?: Record<string, string>;
   runtimes?: Record<string, RuntimeFactory>;
-  /** Runs at once across threads. */
+  /** How many runs may go at once, across all threads. */
   maxRuns?: number;
   runTimeoutMs?: number;
   /** The base env agents get, before credentials. Private variables are removed. */
@@ -157,9 +155,9 @@ export class Runner {
   }
 
   /**
-   * Railway sleeps a service after minutes without outbound traffic, which a
-   * long tool call could reach mid-run. This also refreshes credentials as
-   * they near expiry, which `install` rewrites under the running agents.
+   * Railway sleeps a service after minutes without outbound traffic, and a
+   * long tool call can go that long. Each tick also refreshes credentials near
+   * expiry, and `install` rewrites them in place for the running agents.
    */
   private stayAwake() {
     this.awake = setInterval(() => {
@@ -234,7 +232,7 @@ export class Runner {
     }
   }
 
-  /** Session keys and runtimes read the container's startup files; they're written here, once per config. */
+  /** Session keys and runtimes read the container's startup files, so they're written here, once per config. */
   private contexts = new Map<string, RuntimeContext>();
   private contextFor(config: LoadedConfig): RuntimeContext {
     let ctx = this.contexts.get(config.commit);
