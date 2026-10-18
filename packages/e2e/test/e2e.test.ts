@@ -17,7 +17,7 @@ import { paths as layout } from "@achq/container";
 import { createAgent } from "@achq/container";
 import type { Runner } from "@achq/container";
 import { readState } from "@achq/container";
-import { fakeClaude, tempDir } from "@achq/test-utils/container";
+import { fakeClaude, makeOrigin, tempDir } from "@achq/test-utils/container";
 import { wake } from "@achq/cli/remote";
 import { createDeployer } from "@achq/deployer";
 import { routerClient } from "@achq/deployer";
@@ -72,44 +72,6 @@ export const coder = new Claude("coder", { model: "claude-opus-5-5", effort: "hi
 };
 
 /** A bare origin with `main` (holding `.achq/`) and `docs`, and a clone to commit from. */
-const makeOrigin = async (root: string) => {
-  const origin = path.join(root, "yieldstar.git");
-  const seed = path.join(root, "seed");
-  await $`git init -q --bare -b main ${origin}`.quiet();
-  await $`git init -q -b main ${seed}`.quiet();
-  const git = (...args: string[]) => $`git -C ${seed} -c user.name=dj -c user.email=dj@example.com ${args}`.quiet();
-  const write = (files: Record<string, string>) => {
-    for (const [file, content] of Object.entries(files)) {
-      fs.mkdirSync(path.dirname(path.join(seed, file)), { recursive: true });
-      fs.writeFileSync(path.join(seed, file), content);
-    }
-  };
-  const head = async () => (await $`git -C ${seed} rev-parse HEAD`.quiet().text()).trim();
-  write({ ...ACHQ, "README.md": "# yieldstar\n" });
-  await git("add", "-A");
-  await git("commit", "-qm", "Add achq config");
-  await git("checkout", "-qb", "docs");
-  write({ "docs/index.md": "# Docs\n" });
-  await git("add", "-A");
-  await git("commit", "-qm", "Docs");
-  await git("push", "-q", origin, "main", "docs");
-  await git("checkout", "-q", "main");
-  const first = await head();
-  return {
-    origin,
-    first,
-    /** Commits on main and pushes; returns the commit and its parent. */
-    async commit(files: Record<string, string>, message: string) {
-      const before = await head();
-      write(files);
-      await git("add", "-A");
-      await git("commit", "-qm", message);
-      await git("push", "-q", origin, "main");
-      return { before, after: await head() };
-    },
-  };
-};
-
 // ─── The container host ──────────────────────────────────────────────────────
 
 type Hosted = { spec: ContainerSpec; runner: Runner; server: ReturnType<typeof Bun.serve>; requests: { method: string; path: string }[] };
@@ -408,7 +370,7 @@ const branchOf = async (dir: string) => (await $`git -C ${dir} branch --show-cur
 
 beforeAll(async () => {
   root = tempDir(dirs);
-  repo = await makeOrigin(root);
+  repo = await makeOrigin(root, ACHQ, { "docs/index.md": "# Docs\n" });
   claude = fakeClaude(root);
 
   // GitHub, with the App installed on the org (selected repos: yieldstar).

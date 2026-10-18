@@ -1,7 +1,6 @@
-// File locks shared by the runner and `resume`, so a person and an agent never
-// work in one worktree at once. flock(2) through perl, which Debian always has
+// File locks through flock(2), run by perl, which Debian always has
 // (perl-base is essential) and macOS ships, unlike util-linux's flock(1). The
-// kernel drops the lock when its holder dies, so a crash never leaves one behind.
+// kernel drops a lock when its holder dies, so a crash never leaves one behind.
 import * as fs from "node:fs";
 import * as path from "node:path";
 

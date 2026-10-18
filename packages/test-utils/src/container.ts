@@ -46,7 +46,8 @@ export const settingsFor = (name: string) => ({ env: { AGENT: name.toUpperCase()
 };
 
 /** A bare origin with `main` (holding `.achq/`) and `docs`, and a clone to commit from. */
-export const makeOrigin = async (root: string) => {
+/** A bare repo with `files` on main and `docs` on a `docs` branch, and a way to push more commits. */
+export const makeOrigin = async (root: string, files: Record<string, string> = CONFIG_FILES, docs: Record<string, string> = { "docs.txt": "docs branch\n" }) => {
   const origin = path.join(root, "origin.git");
   const seed = path.join(root, "seed");
   await $`git init -q --bare -b main ${origin}`.quiet();
@@ -58,11 +59,11 @@ export const makeOrigin = async (root: string) => {
       fs.writeFileSync(path.join(seed, file), content);
     }
   };
-  write({ ...CONFIG_FILES, "README.md": "main\n" });
+  write({ ...files, "README.md": "main\n" });
   await git("add", "-A");
   await git("commit", "-qm", "init");
   await git("checkout", "-qb", "docs");
-  write({ "docs.txt": "docs branch\n" });
+  write(docs);
   await git("add", "-A");
   await git("commit", "-qm", "docs");
   await git("push", "-q", origin, "main", "docs");
@@ -71,13 +72,14 @@ export const makeOrigin = async (root: string) => {
   return {
     origin,
     first: await head(),
-    /** Commits files on main and pushes; returns the commit. */
-    async commit(files: Record<string, string>) {
+    /** Commits on main and pushes; returns the commit and its parent. */
+    async commit(files: Record<string, string>, message = "change") {
+      const before = await head();
       write(files);
       await git("add", "-A");
-      await git("commit", "-qm", "change");
+      await git("commit", "-qm", message);
       await git("push", "-q", origin, "main");
-      return head();
+      return { before, after: await head() };
     },
   };
 };

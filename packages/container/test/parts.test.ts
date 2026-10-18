@@ -169,7 +169,7 @@ describe("loadConfig", () => {
     expect(await load(git.first)).toBe(config);
 
     // Another commit is another config, fetched on demand.
-    const next = await git.commit({ ".achq/lib/settings.ts": `export const settingsFor = (name: string) => ({ n: name.length * 2 });\n` });
+    const { after: next } = await git.commit({ ".achq/lib/settings.ts": `export const settingsFor = (name: string) => ({ n: name.length * 2 });\n` });
     const changed = await load(next);
     expect((changed.agents.find((a) => a.name === "coder") as Claude).config.settings).toEqual({ n: 10 });
     expect(fetches).toBe(2);

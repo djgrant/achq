@@ -144,7 +144,7 @@ describe("sessions", () => {
     expect(w.claude.calls()).toHaveLength(2);
 
     // The repo changes the coder's system prompt: a new session key, so a fresh session.
-    const changed = await w.git.commit({ ".achq/prompts/coder.md": "You are the careful coder.\n" });
+    const { after: changed } = await w.git.commit({ ".achq/prompts/coder.md": "You are the careful coder.\n" });
     await w.send(w.channel.comment(5, "@claude carry on"), changed);
     calls = w.claude.calls();
     const second = w.claude.flag(calls[2]!, "--session-id")!;
@@ -156,7 +156,7 @@ describe("sessions", () => {
     expect(calls[2]!.stdin).toContain(`Reply for ${id}`);
 
     // Computed settings change too: another fresh session.
-    const settings = await w.git.commit({ ".achq/lib/settings.ts": `export const settingsFor = (name: string) => ({ env: { AGENT: name + "!" } });\n` });
+    const { after: settings } = await w.git.commit({ ".achq/lib/settings.ts": `export const settingsFor = (name: string) => ({ env: { AGENT: name + "!" } });\n` });
     await w.send(w.channel.comment(5, "@claude again"), settings);
     const third = w.claude.flag(w.claude.calls()[3]!, "--session-id")!;
     expect(third).toBeDefined();
@@ -305,7 +305,7 @@ describe("config", () => {
   test("a commit whose config won't load is reported on the thread, and runs nothing", async () => {
     const w = await world();
     w.channel.open(5);
-    const broken = await w.git.commit({ ".achq/config.ts": 'throw new Error("half-finished edit");\n' });
+    const { after: broken } = await w.git.commit({ ".achq/config.ts": 'throw new Error("half-finished edit");\n' });
     await w.send(w.channel.comment(5, "@claude go"), broken);
     expect(w.claude.calls()).toHaveLength(0);
     expect(w.channel.replies.map((r) => r.body)).toEqual([expect.stringContaining(`Couldn't load \`.achq/\` at ${broken.slice(0, 7)}`)]);
