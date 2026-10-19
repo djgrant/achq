@@ -1,17 +1,17 @@
-import { Agent, collectPlan, registered, resetRegistry, type RepoPlan } from "@achq/core";
+import { Agent, collectPlan, declared, resetDeclarations, type RepoPlan } from "@achq/core";
 
 let evaluating: Promise<unknown> = Promise.resolve();
 
-/** Imports a bundle into a fresh registry. One at a time, since the registry is shared. */
+/** Imports a bundle from no declarations. One at a time, since declarations are shared. */
 export const evaluateBundle = (bundle: string): Promise<{ plan: RepoPlan; agents: Agent[] }> => {
   const run = evaluating.then(async () => {
-    resetRegistry();
+    resetDeclarations();
     try {
       await import(bundle);
-      const resources = registered();
+      const resources = declared();
       return { plan: collectPlan(resources), agents: resources.filter((r): r is Agent => r instanceof Agent) };
     } finally {
-      resetRegistry();
+      resetDeclarations();
     }
   });
   evaluating = run.catch(() => {});

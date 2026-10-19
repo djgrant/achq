@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, beforeEach, expect, test } from "bun:test";
-import { Agent, type Change, collectPlan, Container, type Context, plan, resetRegistry, Trigger, Workspace } from "@achq/core";
+import { Agent, type Change, collectPlan, Container, type Context, plan, resetDeclarations, Trigger, Workspace } from "@achq/core";
 import { githubChannel } from "../src/channels/index.ts";
 import { configApp, configNeeds } from "../src/channels/config-app.ts";
 import { App, RepoPolicy } from "../src/index.ts";
@@ -14,7 +14,7 @@ class TestAgent extends Agent {
 
 // The design's example config, declared directly.
 const configPlan = () => {
-  resetRegistry();
+  resetDeclarations();
   const app = App.get("notation-achq");
   const code = new RepoPolicy("code", { app, permissions: { contents: "write", issues: "write", pull_requests: "write" } });
   const dev = new Container("dev", { image: "./Dockerfile", policies: [code] });

@@ -10,7 +10,7 @@ import {
   Output,
   type Planned,
   plan,
-  resetRegistry,
+  resetDeclarations,
   Router,
   UNKNOWN,
 } from "@achq/core";
@@ -34,7 +34,7 @@ const jwtValid = (auth: string | null) => {
 };
 
 beforeEach(() => {
-  resetRegistry();
+  resetDeclarations();
   calls = [];
   hook = {};
   settings = { events: ["issues", "issue_comment", "push"], permissions: PERMISSIONS };

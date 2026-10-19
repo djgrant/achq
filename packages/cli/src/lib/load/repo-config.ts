@@ -1,6 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { collectPlan, type RepoPlan, resetRegistry } from "@achq/core";
+import { collectPlan, type RepoPlan, resetDeclarations } from "@achq/core";
 import { evaluateConfig } from "@achq/deployer/config";
 import { registerModules } from "./modules.ts";
 
@@ -31,8 +31,8 @@ export const loadRepoPlan = async (repoDir: string, options: { sandbox?: boolean
   const files = readConfigFiles(repoDir);
   if (options.sandbox !== false) return evaluateConfig(files);
   registerModules();
-  resetRegistry();
-  // A cached module wouldn't register anything, so a fresh query string makes Bun evaluate it again.
+  resetDeclarations();
+  // A cached module wouldn't declare anything, so a fresh query string makes Bun evaluate it again.
   await import(`${path.join(repoDir, ".achq", "config.ts")}?load=${++loads}`);
   return collectPlan();
 };

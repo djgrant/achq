@@ -1,5 +1,5 @@
 import { type Data, toData } from "./data.ts";
-import { registered } from "./registry.ts";
+import { declared } from "./declarations.ts";
 import { Agent, Container, Policy, type PolicyData, type SelectorData, Trigger, Workspace } from "./config.ts";
 import type { Resource } from "./resource.ts";
 
@@ -16,8 +16,8 @@ export type RepoPlan = {
   triggers: { name: string; event: SelectorData; agent: string }[];
 };
 
-/** Turns the registered resources into a plan, checking names and references. */
-export const collectPlan = (resources: Resource[] = registered()): RepoPlan => {
+/** Turns the declared resources into a plan, checking names and references. */
+export const collectPlan = (resources: Resource[] = declared()): RepoPlan => {
   const seen = new Set<string>();
   for (const r of resources) {
     const id = `${r.kind}:${r.name}`;
@@ -25,7 +25,7 @@ export const collectPlan = (resources: Resource[] = registered()): RepoPlan => {
     seen.add(id);
   }
   const of = <T extends Resource>(type: abstract new (...args: any[]) => T) => resources.filter((r): r is T => r instanceof type);
-  const declared = (r: Resource, what: string) => {
+  const ref = (r: Resource, what: string) => {
     if (!resources.includes(r)) throw new Error(`${what} refers to ${r.kind} "${r.name}", which isn't declared in this config`);
     return r.name;
   };
@@ -35,12 +35,12 @@ export const collectPlan = (resources: Resource[] = registered()): RepoPlan => {
     containers: of(Container).map((c) => ({
       name: c.name,
       image: c.inputs.image,
-      policies: (c.inputs.policies ?? []).map((p) => declared(p, `container ${c.name}`)),
+      policies: (c.inputs.policies ?? []).map((p) => ref(p, `container ${c.name}`)),
       files: toData(c.inputs.files ?? {}, `container ${c.name} files`) as Record<string, Data>,
     })),
     workspaces: of(Workspace).map((w) => ({
       name: w.name,
-      container: declared(w.inputs.container, `workspace ${w.name}`),
+      container: ref(w.inputs.container, `workspace ${w.name}`),
       threads: w.inputs.threads.data,
       branch: w.inputs.branch,
       base: w.inputs.base,
@@ -49,7 +49,7 @@ export const collectPlan = (resources: Resource[] = registered()): RepoPlan => {
     triggers: of(Trigger).map((t) => ({
       name: t.name,
       event: t.inputs.event.data,
-      agent: declared(t.inputs.agent, `trigger ${t.name}`),
+      agent: ref(t.inputs.agent, `trigger ${t.name}`),
     })),
   };
   if (!plan.containers.length) throw new Error("The config declares no containers");

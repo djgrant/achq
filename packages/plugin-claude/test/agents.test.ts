@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { resetRegistry, type RunContext, type RuntimeContext } from "@achq/core";
+import { resetDeclarations, type RunContext, type RuntimeContext } from "@achq/core";
 import { fakeClaude } from "@achq/test-utils/fake-claude";
 import { tempDir } from "@achq/test-utils/temp-dir";
 import { claudeAgent } from "../src/agents/index.ts";
@@ -10,7 +10,7 @@ import { Claude, type ClaudeConfig } from "../src/index.ts";
 
 const dirs: string[] = [];
 afterEach(() => {
-  resetRegistry();
+  resetDeclarations();
   for (const dir of dirs.splice(0)) fs.rmSync(dir, { recursive: true, force: true });
 });
 

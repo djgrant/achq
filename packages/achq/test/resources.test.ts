@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { Claude } from "@achq/claude";
 import * as github from "@achq/github";
-import { collectPlan, Container, registered, resetRegistry, Trigger, Workspace } from "@achq/core";
+import { collectPlan, Container, declared, resetDeclarations, Trigger, Workspace } from "@achq/core";
 
-beforeEach(resetRegistry);
+beforeEach(resetDeclarations);
 
 describe("collectPlan", () => {
   test("turns the design doc's repo config into a plan, in declaration order", () => {
@@ -47,7 +47,7 @@ describe("collectPlan", () => {
   test("rejects references to resources from another config", () => {
     const stray = new Container("stray", { image: "./Dockerfile" });
     const app = github.App.get("a");
-    resetRegistry();
+    resetDeclarations();
     new Container("dev", { image: "./Dockerfile" });
     new Workspace("w", { container: stray, threads: app.issues, branch: "b", base: "main" });
     expect(() => collectPlan()).toThrow('workspace w refers to container "stray"');
@@ -60,7 +60,7 @@ describe("collectPlan", () => {
   });
 
   test("needs at least one container", () => {
-    expect(registered()).toEqual([]);
+    expect(declared()).toEqual([]);
     expect(() => collectPlan()).toThrow("no containers");
   });
 });

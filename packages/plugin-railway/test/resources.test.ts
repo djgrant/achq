@@ -1,9 +1,9 @@
 import { expect, test } from "bun:test";
-import { resetRegistry } from "@achq/core";
+import { resetDeclarations } from "@achq/core";
 import { Service } from "../src/resources/service.ts";
 
 test("a service's comparison is pure: it takes what was read and says what differs", () => {
-  resetRegistry();
+  resetDeclarations();
   const service = new Service("service", { at: { projectId: "p", environmentId: "e" }, name: "achq-router", settings: {}, volume: "/data" });
   const props = { at: { projectId: "p", environmentId: "e" }, name: "achq-router", settings: { source: { image: "bun" }, sleepApplication: false }, volume: "/data", publicPort: 8080 };
   const current = {
@@ -28,7 +28,7 @@ test("a service's comparison is pure: it takes what was read and says what diffe
 });
 
 test("a service asked for its env gives its variables as read, none if it doesn't exist yet, and applying doesn't change them", () => {
-  resetRegistry();
+  resetDeclarations();
   const at = { projectId: "p", environmentId: "e" };
   const service = new Service("service", { at, name: "achq-router", settings: {}, volume: "/data", env: true });
   const props = { at, name: "achq-router", settings: {}, volume: "/data", env: true as const };

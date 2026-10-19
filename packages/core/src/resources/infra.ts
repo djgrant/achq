@@ -2,7 +2,7 @@
 // deployer with where they run, as resources made of its own.
 import { GENERATED, type Input, type Output } from "../engine/values.ts";
 import { DEPLOYER_PORT, ROUTER_PUBLIC_PORT } from "../wire/constants.ts";
-import { registered, resetRegistry } from "./registry.ts";
+import { declared, resetDeclarations } from "./declarations.ts";
 import { type Context, Resource } from "./resource.ts";
 
 /** A variable's value: a string, another resource's output, or generated once and then kept. */
@@ -62,7 +62,7 @@ export type Infra = { resources: Resource[] };
 
 /** The ACHQ infra: `export default achq(() => { … })`. Declares its resources when `achq up` calls it. */
 export const achq = (declare: () => void) => (): Infra => {
-  resetRegistry();
+  resetDeclarations();
   declare();
-  return { resources: registered() };
+  return { resources: declared() };
 };

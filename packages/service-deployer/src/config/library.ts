@@ -4,7 +4,7 @@ import { SANDBOX_LIB } from "../constants.ts";
 
 let lib: Promise<Record<string, string>> | undefined;
 
-/** The modules a config may import, built with code splitting so they share one registry, plus the plan entry. */
+/** The modules a config may import, built with code splitting so they share one list of declarations, plus the plan entry. */
 export const achqModules = () =>
   (lib ??= (async () => {
     const result = await Bun.build({

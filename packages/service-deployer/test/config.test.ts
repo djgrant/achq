@@ -22,7 +22,7 @@ describe("evaluateConfig", () => {
     expect(await evaluateConfig(DOC_CONFIG)).toEqual(DOC_PLAN as never);
   });
 
-  test("each evaluation starts from an empty registry", async () => {
+  test("each evaluation starts from no declarations", async () => {
     await evaluateConfig(DOC_CONFIG);
     expect((await evaluateConfig(DOC_CONFIG)).containers).toHaveLength(1);
   });

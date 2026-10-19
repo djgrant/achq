@@ -3,7 +3,7 @@
 // others, its children, which are planned with it.
 import type { Change } from "../engine/plan.ts";
 import { hasUnknown, type Inputs, Output, type Planned, UNKNOWN, type Unknown } from "../engine/values.ts";
-import { register } from "./registry.ts";
+import { declare } from "./declarations.ts";
 
 /** Resource names: lowercase letters, digits and dashes, starting with a letter. */
 export const RESOURCE_NAME = /^[a-z][a-z0-9-]{0,30}$/;
@@ -23,12 +23,12 @@ export type Context = {
 export type ResourceOptions = {
   /** The resource it's part of. */
   parent?: Resource;
-  /** False for a resource achq makes rather than a config declares, e.g. a container's service: it isn't registered, and its name is its host's. */
+  /** False for a resource achq makes rather than a config declares, e.g. a container's service: it isn't declared, and its name is its host's. */
   declared?: boolean;
 };
 
 /**
- * Anything declared in a config. Constructing one registers it, unless it's
+ * Anything declared in a config. Constructing one declares it, unless it's
  * another resource's child (its parent's business, planned with it and named
  * within it) or achq made it.
  */
@@ -43,7 +43,7 @@ export abstract class Resource {
     this.parent = options.parent;
     if (this.parent || options.declared === false) return;
     if (!RESOURCE_NAME.test(name)) throw new Error(`Resource name "${name}" must be lowercase letters, digits and dashes, starting with a letter`);
-    register(this);
+    declare(this);
   }
 
   /** What it's made of. Called once, when it's planned, so parts can still be declared until then. */

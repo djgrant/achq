@@ -21,7 +21,7 @@ export const bundleConfig = async (root: string, outdir: string) => {
       {
         name: "achq-config",
         setup(build) {
-          // achq stays external, so the config registers its resources in the
+          // achq stays external, so the config declares its resources in the
           // same module instance the runner reads them from.
           build.onResolve({ filter: /^[^./]/ }, (args) => {
             const target = modules[args.path];

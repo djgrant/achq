@@ -1,7 +1,7 @@
 import { beforeEach, expect, test } from "bun:test";
 import { type Change, plan } from "../src/engine/plan.ts";
 import { all, type Input, type Inputs, known, type Planned, UNKNOWN } from "../src/engine/values.ts";
-import { registered, resetRegistry } from "../src/resources/registry.ts";
+import { declared, resetDeclarations } from "../src/resources/declarations.ts";
 import { type Context, ManagedResource, Resource, type ResourceOptions } from "../src/resources/resource.ts";
 
 /** An in-memory store: what exists, and every read and write made of it. */
@@ -11,7 +11,7 @@ type Row = { id: string; value: string };
 let db: Db;
 beforeEach(() => {
   db = { rows: new Map(), reads: [], writes: [] };
-  resetRegistry();
+  resetDeclarations();
 });
 
 const ctx: Context = { env: {}, log: () => {}, newSecret: () => "secret", sleep: async () => {} };
@@ -196,12 +196,12 @@ test("children are asked for once per plan, even when reachable twice, and are p
   expect(shared.asked).toBe(2);
 });
 
-test("children and what achq makes aren't registered and skip the name rule; a top-level resource with a bad name throws", () => {
+test("children and what achq makes aren't declared and skip the name rule; a top-level resource with a bad name throws", () => {
   const group = new Group("group");
   new Store("Not_A_Name", "v", { parent: group });
-  expect(registered()).toEqual([group]);
+  expect(declared()).toEqual([group]);
   new Store("Made_By_Achq", "v", { declared: false });
-  expect(registered()).toEqual([group]);
+  expect(declared()).toEqual([group]);
   expect(() => new Store("Not_A_Name", "v")).toThrow('Resource name "Not_A_Name" must be lowercase letters');
 });
 

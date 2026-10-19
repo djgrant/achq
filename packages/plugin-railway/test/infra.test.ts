@@ -198,7 +198,7 @@ test("declaring the router and deployer reads nothing: only planning does", () =
   expect(router.children(ctx).map((r) => r.name)).toEqual(["project", "service", "variables", "variables-2", "variables-3", "deploy"]);
   expect(deployer.children(ctx).map((r) => r.name)).toEqual(["service", "variables", "variables-2", "deploy"]);
   expect(router.children(ctx).every((r) => r.parent === router)).toBe(true);
-  expect(core.registered()).toEqual([router, deployer]);
+  expect(core.declared()).toEqual([router, deployer]);
   expect(fake.queries).toEqual([]);
 });
 
