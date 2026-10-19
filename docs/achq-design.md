@@ -23,9 +23,9 @@ Both the infra and repos are written as a resource graph, Pulumi-shaped: resourc
 // achq.infra.ts, at the infra repo's root
 export default achq(() => {
   const router = new railway.Router("router", { project: "achq" });
-  const deployer = new railway.Deployer("deployer", { router, owners: ["djgrant", "notationlabs"] });
-  new github.App("personal", { name: "djgrant-claude", router, deployer });
-  new github.App("notation", { name: "notation-achq", org: "notationlabs", router, deployer });
+  new railway.Deployer("deployer", { router, owners: ["djgrant", "notationlabs"] });
+  new github.App("personal", { name: "djgrant-claude", router });
+  new github.App("notation", { name: "notation-achq", org: "notationlabs", router });
 });
 ```
 

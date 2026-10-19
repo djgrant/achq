@@ -24,8 +24,8 @@ const infra = () =>
   checkInfra(
     achq(() => {
       const router = new railway.Router("router", { project: "achq" });
-      const deployer = new railway.Deployer("deployer", { router, owners: ["djgrant", "notationlabs"] });
-      new github.App("personal", { name: "djgrant-claude", router, deployer });
+      new railway.Deployer("deployer", { router, owners: ["djgrant", "notationlabs"] });
+      new github.App("personal", { name: "djgrant-claude", router });
     })(),
   );
 

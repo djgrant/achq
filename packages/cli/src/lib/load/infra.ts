@@ -29,10 +29,9 @@ export const checkInfra = (infra: Infra): InfraResources => {
   containerHostNamed(deployer.containerHost);
   if (deployer.inputs.router !== router) throw new Error(`Deployer ${deployer.name} must use router ${router.name}`);
   for (const r of infra.resources) {
-    const inputs = (r as { inputs?: { router?: unknown; deployer?: unknown } }).inputs;
+    const inputs = (r as { inputs?: { router?: unknown } }).inputs;
     if (r === deployer || !inputs) continue;
     if (inputs.router instanceof Router && inputs.router !== router) throw new Error(`${r.kind} ${r.name} must use router ${router.name}`);
-    if (inputs.deployer instanceof Deployer && inputs.deployer !== deployer) throw new Error(`${r.kind} ${r.name} must use deployer ${deployer.name}`);
   }
   return { router, deployer, resources: infra.resources };
 };

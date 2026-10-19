@@ -3,7 +3,6 @@ import { createPublicKey, createVerify, generateKeyPairSync } from "node:crypto"
 import {
   type Change,
   type Context,
-  Deployer,
   type EnvValue,
   type EnvValues,
   ManagedResource,
@@ -115,31 +114,20 @@ class StubRouter extends Router {
   }
 }
 
-class StubDeployer extends Deployer {
-  readonly containerHost = "stub";
-  readonly env = new Output<Record<string, string>>([], () => ({}));
-  constructor(readonly inputs: { router: Router; owners: string[] }) {
-    super("deployer");
-  }
-  privateUrl = (port: number) => `http://deployer.internal:${port}`;
-  variables = () => new Output<Record<string, string>>([], () => ({}));
-}
-
 const KEY = "the-webhook-key";
 const STORED = { "djgrant-claude": { id: "4242", privateKey: pem } };
 const OTHER = { "old-app": { id: "7", privateKey: "old-key" } };
 
 const infra = (stored: object, router: Partial<Service> = {}) => {
   const r = new StubRouter({ url: ROUTER, key: KEY, exists: true, env: { ACHQ_GITHUB_APPS: appsVariable(stored as never) }, ...router });
-  const deployer = new StubDeployer({ router: r, owners: [] });
-  return { router: r, deployer, app: new App("personal", { name: "djgrant-claude", router: r, deployer }) };
+  return { router: r, app: new App("personal", { name: "djgrant-claude", router: r }) };
 };
 
 const summary = (changes: Change[]) => changes.map((c) => `${c.op} ${c.target}${c.detail ? ` ${c.detail}` : ""}`);
 
 test("an App's comparison is pure: it takes what was read and says what differs", () => {
-  const { router, deployer } = infra({});
-  const app = new App("org", { name: "Notation ACHQ", org: "notationlabs", router, deployer });
+  const { router } = infra({});
+  const app = new App("org", { name: "Notation ACHQ", org: "notationlabs", router });
   const props = { slug: "notation-achq", name: "Notation ACHQ", org: "notationlabs", hookUrl: HOOK, key: KEY };
   expect(app.slug).toBe("notation-achq");
 
@@ -228,17 +216,15 @@ test("an up-to-date App plans nothing, and what it lacks shows as warnings", asy
 
 test("one ACHQ_GITHUB_APPS group per router holds every App declared on it, even after the group", async () => {
   hook = { url: HOOK, content_type: "json", insecure_ssl: "0" };
-  const { router, deployer, app } = infra(STORED);
+  const { router, app } = infra(STORED);
   const ctx = context();
   expect((await plan([app], ctx)).value(router.apps(ctx))).toBe(appsVariable(STORED));
   // A new App, declared after the first made the group: the variable waits on it.
-  const later = new App("org", { name: "Notation ACHQ", org: "notationlabs", router, deployer });
+  const later = new App("org", { name: "Notation ACHQ", org: "notationlabs", router });
   expect((await plan([app, later], ctx)).value(router.apps(ctx))).toBe(UNKNOWN);
 });
 
-test("two Apps with one slug, or an App whose deployer uses another router, are refused", () => {
-  const { router, deployer } = infra({});
-  expect(() => new App("again", { name: "DJGrant Claude", router, deployer })).toThrow("Two Apps are named djgrant-claude");
-  const elsewhere = new StubDeployer({ router: new StubRouter({ url: ROUTER, key: KEY, exists: true, env: {} }), owners: [] });
-  expect(() => new App("stray", { name: "stray", router, deployer: elsewhere })).toThrow("App stray must use router router and deployer deployer");
+test("two Apps with one slug are refused", () => {
+  const { router } = infra({});
+  expect(() => new App("again", { name: "DJGrant Claude", router })).toThrow("Two Apps are named djgrant-claude");
 });

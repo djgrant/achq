@@ -23,9 +23,9 @@ import * as railway from "achq/railway";
 export default achq(() => {
   const router = new railway.Router("router", { project: "achq" });
   // Runs in its router's Railway project, and puts containers there.
-  const deployer = new railway.Deployer("deployer", { router, owners: ["djgrant", "notationlabs"] });
-  new github.App("personal", { name: "djgrant-claude", router, deployer });
-  new github.App("notation", { name: "notation-achq", org: "notationlabs", router, deployer });
+  new railway.Deployer("deployer", { router, owners: ["djgrant", "notationlabs"] });
+  new github.App("personal", { name: "djgrant-claude", router });
+  new github.App("notation", { name: "notation-achq", org: "notationlabs", router });
 });
 ```
 

@@ -56,7 +56,7 @@ test("the router and deployer must run on one container host, one achq can put c
   ).toThrow(/doesn't know the .*"elsewhere"/);
 });
 
-test("the deployer and every resource that names a router or deployer use the infra's", () => {
+test("the deployer and every resource that names a router use the infra's", () => {
   expect(() =>
     checkInfra(
       achq(() => {
@@ -68,8 +68,8 @@ test("the deployer and every resource that names a router or deployer use the in
   ).toThrow("one router and one deployer");
   const declared = achq(() => {
     const router = new railway.Router("router", { project: "achq" });
-    const deployer = new railway.Deployer("deployer", { router, owners: [] });
-    new github.App("personal", { name: "djgrant-claude", router, deployer });
+    new railway.Deployer("deployer", { router, owners: [] });
+    new github.App("personal", { name: "djgrant-claude", router });
   })();
   const elsewhere = achq(() => {
     const router = new railway.Router("router", { project: "achq" });
@@ -89,12 +89,12 @@ import * as railway from "achq/railway";
 
 export default achq(() => {
   const router = new railway.Router("router", { project: "achq" });
-  const deployer = new railway.Deployer("deployer", {
+  new railway.Deployer("deployer", {
     router,
     owners: ["djgrant", "notationlabs"],
   });
-  new github.App("personal", { name: "djgrant-claude", router, deployer });
-  new github.App("notation", { name: "notation-achq", org: "notationlabs", router, deployer });
+  new github.App("personal", { name: "djgrant-claude", router });
+  new github.App("notation", { name: "notation-achq", org: "notationlabs", router });
 });
 `,
   );

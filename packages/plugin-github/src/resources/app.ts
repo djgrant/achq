@@ -2,7 +2,7 @@
 // the router, and the router mints its tokens. GitHub never gives a private key
 // back, so an App achq can act as is one whose key the router keeps: without
 // one, it's created through the manifest flow.
-import { all, type Change, type Context, type Deployer, known, ManagedResource, type Planned, type Router, UNKNOWN } from "@achq/core";
+import { all, type Change, type Context, known, ManagedResource, type Planned, type Router, UNKNOWN } from "@achq/core";
 import { AppRef } from "../channels/app-ref.ts";
 import { type AppKeys, appsVariable, parseApps } from "../lib/app-keys.ts";
 import { GitHubClient } from "../lib/client.ts";
@@ -21,7 +21,6 @@ export type AppInputs = {
   /** The organisation that owns it. Without one it's owned by your account and public, so others can install it. */
   org?: string;
   router: Router;
-  deployer: Deployer;
 };
 
 export type AppProps = {
@@ -94,7 +93,7 @@ export class App extends ManagedResource<AppProps, AppState, AppAttrs, AppChange
     name: string,
     readonly inputs: AppInputs,
   ) {
-    const { router, deployer } = inputs;
+    const { router } = inputs;
     const slug = appSlug(inputs.name);
     super(name, {
       slug,
@@ -105,7 +104,6 @@ export class App extends ManagedResource<AppProps, AppState, AppAttrs, AppChange
       stored: router.env.map((env) => parseApps(env[GITHUB_ENV.apps])[slug]),
     });
     this.slug = slug;
-    if (deployer.inputs.router !== router) throw new Error(`App ${name} must use router ${router.name} and deployer ${deployer.name}`);
     let apps = routerApps.get(router);
     if (!apps) {
       routerApps.set(router, (apps = new Map()));
