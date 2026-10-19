@@ -12,7 +12,7 @@ const location = { containerHost: "railway", project: "p1", environment: "e1", s
 let bin: string;
 beforeAll(() => {
   bin = fs.mkdtempSync(path.join(os.tmpdir(), "achq-railway-"));
-  fs.writeFileSync(path.join(bin, "railway"), `#!/bin/sh\necho "$@"\n[ "$9" = fail ] && { echo broke >&2; exit 1; }\nexit 0\n`, { mode: 0o755 });
+  fs.writeFileSync(path.join(bin, "railway"), `#!/bin/sh\necho "$@"\nfor a; do :; done\n[ "$a" = fail ] && { echo broke >&2; exit 1; }\nexit 0\n`, { mode: 0o755 });
 });
 afterAll(() => fs.rmSync(bin, { recursive: true, force: true }));
 
