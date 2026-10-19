@@ -1,11 +1,11 @@
 import * as core from "@achq/core";
 import type { Context, EnvValues, Output, Resource } from "@achq/core";
+import { need } from "../lib/client.ts";
 import { CONTAINER_PROVIDER, RAILWAY_ENV } from "../lib/constants.ts";
-import { need } from "../lib/env.ts";
 import { hostServiceName, privateUrl } from "../lib/names.ts";
-import { ServiceParts } from "./service-parts.ts";
-import type { Project } from "./project.ts";
-import { Router } from "./router.ts";
+import type { Project } from "../lib/project.ts";
+import { ServiceParts } from "../lib/service-parts.ts";
+import { Router } from "../router/resource.ts";
 
 /**
  * The deployer, as a Railway service in its router's project: private,

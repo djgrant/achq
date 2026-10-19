@@ -2,8 +2,8 @@ import * as core from "@achq/core";
 import { type Context, ENV, type EnvValues, GENERATED, type Output, type Resource } from "@achq/core";
 import { CONTAINER_PROVIDER } from "../lib/constants.ts";
 import { hostServiceName, privateUrl } from "../lib/names.ts";
-import { ServiceParts } from "./service-parts.ts";
-import { Project } from "./project.ts";
+import { Project } from "../lib/project.ts";
+import { ServiceParts } from "../lib/service-parts.ts";
 
 /**
  * The router, as a Railway service in `project`: public, always on, with a

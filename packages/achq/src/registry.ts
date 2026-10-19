@@ -6,7 +6,7 @@ import type { AgentProvider, ChannelProvider, ContainerProvider, ContainerShell,
 import { githubChannelProvider } from "@achq/github/channel";
 import { githubPolicyProvider } from "@achq/github/policy";
 import { githubCodeHostProvider } from "@achq/github/code-host";
-import { railwayContainerProvider } from "@achq/railway/container-hosts";
+import { railwayContainerProvider } from "@achq/railway/container";
 import * as github from "./github-infra.ts";
 import * as achq from "./index.ts";
 import * as railway from "./railway.ts";

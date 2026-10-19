@@ -1,9 +1,7 @@
 import type { ContainerProvider, ContainerShell, Implementation } from "@achq/core";
-import { CONTAINER_PROVIDER, RAILWAY_ENV } from "../lib/constants.ts";
-import { need } from "../lib/env.ts";
-import { PRIVATE_ENV } from "./constants.ts";
-import { RailwayContainerProvider } from "./container-host.ts";
-import { railwayShell } from "./shell.ts";
+import { need } from "../lib/client.ts";
+import { CONTAINER_PROVIDER, PRIVATE_ENV, RAILWAY_ENV } from "../lib/constants.ts";
+import { RailwayContainerProvider, railwayShell } from "./provider.ts";
 
 /** Containers as services in the deployer's Railway project, reached in a shell with `railway ssh`. */
 export const railwayContainerProvider: Implementation<ContainerProvider> & { shell: ContainerShell } = {

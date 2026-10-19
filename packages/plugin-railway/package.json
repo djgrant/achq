@@ -5,7 +5,7 @@
   "type": "module",
   "exports": {
     "./infra": "./src/infra.ts",
-    "./container-hosts": "./src/container-hosts/index.ts"
+    "./container": "./src/container/index.ts"
   },
   "dependencies": {
     "@achq/core": "workspace:*"

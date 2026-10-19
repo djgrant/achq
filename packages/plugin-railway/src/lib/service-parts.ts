@@ -1,15 +1,50 @@
 // The router or the deployer on Railway: an image service on the stock Bun
 // image, its groups of variables, and its deploy, over its settings and every
-// group's variables together, so it hashes as one map did before groups.
-import { all, type Context, ENV, type EnvValues, type Input, type ManagedResource, type Output, type Service as AchqService } from "@achq/core";
-import type { InstanceSettings } from "../lib/client.ts";
-import { VOLUME } from "../lib/constants.ts";
-import { hostServiceName } from "../lib/names.ts";
-import { BUN_IMAGE } from "./constants.ts";
+// group's variables together, so it hashes as one map did before groups. Its
+// start command downloads achq at ACHQ_REF, installs its dependencies once,
+// and runs the service's entry point.
+import { ACHQ_SOURCE, all, type Context, ENV, type EnvValues, type Input, type ManagedResource, type Output, type Service as AchqService } from "@achq/core";
+import type { InstanceSettings } from "./client.ts";
+import { BUN_IMAGE, VOLUME } from "./constants.ts";
 import { Deployment, fingerprint } from "./deployment.ts";
+import { hostServiceName } from "./names.ts";
 import { Service } from "./service.ts";
-import { startCommand } from "./start-command.ts";
 import { Variables } from "./variables.ts";
+
+/**
+ * Runs `entry` (e.g. `packages/service-router/src/main.ts`) from achq at ACHQ_REF.
+ * The download and `bun install` go on the service's volume, so a wake doesn't
+ * repeat them. The script must not contain single quotes, because Railway
+ * splits the command like a shell.
+ */
+export const startCommand = (entry: string) => {
+  const script = [
+    `const fs = require("node:fs");`,
+    `const ref = process.env.ACHQ_REF;`,
+    `if (!ref) throw new Error("Missing ACHQ_REF");`,
+    `const dir = (process.env.RAILWAY_VOLUME_MOUNT_PATH ?? "/tmp") + "/achq/" + ref;`,
+    `if (!fs.existsSync(dir)) {`,
+    `  const res = await fetch("${ACHQ_SOURCE.archive}" + ref);`,
+    `  if (!res.ok) throw new Error("achq " + ref + ": " + res.status);`,
+    `  const tmp = dir + ".tmp";`,
+    `  fs.rmSync(tmp, { recursive: true, force: true });`,
+    `  fs.mkdirSync(tmp, { recursive: true });`,
+    `  await Bun.write(tmp + ".tgz", res);`,
+    `  const tar = Bun.spawnSync(["tar", "xzf", tmp + ".tgz", "-C", tmp, "--strip-components=1"]);`,
+    `  if (!tar.success) throw new Error("tar: " + tar.stderr);`,
+    `  fs.rmSync(tmp + ".tgz");`,
+    `  fs.renameSync(tmp, dir);`,
+    `}`,
+    `if (!fs.existsSync(dir + "/node_modules")) {`,
+    `  const install = Bun.spawnSync(["bun", "install", "--production", "--frozen-lockfile"], { cwd: dir, stdout: "inherit", stderr: "inherit" });`,
+    `  if (!install.success) throw new Error("bun install failed");`,
+    `}`,
+    `const entry = await import(dir + "/${entry}");`,
+    `if (typeof entry.main === "function") await entry.main();`,
+  ].join(" ");
+  return `bun -e '${script}'`;
+};
+
 
 /** A group of variables, or how to make it when it's planned. */
 type Values = EnvValues | ((ctx: Context) => EnvValues);

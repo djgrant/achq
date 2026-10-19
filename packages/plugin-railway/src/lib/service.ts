@@ -3,7 +3,7 @@
 // their own resource, so the service's URL is known before them. It can read
 // them, though, as they were before this run: its `env`.
 import { type Change, type Context, known, ManagedResource, type Planned, UNKNOWN } from "@achq/core";
-import { type Instance, type InstanceSettings, railwayClient } from "../lib/client.ts";
+import { type Instance, type InstanceSettings, railwayClient } from "./client.ts";
 import type { At } from "./project.ts";
 
 export type ServiceProps = {

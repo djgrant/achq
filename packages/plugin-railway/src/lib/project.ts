@@ -1,6 +1,6 @@
 import { type Change, type Context, ManagedResource, type Planned, UNKNOWN } from "@achq/core";
-import { railwayClient } from "../lib/client.ts";
-import { RAILWAY_ENV } from "../lib/constants.ts";
+import { railwayClient } from "./client.ts";
+import { RAILWAY_ENV } from "./constants.ts";
 
 /** Where a service is. */
 export type At = { projectId: string; environmentId: string };

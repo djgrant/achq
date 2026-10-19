@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { resetDeclarations } from "@achq/core";
-import { Service } from "../src/resources/service.ts";
+import { Service } from "../src/lib/service.ts";
 
 test("a service's comparison is pure: it takes what was read and says what differs", () => {
   resetDeclarations();

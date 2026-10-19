@@ -1,10 +1,9 @@
 import { CONTAINER_PORT, type ContainerSpec, ENV } from "@achq/core";
-import type { At } from "../resources/project.ts";
-import { VOLUME } from "../lib/constants.ts";
-import { containerServiceName } from "../lib/names.ts";
-import { Service } from "../resources/service.ts";
-import { Variables } from "../resources/variables.ts";
-import { BRANCH } from "./constants.ts";
+import { BRANCH, VOLUME } from "./constants.ts";
+import { containerServiceName } from "./names.ts";
+import type { At } from "./project.ts";
+import { Service } from "./service.ts";
+import { Variables } from "./variables.ts";
 
 /**
  * One Railway service per repo and container: private, sleeping when idle,

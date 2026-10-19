@@ -1,7 +1,6 @@
 // The fake Railway in `@achq/test-utils` answers every query and mutation here,
 // so keep the two in step.
 import { RAILWAY_API, RAILWAY_ENV } from "./constants.ts";
-import { need } from "./env.ts";
 
 /** What a service instance is configured with. Only the fields achq sets. */
 export type InstanceSettings = {
@@ -282,5 +281,12 @@ export class RailwayClient {
 }
 
 /** A client for the account whose token is in `env`, at RAILWAY_API_URL if that's set (tests point it at a fake). */
+/** `env[name]`, or an error saying it's missing. */
+export const need = (env: Record<string, string | undefined>, name: string, hint = "") => {
+  const value = env[name];
+  if (!value) throw new Error(`Missing ${name} in the environment.${hint ? ` ${hint}` : ""}`);
+  return value;
+};
+
 export const railwayClient = (env: Record<string, string | undefined>) =>
   new RailwayClient(need(env, RAILWAY_ENV.token, "Create a token at https://railway.com/account/tokens."), env[RAILWAY_ENV.endpoint] || RAILWAY_API);

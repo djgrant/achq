@@ -1,13 +1,13 @@
 // The deployer starts containers' builds itself, so automatic deploys on push
 // are turned off once a service is connected. `ensure` reconciles the service
-// and its variables; `deploy` builds, imperatively.
+// and its variables; `deploy` builds, imperatively. The CLI reaches a
+// container through `railway ssh`.
 import { randomBytes } from "node:crypto";
-import { type Change, type Context, type ContainerProvider, type ContainerSpec, ENV, plan } from "@achq/core";
+import { type Change, type Context, type ContainerProvider, type ContainerShell, type ContainerSpec, ENV, plan } from "@achq/core";
 import { type ProjectSnapshot, RailwayClient } from "../lib/client.ts";
-import { CONTAINER_PROVIDER, RAILWAY_API, RAILWAY_ENV } from "../lib/constants.ts";
+import { BRANCH, CONNECTED, CONTAINER_PROVIDER, RAILWAY_API, RAILWAY_ENV, SOURCE_HOST } from "../lib/constants.ts";
+import { containerService } from "../lib/container-service.ts";
 import { containerServiceName, containerUrl } from "../lib/names.ts";
-import { BRANCH, CONNECTED, SOURCE_HOST } from "./constants.ts";
-import { containerService } from "./container-service.ts";
 
 export type RailwayContainerProviderOptions = {
   token: string;
@@ -108,3 +108,36 @@ export class RailwayContainerProvider implements ContainerProvider {
     return { containerProvider: CONTAINER_PROVIDER, project: this.options.projectId, environment: this.options.environmentId, service: containerServiceName(repo, name) };
   }
 }
+
+const sshArgs = (location: Record<string, string>, command: string[]) => [
+  "ssh",
+  "--project",
+  location.project!,
+  "--environment",
+  location.environment!,
+  "--service",
+  location.service!,
+  ...(command.length ? ["--", ...command] : []),
+];
+
+const needRailway = () => {
+  if (!Bun.which("railway")) throw new Error("Needs the Railway CLI: brew install railway");
+};
+
+/** A container through `railway ssh`. */
+export const railwayShell: ContainerShell = {
+  reachable: (location) => Boolean(location.project && location.environment && location.service),
+
+  async open(location, command) {
+    needRailway();
+    return Bun.spawn(["railway", ...sshArgs(location, command)], { stdio: ["inherit", "inherit", "inherit"] }).exited;
+  },
+
+  async run(location, command) {
+    needRailway();
+    const proc = Bun.spawn(["railway", ...sshArgs(location, command)], { stdin: "ignore", stdout: "pipe", stderr: "pipe" });
+    const [out, err, code] = await Promise.all([new Response(proc.stdout).text(), new Response(proc.stderr).text(), proc.exited]);
+    if (code !== 0) throw new Error(`${command.join(" ")} failed in ${location.service}: ${err.trim() || out.trim()}`);
+    return out;
+  },
+};

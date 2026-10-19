@@ -2,7 +2,7 @@ import { afterAll, beforeAll, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { railwayShell } from "../src/container-hosts/shell.ts";
+import { railwayShell } from "../src/container/provider.ts";
 
 const location = { containerProvider: "railway", project: "p1", environment: "e1", service: "notationlabs-yieldstar-dev" };
 
@@ -17,7 +17,7 @@ beforeAll(() => {
 afterAll(() => fs.rmSync(bin, { recursive: true, force: true }));
 
 const run = async (command: string[]) => {
-  const shell = path.join(import.meta.dir, "../src/container-hosts/shell.ts");
+  const shell = path.join(import.meta.dir, "../src/container/provider.ts");
   const script = `const { railwayShell } = await import(${JSON.stringify(shell)});
 try { process.stdout.write(await railwayShell.run(${JSON.stringify(location)}, ${JSON.stringify(command)})); } catch (e) { process.stdout.write(String(e)); }`;
   const proc = Bun.spawn([process.execPath, "-e", script], { env: { ...process.env, PATH: `${bin}:${process.env.PATH}` }, stdout: "pipe" });

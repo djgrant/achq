@@ -5,8 +5,8 @@ import { achq, type Context, type Output, plan, UNKNOWN } from "@achq/core";
 import { type FakeRailway, startFakeRailway } from "@achq/test-utils/railway";
 import { Deployer, Router } from "../src/infra.ts";
 import { RailwayClient } from "../src/lib/client.ts";
-import { fingerprint } from "../src/resources/deployment.ts";
-import { startCommand } from "../src/resources/start-command.ts";
+import { fingerprint } from "../src/lib/deployment.ts";
+import { startCommand } from "../src/lib/service-parts.ts";
 
 let fake: FakeRailway;
 let logs: string[];

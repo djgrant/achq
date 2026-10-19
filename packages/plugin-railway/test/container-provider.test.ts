@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, expect, test } from "bun:test";
 import { type FakeRailway, startFakeRailway } from "@achq/test-utils/railway";
-import { railwayContainerProvider } from "../src/container-hosts/index.ts";
-import { RailwayContainerProvider } from "../src/container-hosts/container-host.ts";
+import { railwayContainerProvider } from "../src/container/index.ts";
+import { RailwayContainerProvider } from "../src/container/provider.ts";
 import { RailwayClient } from "../src/lib/client.ts";
 
 let fake: FakeRailway;

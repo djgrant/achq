@@ -1,5 +1,5 @@
 import { type Change, type Context, GENERATED, known, ManagedResource, type Planned, UNKNOWN } from "@achq/core";
-import { railwayClient } from "../lib/client.ts";
+import { railwayClient } from "./client.ts";
 import type { At } from "./project.ts";
 
 type Props = { at: At & { serviceId: string }; service: string; values: Record<string, string | typeof GENERATED> };

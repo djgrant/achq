@@ -3,7 +3,7 @@
 // they hash differently.
 import { createHash } from "node:crypto";
 import { type Change, type Context, known, ManagedResource, type Planned } from "@achq/core";
-import { type InstanceSettings, type RailwayClient, railwayClient } from "../lib/client.ts";
+import { type InstanceSettings, type RailwayClient, railwayClient } from "./client.ts";
 import { DEPLOY_POLL_ATTEMPTS, DEPLOY_POLL_INTERVAL_MS, DEPLOYED } from "./constants.ts";
 import type { At } from "./project.ts";
 
