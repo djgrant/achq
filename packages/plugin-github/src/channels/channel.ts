@@ -5,7 +5,7 @@ import { appWebhookSecret } from "../lib/webhook-secret.ts";
 import { GitHubChannelClient } from "./client.ts";
 import { CLIENT_PERMISSIONS } from "./constants.ts";
 import { parseEvent } from "./events.ts";
-import { installations, sources } from "./installations.ts";
+import { sources } from "./sources.ts";
 import { matchEvent, matchThread } from "./match.ts";
 import { verifyGitHubSignature } from "./signature.ts";
 
@@ -41,10 +41,6 @@ export class GitHubChannel implements Channel {
       expiresAt: token.expires_at,
       scope: { source, installation: installation.id, repos: [repo], permissions: CLIENT_PERMISSIONS },
     };
-  }
-
-  installations() {
-    return installations(this.apps);
   }
 
   sources() {

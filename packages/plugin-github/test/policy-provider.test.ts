@@ -3,9 +3,10 @@ import { $ } from "bun";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { PolicyCredential, PolicyProvider, Channel } from "@achq/core";
+import type { Channel, InstallationProvider, PolicyCredential, PolicyProvider } from "@achq/core";
 import { FakeGitHub, makeApp } from "@achq/test-utils/github";
 import { githubChannel } from "../src/channels/index.ts";
+import { githubInstallationProvider } from "../src/installation/index.ts";
 import type { GitHubPolicyData } from "../src/index.ts";
 import { parseApps } from "../src/lib/app-keys.ts";
 import { appsFor } from "../src/lib/apps.ts";
@@ -16,14 +17,14 @@ const appA = makeApp("notation-achq", "101", { issues: "write", contents: "write
 const appB = makeApp("djgrant-claude", "202", { issues: "write", contents: "read", metadata: "read" }, ["issue_comment"]);
 const gh = new FakeGitHub([appA, appB]);
 /** The router's parts, from one env. */
-let api: { provider: PolicyProvider; channel: Channel };
+let api: { provider: PolicyProvider; channel: Channel; installations: InstallationProvider };
 
 const policy = (permissions: Record<string, "read" | "write">, repo: string | null = null, source = "notation-achq"): GitHubPolicyData => ({ provider: "github", source, repo, permissions });
 
 beforeAll(() => {
   gh.start();
   const env = githubEnv(gh.keys(), gh.url);
-  api = { provider: githubPolicyProvider.create(env), channel: githubChannel.create(env) };
+  api = { provider: githubPolicyProvider.create(env), channel: githubChannel.create(env), installations: githubInstallationProvider.create(env) };
   gh.installations.push(
     { id: 77, app: appA.slug, account: "notationlabs", permissions: appA.permissions, repos: ["notationlabs/yieldstar", "notationlabs/shared"] },
     { id: 88, app: appA.slug, account: "djgrant", permissions: { contents: "read", metadata: "read" }, repos: ["djgrant/notes"] },
@@ -33,7 +34,7 @@ beforeAll(() => {
 });
 afterAll(() => gh.stop());
 
-test("the channel and policy provider made from one configuration share its Apps, and so one JWT cache", () => {
+test("the channel, installation provider and policy provider made from one configuration share its Apps, and so one JWT cache", () => {
   const env = githubEnv(gh.keys(), gh.url);
   expect(appsFor({ ...env })).toBe(appsFor(env));
   expect(appsFor(githubEnv(gh.keys()))).not.toBe(appsFor(env));
@@ -107,7 +108,7 @@ describe("mint", () => {
 
 describe("installations and sources", () => {
   test("every repo of every unsuspended installation, per App", async () => {
-    const all = await api.channel.installations();
+    const all = await api.installations.installations();
     expect(all.sort((a, b) => (a.source + a.repo).localeCompare(b.source + b.repo))).toEqual([
       { channel: "github", source: "djgrant-claude", repo: "djgrant/notes", host: "github" },
       { channel: "github", source: "djgrant-claude", repo: "djgrant/site", host: "github" },

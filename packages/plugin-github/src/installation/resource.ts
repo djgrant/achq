@@ -1,6 +1,6 @@
 // An App installed on a repo: what `achq install` and `uninstall` plan. Made
-// by the channel from a repo's config, not declared, and read and changed as
-// your gh login, not as the App.
+// by the installation provider from a repo's config, not declared, and read
+// and changed as your gh login, not as the App.
 import { type Change, type Context, ManagedResource } from "@achq/core";
 import type { GitHubClient } from "../lib/client.ts";
 import { covers } from "../lib/permissions.ts";
@@ -9,7 +9,7 @@ import { userGitHub } from "../lib/user.ts";
 
 export type AppSettings = { events: string[]; permissions: Record<string, string> };
 
-export type AppInstallationProps = {
+export type InstallationProps = {
   slug: string;
   /** `owner/name`. */
   repo: string;
@@ -19,7 +19,7 @@ export type AppInstallationProps = {
   needs: AppSettings;
 };
 
-export type AppInstallationState = {
+export type InstallationState = {
   /** The live App, "private" when GitHub won't show it (a 404, even to its owner). Only read when installing. */
   app?: AppSettings | "private";
   /** The App's installation on the repo's owner, among those your login can see. */
@@ -29,7 +29,7 @@ export type AppInstallationState = {
 };
 
 /** "open": the App has no installation on the owner yet, so you install it on GitHub. */
-export type AppInstallationChange = "add" | "open" | "remove";
+export type InstallationChange = "add" | "open" | "remove";
 
 type InstallationRow = { id: number; app_slug: string; account: { login: string; type: string }; repository_selection: "all" | "selected" };
 
@@ -55,14 +55,14 @@ export const missing = (app: AppSettings, needs: AppSettings) => [
 ];
 
 /** Named after the App, so the CLI can say what's installed. */
-export class AppInstallation extends ManagedResource<AppInstallationProps, AppInstallationState, {}, AppInstallationChange> {
-  readonly kind = "github-app-installation";
+export class Installation extends ManagedResource<InstallationProps, InstallationState, {}, InstallationChange> {
+  readonly kind = "github-installation";
 
-  constructor(props: AppInstallationProps) {
+  constructor(props: InstallationProps) {
     super(props.slug, props, { declared: false });
   }
 
-  async read({ slug, repo, installed }: AppInstallationProps, ctx: Context): Promise<AppInstallationState> {
+  async read({ slug, repo, installed }: InstallationProps, ctx: Context): Promise<InstallationState> {
     const { api, web } = githubUrls(ctx.env);
     const gh = userGitHub(api, ctx.env);
     const app = installed ? await liveApp(gh, slug) : undefined;
@@ -76,7 +76,7 @@ export class AppInstallation extends ManagedResource<AppInstallationProps, AppIn
   }
 
   /** Throws for what can't be applied: an App lacking what the config needs, or removing one repo from an install on all of them. */
-  diff({ slug, repo, installed, needs }: AppInstallationProps, current: AppInstallationState): AppInstallationChange[] {
+  diff({ slug, repo, installed, needs }: InstallationProps, current: InstallationState): InstallationChange[] {
     if (installed) {
       const lacks = current.app && current.app !== "private" ? missing(current.app, needs) : [];
       if (lacks.length) throw new Error(`${slug} doesn't have what ${repo}'s config needs: ${lacks.join(", ")}`);
@@ -90,7 +90,7 @@ export class AppInstallation extends ManagedResource<AppInstallationProps, AppIn
     return ["remove"];
   }
 
-  describe(change: AppInstallationChange, { slug, repo }: AppInstallationProps): Change {
+  describe(change: InstallationChange, { slug, repo }: InstallationProps): Change {
     if (change === "open") return { op: "+", target: `${slug} on ${ownerOf(repo)}`, detail: "opens GitHub to install it" };
     return { op: change === "add" ? "+" : "-", target: `${slug} on ${repo}` };
   }
@@ -99,7 +99,7 @@ export class AppInstallation extends ManagedResource<AppInstallationProps, AppIn
     return {};
   }
 
-  async apply({ slug, repo }: AppInstallationProps, current: AppInstallationState, [change]: AppInstallationChange[], ctx: Context) {
+  async apply({ slug, repo }: InstallationProps, current: InstallationState, [change]: InstallationChange[], ctx: Context) {
     const { api, web } = githubUrls(ctx.env);
     if (change === "open") {
       const url = `${web}/apps/${slug}/installations/new`;
@@ -116,7 +116,7 @@ export class AppInstallation extends ManagedResource<AppInstallationProps, AppIn
     return {};
   }
 
-  check({ slug, installed }: AppInstallationProps, current: AppInstallationState) {
+  check({ slug, installed }: InstallationProps, current: InstallationState) {
     return installed && current.app === "private" ? [`${slug} is private, so GitHub won't show its settings; skipping the App check`] : [];
   }
 }

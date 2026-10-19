@@ -4,7 +4,7 @@ import { afterEach, expect } from "bun:test";
 import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { ContainerEnvelope, DeployerEnvelope, PolicyData, SelectorData, PolicyProvider, Channel, ChannelEvent, CodeHost, RouterRepoConfig } from "@achq/core";
+import type { ContainerEnvelope, DeployerEnvelope, PolicyData, SelectorData, PolicyProvider, Channel, ChannelEvent, CodeHost, InstallationProvider, RouterRepoConfig } from "@achq/core";
 import { adminSecret, containerSecret } from "@achq/core/secrets";
 import { hmacHex, safeEqual, signedHeaders, verifySigned } from "@achq/core/signing";
 import { createRouter } from "../src/router.ts";
@@ -13,7 +13,7 @@ export const key = "test-key";
 export const repo = "acme/widgets";
 export const hour = () => new Date(Date.now() + 3_600_000).toISOString();
 
-// ─── A channel and a policy provider of our own ─────────────────────────────────────
+// ─── A channel, an installation provider and a policy provider of our own ─────────────
 
 /** Each source's webhook secret, derived from the key the way the GitHub channel does. */
 export const sourceSecret = (source: string) => hmacHex(key, `test-source:${source}`);
@@ -37,11 +37,18 @@ export const testChannel: Channel = {
   },
   matchEvent: (selector, event) => selector.type === event.type,
   matchThread: (selector, thread) => ((selector.labels as string[] | undefined) ?? []).every((l) => thread.labels.includes(l)),
-  installations: async () => [{ channel: "test", source: "app", repo, host: "test" }],
   sources: async () => [{ channel: "test", source: "app", events: ["comment"], permissions: {} }],
   client() {
     throw new Error("not on the router");
   },
+};
+
+export const testInstallationProvider: InstallationProvider = {
+  id: "test",
+  installation() {
+    throw new Error("not on the router");
+  },
+  installations: async () => [{ channel: "test", source: "app", repo, host: "test" }],
 };
 
 export const testPolicyProvider: PolicyProvider = {
@@ -139,6 +146,7 @@ export type Boot = { dir?: string; deployer?: string; delays?: number[] };
 export const boot = async ({ dir = mkdtempSync(join(tmpdir(), "achq-router-")), deployer = "http://localhost:1", delays = [0, 0] }: Boot = {}) => {
   const router = createRouter({
     channels: [testChannel],
+    installationProviders: [testInstallationProvider],
     policyProviders: [testPolicyProvider],
     hosts: { test: testHost },
     key,

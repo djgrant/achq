@@ -1,7 +1,8 @@
-// `achq install` and `uninstall`: the resources each channel the config names
-// makes for the repo, planned and printed. They act as you.
+// `achq install` and `uninstall`: the resources the installation provider of
+// each channel the config names makes for the repo, planned and printed. They
+// act as you.
 import { plan } from "@achq/core";
-import { installerNamed } from "achq/registry";
+import { installationProviderNamed } from "achq/registry";
 import { openInBrowser } from "./browser.ts";
 import { planLines } from "./changes.ts";
 import { cliContext } from "./context.ts";
@@ -12,7 +13,7 @@ import { needRepo, repoRoot } from "./workdir.ts";
 export const planInstallation = async (installed: boolean) => {
   const { repo, codeHost } = needRepo();
   const config = await loadRepoManifest(repoRoot());
-  const resources = channelsOf(config).flatMap((id) => installerNamed(id).installation(repo, config, installed));
+  const resources = channelsOf(config).flatMap((id) => installationProviderNamed(id).create(process.env).installation(repo, config, installed));
   const planned = await plan(resources, cliContext({ env: process.env, log: (line) => console.log(line), open: openInBrowser }));
   for (const line of planLines(planned)) console.log(line);
   if (!planned.changes.length) {

@@ -138,7 +138,7 @@ Each folder in `packages/` is a workspace package, prefixed with its kind. Packa
 |---|---|
 | `resources/` | Every class that extends `Resource`, one per file |
 | `channels/` | A `Channel` |
-| `installers/` | An `Installer`: subscribes a repo to a channel's sources |
+| `installation/` | An `InstallationProvider`: subscribes repos to a channel's sources, and lists them |
 | `policy/` | A `PolicyProvider`: turns policies into credentials |
 | `code-hosts/` | A `CodeHost` |
 | `container-hosts/` | A `ContainerHost` and its shell |

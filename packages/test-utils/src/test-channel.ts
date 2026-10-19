@@ -1,4 +1,4 @@
-import type { Channel, ChannelClient, ChannelCredential, ChannelEvent, Credential, Installation, ManagedResource, Message, SelectorData, SourceSettings, Thread, ThreadRef } from "@achq/core";
+import type { Channel, ChannelClient, ChannelCredential, ChannelEvent, Credential, Message, SelectorData, SourceSettings, Thread, ThreadRef } from "@achq/core";
 
 type TestThread = { title: string; labels: string[]; messages: Message[] };
 
@@ -62,13 +62,7 @@ export class TestChannel implements Channel {
   async mintClient(): Promise<ChannelCredential> {
     throw new Error("router only");
   }
-  async installations(): Promise<Installation[]> {
-    throw new Error("not in tests");
-  }
   async sources(): Promise<SourceSettings[]> {
-    throw new Error("not in tests");
-  }
-  installation(): ManagedResource[] {
     throw new Error("not in tests");
   }
 

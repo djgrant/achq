@@ -21,6 +21,7 @@ import { tempDir } from "@achq/test-utils/temp-dir";
 import { createDeployer, routerClient, deployerHandler } from "@achq/deployer";
 import { FakeGitHub, makeApp } from "@achq/test-utils/github";
 import { githubChannel } from "@achq/github/channels";
+import { githubInstallationProvider } from "@achq/github/installation";
 import { githubPolicyProvider } from "@achq/github/policy";
 import { githubCodeHost } from "@achq/github/code-hosts";
 import { createRouter } from "@achq/router";
@@ -411,6 +412,7 @@ beforeAll(async () => {
   const deployerUrl = serve((req) => deployerFetch(req));
   router = createRouter({
     channels: [githubChannel.create(githubEnv)],
+    installationProviders: [githubInstallationProvider.create(githubEnv)],
     policyProviders: [policyProvider],
     key: KEY,
     dataDir: routerDir,

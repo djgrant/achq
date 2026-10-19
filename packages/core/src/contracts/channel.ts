@@ -1,6 +1,6 @@
 import type { Data } from "../resources/data.ts";
 import type { SelectorData } from "../resources/config.ts";
-import type { Installation, SourceSettings } from "../wire/protocol.ts";
+import type { SourceSettings } from "../wire/protocol.ts";
 
 /** A thread's identity, qualified by channel. `id` is e.g. `notationlabs/yieldstar#42`. */
 export type ThreadRef = { channel: string; id: string };
@@ -83,8 +83,6 @@ export interface Channel {
   parse(source: string, headers: Headers, body: string): ChannelEvent | undefined;
   /** A credential the container's runner (not the agent) uses for `ChannelClient`. Its scope names the `source`. */
   mintClient(source: string, repo: string): Promise<ChannelCredential>;
-  /** The repos each source is installed on, and the code host they're on: what the deployer serves. */
-  installations(): Promise<Installation[]>;
   /** What each source is set up to send and allow, for the deployer's checks. */
   sources(): Promise<SourceSettings[]>;
 

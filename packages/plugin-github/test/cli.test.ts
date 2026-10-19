@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, beforeEach, expect, test } from "bun:test";
 import { Agent, type Change, collectManifest, Container, type Context, plan, resetDeclarations, Trigger, Workspace } from "@achq/core";
-import { githubInstaller } from "../src/installers/index.ts";
-import { configApp, configNeeds } from "../src/installers/config-app.ts";
+import { githubInstallationProvider } from "../src/installation/index.ts";
+import { configApp, configNeeds } from "../src/installation/config-app.ts";
 import { Channel, Policy } from "../src/index.ts";
 import { GitHubClient } from "../src/lib/client.ts";
 import { githubCodeHost } from "../src/code-hosts/index.ts";
@@ -113,7 +113,7 @@ const installing = async (installed: boolean, opts: { open?: boolean } = {}) => 
     newSecret: () => "secret",
     sleep: async () => {},
   };
-  const resources = githubInstaller.installation(REPO, configManifest(), installed);
+  const resources = githubInstallationProvider.create({}).installation(REPO, configManifest(), installed);
   return { planned: await plan(resources, ctx), log, opened };
 };
 
