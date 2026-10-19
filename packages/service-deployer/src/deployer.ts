@@ -15,7 +15,7 @@ export const createDeployer = (deps: DeployerDeps) => {
   const actions = {
     deploy: (host: string, repo: string, source: string, options: { dryRun?: boolean } = {}) =>
       serial(repo.toLowerCase(), () => deploy(ctx, host, repo, source, Boolean(options.dryRun))),
-    uninstall: (host: string | undefined, repo: string, source?: string, options: { dryRun?: boolean } = {}) =>
+    uninstall: (host: string, repo: string, source: string, options: { dryRun?: boolean } = {}) =>
       serial(repo.toLowerCase(), () => uninstall(ctx, host, repo, source, Boolean(options.dryRun))),
   };
 

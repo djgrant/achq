@@ -4,7 +4,7 @@ import type { DeployOutcome } from "./deploy.ts";
 
 type Actions = {
   deploy: (host: string, repo: string, source: string, options: { dryRun: boolean }) => Promise<DeployOutcome>;
-  uninstall: (host: undefined, repo: string, source: undefined, options: { dryRun: boolean }) => Promise<void>;
+  uninstall: (host: string, repo: string, source: string, options: { dryRun: boolean }) => Promise<void>;
 };
 
 /** Deploys every installed repo, uninstalls the rest, and with `prune` deletes containers no plan has. */
@@ -22,7 +22,7 @@ export const sync = async (ctx: DeployerContext, actions: Actions, { prune = fal
   }
   for (const record of await ctx.store.all()) {
     if (record.state === "uninstalled" || installed.has(record.repo.toLowerCase())) continue;
-    await actions.uninstall(undefined, record.repo, undefined, { dryRun });
+    await actions.uninstall(record.host, record.repo, record.source, { dryRun });
     result.uninstalled.push(record.repo);
   }
   if (prune) {
