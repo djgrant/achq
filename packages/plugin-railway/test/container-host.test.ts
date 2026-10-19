@@ -27,7 +27,7 @@ test("ensure creates a private service with a volume, and a second ensure change
   ]);
   expect(fake.mutations).toEqual([]);
   const result = await host.ensure(spec);
-  expect(result).toEqual({ service: "notationlabs-yieldstar-dev", url: "http://notationlabs-yieldstar-dev.railway.internal:3000" });
+  expect(result).toEqual({ url: "http://notationlabs-yieldstar-dev.railway.internal:3000" });
   const service = fake.service("notationlabs-yieldstar-dev")!;
   expect(service.settings).toMatchObject({ dockerfilePath: ".achq/Dockerfile", healthcheckPath: "/", sleepApplication: true });
   expect(service.variables).toMatchObject({ CLAUDE_CODE_OAUTH_TOKEN: "tok", ACHQ_REPO: spec.repo, ACHQ_CONTAINER: "dev", ACHQ_BRANCH: "main" });
@@ -66,14 +66,13 @@ test("ensure removes a public domain and fixes the private hostname, and only ch
 
 test("the first deploy connects the repo and turns automatic deploys off; later ones deploy the latest commit", async () => {
   await host.ensure(spec);
-  expect(await host.state(spec.repo, "dev")).toBe("missing");
-  await host.deploy(spec.repo, "dev");
   const service = fake.service("notationlabs-yieldstar-dev")!;
+  expect(service.deployments).toEqual([]);
+  await host.deploy(spec.repo, "dev");
   expect(service.source.repo).toBe(spec.repo);
   expect(service.branch).toBe("main");
   expect(service.autoDeploy).toBe(false);
-  expect(service.deployments).toHaveLength(1); // connecting built it; no second build
-  expect(await host.state(spec.repo, "dev")).toBe("running");
+  expect(service.deployments).toEqual([expect.objectContaining({ status: "SUCCESS" })]); // connecting built it; no second build
 
   fake.mutations.length = 0;
   await host.deploy(spec.repo, "dev");
@@ -92,8 +91,8 @@ test("list reads services' repo and container, locate says where, remove deletes
   await host.ensure(spec);
   await host.ensure({ ...spec, name: "docs" });
   expect(await host.list()).toEqual([
-    { repo: spec.repo, name: "dev", service: "notationlabs-yieldstar-dev" },
-    { repo: spec.repo, name: "docs", service: "notationlabs-yieldstar-docs" },
+    { repo: spec.repo, name: "dev" },
+    { repo: spec.repo, name: "docs" },
   ]);
   expect(await host.locate(spec.repo, "dev")).toEqual({
     containerHost: "railway",
@@ -106,7 +105,6 @@ test("list reads services' repo and container, locate says where, remove deletes
   const project = fake.project("achq")!;
   expect(project.services.map((s) => s.name)).toEqual(["notationlabs-yieldstar-docs"]);
   expect(project.volumes).toHaveLength(1);
-  expect(await host.state(spec.repo, "dev")).toBe("missing");
   await host.remove(spec.repo, "dev"); // already gone: nothing to do
 });
 
@@ -124,6 +122,6 @@ test("the deployer makes it from its environment: the token and the project", as
     ACHQ_RAILWAY_PROJECT_ID: host.options.projectId,
     ACHQ_RAILWAY_ENVIRONMENT_ID: host.options.environmentId,
   });
-  expect(await made.ensure(spec)).toEqual({ service: "notationlabs-yieldstar-dev", url: "http://notationlabs-yieldstar-dev.railway.internal:3000" });
+  expect(await made.ensure(spec)).toEqual({ url: "http://notationlabs-yieldstar-dev.railway.internal:3000" });
   expect(fake.service("notationlabs-yieldstar-dev")).toBeDefined();
 });

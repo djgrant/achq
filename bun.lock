@@ -133,7 +133,6 @@
       "name": "@achq/e2e",
       "version": "0.1.0",
       "dependencies": {
-        "@achq/cli": "workspace:*",
         "@achq/container": "workspace:*",
         "@achq/core": "workspace:*",
         "@achq/deployer": "workspace:*",

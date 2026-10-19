@@ -8,7 +8,6 @@ export interface RouterClient {
   validate(request: ValidateRequest): Promise<{ problems: string[] }>;
   putRepo(config: RouterRepoConfig): Promise<void>;
   deleteRepo(repo: string): Promise<void>;
-  repos(): Promise<RouterRepoConfig[]>;
   installations(): Promise<Installation[]>;
   sources(): Promise<SourceSettings[]>;
 }
@@ -45,7 +44,6 @@ export const routerClient = ({ url, key }: { url: string; key: string }): Router
     validate: (request) => call("POST", "/admin/validate", request),
     putRepo: (config) => call("PUT", repoPath(config.repo), config),
     deleteRepo: (repo) => call("DELETE", repoPath(repo)),
-    repos: () => call("GET", "/admin/repos"),
     installations: () => call("GET", "/admin/installations"),
     sources: () => call("GET", "/admin/sources"),
   };

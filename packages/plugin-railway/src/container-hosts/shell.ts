@@ -16,9 +16,7 @@ const needRailway = () => {
 };
 
 /** A container through `railway ssh`. */
-export const railwayShell: ContainerShell & { sshArgs: typeof sshArgs } = {
-  sshArgs,
-
+export const railwayShell: ContainerShell = {
   reachable: (location) => Boolean(location.project && location.environment && location.service),
 
   async open(location, command) {

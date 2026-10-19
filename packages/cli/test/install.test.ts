@@ -2,8 +2,9 @@ import { afterAll, beforeAll, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { Status } from "@achq/core";
+import { collectPlan, resetDeclarations, type Status } from "@achq/core";
 import { loadRepoPlan } from "../src/lib/load/repo-config.ts";
+import { registerModules } from "../src/lib/load/modules.ts";
 import { waitForStatus } from "../src/lib/status/read.ts";
 
 // A real .achq/ directory, as the design's example writes it, with a local import.
@@ -33,7 +34,10 @@ afterAll(() => fs.rmSync(repoDir, { recursive: true, force: true }));
 
 test("a real config evaluates the same in the sandbox as imported with Bun", async () => {
   const sandboxed = await loadRepoPlan(repoDir);
-  const imported = await loadRepoPlan(repoDir, { sandbox: false });
+  registerModules();
+  resetDeclarations();
+  await import(path.join(repoDir, ".achq", "config.ts"));
+  const imported = collectPlan();
   expect(imported).toEqual(sandboxed);
   expect(sandboxed.workspaces.map((w) => w.name)).toEqual(["docs", "issues"]);
   expect(sandboxed.workspaces[0].threads).toMatchObject({ channel: "github", source: "notation-achq" });

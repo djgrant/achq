@@ -1,10 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { collectPlan, type RepoPlan, resetDeclarations } from "@achq/core";
+import type { RepoPlan } from "@achq/core";
 import { evaluateConfig } from "@achq/deployer/config";
-import { registerModules } from "./modules.ts";
-
-let loads = 0;
 
 /** Every file under `.achq/`, by path relative to it. */
 export const readConfigFiles = (repoDir: string) => {
@@ -23,19 +20,8 @@ export const readConfigFiles = (repoDir: string) => {
   return files;
 };
 
-/**
- * The repo's plan, evaluated in the sandbox as the deployer does it.
- * `sandbox: false` imports it with Bun instead. That's safe because it's your own checkout.
- */
-export const loadRepoPlan = async (repoDir: string, options: { sandbox?: boolean } = {}): Promise<RepoPlan> => {
-  const files = readConfigFiles(repoDir);
-  if (options.sandbox !== false) return evaluateConfig(files);
-  registerModules();
-  resetDeclarations();
-  // A cached module wouldn't declare anything, so a fresh query string makes Bun evaluate it again.
-  await import(`${path.join(repoDir, ".achq", "config.ts")}?load=${++loads}`);
-  return collectPlan();
-};
+/** The repo's plan, evaluated in the sandbox as the deployer does it. */
+export const loadRepoPlan = async (repoDir: string): Promise<RepoPlan> => evaluateConfig(readConfigFiles(repoDir));
 
 /** The channels the config's threads and events come from. */
 export const channelsOf = (plan: RepoPlan) => [...new Set([...plan.workspaces.map((w) => w.threads.channel), ...plan.triggers.map((t) => t.event.channel)])];

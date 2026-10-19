@@ -3,9 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "exports": {
-    "./remote": "./src/lib/remote/index.ts"
-  },
+  "exports": {},
   "dependencies": {
     "@achq/core": "workspace:*",
     "@achq/deployer": "workspace:*",

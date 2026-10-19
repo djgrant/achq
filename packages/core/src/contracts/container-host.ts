@@ -1,5 +1,3 @@
-export type ServiceState = "building" | "running" | "sleeping" | "failed" | "missing";
-
 export type ContainerSpec = {
   /** The `RepoHost` the repo is on. */
   host: string;
@@ -14,11 +12,10 @@ export type ContainerSpec = {
 /** Where containers run. */
 export interface ContainerHost {
   /** Creates or updates the container's service and volume. Doesn't build. Returns the URL the router reaches it on. */
-  ensure(spec: ContainerSpec): Promise<{ url: string; service: string }>;
+  ensure(spec: ContainerSpec): Promise<{ url: string }>;
   /** Builds and deploys the container from the head of its branch. */
   deploy(repo: string, name: string): Promise<void>;
-  state(repo: string, name: string): Promise<ServiceState>;
-  list(): Promise<{ repo: string; name: string; service: string }[]>;
+  list(): Promise<{ repo: string; name: string }[]>;
   /** Deletes the service and its volume. Only `achq up --prune` calls this. */
   remove(repo: string, name: string): Promise<void>;
   /** Where to find it, for the repo CLI (`ssh`, `resume`). Not secret. */

@@ -68,7 +68,6 @@ export class FakeRouter {
         return new Response(null, { status: 204 });
       }
     }
-    if (req.method === "GET" && path === "/admin/repos") return Response.json([...this.repos.values()]);
     if (req.method === "GET" && path === "/admin/installations") return Response.json(this.installations);
     if (req.method === "GET" && path === "/admin/sources") return Response.json(this.sources);
     return new Response("not found", { status: 404 });

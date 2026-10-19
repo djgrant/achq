@@ -5,7 +5,6 @@
   "type": "module",
   "exports": {},
   "dependencies": {
-    "@achq/cli": "workspace:*",
     "@achq/container": "workspace:*",
     "@achq/core": "workspace:*",
     "@achq/deployer": "workspace:*",

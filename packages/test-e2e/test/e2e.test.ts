@@ -11,14 +11,14 @@ import { $ } from "bun";
 import { randomUUID } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { ENV, STATUS_VARIABLE, type ContainerHost, type ContainerSpec, type RouterRepoConfig, type ServiceState } from "@achq/core";
+import { ENV, STATUS_VARIABLE, type ContainerHost, type ContainerSpec, type RouterRepoConfig } from "@achq/core";
 import { adminSecret, containerSecret, implementationSecret } from "@achq/core/secrets";
 import { hmacHex, signedFetch } from "@achq/core/signing";
 import { paths as layout, createAgent, type Runner, readState } from "@achq/container";
 import { fakeClaude } from "@achq/test-utils/fake-claude";
 import { makeOrigin } from "@achq/test-utils/origin";
 import { tempDir } from "@achq/test-utils/temp-dir";
-import { wake } from "@achq/cli/remote";
+import { wake } from "../../cli/src/lib/remote/wake.ts";
 import { createDeployer, routerClient, deployerHandler } from "@achq/deployer";
 import { FakeGitHub, makeApp } from "@achq/test-utils/github";
 import { githubChannel } from "@achq/github/channels";
@@ -115,17 +115,14 @@ class TestContainerHost implements ContainerHost {
       this.containers.set(id, hosted);
     }
     hosted.spec = spec;
-    return { url: `http://localhost:${hosted.server.port}`, service: id };
+    return { url: `http://localhost:${hosted.server.port}` };
   }
   async deploy(repo: string, name: string) {
     this.get(repo, name);
     this.builds.push(this.id(repo, name));
   }
-  async state(repo: string, name: string): Promise<ServiceState> {
-    return this.containers.has(this.id(repo, name)) ? "running" : "missing";
-  }
   async list() {
-    return [...this.containers.entries()].map(([service, { spec }]) => ({ repo: spec.repo, name: spec.name, service }));
+    return [...this.containers.values()].map(({ spec }) => ({ repo: spec.repo, name: spec.name }));
   }
   async remove(repo: string, name: string) {
     this.removed.push(this.id(repo, name));
@@ -704,7 +701,6 @@ describe("achq end to end", () => {
     expect(dev().requests.length).toBe(before);
     expect(claude.calls()).toHaveLength(calls);
     expect(host.removed).toEqual([]);
-    expect(await host.state(REPO, "dev")).toBe("running");
   });
 
   test("reinstalling brings everything back as it was: no rebuild, the thread keeps its workspace and resumes its session", async () => {

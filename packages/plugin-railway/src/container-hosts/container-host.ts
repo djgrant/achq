@@ -2,7 +2,7 @@
 // are turned off once a service is connected. `ensure` reconciles the service
 // and its variables; `deploy` builds, imperatively.
 import { randomBytes } from "node:crypto";
-import { type Change, type Context, type ContainerHost, type ContainerSpec, ENV, plan, type ServiceState } from "@achq/core";
+import { type Change, type Context, type ContainerHost, type ContainerSpec, ENV, plan } from "@achq/core";
 import { type ProjectSnapshot, RailwayClient } from "../lib/client.ts";
 import { CONTAINER_HOST, RAILWAY_API, RAILWAY_ENV } from "../lib/constants.ts";
 import { containerServiceName, containerUrl } from "../lib/names.ts";
@@ -60,9 +60,8 @@ export class RailwayContainerHost implements ContainerHost {
 
   async ensure(spec: ContainerSpec) {
     if (spec.host !== SOURCE_HOST) throw new Error(`Railway builds containers from ${SOURCE_HOST} repos, not ${spec.host}`);
-    const service = containerServiceName(spec.repo, spec.name);
     await (await plan(this.resources(spec), this.ctx)).apply();
-    return { url: containerUrl(service), service };
+    return { url: containerUrl(containerServiceName(spec.repo, spec.name)) };
   }
 
   async deploy(repo: string, name: string) {
@@ -85,18 +84,12 @@ export class RailwayContainerHost implements ContainerHost {
     if ((await this.railway.instance(environmentId, id)).latestDeployment?.id === before) await this.railway.deployLatestCommit(environmentId, id);
   }
 
-  async state(repo: string, name: string): Promise<ServiceState> {
-    const { id } = await this.service(repo, name);
-    if (!id) return "missing";
-    return deploymentState((await this.railway.instance(this.options.environmentId, id)).latestDeployment?.status);
-  }
-
   async list() {
     const project = await this.snapshot();
     const found = await Promise.all(
       project.services.map(async (s) => {
         const vars = await this.railway.variables(project.id, project.environmentId, s.id);
-        return vars[ENV.repo] && vars[ENV.container] ? [{ repo: vars[ENV.repo], name: vars[ENV.container], service: s.name }] : [];
+        return vars[ENV.repo] && vars[ENV.container] ? [{ repo: vars[ENV.repo], name: vars[ENV.container] }] : [];
       }),
     );
     return found.flat();
@@ -115,21 +108,3 @@ export class RailwayContainerHost implements ContainerHost {
     return { containerHost: CONTAINER_HOST, project: this.options.projectId, environment: this.options.environmentId, service: containerServiceName(repo, name) };
   }
 }
-
-export const deploymentState = (status: string | undefined): ServiceState => {
-  switch (status) {
-    case undefined:
-    case "REMOVED":
-      return "missing";
-    case "SUCCESS":
-      return "running";
-    case "SLEEPING":
-      return "sleeping";
-    case "FAILED":
-    case "CRASHED":
-      return "failed";
-    default:
-      // QUEUED, WAITING, INITIALIZING, BUILDING, DEPLOYING, REMOVING
-      return "building";
-  }
-};

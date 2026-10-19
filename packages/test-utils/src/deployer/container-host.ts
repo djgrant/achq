@@ -1,4 +1,4 @@
-import type { ContainerHost, ContainerSpec, ServiceState } from "@achq/core";
+import type { ContainerHost, ContainerSpec } from "@achq/core";
 
 /** Records what the deployer asks of the host. */
 export class MemoryContainerHost implements ContainerHost {
@@ -20,7 +20,7 @@ export class MemoryContainerHost implements ContainerHost {
     this.calls.push({ op: "ensure", repo: spec.repo, name: spec.name });
     const existing = this.services.get(this.id(spec.repo, spec.name));
     this.services.set(this.id(spec.repo, spec.name), { spec, builds: existing?.builds ?? 0 });
-    return { url: `http://${spec.name}.${spec.repo.replace("/", "-").toLowerCase()}.internal:3000`, service: this.id(spec.repo, spec.name) };
+    return { url: `http://${spec.name}.${spec.repo.replace("/", "-").toLowerCase()}.internal:3000` };
   }
   async deploy(repo: string, name: string) {
     this.calls.push({ op: "deploy", repo, name });
@@ -28,11 +28,8 @@ export class MemoryContainerHost implements ContainerHost {
     if (!s) throw new Error(`no service ${repo}/${name}`);
     s.builds++;
   }
-  async state(repo: string, name: string): Promise<ServiceState> {
-    return this.services.has(this.id(repo, name)) ? "running" : "missing";
-  }
   async list() {
-    return [...this.services.values()].map(({ spec }) => ({ repo: spec.repo, name: spec.name, service: this.id(spec.repo, spec.name) }));
+    return [...this.services.values()].map(({ spec }) => ({ repo: spec.repo, name: spec.name }));
   }
   async remove(repo: string, name: string) {
     this.calls.push({ op: "remove", repo, name });
