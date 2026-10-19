@@ -68,7 +68,7 @@ export const githubRepos = ({ api, web }: GitHubUrls): RepoHost => {
   const gh = userGitHub(api);
   return {
     repoName: REPO_NAME,
-    deployerPolicy: (source, repo): RepoPolicyData => ({ access: ACCESS, app: source, repo, permissions: { ...DEPLOYER_PERMISSIONS } }),
+    deployerPolicy: (source, repo): RepoPolicyData => ({ access: ACCESS, source, repo, permissions: { ...DEPLOYER_PERMISSIONS } }),
     repo: (repo: string, credential: Credential) => repoClient(repo, credential.value, api),
     async canPush(repo, token) {
       const res = await new GitHubClient(`Bearer ${token}`, api).raw("GET", `/repos/${repo}`);

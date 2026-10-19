@@ -41,7 +41,7 @@ export class GitHubChannel implements Channel {
       channel: CHANNEL,
       value: token.token,
       expiresAt: token.expires_at,
-      scope: { source, app: source, installation: installation.id, repos: [repo], permissions: CLIENT_PERMISSIONS },
+      scope: { source, installation: installation.id, repos: [repo], permissions: CLIENT_PERMISSIONS },
     };
   }
 

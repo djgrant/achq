@@ -448,7 +448,6 @@ beforeAll(async () => {
     owners: [OWNER],
     dataDir: path.join(root, "deployer"),
     hosts,
-    policySource: (policy) => access.policySource(policy),
     env: { containerEnv: { CLAUDE_CODE_OAUTH_TOKEN: "claude-oauth-token" }, privateEnv: privateEnv(), key: KEY, routerUrl: routerPrivate, routerPublicUrl: routerPublic, ref: "e2e" },
     log: (line) => logs.push(`deployer: ${line}`),
   });
@@ -510,7 +509,7 @@ describe("achq end to end", () => {
           name: "dev",
           url: `http://localhost:${dev().server.port}`,
           // As declared: no repo means the config's own, which the router mints for.
-          policies: [{ access: "github", app: SLUG, repo: null, permissions: { contents: "write", issues: "write", pull_requests: "write" } }],
+          policies: [{ access: "github", source: SLUG, repo: null, permissions: { contents: "write", issues: "write", pull_requests: "write" } }],
         },
       ],
       workspaces: [

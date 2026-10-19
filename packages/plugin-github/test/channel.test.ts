@@ -60,7 +60,7 @@ describe("against GitHub", () => {
   test("mintClient asks for a token on just this repo, with the runner's permissions", async () => {
     const credential = await api.channel.mintClient("notation-achq", repo);
     expect(gh.minted.at(-1)).toEqual({ installation: 77, body: { repositories: ["yieldstar"], permissions: { issues: "write", contents: "read", metadata: "read" } } });
-    expect(credential.scope).toMatchObject({ source: "notation-achq", app: "notation-achq", repos: [repo], permissions: { issues: "write", contents: "read", metadata: "read" } });
+    expect(credential.scope).toMatchObject({ source: "notation-achq", repos: [repo], permissions: { issues: "write", contents: "read", metadata: "read" } });
     expect(credential.expiresAt).toBe("2026-10-18T13:00:00Z");
     await expect(api.channel.mintClient("djgrant-claude", repo)).rejects.toThrow(/isn't installed/);
   });

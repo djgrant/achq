@@ -120,7 +120,7 @@ An event finds its container through its thread: event → thread (issue 42) →
 
 ### Policies and access providers
 
-A policy is plain data, e.g. `{ access: "github", app: "notation-achq", repos: [...], permissions: {...} }`. A repo can also grant access to other repos, or to another service's API:
+A policy is plain data, e.g. `{ access: "github", source: "notation-achq", repos: [...], permissions: {...} }`. A repo can also grant access to other repos, or to another service's API:
 
 ```ts
 new github.RepoPolicy("shared", { app, repo: "notationlabs/shared", permissions: { contents: "read" } });

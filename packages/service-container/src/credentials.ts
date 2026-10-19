@@ -46,8 +46,7 @@ export class Credentials {
   /** The channel credential for a source, for the runner's ChannelClient. Never given to agents. */
   async channel(channel: string, source: string): Promise<ChannelCredential> {
     const { channels } = await this.get();
-    const mine = channels.filter((c) => c.channel === channel);
-    const found = mine.find((c) => c.scope.source === source) ?? mine[0];
+    const found = channels.find((c) => c.channel === channel && c.scope.source === source);
     if (!found) throw new Error(`The router gave no credential for channel ${channel} (${source})`);
     return found;
   }

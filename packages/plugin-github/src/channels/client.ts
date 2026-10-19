@@ -14,9 +14,9 @@ export class GitHubChannelClient implements ChannelClient {
 
   constructor(credential: Credential, baseUrl = GITHUB_API) {
     this.api = new GitHubClient(`token ${credential.value}`, baseUrl);
-    const app = credential.scope.app;
-    if (typeof app !== "string") throw new Error("GitHub credential has no app in its scope");
-    this.bot = botLogin(app);
+    const source = credential.scope.source;
+    if (typeof source !== "string") throw new Error("GitHub credential has no source in its scope");
+    this.bot = botLogin(source);
   }
 
   private issue(ref: ThreadRef) {

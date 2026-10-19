@@ -8,7 +8,6 @@ import { signedFetch } from "@achq/core/signing";
 import { evaluateConfig } from "../src/config/index.ts";
 import { DOC_CONFIG, DOC_PLAN } from "@achq/test-utils/config";
 import { createDeployer } from "../src/deployer.ts";
-import { githubAccess } from "@achq/github/policies";
 import { githubChannel } from "@achq/github/channels";
 import { githubRepoHost } from "@achq/github/repo-hosts";
 import { FakeGitHub } from "@achq/test-utils/deployer/github";
@@ -37,12 +36,11 @@ const repoFiles = (overrides: Record<string, string | undefined> = {}) => {
   return Object.fromEntries(Object.entries(files).filter((e): e is [string, string] => e[1] !== undefined));
 };
 
-/** The deployer's own GitHub access, as main.ts builds it from the registry. */
+/** The deployer's GitHub repo host, as main.ts builds it from the registry. */
 const DEPLOYER_PERMISSIONS = { contents: "read", metadata: "read", actions_variables: "write" };
 const githubDeps = () => {
   const env = { GITHUB_API_URL: github.url };
-  const access = githubAccess.create(env);
-  return { hosts: { github: githubRepoHost.create(env) }, policySource: access.policySource.bind(access) };
+  return { hosts: { github: githubRepoHost.create(env) } };
 };
 
 let github: FakeGitHub;
@@ -111,7 +109,7 @@ describe("install", () => {
     expect(await deployer.handle(event("installation.created", [REPO]))).toBe(true);
 
     // The deployer's own token, minted through the router for exactly this repo.
-    expect(router.mints).toEqual([{ repo: REPO, policies: [{ access: "github", app: APP, repo: REPO, permissions: { ...DEPLOYER_PERMISSIONS } }] }]);
+    expect(router.mints).toEqual([{ repo: REPO, policies: [{ access: "github", source: APP, repo: REPO, permissions: { ...DEPLOYER_PERMISSIONS } }] }]);
 
     // One container, built once, with its env.
     expect(host.ops()).toEqual([
@@ -255,7 +253,7 @@ describe("checks", () => {
 
     github.commit(REPO, repoFiles({ ".achq/config.ts": DOC_CONFIG["config.ts"].replace(`App.get("notation-achq")`, `App.get("ghost")`) }));
     const { error } = await makeDeployer().deploy("github", REPO, APP);
-    expect(error).toContain("policy code names github:ghost, which the router doesn't know");
+    expect(error).toContain("policy code names ghost, which the router doesn't know");
     expect(error).toContain("no policy or workspace names notation-achq");
     expect(host.ops()).toEqual([]);
   });

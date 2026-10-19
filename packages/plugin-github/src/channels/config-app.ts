@@ -1,18 +1,14 @@
 import type { RepoPlan } from "@achq/core";
 import { maxLevel } from "../lib/permissions.ts";
-import { CHANNEL } from "../lib/constants.ts";
-import { policySource } from "../lib/policy-source.ts";
+import { ACCESS, CHANNEL } from "../lib/constants.ts";
 import { CONFIG_EVENTS, CONFIG_PERMISSIONS } from "./constants.ts";
 
 /** The one App slug the config's policies and selectors name. */
 export const configApp = (plan: RepoPlan) => {
   const slugs = new Set<string>();
-  for (const { policy } of plan.policies) {
-    const app = policySource(policy)?.source;
-    if (app) slugs.add(app);
-  }
+  for (const { policy } of plan.policies) if (policy.access === ACCESS && policy.source) slugs.add(policy.source);
   const selectors = [...plan.workspaces.map((w) => w.threads), ...plan.triggers.map((t) => t.event)];
-  for (const s of selectors) if (s.channel === CHANNEL && typeof s.source === "string") slugs.add(s.source);
+  for (const s of selectors) if (s.channel === CHANNEL) slugs.add(s.source);
   if (slugs.size !== 1) {
     throw new Error(slugs.size ? `The config names several Apps (${[...slugs].join(", ")}); achq install needs exactly one` : "The config names no GitHub App");
   }
@@ -30,7 +26,7 @@ export const configNeeds = (plan: RepoPlan, slug: string) => {
   // Replies go on the thread as the App.
   if (plan.workspaces.some((w) => w.threads.channel === CHANNEL)) want("issues", "write");
   for (const { policy } of plan.policies) {
-    if (policySource(policy)?.source !== slug) continue;
+    if (policy.access !== ACCESS || policy.source !== slug) continue;
     for (const [name, level] of Object.entries((policy.permissions ?? {}) as Record<string, string>)) want(name, level);
   }
   return { events: [...events].sort(), permissions };

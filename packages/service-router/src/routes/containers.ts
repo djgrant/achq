@@ -11,7 +11,7 @@ const mintClients = async (ctx: RouterContext, config: RouterRepoConfig, contain
   const sources = new Map<string, { channel: string; source: string }>();
   for (const w of config.workspaces) {
     const { channel, source } = w.threads;
-    if (w.container === container && typeof source === "string") sources.set(`${channel}\n${source}`, { channel, source });
+    if (w.container === container) sources.set(`${channel}\n${source}`, { channel, source });
   }
   return Promise.all(
     [...sources.values()].map(({ channel, source }) => {

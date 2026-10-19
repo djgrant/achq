@@ -49,7 +49,6 @@ export const testChannel: Channel = {
 
 export const testAccess: AccessProvider = {
   id: "test",
-  policySource: (policy) => (typeof policy.source === "string" ? { channel: "test", source: policy.source } : undefined),
   validate: async (policy) => (policy.ok === false ? [`${policy.name} isn't allowed`] : []),
   mint: async (policies, forRepo) =>
     policies.map((p) => ({ access: "test", value: `token:${p.name}`, expiresAt: hour(), scope: { repo: forRepo, policy: p.name } })),
@@ -192,7 +191,7 @@ export const config = (dev: { url: string }, docsbox: { url: string }): RouterRe
     { name: "dev-all", container: "dev", threads: selector(), branch: "issue-{number}", base: "main" },
     { name: "docs", container: "docsbox", threads: selector(["docs"]), branch: "d/{number}", base: "main" },
   ],
-  triggers: [{ name: "mention", event: { channel: "test", type: "comment" } }],
+  triggers: [{ name: "mention", event: { channel: "test", source: "app", type: "comment" } }],
 });
 
 export const trusted = { login: "dan", trusted: true, bot: false };

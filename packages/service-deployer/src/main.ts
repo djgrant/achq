@@ -1,5 +1,5 @@
 import { DEPLOYER_PORT, ENV } from "@achq/core";
-import { ACCESS, containerHostNamed, privateEnv, REPO_HOSTS } from "achq/registry";
+import { containerHostNamed, privateEnv, REPO_HOSTS } from "achq/registry";
 import { createDeployer } from "./deployer.ts";
 import { DEFAULT_DATA_DIR, DEFAULT_REF } from "./constants.ts";
 import { routerClient } from "./clients/router.ts";
@@ -12,12 +12,10 @@ export const main = () => {
   const key = need(ENV.key);
   const routerUrl = need(ENV.routerUrl);
   const containerHost = containerHostNamed(need(ENV.containerHost)).create(env);
-  const access = ACCESS.map((a) => a.create(env));
   const deployer = createDeployer({
     containerHost,
     router: routerClient({ url: routerUrl, key }),
     hosts: Object.fromEntries(REPO_HOSTS.map((h) => [h.id, h.create(env)])),
-    policySource: (policy) => access.find((a) => a.id === policy.access)?.policySource(policy),
     owners: need(ENV.owners).split(",").map((o) => o.trim()).filter(Boolean),
     dataDir: env[ENV.dataDir] || DEFAULT_DATA_DIR,
     env: {

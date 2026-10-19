@@ -92,7 +92,7 @@ export const deploy = async (ctx: DeployerContext, hostId: string, repo: string,
       throw new DeployFailure(`.achq/config.ts: ${message(error)}`);
     }
 
-    const { failures, warnings } = checkPlan(plan, { source, tree, sources: await ctx.router.sources(), policySource: ctx.policySource });
+    const { failures, warnings } = checkPlan(plan, { source, tree, sources: await ctx.router.sources() });
     const policies = plan.policies.map((p) => p.policy);
     if (policies.length) {
       const { problems } = await ctx.router.validate({ repo, policies });

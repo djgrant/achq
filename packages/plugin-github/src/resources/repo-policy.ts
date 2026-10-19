@@ -6,7 +6,8 @@ export type Permission = "read" | "write";
 
 export type RepoPolicyData = {
   access: typeof ACCESS;
-  app: string;
+  /** The App the policy grants through: the channel source. */
+  source: string;
   /** `owner/name`, or null for the repo the config is in. */
   repo: string | null;
   permissions: Record<string, Permission>;
@@ -15,7 +16,7 @@ export type RepoPolicyData = {
 /** Access to one repo through an App's installation. Defaults to the config's own repo. */
 export class RepoPolicy extends Policy {
   constructor(name: string, inputs: { app: AppRef; repo?: string; permissions: Record<string, Permission> }) {
-    const data: RepoPolicyData = { access: ACCESS, app: inputs.app.slug, repo: inputs.repo ?? null, permissions: inputs.permissions };
+    const data: RepoPolicyData = { access: ACCESS, source: inputs.app.slug, repo: inputs.repo ?? null, permissions: inputs.permissions };
     super(name, data);
   }
 }

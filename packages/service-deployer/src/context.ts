@@ -1,4 +1,4 @@
-import type { ContainerHost, FileLimits, PolicyData, RepoHost } from "@achq/core";
+import type { ContainerHost, FileLimits, RepoHost } from "@achq/core";
 import type { RouterClient } from "./clients/router.ts";
 import { type Evaluate, evaluateConfig } from "./config/index.ts";
 import { DEFAULT_FILE_LIMITS } from "./constants.ts";
@@ -22,8 +22,6 @@ export type DeployerDeps = {
   router: RouterClient;
   /** The repo hosts, by id. */
   hosts: Record<string, RepoHost>;
-  /** The channel source a policy goes through, from its access provider. */
-  policySource: (policy: PolicyData) => { channel: string; source: string } | undefined;
   owners: string[];
   dataDir: string;
   evaluate?: Evaluate;

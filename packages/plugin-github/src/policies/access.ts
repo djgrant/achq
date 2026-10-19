@@ -2,7 +2,6 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import type { AccessCredential, AccessProvider, PolicyData } from "@achq/core";
 import { ACCESS, REPO } from "../lib/constants.ts";
-import { policySource } from "../lib/policy-source.ts";
 import { GH_CONFIG_DIR, GH_HOSTS_FILE, GIT_CONFIG_FILE, POLICY_LEVELS, TOKEN_SUFFIX } from "./constants.ts";
 import type { RepoPolicyData } from "../resources/repo-policy.ts";
 import type { Apps } from "../lib/apps.ts";
@@ -30,14 +29,10 @@ export class GitHubAccess implements AccessProvider {
 
   constructor(private apps: Apps) {}
 
-  policySource(policy: PolicyData) {
-    return policySource(policy);
-  }
-
   async validate(policy: PolicyData, repo: string): Promise<string[]> {
     const p = policy as Partial<RepoPolicyData>;
     if (p.access !== ACCESS) return [`Policy is for access "${p.access}", not github`];
-    if (typeof p.app !== "string" || !this.apps.has(p.app)) return [`GitHub App "${p.app}" isn't configured on the router`];
+    if (typeof p.source !== "string" || !this.apps.has(p.source)) return [`GitHub App "${p.source}" isn't configured on the router`];
     const target = p.repo ?? repo;
     if (typeof target !== "string" || !REPO.test(target)) return [`"${target}" isn't an owner/name repo`];
     const permissions = p.permissions ?? {};
@@ -46,13 +41,13 @@ export class GitHubAccess implements AccessProvider {
       .map(([name, level]) => `Permission ${name} is "${level}"; it must be "read" or "write"`);
     if (problems.length) return problems;
 
-    const installation = await this.apps.installation(p.app, target);
-    if (!installation) return [`${p.app} isn't installed on ${target}`];
-    if (installation.suspended_at) return [`${p.app}'s installation on ${installation.account.login} is suspended`];
+    const installation = await this.apps.installation(p.source, target);
+    if (!installation) return [`${p.source} isn't installed on ${target}`];
+    if (installation.suspended_at) return [`${p.source}'s installation on ${installation.account.login} is suspended`];
     for (const [name, level] of Object.entries(permissions)) {
       if (!covers(installation.permissions[name], level)) {
         const granted = installation.permissions[name];
-        problems.push(`${p.app} has ${granted ? `${name}: ${granted}` : `no ${name} permission`} on ${installation.account.login}; the policy wants ${name}: ${level}`);
+        problems.push(`${p.source} has ${granted ? `${name}: ${granted}` : `no ${name} permission`} on ${installation.account.login}; the policy wants ${name}: ${level}`);
       }
     }
     if (problems.length) return problems;
@@ -60,9 +55,9 @@ export class GitHubAccess implements AccessProvider {
     // The installation may cover only selected repos. Minting a token narrowed
     // to the target is the one definitive check that it covers this one.
     try {
-      await this.apps.token(p.app, installation.id, { repositories: [target.split("/")[1]!], permissions: { metadata: "read" } });
+      await this.apps.token(p.source, installation.id, { repositories: [target.split("/")[1]!], permissions: { metadata: "read" } });
     } catch (error) {
-      return [`${p.app}'s installation on ${installation.account.login} doesn't cover ${target}: ${(error as Error).message}`];
+      return [`${p.source}'s installation on ${installation.account.login} doesn't cover ${target}: ${(error as Error).message}`];
     }
     return [];
   }
@@ -82,12 +77,12 @@ export class GitHubAccess implements AccessProvider {
       if (p.access !== ACCESS) continue;
       const target = p.repo ?? repo;
       if (!REPO.test(target)) throw new Error(`"${target}" isn't an owner/name repo`);
-      const lookupKey = `${p.app}\n${target.toLowerCase()}`;
-      if (!lookups.has(lookupKey)) lookups.set(lookupKey, this.apps.installation(p.app, target));
+      const lookupKey = `${p.source}\n${target.toLowerCase()}`;
+      if (!lookups.has(lookupKey)) lookups.set(lookupKey, this.apps.installation(p.source, target));
       const installation = await lookups.get(lookupKey)!;
-      if (!installation) throw new Error(`${p.app} isn't installed on ${target}`);
-      const key = `${p.app}\n${installation.id}\n${target.toLowerCase()}`;
-      const group = groups.get(key) ?? { app: p.app, installation: installation.id, repos: [], permissions: {} };
+      if (!installation) throw new Error(`${p.source} isn't installed on ${target}`);
+      const key = `${p.source}\n${installation.id}\n${target.toLowerCase()}`;
+      const group = groups.get(key) ?? { app: p.source, installation: installation.id, repos: [], permissions: {} };
       groups.set(key, group);
       if (!group.repos.some((r) => r.toLowerCase() === target.toLowerCase())) group.repos.push(target);
       for (const [name, level] of Object.entries(p.permissions)) group.permissions[name] = maxLevel(group.permissions[name], level);

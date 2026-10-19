@@ -18,7 +18,7 @@ const gh = new FakeGitHub([appA, appB]);
 /** The router's parts, from one env. */
 let api: { access: AccessProvider; channel: Channel };
 
-const policy = (permissions: Record<string, "read" | "write">, repo: string | null = null, app = "notation-achq"): RepoPolicyData => ({ access: "github", app, repo, permissions });
+const policy = (permissions: Record<string, "read" | "write">, repo: string | null = null, source = "notation-achq"): RepoPolicyData => ({ access: "github", source, repo, permissions });
 
 beforeAll(() => {
   gh.start();
@@ -32,11 +32,6 @@ beforeAll(() => {
   );
 });
 afterAll(() => gh.stop());
-
-test("a policy goes through its App", () => {
-  expect(api.access.policySource(policy({ contents: "read" }))).toEqual({ channel: "github", source: "notation-achq" });
-  expect(api.access.policySource({ access: "github" })).toBeUndefined();
-});
 
 test("the channel and access provider made from one configuration share its Apps, and so one JWT cache", () => {
   const env = githubEnv(gh.keys(), gh.url);

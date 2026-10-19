@@ -11,8 +11,6 @@ export type AccessCredential = Credential & { access: string };
  */
 export interface AccessProvider {
   readonly id: string;
-  /** The channel source a policy of this provider's goes through, e.g. a GitHub policy's App. */
-  policySource(policy: PolicyData): { channel: string; source: string } | undefined;
   /** Router: problems with a policy for `repo`, empty if fine. */
   validate(policy: PolicyData, repo: string): Promise<string[]>;
   /** Router: credentials covering `policies`, for a container in `repo`. */
