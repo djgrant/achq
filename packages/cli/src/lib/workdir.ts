@@ -1,7 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { ProviderCli } from "@achq/core";
-import { PROVIDERS } from "achq/registry";
+import type { RepoHost } from "@achq/core";
+import { REPO_HOSTS } from "achq/registry";
 import { CLI_ENV, INFRA_FILE } from "../constants.ts";
 
 /** The directory `achq` was run in. `bin/achq` passes it on, since pok runs from achq's own directory. */
@@ -24,20 +24,20 @@ export const originUrl = (dir = callerCwd()): string | undefined => {
   return success ? stdout.toString().trim() : undefined;
 };
 
-export type RepoHere = { host: string; repo: string; cli: ProviderCli };
+export type RepoHere = { host: string; repo: string; repoHost: RepoHost };
 
-/** The repo `remote` names, on whichever provider hosts it. */
+/** The repo `remote` names, on whichever host has it. */
 export const repoAt = (remote: string, env: Record<string, string | undefined> = process.env): RepoHere | undefined => {
-  for (const p of PROVIDERS) {
-    const cli = p.cli?.(env);
-    const repo = cli?.repoOf(remote);
-    if (cli && repo) return { host: p.id, repo, cli };
+  for (const h of REPO_HOSTS) {
+    const repoHost = h.create(env);
+    const repo = repoHost.repoOf(remote);
+    if (repo) return { host: h.id, repo, repoHost };
   }
 };
 
 export const needRepo = (dir = callerCwd()): RepoHere => {
   const remote = originUrl(dir);
   const found = remote ? repoAt(remote) : undefined;
-  if (!found) throw new Error(`Run this in a clone of a repo on ${PROVIDERS.filter((p) => p.cli).map((p) => p.id).join(" or ")} (its origin decides which repo)`);
+  if (!found) throw new Error(`Run this in a clone of a repo on ${REPO_HOSTS.map((h) => h.id).join(" or ")} (its origin decides which repo)`);
   return found;
 };

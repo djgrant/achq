@@ -23,17 +23,17 @@ Both the infra and repos are written as a resource graph, Pulumi-shaped: resourc
 // achq.infra.ts, at the infra repo's root
 export default achq(() => {
   const router = new railway.Router("router", { project: "achq" });
-  const deployer = new railway.Deployer("deployer", { project: "achq", router, owners: ["djgrant", "notationlabs"] });
+  const deployer = new railway.Deployer("deployer", { router, owners: ["djgrant", "notationlabs"] });
   new github.App("personal", { name: "djgrant-claude", router, deployer });
   new github.App("notation", { name: "notation-achq", org: "notationlabs", router, deployer });
 });
 ```
 
 - **Router**: receives events and wakes the deployer and containers.
-- **Deployer**: creates and updates containers, in its own Railway project.
+- **Deployer**: creates and updates containers, in its router's Railway project.
 - **A GitHub App** binds to both. It's a channel and an access provider (see Primitives). The App's webhook points at the router, and the router holds the App's key to check deliveries and mint tokens. The App's installations decide which repos the deployer serves.
-- **Providers**: GitHub implements core's `Provider`, with a part for each side. The router gets its channel, access provider and installations. The container gets the same channel and access provider, without secrets. The deployer gets a `RepoHost`, which reads `.achq/`, writes the status and gives the clone URL. The router also uses the `RepoHost` to check `/wake`. The CLI gets the infra's Apps for `achq up` and the repo commands. Claude implements `AgentProvider`: the runtime, and the variables every container needs. The services and CLI find each one by id in `achq/registry`.
-- **The platform**: the router and deployer name the platform they run on, and the deployer puts containers on the same one. A platform implements core's `Platform`: running the router and deployer for `achq up`, a `ContainerHost` for the deployer, and a shell into containers for `achq ssh` and `resume`. achq's services and CLI only use that interface, and pick an implementation by id. Only Railway is built for now. Putting the router, deployer and containers on different platforms needs bindings this design assumes away: reaching containers without a private network, and waking them through the container host's API.
+- **Contracts**: GitHub implements three of core's contracts, each registered on its own: a `Channel` (events, threads, replies; the router also gets its installations and sources from it, the CLI installs Apps with it), an `AccessProvider` (turns policies into credentials), and a `RepoHost` (reads `.achq/`, writes the status, gives the clone URL; the router uses it to check `/wake`, the CLI for the repo commands). The router gets them with the key, the container without secrets. The infra's Apps are resources `achq up` plans. Claude implements `AgentProvider`: the runtime, and the variables every container needs. The services and CLI find each one by id in `achq/registry`.
+- **The container host**: the router and deployer name the host they run on (`platform`), and the deployer puts containers on the same one. A plugin provides the router and deployer as resources for `achq up`, and implements core's `ContainerHost` for the deployer, with a shell into containers for `achq ssh` and `resume`. achq's services and CLI only use that contract, and pick an implementation by id. Only Railway is built for now. Putting the router, deployer and containers on different platforms needs bindings this design assumes away: reaching containers without a private network, and waking them through the container host's API.
 - **`owners`**: the deployer only serves repos owned by these accounts. A public App can be installed by anyone, and without this a stranger's install would get a container on your Railway account running on your Claude token.
 
 ### A repo
@@ -268,7 +268,7 @@ These replace `app`, `deploy` and `destroy`.
 
 ## Not yet verified
 
-Every part has run together in one process (`test/e2e.test.ts`) against a fake GitHub, a fake container host and a fake `claude`. Not yet run for real:
+Every part has run together in one process (`packages/test-e2e/test/e2e.test.ts`) against a fake GitHub, a fake container host and a fake `claude`. Not yet run for real:
 
 - Railway: turning off auto-deploy with `serviceInstanceAutoDeployUpdate`, the router and deployer start command, sleeping and waking over the private network.
 - GitHub: the manifest flow and `PATCH /app/hook/config` on a new App, minting with `actions_variables`, installing with `gh`'s token.

@@ -1,4 +1,4 @@
-import type { PolicyData } from "../model/resources.ts";
+import type { PolicyData } from "../resources/config.ts";
 import type { Credential } from "./channel.ts";
 
 /**
@@ -8,6 +8,8 @@ import type { Credential } from "./channel.ts";
  */
 export interface AccessProvider {
   readonly id: string;
+  /** The source a policy of this provider's goes through, e.g. a GitHub policy's App. */
+  policySource(policy: PolicyData): string | undefined;
   /** Router: problems with a policy for `repo`, empty if fine. */
   validate(policy: PolicyData, repo: string): Promise<string[]>;
   /** Router: credentials covering `policies`, for a container in `repo`. */

@@ -1,0 +1,16 @@
+{
+  "name": "@achq/railway",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./infra": "./src/infra.ts",
+    "./container-hosts": "./src/container-hosts/index.ts"
+  },
+  "dependencies": {
+    "@achq/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@achq/test-utils": "workspace:*"
+  }
+}

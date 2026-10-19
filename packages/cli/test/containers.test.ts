@@ -17,7 +17,7 @@ const status: Status = {
   ],
 };
 
-test("containers come from ACHQ_STATUS; only ones a platform achq knows can reach are listed", () => {
+test("containers come from ACHQ_STATUS; only ones on a container host achq knows are listed", () => {
   expect(containersOf(status).map((c) => c.name)).toEqual(["dev", "docs"]);
 });
 

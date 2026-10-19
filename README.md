@@ -22,13 +22,14 @@ import * as railway from "achq/railway";
 
 export default achq(() => {
   const router = new railway.Router("router", { project: "achq" });
-  const deployer = new railway.Deployer("deployer", { project: "achq", router, owners: ["djgrant", "notationlabs"] });
+  // Runs in its router's Railway project, and puts containers there.
+  const deployer = new railway.Deployer("deployer", { router, owners: ["djgrant", "notationlabs"] });
   new github.App("personal", { name: "djgrant-claude", router, deployer });
   new github.App("notation", { name: "notation-achq", org: "notationlabs", router, deployer });
 });
 ```
 
-`achq up` needs `RAILWAY_API_TOKEN` and `CLAUDE_CODE_OAUTH_TOKEN` (from `claude setup-token`) in its environment; how they get there is up to you (`op run`, direnv, …). It creates or updates, in order: the Railway project, the router, the deployer, and each App. An App that doesn't exist yet is created through GitHub's manifest flow in your browser. Its private key goes straight into the router's variables on the platform and never touches your machine. Then it syncs every installed repo. Re-running it changes only what differs; `--dry-run` shows what would change.
+`achq up` needs `RAILWAY_API_TOKEN` and `CLAUDE_CODE_OAUTH_TOKEN` (from `claude setup-token`) in its environment; how they get there is up to you (`op run`, direnv, …). It plans the Railway project, the router, the deployer and each App as one graph, prints what would change, then makes it. An App that doesn't exist yet is created through GitHub's manifest flow in your browser. Its private key goes straight into the router's variables on Railway and never touches your machine. Then it syncs every installed repo. Re-running it changes only what differs; `--dry-run` shows what would change.
 
 | Service | Exposure | Does |
 |---|---|---|
@@ -115,23 +116,37 @@ A thread is named from its ID, e.g. `notationlabs-yieldstar-42`.
 
 ## Development
 
-Each folder in `packages/` is a workspace package. Packages import each other by name, never by relative path, and each has its tests and their helpers in `test/`.
+Each folder in `packages/` is a workspace package, prefixed with its kind. Packages import each other by name, never by relative path, and each has its tests and their helpers in `test/`.
 
-In every package, a module has one purpose and its name says what it is. Fixed values (URLs, env and variable names, limits, timeouts, permission sets) go in `src/constants.ts`. `index.ts` files only re-export. A file becomes a folder of the same name once it has several parts.
-
-| Kind | Packages | Layout |
+| Kind | Packages | What it is |
 |---|---|---|
-| Kernel | `core` | `model/` (resources, the registry, the plan), `contracts/` (the interfaces providers implement, the HTTP protocol), `secrets.ts`, `signing.ts`. Entries: `.`, `/secrets`, `/signing` |
-| Provider | `github`, `railway`, `claude` | `resources` (what config or the infra declares), `runtime/` (implementations of core's interfaces), `api` (the provider's API client). `github` implements `Provider` (`/provider`, with the CLI's parts in `cli/`), `railway` implements `Platform`, `claude` implements `AgentProvider` |
-| Service | `router`, `deployer`, `container` | `main.ts` (reads the service's settings from the environment and wires it up), one module per part of its logic, `store.ts`, `clients/` |
-| Library | `sandbox`, `flock` | Know nothing about achq |
-| Tool | `cli` | `commands/` (one per command), `lib/` (a folder per command area) |
-| Facade | `achq` | What repos and the infra import: `achq`, `achq/github`, `achq/railway`. `achq/registry` lists the built-in platforms, providers and agent runtimes |
-| Testing | `test-utils`, `e2e` | Fakes shared across packages, one per module (`@achq/test-utils/github`, …); the whole system end to end |
+| Kernel | `core` | The contracts plugins implement, resources and the engine that plans and applies them, and the wire protocol between achq's services |
+| Plugin | `plugin-github`, `plugin-railway`, `plugin-claude` | Implementations of core's contracts for one vendor |
+| Service | `service-router`, `service-deployer`, `service-container` | What runs: `main.ts` reads its settings from the environment and wires it up from the registry |
+| Tool | `cli` | `commands/` (one per command), `lib/` |
+| Facade | `achq` | What configs and the infra import (`achq`, `achq/github`, `achq/railway`), and `achq/registry`: one list of implementations per contract |
+| Library | `lib-flock`, `lib-sandbox` | Know nothing about achq |
+| Testing | `test-utils`, `test-e2e` | Fakes shared across packages; the whole system end to end |
 
-The services and the CLI never import a provider package. They use core's interfaces (`Platform`, `Provider`, `AgentProvider`) and look the implementation up by id in `achq/registry`. Adding a provider means implementing the interface and listing it there.
+**Core** is in four parts: `resources/` (the `Resource` class, what configs and the infra declare), `engine/` (outputs, `plan` and `apply`), `contracts/` (one file per contract), `wire/` (the HTTP protocol, its constants, signing and secrets).
 
-Code that runs in the config sandbox (everything `achq` and `achq/github` import) is typechecked without Bun or Node types (`tsconfig.sandbox.json`).
+**A resource is one class**: what it's declared with, and, if achq keeps it in shape, how it's read, compared and changed (`ManagedResource`: `read`, `diff`, `describe`, `planned`, `apply`, `check`). A resource made of others returns them from `children`. `achq up` plans the infra's resources; nothing else knows how they're made.
+
+**A plugin's folders are named after the contract their code implements**:
+
+| Folder | Holds |
+|---|---|
+| `resources/` | Every class that extends `Resource`, one per file |
+| `channels/` | A `Channel` |
+| `policies/` | An `AccessProvider`: turns policies into credentials |
+| `repo-hosts/` | A `RepoHost` |
+| `container-hosts/` | A `ContainerHost` and its shell |
+| `agents/` | An `AgentProvider` |
+| `lib/` | What implements no contract: the vendor's API client, and code or constants more than one folder uses |
+
+A folder holds its implementation and the code only it uses, and its `index.ts` exports the implementation alone. `src/index.ts` is what repo configs import: it runs in the deployer's sandbox, so it and everything it imports is typechecked without Bun or Node types (`tsconfig.sandbox.json`). `src/infra.ts` is what the infra file imports.
+
+The services and the CLI never import a plugin. They use core's contracts and find implementations by id in `achq/registry`. Adding one means implementing the contract in its folder and listing it there.
 
 ```sh
 bun install

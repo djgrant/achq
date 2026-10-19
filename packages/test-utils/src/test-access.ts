@@ -5,6 +5,7 @@ import type { AccessProvider } from "@achq/core";
 /** Writes each token to `dir/token` (mode 600) and points agents at it. */
 export const testAccess = (): AccessProvider => ({
   id: "test-access",
+  policySource: () => undefined,
   validate: async () => [],
   mint: async () => [],
   async install(credentials, dir) {

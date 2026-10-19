@@ -1,0 +1,244 @@
+import { afterEach, beforeEach, expect, test } from "bun:test";
+import { createPublicKey, createVerify, generateKeyPairSync } from "node:crypto";
+import {
+  type Change,
+  type Context,
+  Deployer,
+  type EnvValue,
+  type EnvValues,
+  ManagedResource,
+  Output,
+  type Planned,
+  plan,
+  resetRegistry,
+  Router,
+  UNKNOWN,
+} from "@achq/core";
+import { appsVariable } from "../src/lib/app-keys.ts";
+import { appWebhookSecret } from "../src/lib/webhook-secret.ts";
+import { App } from "../src/resources/app.ts";
+
+const { privateKey: pem, publicKey } = generateKeyPairSync("rsa", { modulusLength: 2048, privateKeyEncoding: { type: "pkcs8", format: "pem" }, publicKeyEncoding: { type: "spki", format: "pem" } });
+const PERMISSIONS = { contents: "write", issues: "write", pull_requests: "write", metadata: "read", actions_variables: "write" };
+const ROUTER = "https://router.example";
+const HOOK = `${ROUTER}/webhook`;
+
+let gh: ReturnType<typeof Bun.serve>;
+let calls: { method: string; path: string; jwtOk: boolean }[];
+let hook: { url?: string; content_type?: string; insecure_ssl?: string; secret?: string };
+let settings: { events: string[]; permissions: Record<string, string> };
+
+const jwtValid = (auth: string | null) => {
+  const [h, p, s] = (auth?.replace(/^Bearer /, "") ?? "").split(".");
+  return Boolean(s) && createVerify("RSA-SHA256").update(`${h}.${p}`).verify(createPublicKey(publicKey), s, "base64url");
+};
+
+beforeEach(() => {
+  resetRegistry();
+  calls = [];
+  hook = {};
+  settings = { events: ["issues", "issue_comment", "push"], permissions: PERMISSIONS };
+  gh = Bun.serve({
+    port: 0,
+    async fetch(req) {
+      const url = new URL(req.url);
+      calls.push({ method: req.method, path: url.pathname, jwtOk: jwtValid(req.headers.get("authorization")) });
+      if (req.method === "POST" && url.pathname === "/app-manifests/the-code/conversions") {
+        return Response.json({ id: 4242, slug: "djgrant-claude", pem, html_url: "https://github.com/apps/djgrant-claude" });
+      }
+      if (url.pathname === "/app/hook/config") {
+        if (req.method === "PATCH") Object.assign(hook, await req.json());
+        return Response.json({ ...hook, secret: "********" });
+      }
+      if (url.pathname === "/app") return Response.json(settings);
+      return new Response("not found", { status: 404 });
+    },
+  });
+});
+afterEach(() => gh.stop(true));
+
+const web = () => `http://localhost:${gh.port}`;
+
+/** A "browser" that follows the manifest page to GitHub and back. */
+const open = async (page: string, what: string) => {
+  expect(what).toBe("create djgrant-claude on GitHub");
+  const html = await (await fetch(page)).text();
+  const state = html.match(/state=([0-9a-f]+)/)![1];
+  const manifest = JSON.parse(html.match(/value='([^']*)'/)![1].replace(/&#39;/g, "'"));
+  expect(manifest.hook_attributes).toEqual({ url: HOOK, active: true });
+  expect((await fetch(`${manifest.redirect_url}?code=the-code&state=${state}`)).ok).toBe(true);
+};
+
+const context = (log: string[] = [], withOpen = true): Context => ({
+  env: { GITHUB_API_URL: web(), GITHUB_WEB_URL: web() },
+  log: (line) => log.push(line),
+  ...(withOpen && { open }),
+  newSecret: () => "secret",
+  sleep: async () => {},
+});
+
+type Service = { url: string; key: string; env: Record<string, string>; exists: boolean };
+
+/** What the router's URL, key and variables come from. A new one's URL is only known once it's applied. */
+class RouterService extends ManagedResource<Service, true, Omit<Service, "exists">, "create"> {
+  readonly kind = "service";
+  read = async ({ exists }: Service) => (exists ? (true as const) : undefined);
+  diff = (_: Service, current: true | undefined) => (current ? [] : ["create" as const]);
+  describe = (): Change => ({ op: "+", target: "router" });
+  planned = ({ url, key, env }: Service, current: true | undefined): Planned<Omit<Service, "exists">> => ({ url: current ? url : UNKNOWN, key, env });
+  apply = async ({ url, key, env }: Service) => ({ url, key, env });
+}
+
+/** A router whose variable groups are recorded, not set. */
+class StubRouter extends Router {
+  readonly platform = "stub";
+  readonly url: Output<string>;
+  readonly key: Output<string>;
+  readonly env: Output<Record<string, string>>;
+  readonly groups: (EnvValues | ((ctx: Context) => EnvValues))[] = [];
+
+  constructor(service: Service) {
+    super("router");
+    const s = new RouterService("service", service, { parent: this });
+    [this.url, this.key, this.env] = [s.out("url"), s.out("key"), s.out("env")];
+  }
+  privateUrl = (port: number) => `http://router.internal:${port}`;
+  variables(values: EnvValues | ((ctx: Context) => EnvValues)) {
+    this.groups.push(values);
+    return new Output<Record<string, string>>([], () => ({}));
+  }
+  /** Its ACHQ_GITHUB_APPS, as the Apps declared it. */
+  apps(ctx: Context): EnvValue {
+    expect(this.groups.length).toBe(1);
+    const group = this.groups[0]!;
+    return (typeof group === "function" ? group(ctx) : group).ACHQ_GITHUB_APPS!;
+  }
+}
+
+class StubDeployer extends Deployer {
+  readonly platform = "stub";
+  readonly env = new Output<Record<string, string>>([], () => ({}));
+  constructor(readonly inputs: { router: Router; owners: string[] }) {
+    super("deployer");
+  }
+  privateUrl = (port: number) => `http://deployer.internal:${port}`;
+  variables = () => new Output<Record<string, string>>([], () => ({}));
+}
+
+const KEY = "the-webhook-key";
+const STORED = { "djgrant-claude": { id: "4242", privateKey: pem } };
+const OTHER = { "old-app": { id: "7", privateKey: "old-key" } };
+
+const infra = (stored: object, router: Partial<Service> = {}) => {
+  const r = new StubRouter({ url: ROUTER, key: KEY, exists: true, env: { ACHQ_GITHUB_APPS: appsVariable(stored as never) }, ...router });
+  const deployer = new StubDeployer({ router: r, owners: [] });
+  return { router: r, deployer, app: new App("personal", { name: "djgrant-claude", router: r, deployer }) };
+};
+
+const summary = (changes: Change[]) => changes.map((c) => `${c.op} ${c.target}${c.detail ? ` ${c.detail}` : ""}`);
+
+test("an App's comparison is pure: it takes what was read and says what differs", () => {
+  const { router, deployer } = infra({});
+  const app = new App("org", { name: "Notation ACHQ", org: "notationlabs", router, deployer });
+  const props = { slug: "notation-achq", name: "Notation ACHQ", org: "notationlabs", hookUrl: HOOK, key: KEY };
+  expect(app.slug).toBe("notation-achq");
+
+  const create = app.diff(props, undefined);
+  expect(create.map((c) => app.describe(c, props))).toEqual([{ op: "+", target: "github app Notation ACHQ (notationlabs)", detail: "opens GitHub to create it" }]);
+  expect(app.planned(props, undefined)).toEqual({ slug: UNKNOWN, id: UNKNOWN, privateKey: UNKNOWN });
+
+  const known = { ...props, stored: { id: "1", privateKey: "k" } };
+  const settingsUrl = "https://github.com/organizations/notationlabs/settings/apps/notation-achq/permissions";
+  const current = { events: ["issues", "push"], permissions: { ...PERMISSIONS, contents: "read" }, hook: { url: HOOK, content_type: "json", insecure_ssl: "0" }, settings: settingsUrl };
+  expect(app.diff(known, current)).toEqual([]);
+  expect(app.planned(known, current)).toEqual({ slug: "notation-achq", id: "1", privateKey: "k" });
+  expect(app.check(known, current)).toEqual([
+    `notation-achq doesn't send issue_comment: change it at ${settingsUrl}`,
+    `notation-achq lacks contents: write: change it at ${settingsUrl}`,
+  ]);
+
+  const drifted = { ...current, hook: { ...current.hook, insecure_ssl: "1" } };
+  expect(app.diff(known, drifted).map((c) => app.describe(c, known))).toEqual([{ op: "~", target: "notation-achq webhook", detail: `→ ${HOOK}` }]);
+  // A new router's URL isn't known yet, so it differs from whatever the webhook has.
+  const unknown = { ...known, hookUrl: UNKNOWN as never };
+  expect(app.diff(unknown, current).map((c) => app.describe(c, unknown))).toEqual([{ op: "~", target: "notation-achq webhook", detail: "→ the router's URL" }]);
+});
+
+test("a new App plans as a create without calling GitHub, then is created with its webhook secret", async () => {
+  const log: string[] = [];
+  const { router, app } = infra(OTHER);
+  const ctx = context(log);
+  const keys = router.apps(ctx);
+  const planned = await plan([app], ctx);
+  expect(summary(planned.changes)).toEqual(["+ github app djgrant-claude opens GitHub to create it"]);
+  expect(planned.value(keys)).toBe(UNKNOWN);
+  expect(calls).toEqual([]);
+
+  const applied = await planned.apply();
+  expect(hook).toEqual({ url: HOOK, content_type: "json", insecure_ssl: "0", secret: appWebhookSecret(KEY, 4242) });
+  expect(calls.filter((c) => c.method === "PATCH").every((c) => c.jwtOk)).toBe(true);
+  expect(log).toEqual(["  created https://github.com/apps/djgrant-claude"]);
+  // The undeclared App's key is kept alongside the new one.
+  expect(JSON.parse(applied.value(keys) as string)).toEqual({ ...OTHER, "djgrant-claude": { id: "4242", privateKey: pem } });
+});
+
+test("creating an App without a browser to open fails, saying so", async () => {
+  const { app } = infra({});
+  const planned = await plan([app], context([], false));
+  await expect(planned.apply()).rejects.toThrow("Creating GitHub App djgrant-claude opens your browser, which only `achq up` can do");
+});
+
+test("a known App's drifted webhook plans as a change and is fixed", async () => {
+  hook = { url: "https://old.example/webhook", content_type: "json", insecure_ssl: "0" };
+  const { router, app } = infra(STORED);
+  const ctx = context();
+  const keys = router.apps(ctx);
+  const planned = await plan([app], ctx);
+  expect(summary(planned.changes)).toEqual([`~ djgrant-claude webhook → ${HOOK}`]);
+  expect(calls.every((c) => c.method === "GET" && c.jwtOk)).toBe(true);
+  expect(hook.url).toBe("https://old.example/webhook");
+  expect(planned.value(keys)).toBe(appsVariable(STORED));
+
+  const applied = await planned.apply();
+  expect(hook).toEqual({ url: HOOK, content_type: "json", insecure_ssl: "0", secret: appWebhookSecret(KEY, "4242") });
+  expect(applied.value(keys)).toBe(appsVariable(STORED));
+});
+
+test("a known App's webhook follows a new router, whose URL is only known once it's applied", async () => {
+  hook = { url: HOOK, content_type: "json", insecure_ssl: "0" };
+  const { app } = infra(STORED, { url: "https://new.example", exists: false });
+  const planned = await plan([app], context());
+  expect(summary(planned.changes)).toEqual(["+ router", "~ djgrant-claude webhook → the router's URL"]);
+  await planned.apply();
+  expect(hook.url).toBe("https://new.example/webhook");
+});
+
+test("an up-to-date App plans nothing, and what it lacks shows as warnings", async () => {
+  hook = { url: HOOK, content_type: "json", insecure_ssl: "0" };
+  settings = { events: ["issues", "push"], permissions: { ...PERMISSIONS, actions_variables: "read" } };
+  const planned = await plan([infra(STORED).app], context());
+  expect(planned.changes).toEqual([]);
+  expect(planned.warnings).toEqual([
+    `djgrant-claude doesn't send issue_comment: change it at ${web()}/settings/apps/djgrant-claude/permissions`,
+    `djgrant-claude lacks actions_variables: write: change it at ${web()}/settings/apps/djgrant-claude/permissions`,
+  ]);
+  await planned.apply();
+  expect(calls.some((c) => c.method === "PATCH")).toBe(false);
+});
+
+test("one ACHQ_GITHUB_APPS group per router holds every App declared on it, even after the group", async () => {
+  hook = { url: HOOK, content_type: "json", insecure_ssl: "0" };
+  const { router, deployer, app } = infra(STORED);
+  const ctx = context();
+  expect((await plan([app], ctx)).value(router.apps(ctx))).toBe(appsVariable(STORED));
+  // A new App, declared after the first made the group: the variable waits on it.
+  const later = new App("org", { name: "Notation ACHQ", org: "notationlabs", router, deployer });
+  expect((await plan([app, later], ctx)).value(router.apps(ctx))).toBe(UNKNOWN);
+});
+
+test("two Apps with one slug, or an App whose deployer uses another router, are refused", () => {
+  const { router, deployer } = infra({});
+  expect(() => new App("again", { name: "DJGrant Claude", router, deployer })).toThrow("Two Apps are named djgrant-claude");
+  const elsewhere = new StubDeployer({ router: new StubRouter({ url: ROUTER, key: KEY, exists: true, env: {} }), owners: [] });
+  expect(() => new App("stray", { name: "stray", router, deployer: elsewhere })).toThrow("App stray must use router router and deployer deployer");
+});

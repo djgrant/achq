@@ -1,16 +1,19 @@
-import { ENV, type InfraPlatform } from "@achq/core";
+import { type Context, ENV, known, plan } from "@achq/core";
 import { adminSecret } from "@achq/core/secrets";
 import { signedFetch } from "@achq/core/signing";
+import type { InfraResources } from "./load/infra.ts";
 
 export type RouterAccess = { base: string; key: string };
 
-/** The router's public URL and AGENT_WEBHOOK_KEY, read from where it runs. */
-export const routerAccess = async (platform: InfraPlatform, routerName: string): Promise<RouterAccess> => {
-  const router = await platform.current(routerName);
-  if (!router) throw new Error(`There's no router ${routerName}. Run \`achq up\`.`);
-  const key = router.env[ENV.key];
-  if (!key || !router.publicUrl) throw new Error(`Router ${routerName} isn't set up. Run \`achq up\`.`);
-  return { base: router.publicUrl, key };
+/** The router's public URL and AGENT_WEBHOOK_KEY, read from where it runs. Plans the router, so changes nothing. */
+export const routerAccess = async ({ router }: InfraResources, ctx: Context): Promise<RouterAccess> => {
+  const planned = await plan([router], ctx);
+  const env = planned.value(router.env);
+  const url = planned.value(router.url);
+  if (!known(env) || !Object.keys(env).length) throw new Error(`There's no router ${router.name}. Run \`achq up\`.`);
+  const key = env[ENV.key];
+  if (!key || !known(url)) throw new Error(`Router ${router.name} isn't set up. Run \`achq up\`.`);
+  return { base: url, key };
 };
 
 /** An admin-signed request to the router. Throws on anything but 2xx. */

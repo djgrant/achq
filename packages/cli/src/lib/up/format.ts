@@ -2,12 +2,6 @@ import type { Change, SyncResult } from "@achq/core";
 
 export const formatChange = (c: Change) => `${c.op} ${c.target}${c.detail ? ` ${c.detail}` : ""}`;
 
-/** Prints a step's planned changes, or that it's up to date. */
-export const showChanges = (log: (line: string) => void, subject: string, changes: Change[]) => {
-  if (!changes.length) log(`  ${subject}: up to date`);
-  for (const c of changes) log(`  ${formatChange(c)}`);
-};
-
 export const formatSync = (result: SyncResult, dryRun: boolean) => {
   const lines: string[] = [];
   const verb = (done: string, would: string) => (dryRun ? would : done);

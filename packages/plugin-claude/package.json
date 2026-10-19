@@ -1,0 +1,16 @@
+{
+  "name": "@achq/claude",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./agents": "./src/agents/index.ts"
+  },
+  "dependencies": {
+    "@achq/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@achq/test-utils": "workspace:*"
+  }
+}

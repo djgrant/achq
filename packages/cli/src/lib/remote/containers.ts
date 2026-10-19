@@ -1,12 +1,12 @@
 import type { ContainerShell, Status } from "@achq/core";
-import { findPlatform } from "achq/registry";
+import { findContainerHost } from "achq/registry";
 
 export type Located = { name: string; location: Record<string, string>; shell: ContainerShell };
 
-/** The containers ACHQ_STATUS says the repo has, that a platform achq knows can reach. */
+/** The containers ACHQ_STATUS says the repo has, that a container host achq knows can reach. */
 export const containersOf = (status: Status): Located[] =>
   (status.containers ?? []).flatMap((c) => {
-    const shell = findPlatform(c.location.platform)?.shell;
+    const shell = findContainerHost(c.location.platform)?.shell;
     return shell?.reachable(c.location) ? [{ name: c.name, location: c.location, shell }] : [];
   });
 

@@ -36,3 +36,6 @@ export const loadRepoPlan = async (repoDir: string, options: { sandbox?: boolean
   await import(`${path.join(repoDir, ".achq", "config.ts")}?load=${++loads}`);
   return collectPlan();
 };
+
+/** The channels the config's threads and events come from. */
+export const channelsOf = (plan: RepoPlan) => [...new Set([...plan.workspaces.map((w) => w.threads.channel), ...plan.triggers.map((t) => t.event.channel)])];

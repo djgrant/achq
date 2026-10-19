@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { adminSecret } from "../src/secrets.ts";
-import { signedHeaders, verifySigned } from "../src/signing.ts";
+import { adminSecret } from "../src/wire/secrets.ts";
+import { signedHeaders, verifySigned } from "../src/wire/signing.ts";
 
 describe("signed requests", () => {
   const secret = adminSecret("k");

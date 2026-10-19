@@ -41,7 +41,7 @@ else
 fi
 rm -rf /opt/achq/packages/*/node_modules
 (cd /opt/achq && bun install --production --frozen-lockfile)
-chmod 755 /opt/achq/packages/container/bin/achq-agent
-ln -sf /opt/achq/packages/container/bin/achq-agent /usr/local/bin/achq-agent
+chmod 755 /opt/achq/packages/service-container/bin/achq-agent
+ln -sf /opt/achq/packages/service-container/bin/achq-agent /usr/local/bin/achq-agent
 
 id agent > /dev/null 2>&1 || useradd --create-home --shell /bin/bash agent

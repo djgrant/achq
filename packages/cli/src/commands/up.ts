@@ -2,7 +2,7 @@ import { defineCommand } from "@pokit/core";
 import { clean } from "../lib/errors.ts";
 import { z } from "zod";
 import { ACHQ_SOURCE } from "@achq/core";
-import { agentEnv, providerNamed } from "achq/registry";
+import { agentEnv, repoHostNamed } from "achq/registry";
 import { ACHQ_CODE_PATHS, INFRA_FILE } from "../constants.ts";
 import { openInBrowser } from "../lib/browser.ts";
 import { need, secretEnv } from "../lib/env.ts";
@@ -22,9 +22,9 @@ export const command = defineCommand({
     const file = infraFile();
     if (!file) throw new Error(`Run this in the ACHQ infra repo, which has ${INFRA_FILE} at its root`);
     const infra = await loadInfra(file);
-    const source = providerNamed(ACHQ_SOURCE.host).cli!(process.env);
+    const source = repoHostNamed(ACHQ_SOURCE.host).create(process.env);
     const result = await up(infra, { prune: context.prune, dryRun: context.dryRun }, {
-      platform: infra.platform.infra(infra, secretEnv()),
+      env: secretEnv(),
       containerEnv: Object.fromEntries(agentEnv().map(({ name, hint }) => [name, need(name, hint)])),
       achqRef: () => source.lastCommit(ACHQ_SOURCE.repo, ACHQ_SOURCE.branch, ACHQ_CODE_PATHS),
       open: async (url, what) => {

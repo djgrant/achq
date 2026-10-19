@@ -22,16 +22,6 @@
         "@achq/test-utils": "workspace:*",
       },
     },
-    "packages/claude": {
-      "name": "@achq/claude",
-      "version": "0.1.0",
-      "dependencies": {
-        "@achq/core": "workspace:*",
-      },
-      "devDependencies": {
-        "@achq/test-utils": "workspace:*",
-      },
-    },
     "packages/cli": {
       "name": "@achq/cli",
       "version": "0.1.0",
@@ -53,7 +43,52 @@
         "@achq/test-utils": "workspace:*",
       },
     },
-    "packages/container": {
+    "packages/core": {
+      "name": "@achq/core",
+      "version": "0.1.0",
+    },
+    "packages/lib-flock": {
+      "name": "@achq/flock",
+      "version": "0.1.0",
+    },
+    "packages/lib-sandbox": {
+      "name": "@achq/sandbox",
+      "version": "0.1.0",
+      "dependencies": {
+        "quickjs-emscripten": "^0.32.0",
+      },
+    },
+    "packages/plugin-claude": {
+      "name": "@achq/claude",
+      "version": "0.1.0",
+      "dependencies": {
+        "@achq/core": "workspace:*",
+      },
+      "devDependencies": {
+        "@achq/test-utils": "workspace:*",
+      },
+    },
+    "packages/plugin-github": {
+      "name": "@achq/github",
+      "version": "0.1.0",
+      "dependencies": {
+        "@achq/core": "workspace:*",
+      },
+      "devDependencies": {
+        "@achq/test-utils": "workspace:*",
+      },
+    },
+    "packages/plugin-railway": {
+      "name": "@achq/railway",
+      "version": "0.1.0",
+      "dependencies": {
+        "@achq/core": "workspace:*",
+      },
+      "devDependencies": {
+        "@achq/test-utils": "workspace:*",
+      },
+    },
+    "packages/service-container": {
       "name": "@achq/container",
       "version": "0.1.0",
       "bin": {
@@ -69,11 +104,7 @@
         "@achq/test-utils": "workspace:*",
       },
     },
-    "packages/core": {
-      "name": "@achq/core",
-      "version": "0.1.0",
-    },
-    "packages/deployer": {
+    "packages/service-deployer": {
       "name": "@achq/deployer",
       "version": "0.1.0",
       "dependencies": {
@@ -87,7 +118,18 @@
         "@achq/test-utils": "workspace:*",
       },
     },
-    "packages/e2e": {
+    "packages/service-router": {
+      "name": "@achq/router",
+      "version": "0.1.0",
+      "dependencies": {
+        "@achq/core": "workspace:*",
+        "achq": "workspace:*",
+      },
+      "devDependencies": {
+        "@achq/test-utils": "workspace:*",
+      },
+    },
+    "packages/test-e2e": {
       "name": "@achq/e2e",
       "version": "0.1.0",
       "dependencies": {
@@ -103,48 +145,6 @@
         "@achq/test-utils": "workspace:*",
       },
     },
-    "packages/flock": {
-      "name": "@achq/flock",
-      "version": "0.1.0",
-    },
-    "packages/github": {
-      "name": "@achq/github",
-      "version": "0.1.0",
-      "dependencies": {
-        "@achq/core": "workspace:*",
-      },
-      "devDependencies": {
-        "@achq/test-utils": "workspace:*",
-      },
-    },
-    "packages/railway": {
-      "name": "@achq/railway",
-      "version": "0.1.0",
-      "dependencies": {
-        "@achq/core": "workspace:*",
-      },
-      "devDependencies": {
-        "@achq/test-utils": "workspace:*",
-      },
-    },
-    "packages/router": {
-      "name": "@achq/router",
-      "version": "0.1.0",
-      "dependencies": {
-        "@achq/core": "workspace:*",
-        "achq": "workspace:*",
-      },
-      "devDependencies": {
-        "@achq/test-utils": "workspace:*",
-      },
-    },
-    "packages/sandbox": {
-      "name": "@achq/sandbox",
-      "version": "0.1.0",
-      "dependencies": {
-        "quickjs-emscripten": "^0.32.0",
-      },
-    },
     "packages/test-utils": {
       "name": "@achq/test-utils",
       "version": "0.1.0",
@@ -154,27 +154,27 @@
     },
   },
   "packages": {
-    "@achq/claude": ["@achq/claude@workspace:packages/claude"],
+    "@achq/claude": ["@achq/claude@workspace:packages/plugin-claude"],
 
     "@achq/cli": ["@achq/cli@workspace:packages/cli"],
 
-    "@achq/container": ["@achq/container@workspace:packages/container"],
+    "@achq/container": ["@achq/container@workspace:packages/service-container"],
 
     "@achq/core": ["@achq/core@workspace:packages/core"],
 
-    "@achq/deployer": ["@achq/deployer@workspace:packages/deployer"],
+    "@achq/deployer": ["@achq/deployer@workspace:packages/service-deployer"],
 
-    "@achq/e2e": ["@achq/e2e@workspace:packages/e2e"],
+    "@achq/e2e": ["@achq/e2e@workspace:packages/test-e2e"],
 
-    "@achq/flock": ["@achq/flock@workspace:packages/flock"],
+    "@achq/flock": ["@achq/flock@workspace:packages/lib-flock"],
 
-    "@achq/github": ["@achq/github@workspace:packages/github"],
+    "@achq/github": ["@achq/github@workspace:packages/plugin-github"],
 
-    "@achq/railway": ["@achq/railway@workspace:packages/railway"],
+    "@achq/railway": ["@achq/railway@workspace:packages/plugin-railway"],
 
-    "@achq/router": ["@achq/router@workspace:packages/router"],
+    "@achq/router": ["@achq/router@workspace:packages/service-router"],
 
-    "@achq/sandbox": ["@achq/sandbox@workspace:packages/sandbox"],
+    "@achq/sandbox": ["@achq/sandbox@workspace:packages/lib-sandbox"],
 
     "@achq/test-utils": ["@achq/test-utils@workspace:packages/test-utils"],
 

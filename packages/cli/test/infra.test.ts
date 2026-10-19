@@ -4,7 +4,8 @@ import * as os from "node:os";
 import * as path from "node:path";
 import * as core from "@achq/core";
 import { achq } from "@achq/core";
-import * as railway from "@achq/railway";
+import * as github from "@achq/github/infra";
+import * as railway from "@achq/railway/infra";
 import { checkInfra, loadInfra } from "../src/lib/load/infra.ts";
 
 let tmp: string;
@@ -13,31 +14,70 @@ beforeEach(() => {
 });
 afterEach(() => fs.rmSync(tmp, { recursive: true, force: true }));
 
+const nothing = new core.Output<any>([], () => core.UNKNOWN);
+
 class ElsewhereRouter extends core.Router {
   readonly platform = "elsewhere";
+  readonly url = nothing;
+  readonly key = nothing;
+  readonly env = nothing;
+  privateUrl = () => "http://router.elsewhere";
+  variables = () => nothing;
 }
 
-test("the router and deployer must run on one platform, one achq knows", () => {
+class ElsewhereDeployer extends core.Deployer {
+  readonly platform = "elsewhere";
+  readonly env = nothing;
+  constructor(
+    name: string,
+    readonly inputs: { router: core.Router; owners: string[] },
+  ) {
+    super(name);
+  }
+  privateUrl = () => "http://deployer.elsewhere";
+  variables = () => nothing;
+}
+
+test("the router and deployer must run on one platform, one achq can put containers on", () => {
   expect(() =>
     checkInfra(
       achq(() => {
-        const router = new ElsewhereRouter("router");
-        new railway.Deployer("deployer", { project: "achq", router, owners: [] });
+        const router = new railway.Router("router", { project: "achq" });
+        new ElsewhereDeployer("deployer", { router, owners: [] });
       })(),
     ),
   ).toThrow("must share a platform");
   expect(() =>
     checkInfra(
       achq(() => {
-        const router = new ElsewhereRouter("router");
-        class ElsewhereDeployer extends core.Deployer {
-          readonly platform = "elsewhere";
-          readonly inputs = { router, owners: [] };
-        }
-        new ElsewhereDeployer("deployer");
+        new ElsewhereDeployer("deployer", { router: new ElsewhereRouter("router"), owners: [] });
       })(),
     ),
-  ).toThrow(`doesn't know the platform "elsewhere"`);
+  ).toThrow(/doesn't know the .*"elsewhere"/);
+});
+
+test("the deployer and every resource that names a router or deployer use the infra's", () => {
+  expect(() =>
+    checkInfra(
+      achq(() => {
+        new railway.Router("router", { project: "achq" });
+        const other = new railway.Router("other", { project: "achq" });
+        new railway.Deployer("deployer", { router: other, owners: [] });
+      })(),
+    ),
+  ).toThrow("one router and one deployer");
+  const declared = achq(() => {
+    const router = new railway.Router("router", { project: "achq" });
+    const deployer = new railway.Deployer("deployer", { router, owners: [] });
+    new github.App("personal", { name: "djgrant-claude", router, deployer });
+  })();
+  const elsewhere = achq(() => {
+    const router = new railway.Router("router", { project: "achq" });
+    new railway.Deployer("deployer", { router, owners: [] });
+  })();
+  // An App on another infra's router, declared alongside this one.
+  const stray = declared.resources.find((r) => r instanceof github.App)!;
+  expect(() => checkInfra({ resources: [...elsewhere.resources, stray] })).toThrow("github-app personal must use router router");
 });
 
 test("an achq.infra.ts file, written as the design shows, loads with its imports resolved to achq", async () => {
@@ -50,7 +90,6 @@ import * as railway from "achq/railway";
 export default achq(() => {
   const router = new railway.Router("router", { project: "achq" });
   const deployer = new railway.Deployer("deployer", {
-    project: "achq",
     router,
     owners: ["djgrant", "notationlabs"],
   });
@@ -60,8 +99,10 @@ export default achq(() => {
 `,
   );
   const loaded = await loadInfra(path.join(tmp, "achq.infra.ts"));
-  expect(loaded.platform.id).toBe("railway");
+  expect(loaded.router.platform).toBe("railway");
   expect(loaded.deployer.inputs.owners).toEqual(["djgrant", "notationlabs"]);
-  const github = loaded.providers.find((p) => p.id === "github")!;
-  expect(github.resources.map((a) => [(a as any).inputs.name, (a as any).inputs.org])).toEqual([["djgrant-claude", undefined], ["notation-achq", "notationlabs"]]);
+  const apps = loaded.resources.filter((r) => r.kind === "github-app");
+  expect(apps.map((a) => [(a as any).inputs.name, (a as any).inputs.org])).toEqual([["djgrant-claude", undefined], ["notation-achq", "notationlabs"]]);
+  // The infra's App is the class the CLI knows: its imports resolved to this checkout.
+  expect(apps[0]).toBeInstanceOf(github.App);
 });

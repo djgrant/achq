@@ -5,8 +5,8 @@ import { containersOf, type Located, pickContainer } from "./containers.ts";
 import { wake } from "./wake.ts";
 
 /** The repo's container, picked and woken through the router. */
-export const reachContainer = async (prompter: Prompter, { host, repo, cli }: RepoHere, wanted?: string): Promise<Located> => {
-  const status = await cli.status(repo);
+export const reachContainer = async (prompter: Prompter, { host, repo, repoHost }: RepoHere, wanted?: string): Promise<Located> => {
+  const status = await repoHost.status(repo);
   if (!status) throw new Error(`${repo} has no ACHQ_STATUS: it hasn't been deployed`);
   const containers = containersOf(status);
   let container = pickContainer(containers, wanted);
@@ -16,6 +16,6 @@ export const reachContainer = async (prompter: Prompter, { host, repo, cli }: Re
     container = containers.find((c) => c.name === name)!;
   }
   if (!status.router) throw new Error(`${repo}'s ACHQ_STATUS doesn't say where the router is`);
-  await wake(status.router, { host, repo, container: container.name }, cli.token());
+  await wake(status.router, { host, repo, container: container.name }, repoHost.token());
   return container;
 };

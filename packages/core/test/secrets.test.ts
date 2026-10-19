@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { adminSecret, providerSecret, containerSecret } from "../src/secrets.ts";
+import { adminSecret, providerSecret, containerSecret } from "../src/wire/secrets.ts";
 
 describe("derived secrets", () => {
   test("differ by purpose, App, repo and container, and don't depend on repo case", () => {

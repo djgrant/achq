@@ -1,5 +1,7 @@
-import type { Data } from "../model/data.ts";
-import type { SelectorData } from "../model/resources.ts";
+import type { Data } from "../resources/data.ts";
+import type { SelectorData } from "../resources/config.ts";
+import type { RepoPlan } from "../resources/repo-plan.ts";
+import type { Installation, SourceSettings } from "../wire/protocol.ts";
 
 /** A thread's identity, qualified by channel. `id` is e.g. `notationlabs/yieldstar#42`. */
 export type ThreadRef = { channel: string; id: string };
@@ -60,7 +62,7 @@ export type Credential = {
   value: string;
   /** ISO time. */
   expiresAt: string;
-  /** What it covers, for the provider's `install`. e.g. `{ app, repos, permissions }`. */
+  /** What it covers, for the `install` of the access provider or channel that minted it. e.g. `{ app, repos, permissions }`. */
   scope: { [key: string]: Data };
 };
 
@@ -75,6 +77,10 @@ export interface Channel {
   parse(source: string, headers: Headers, body: string): ChannelEvent | undefined;
   /** A credential the container's runner (not the agent) uses for `ChannelClient`. Its scope names the `source`. */
   mintClient(source: string, repo: string): Promise<Credential>;
+  /** The repos each source is installed on: what the deployer serves. */
+  installations(): Promise<Installation[]>;
+  /** What each source is set up to send and allow, for the deployer's checks. */
+  sources(): Promise<SourceSettings[]>;
 
   // ── Both sides: selectors are plain data ──
   matchEvent(selector: SelectorData, event: ChannelEvent): boolean;
@@ -82,6 +88,12 @@ export interface Channel {
 
   // ── Container side ──
   client(credential: Credential): ChannelClient;
+
+  // ── The CLI, acting as you ──
+  /** Checks the source the config names can serve it, then installs it on the repo (unless it's a dry run). */
+  install(repo: string, plan: RepoPlan, options: { dryRun: boolean; open(url: string): Promise<void>; log(line: string): void }): Promise<void>;
+  /** Removes the repo from its source. Returns what to tell you. */
+  uninstall(repo: string, plan: RepoPlan): Promise<string>;
 }
 
 export interface ChannelClient {

@@ -1,6 +1,7 @@
 import { defineCommand } from "@pokit/core";
 import { clean } from "../lib/errors.ts";
 import type { DeployRecord, Installation } from "@achq/core";
+import { cliContext } from "../lib/context.ts";
 import { secretEnv } from "../lib/env.ts";
 import { loadInfra } from "../lib/load/infra.ts";
 import { adminRequest, routerAccess } from "../lib/router.ts";
@@ -14,7 +15,7 @@ export const command = defineCommand({
     const file = infraFile();
     if (file) {
       const infra = await loadInfra(file);
-      const router = await routerAccess(infra.platform.infra(infra, secretEnv()), infra.router.name);
+      const router = await routerAccess(infra, cliContext({ env: secretEnv(), log: (line) => console.log(line) }));
       const [records, installations] = await Promise.all([
         adminRequest<DeployRecord[]>(router, "GET", "/admin/status"),
         adminRequest<Installation[]>(router, "GET", "/admin/installations"),
@@ -22,8 +23,8 @@ export const command = defineCommand({
       console.log(infraStatusTable(records, installations));
       return;
     }
-    const { repo, cli } = needRepo();
-    const status = await cli.status(repo);
+    const { repo, repoHost } = needRepo();
+    const status = await repoHost.status(repo);
     if (!status) {
       console.log(`${repo} has no ACHQ_STATUS: it hasn't been deployed`);
       return;

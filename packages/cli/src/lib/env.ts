@@ -15,6 +15,6 @@ export const need = (name: string, hint = "") => {
   return resolve(name, value);
 };
 
-/** The environment, with 1Password references read as they're used. For platforms, which read their own settings. */
+/** The environment, with 1Password references read as they're used. For the infra's resources, which read their own settings. */
 export const secretEnv = (): Record<string, string | undefined> =>
   new Proxy(process.env, { get: (env, name: string) => (env[name] ? resolve(name, env[name]) : undefined) });

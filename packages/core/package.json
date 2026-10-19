@@ -5,7 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./secrets": "./src/secrets.ts",
-    "./signing": "./src/signing.ts"
+    "./secrets": "./src/wire/secrets.ts",
+    "./signing": "./src/wire/signing.ts"
   }
 }
