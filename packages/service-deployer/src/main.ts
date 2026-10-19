@@ -28,9 +28,8 @@ export const main = () => {
     },
   });
 
-  const port = Number(env.DEPLOYER_PORT || DEPLOYER_PORT);
-  Bun.serve({ port, idleTimeout: 255, fetch: deployerHandler(deployer, key) });
-  console.log(`deployer listening on ${port}`);
+  Bun.serve({ port: DEPLOYER_PORT, idleTimeout: 255, fetch: deployerHandler(deployer, key) });
+  console.log(`deployer listening on ${DEPLOYER_PORT}`);
 };
 
 if (import.meta.main) main();

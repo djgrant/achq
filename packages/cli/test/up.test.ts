@@ -139,7 +139,7 @@ const FRESH = [
   "  ~ achq-router variables AGENT_WEBHOOK_KEY, DATA_DIR, PORT",
   "  + github app djgrant-claude opens GitHub to create it",
   "  ~ achq-router variables ACHQ_GITHUB_APPS",
-  "  ~ achq-router variables ACHQ_DEPLOYER_URL, ACHQ_REF, PRIVATE_PORT",
+  "  ~ achq-router variables ACHQ_DEPLOYER_URL, ACHQ_REF",
   "  ~ achq-router deploy",
   "  + service achq-deployer",
   "  + achq-deployer volume /data",

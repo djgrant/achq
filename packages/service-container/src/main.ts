@@ -41,10 +41,9 @@ const main = async () => {
     process.env.HOME = paths.home;
     const runner = createAgent(process.env);
     await runner.reportInterrupted().catch((e) => console.error("reporting interrupted runs failed", e));
-    const port = Number(process.env.PORT ?? CONTAINER_PORT);
     // "::" so private networks over IPv6 reach it.
-    Bun.serve({ port, hostname: "::", fetch: runner.fetch });
-    console.log(`achq-agent for ${repo} (${container}), listening on :${port}`);
+    Bun.serve({ port: CONTAINER_PORT, hostname: "::", fetch: runner.fetch });
+    console.log(`achq-agent for ${repo} (${container}), listening on :${CONTAINER_PORT}`);
   }
 };
 

@@ -12,7 +12,6 @@ export const ENV = {
   routerUrl: "ACHQ_ROUTER_URL",
   /** The router's public base URL. The deployer puts it in ACHQ_STATUS so the repo CLI can call `/wake`. */
   routerPublicUrl: "ACHQ_ROUTER_PUBLIC_URL",
-  privatePort: "PRIVATE_PORT",
   /** The deployer's private base URL. Router. */
   deployerUrl: "ACHQ_DEPLOYER_URL",
   /** Repo owners the deployer serves, comma-separated. */

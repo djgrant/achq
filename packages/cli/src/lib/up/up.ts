@@ -37,7 +37,6 @@ export const up = async ({ router, deployer, resources }: InfraResources, option
   router.variables({
     [ENV.deployerUrl]: deployer.privateUrl(DEPLOYER_PORT),
     [ENV.ref]: ref,
-    [ENV.privatePort]: String(ROUTER_PRIVATE_PORT),
   });
   deployer.variables({
     [ENV.key]: router.key,

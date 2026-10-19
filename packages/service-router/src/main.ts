@@ -22,12 +22,10 @@ export const main = async () => {
   });
   // Loaded before serving, so no event is routed against an empty config.
   await router.start();
-  const publicPort = Number(env.PORT ?? ROUTER_PUBLIC_PORT);
-  const privatePort = Number(env[ENV.privatePort] ?? ROUTER_PRIVATE_PORT);
   // "::" so private networks over IPv6 reach it.
-  Bun.serve({ port: publicPort, hostname: "::", fetch: router.publicFetch });
-  Bun.serve({ port: privatePort, hostname: "::", fetch: router.privateFetch });
-  console.log(`achq router listening on :${publicPort} (public) and :${privatePort} (private)`);
+  Bun.serve({ port: ROUTER_PUBLIC_PORT, hostname: "::", fetch: router.publicFetch });
+  Bun.serve({ port: ROUTER_PRIVATE_PORT, hostname: "::", fetch: router.privateFetch });
+  console.log(`achq router listening on :${ROUTER_PUBLIC_PORT} (public) and :${ROUTER_PRIVATE_PORT} (private)`);
 };
 
 if (import.meta.main) await main();
