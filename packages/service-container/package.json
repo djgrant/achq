@@ -9,11 +9,13 @@
   "dependencies": {
     "@achq/core": "workspace:*",
     "@achq/flock": "workspace:*",
-    "achq": "workspace:*"
+    "achq": "workspace:*",
+    "mustache": "^4"
   },
   "devDependencies": {
     "@achq/claude": "workspace:*",
-    "@achq/test-utils": "workspace:*"
+    "@achq/test-utils": "workspace:*",
+    "@types/mustache": "^4.2.6"
   },
   "bin": {
     "achq-agent": "bin/achq-agent"

@@ -2,8 +2,8 @@ import { createHash } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import type { Message, Thread } from "@achq/core";
+import Mustache from "mustache";
 import { PROMPTS } from "./constants.ts";
-import { render } from "./template.ts";
 
 export type PromptInput = {
   mode: "new" | "resume";
@@ -66,7 +66,7 @@ export const buildPrompt = (input: PromptInput): Prompt => {
   const bodyChanged = input.mode === "resume" && openingTrusted && input.opening !== undefined && input.opening !== opening;
 
   const template = fs.readFileSync(path.join(PROMPTS, `${input.mode}.md`), "utf8");
-  const prompt = render(template, {
+  const view = {
     thread: { id: input.thread.ref.id, title: input.thread.title, url: input.thread.url, body },
     messages: shown.map((m) => ({ author: m.author, date: m.at, body: stripNew(m.body, input.mention).trim() })),
     omitted,
@@ -74,7 +74,9 @@ export const buildPrompt = (input: PromptInput): Prompt => {
     branch: input.branch,
     head: input.head,
     by: input.by,
-  });
+  };
+  // The prompt is markdown, not HTML: values go in as written.
+  const prompt = Mustache.render(template, view, {}, { escape: String });
   return { prompt, included: shown.length + (bodyChanged ? 1 : 0), omitted, lastMessage: input.messages.at(-1)?.id, opening };
 };
 
