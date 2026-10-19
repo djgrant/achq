@@ -12,7 +12,7 @@ import { Container, Policy } from "achq";
 let leak: unknown = "unset";
 try { ${body} } catch (e) { leak = "threw: " + String(e); }
 new Container("dev", { image: "./Dockerfile" });
-new Policy("probe", { access: "probe", leak: String(leak) });
+new Policy("probe", { provider: "probe", leak: String(leak) });
 `,
 });
 const leakOf = async (body: string) => (await evaluateConfig(probe(body))).policies[0]!.policy.leak as string;
@@ -183,6 +183,6 @@ describe("parseManifest", () => {
     expect(() => parseManifest(JSON.stringify({ ...base, extra: 1 }))).toThrow("invalid");
     expect(() => parseManifest(JSON.stringify({ ...base, agents: [{ name: "Bad Name", runtime: "claude" }] }))).toThrow("agents.0.name");
     expect(() => parseManifest(JSON.stringify({ ...base, workspaces: [{ ...base.workspaces[0], threads: { source: "x" } }] }))).toThrow(`needs "channel"`);
-    expect(() => parseManifest(JSON.stringify({ ...base, policies: [{ name: "p", policy: { access: "" } }] }))).toThrow(`needs "access"`);
+    expect(() => parseManifest(JSON.stringify({ ...base, policies: [{ name: "p", policy: { provider: "" } }] }))).toThrow(`needs "provider"`);
   });
 });

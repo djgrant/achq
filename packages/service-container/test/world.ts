@@ -6,7 +6,7 @@ import { signedHeaders } from "@achq/core/signing";
 import { fakeRouter } from "@achq/test-utils/container-router";
 import { fakeClaude } from "@achq/test-utils/fake-claude";
 import { makeOrigin } from "@achq/test-utils/origin";
-import { testAccess } from "@achq/test-utils/test-access";
+import { testPolicyProvider } from "@achq/test-utils/test-policy-provider";
 import { tempDir } from "@achq/test-utils/temp-dir";
 import { TestChannel } from "@achq/test-utils/test-channel";
 import { createConfigLoader } from "../src/config/loader.ts";
@@ -47,7 +47,7 @@ export const world = async (opts: { maxRuns?: number } = {}) => {
     repo: "acme/widgets",
     container: "dev",
     channels: [channel],
-    access: [testAccess()],
+    policyProviders: [testPolicyProvider()],
     routerUrl: router.url,
     containerSecret: SECRET,
     dataDir,

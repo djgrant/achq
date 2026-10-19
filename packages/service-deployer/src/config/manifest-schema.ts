@@ -17,7 +17,7 @@ const tagged = <K extends string>(key: K) =>
     { [P in K]: string } & { [key: string]: Data }
   >;
 const selector = tagged("channel");
-const policyData = tagged("access");
+const policyData = tagged("provider");
 
 const manifestSchema = z.strictObject({
   policies: z.array(z.strictObject({ name, policy: policyData })).max(100),

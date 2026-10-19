@@ -1,10 +1,10 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { AccessProvider } from "@achq/core";
+import type { PolicyProvider } from "@achq/core";
 
 /** Writes each token to `dir/token` (mode 600) and points agents at it. */
-export const testAccess = (): AccessProvider => ({
-  id: "test-access",
+export const testPolicyProvider = (): PolicyProvider => ({
+  id: "test-policy-provider",
   validate: async () => [],
   mint: async () => [],
   async install(credentials, dir) {

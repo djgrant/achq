@@ -3,7 +3,7 @@ import { verifySigned } from "@achq/core/signing";
 
 export const CHANNEL_TOKEN = "channel-token-never-for-agents";
 
-/** The router's side of `/claims` and `/credentials`, checking container signatures. Mints `test-access` credentials. */
+/** The router's side of `/claims` and `/credentials`, checking container signatures. Mints `test-policy-provider` credentials. */
 export const fakeRouter = (secret: string, opts: { expiresIn?: () => number; now?: () => number } = {}) => {
   const claims: unknown[] = [];
   const rejected: string[] = [];
@@ -25,7 +25,7 @@ export const fakeRouter = (secret: string, opts: { expiresIn?: () => number; now
         mints++;
         const expiresAt = new Date((opts.now ?? Date.now)() + (opts.expiresIn?.() ?? 60 * 60_000)).toISOString();
         const response: CredentialsResponse = {
-          credentials: [{ access: "test-access", value: `agent-token-${mints}`, expiresAt, scope: {} }],
+          credentials: [{ provider: "test-policy-provider", value: `agent-token-${mints}`, expiresAt, scope: {} }],
           channels: [{ channel: "test", value: CHANNEL_TOKEN, expiresAt, scope: { source: "app" } }],
         };
         return Response.json(response);

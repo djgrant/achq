@@ -5,8 +5,8 @@ export const USER_AGENT = "achq";
 
 /** The channel's id, in events, selectors and channel credentials. */
 export const CHANNEL = "github";
-/** The access provider's id, in policies and agent credentials. */
-export const ACCESS = "github";
+/** The policy provider's id, in policies and agent credentials. */
+export const POLICY_PROVIDER = "github";
 /** The code host's id, in installations, events and deploy records. */
 export const CODE_HOST = "github";
 

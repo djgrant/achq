@@ -1,4 +1,4 @@
-import type { AccessProvider, Channel, CodeHost, RouterRepoConfig } from "@achq/core";
+import type { Channel, CodeHost, PolicyProvider, RouterRepoConfig } from "@achq/core";
 import { ATTEMPT_TIMEOUT_MS, DELAYS } from "./constants.ts";
 import { createStore, type Store } from "./store.ts";
 import type { Claims } from "./targets.ts";
@@ -6,7 +6,7 @@ import type { Claims } from "./targets.ts";
 export type RouterDeps = {
   /** Each one's installations and sources are what the deployer serves and checks. */
   channels: Channel[];
-  access: AccessProvider[];
+  policyProviders: PolicyProvider[];
   /** Where repos live, by code host id: `/wake` checks push access with them. */
   hosts: Record<string, CodeHost>;
   /** AGENT_WEBHOOK_KEY. */

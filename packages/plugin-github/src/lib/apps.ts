@@ -71,7 +71,7 @@ export class Apps {
 
 const shared = new Map<string, Apps>();
 
-/** The Apps `env` configures, one per configuration: the router's channel and access provider share one JWT cache. */
+/** The Apps `env` configures, one per configuration: the router's channel and policy provider share one JWT cache. */
 export const appsFor = (env: Record<string, string | undefined>) => {
   const api = githubUrls(env).api;
   const configured = `${api} ${env[GITHUB_ENV.apps] ?? ""}`;

@@ -46,7 +46,7 @@ import * as github from "achq/github";
 
 const app = github.App.get("notation-achq");
 
-const code = new github.RepoPolicy("code", { app, permissions: { contents: "write", issues: "write", pull_requests: "write" } });
+const code = new github.Policy("code", { app, permissions: { contents: "write", issues: "write", pull_requests: "write" } });
 const dev = new Container("dev", { image: "./Dockerfile", policies: [code] });
 
 new Workspace("docs", { container: dev, threads: app.issues.where({ labels: ["docs"] }), branch: "docs-{number}", base: "docs" });
@@ -139,7 +139,7 @@ Each folder in `packages/` is a workspace package, prefixed with its kind. Packa
 | `resources/` | Every class that extends `Resource`, one per file |
 | `channels/` | A `Channel` |
 | `installers/` | An `Installer`: subscribes a repo to a channel's sources |
-| `policies/` | An `AccessProvider`: turns policies into credentials |
+| `policy/` | A `PolicyProvider`: turns policies into credentials |
 | `code-hosts/` | A `CodeHost` |
 | `container-hosts/` | A `ContainerHost` and its shell |
 | `agents/` | An `AgentProvider` |

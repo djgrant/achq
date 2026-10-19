@@ -1,5 +1,5 @@
 // achq end to end, in one process, over real HTTP. The router, deployer,
-// config sandbox, GitHub channel, access provider and container runner are all
+// config sandbox, GitHub channel, policy provider and container runner are all
 // real. Fakes stand only at the true boundaries:
 // - GitHub's API. It checks App JWTs against a real RSA key and serves repo
 //   data from a real git repository.
@@ -21,7 +21,7 @@ import { tempDir } from "@achq/test-utils/temp-dir";
 import { createDeployer, routerClient, deployerHandler } from "@achq/deployer";
 import { FakeGitHub, makeApp } from "@achq/test-utils/github";
 import { githubChannel } from "@achq/github/channels";
-import { githubAccess } from "@achq/github/policies";
+import { githubPolicyProvider } from "@achq/github/policy";
 import { githubCodeHost } from "@achq/github/code-hosts";
 import { createRouter } from "@achq/router";
 import { privateEnv } from "achq/registry";
@@ -46,7 +46,7 @@ import * as github from "achq/github";
 import { app } from "./app.ts";
 import { coder } from "./agents/coder.ts";
 
-const code = new github.RepoPolicy("code", { app, permissions: { contents: "write", issues: "write", pull_requests: "write" } });
+const code = new github.Policy("code", { app, permissions: { contents: "write", issues: "write", pull_requests: "write" } });
 
 const dev = new Container("dev", {
   image: "./Dockerfile",
@@ -405,13 +405,13 @@ beforeAll(async () => {
   // The router: the side that holds the App's key.
   routerDir = path.join(root, "router");
   const githubEnv = { ACHQ_GITHUB_APPS: JSON.stringify(github.keys()), GITHUB_API_URL: github.url, AGENT_WEBHOOK_KEY: KEY };
-  const access = githubAccess.create(githubEnv);
+  const policyProvider = githubPolicyProvider.create(githubEnv);
   const hosts = { github: githubCodeHost.create(githubEnv) };
   let deployerFetch: (req: Request) => Promise<Response> = async () => new Response("starting", { status: 503 });
   const deployerUrl = serve((req) => deployerFetch(req));
   router = createRouter({
     channels: [githubChannel.create(githubEnv)],
-    access: [access],
+    policyProviders: [policyProvider],
     key: KEY,
     dataDir: routerDir,
     deployerUrl,
@@ -509,7 +509,7 @@ describe("achq end to end", () => {
           name: "dev",
           url: `http://localhost:${dev().server.port}`,
           // As declared: no repo means the config's own, which the router mints for.
-          policies: [{ access: "github", source: SLUG, repo: null, permissions: { contents: "write", issues: "write", pull_requests: "write" } }],
+          policies: [{ provider: "github", source: SLUG, repo: null, permissions: { contents: "write", issues: "write", pull_requests: "write" } }],
         },
       ],
       workspaces: [

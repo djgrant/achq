@@ -7,7 +7,7 @@ import { coder, triage } from "./agents.ts";
 
 const app = github.App.get("notation-achq");
 
-const code = new github.RepoPolicy("code", { app, permissions: { contents: "write", issues: "write", pull_requests: "write" } });
+const code = new github.Policy("code", { app, permissions: { contents: "write", issues: "write", pull_requests: "write" } });
 
 const dev = new Container("dev", {
   image: "./Dockerfile",
@@ -29,7 +29,7 @@ export const triage = new Claude("triage", { model: "claude-haiku-5-5", systemPr
 };
 
 export const DOC_PLAN = {
-  policies: [{ name: "code", policy: { access: "github", source: "notation-achq", repo: null, permissions: { contents: "write", issues: "write", pull_requests: "write" } } }],
+  policies: [{ name: "code", policy: { provider: "github", source: "notation-achq", repo: null, permissions: { contents: "write", issues: "write", pull_requests: "write" } } }],
   containers: [{ name: "dev", image: "./Dockerfile", policies: ["code"], files: { "~/.config/foo.toml": "./foo.toml" } }],
   workspaces: [
     { name: "docs", container: "dev", threads: { channel: "github", source: "notation-achq", kind: "issue", labels: ["docs"] }, branch: "docs/{number}", base: "docs" },

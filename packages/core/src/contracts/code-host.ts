@@ -33,7 +33,7 @@ export interface CodeHost {
   repo(repo: string, credential: Credential): RepoClient;
   /** Whether `token` (from `token`) belongs to someone who can push to `repo`. */
   canPush(repo: string, token: string): Promise<boolean>;
-  /** Where containers clone `repo` from, with the credentials their access provider installs. */
+  /** Where containers clone `repo` from, with the credentials their policy provider installs. */
   cloneUrl(repo: string): string;
 
   // ── The CLI, acting as you ──

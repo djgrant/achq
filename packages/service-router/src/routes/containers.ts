@@ -1,7 +1,7 @@
 import { type ChannelCredential, type ClaimRequest, type CredentialsRequest, type CredentialsResponse, type RouterRepoConfig, threadKey } from "@achq/core";
 import { containerSecret } from "@achq/core/secrets";
 import { verifySigned } from "@achq/core/signing";
-import { mint } from "../access.ts";
+import { mint } from "../policies.ts";
 import { configOf, type RouterContext } from "../context.ts";
 import { json, noContent, parse, text } from "../http.ts";
 import { repoFile } from "../store.ts";

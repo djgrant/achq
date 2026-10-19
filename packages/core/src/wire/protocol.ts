@@ -16,7 +16,7 @@
 //   PUT  /admin/repos/<owner>/<repo>   RouterRepoConfig → 204                   admin
 //   DELETE /admin/repos/<owner>/<repo> → 204                                    admin
 //   GET  /admin/repos              → RouterRepoConfig[]                         admin
-//   POST /admin/mint               MintRequest → AccessCredential[]             admin (the deployer's own access)
+//   POST /admin/mint               MintRequest → PolicyCredential[]             admin (the deployer's own access)
 //   POST /admin/validate           ValidateRequest → { problems: string[] }     admin
 //   GET  /admin/installations      → Installation[]                             admin
 //   GET  /admin/sources            → SourceSettings[]                           admin
@@ -34,7 +34,7 @@
 //   POST /events                   ContainerEnvelope → 202                      container-signed
 import type { RepoManifest } from "../resources/repo-manifest.ts";
 import type { PolicyData, SelectorData } from "../resources/config.ts";
-import type { AccessCredential } from "../contracts/access.ts";
+import type { PolicyCredential } from "../contracts/policy-provider.ts";
 import type { ChannelCredential, ChannelEvent, ThreadRef } from "../contracts/channel.ts";
 
 /** What the router forwards to the deployer: install and config events, which name the `CodeHost` they're about. */
@@ -62,8 +62,8 @@ export type WakeRequest = { host: string; repo: string; container: string };
 
 export type CredentialsRequest = { repo: string; container: string };
 export type CredentialsResponse = {
-  /** For the agent: one or more per access provider, covering the container's policies. */
-  credentials: AccessCredential[];
+  /** For the agent: one or more per policy provider, covering the container's policies. */
+  credentials: PolicyCredential[];
   /** For the runner only, never the agent: one per channel source the container's workspaces use. */
   channels: ChannelCredential[];
 };

@@ -4,7 +4,7 @@ import { afterEach, expect } from "bun:test";
 import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { ContainerEnvelope, DeployerEnvelope, PolicyData, SelectorData, AccessProvider, Channel, ChannelEvent, CodeHost, RouterRepoConfig } from "@achq/core";
+import type { ContainerEnvelope, DeployerEnvelope, PolicyData, SelectorData, PolicyProvider, Channel, ChannelEvent, CodeHost, RouterRepoConfig } from "@achq/core";
 import { adminSecret, containerSecret } from "@achq/core/secrets";
 import { hmacHex, safeEqual, signedHeaders, verifySigned } from "@achq/core/signing";
 import { createRouter } from "../src/router.ts";
@@ -13,7 +13,7 @@ export const key = "test-key";
 export const repo = "acme/widgets";
 export const hour = () => new Date(Date.now() + 3_600_000).toISOString();
 
-// ─── A channel and an access provider of our own ─────────────────────────────────────
+// ─── A channel and a policy provider of our own ─────────────────────────────────────
 
 /** Each source's webhook secret, derived from the key the way the GitHub channel does. */
 export const sourceSecret = (source: string) => hmacHex(key, `test-source:${source}`);
@@ -44,18 +44,18 @@ export const testChannel: Channel = {
   },
 };
 
-export const testAccess: AccessProvider = {
+export const testPolicyProvider: PolicyProvider = {
   id: "test",
   validate: async (policy) => (policy.ok === false ? [`${policy.name} isn't allowed`] : []),
   mint: async (policies, forRepo) =>
-    policies.map((p) => ({ access: "test", value: `token:${p.name}`, expiresAt: hour(), scope: { repo: forRepo, policy: p.name } })),
+    policies.map((p) => ({ provider: "test", value: `token:${p.name}`, expiresAt: hour(), scope: { repo: forRepo, policy: p.name } })),
   install: async () => ({ env: {} }),
 };
 
 /** `push-token` can push to `repo`; `read-token` and anything else can't. */
 export const testHost: CodeHost = {
   repoName: /^[\w.-]+\/[\w.-]+$/,
-  deployerPolicy: (source, forRepo) => ({ access: "test", source, repo: forRepo }),
+  deployerPolicy: (source, forRepo) => ({ provider: "test", source, repo: forRepo }),
   repo() {
     throw new Error("not on the router");
   },
@@ -139,7 +139,7 @@ export type Boot = { dir?: string; deployer?: string; delays?: number[] };
 export const boot = async ({ dir = mkdtempSync(join(tmpdir(), "achq-router-")), deployer = "http://localhost:1", delays = [0, 0] }: Boot = {}) => {
   const router = createRouter({
     channels: [testChannel],
-    access: [testAccess],
+    policyProviders: [testPolicyProvider],
     hosts: { test: testHost },
     key,
     dataDir: dir,
@@ -174,7 +174,7 @@ export const boot = async ({ dir = mkdtempSync(join(tmpdir(), "achq-router-")), 
 
 // Two containers. `dev` has a docs workspace before its catch-all; `docsbox` only takes docs threads.
 export const selector = (labels?: string[]): SelectorData => ({ channel: "test", source: "app", ...(labels && { labels }) });
-export const policy = (name: string): PolicyData => ({ access: "test", name });
+export const policy = (name: string): PolicyData => ({ provider: "test", name });
 export const config = (dev: { url: string }, docsbox: { url: string }): RouterRepoConfig => ({
   host: "test",
   repo,

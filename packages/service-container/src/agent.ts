@@ -1,5 +1,5 @@
 import { ENV } from "@achq/core";
-import { ACCESS, CHANNELS } from "achq/registry";
+import { CHANNELS, POLICY_PROVIDERS } from "achq/registry";
 import { createConfigLoader } from "./config/loader.ts";
 import { DEFAULT_MAX_RUNS, DEFAULT_RUN_TIMEOUT_MINUTES } from "./constants.ts";
 import { paths as layout } from "./paths.ts";
@@ -23,7 +23,7 @@ export const createAgent = (env: Env, options: { log?: (line: string) => void } 
     container,
     // Without the router's key or secrets: credentials come from the router.
     channels: CHANNELS.map((c) => c.create(env)),
-    access: ACCESS.map((a) => a.create(env)),
+    policyProviders: POLICY_PROVIDERS.map((p) => p.create(env)),
     routerUrl: requiredIn(env, ENV.routerUrl),
     containerSecret: requiredIn(env, ENV.containerSecret),
     dataDir,

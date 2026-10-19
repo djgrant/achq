@@ -1,5 +1,5 @@
 import * as fs from "node:fs";
-import { type AccessProvider, type Channel, type ChannelEvent, type ContainerEnvelope, type RepoManifest, type RuntimeContext, type RuntimeFactory, threadKey } from "@achq/core";
+import { type Channel, type ChannelEvent, type ContainerEnvelope, type PolicyProvider, type RepoManifest, type RuntimeContext, type RuntimeFactory, threadKey } from "@achq/core";
 import { acquire } from "@achq/utils/flock";
 import { agentEnv, saveAgentEnv } from "./agent-env.ts";
 import { claimThread } from "./claim.ts";
@@ -28,7 +28,7 @@ export type RunnerOptions = {
   /** This container's name in the repo's config. */
   container: string;
   channels: Channel[];
-  access: AccessProvider[];
+  policyProviders: PolicyProvider[];
   routerUrl: string;
   containerSecret: string;
   dataDir: string;
@@ -71,7 +71,7 @@ export class Runner {
       containerSecret: opts.containerSecret,
       repo: opts.repo,
       container: opts.container,
-      access: opts.access,
+      policyProviders: opts.policyProviders,
       paths: this.paths,
       now: this.now,
       log: this.log,

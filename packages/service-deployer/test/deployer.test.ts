@@ -109,7 +109,7 @@ describe("install", () => {
     expect(await deployer.handle(event("installation.created", [REPO]))).toBe(true);
 
     // The deployer's own token, minted through the router for exactly this repo.
-    expect(router.mints).toEqual([{ repo: REPO, policies: [{ access: "github", source: APP, repo: REPO, permissions: { ...DEPLOYER_PERMISSIONS } }] }]);
+    expect(router.mints).toEqual([{ repo: REPO, policies: [{ provider: "github", source: APP, repo: REPO, permissions: { ...DEPLOYER_PERMISSIONS } }] }]);
 
     // One container, built once, with its env.
     expect(host.ops()).toEqual([

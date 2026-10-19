@@ -14,7 +14,7 @@ import * as github from "achq/github";
 import { docsLabels } from "./lib/labels.ts";
 
 const app = github.App.get("notation-achq");
-const code = new github.RepoPolicy("code", { app, permissions: { contents: "write", issues: "write", pull_requests: "write" } });
+const code = new github.Policy("code", { app, permissions: { contents: "write", issues: "write", pull_requests: "write" } });
 const dev = new Container("dev", { image: "./Dockerfile", policies: [code] });
 new Workspace("docs", { container: dev, threads: app.issues.where({ labels: docsLabels }), branch: "docs/{number}", base: "docs" });
 new Workspace("issues", { container: dev, threads: app.issues, branch: "issue-{number}", base: "main" });

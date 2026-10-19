@@ -187,7 +187,7 @@ describe("what the agent sees", () => {
       expect(call.env.HOME).toBe(w.paths.home);
     }
     const tokenFile = a!.env.TEST_TOKEN_FILE!;
-    expect(tokenFile).toBe(path.join(w.paths.access("test-access"), "token"));
+    expect(tokenFile).toBe(path.join(w.paths.policyProvider("test-policy-provider"), "token"));
     expect(fs.readFileSync(tokenFile, "utf8")).toBe("agent-token-1");
     expect(fs.statSync(tokenFile).mode & 0o777).toBe(0o600);
     // The runner's channel client got the channel credential.

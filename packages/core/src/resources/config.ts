@@ -2,10 +2,10 @@
 import { type Data, toData } from "./data.ts";
 import { Resource } from "./resource.ts";
 
-/** Selector and policy data always says which channel or access provider interprets it. */
+/** Selector and policy data always says which channel or policy provider interprets it. */
 export type SelectorData = { channel: string; source: string; [key: string]: Data };
 /** `source`, when present, is the channel source the policy grants through, e.g. a GitHub App. Deploy currently requires it. */
-export type PolicyData = { access: string; [key: string]: Data } & { source?: string };
+export type PolicyData = { provider: string; [key: string]: Data } & { source?: string };
 
 /** Which events start a run. Plain data, matched in the router and the container. */
 export class EventSelector {
@@ -21,7 +21,7 @@ export class ThreadSelector {
   }
 }
 
-/** What a container can access. Interpreted by its access provider. */
+/** What a container can access. Interpreted by its policy provider. */
 export class Policy extends Resource {
   readonly kind = "policy";
   constructor(

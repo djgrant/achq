@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { fakeRouter } from "@achq/test-utils/container-router";
-import { testAccess } from "@achq/test-utils/test-access";
+import { testPolicyProvider } from "@achq/test-utils/test-policy-provider";
 import { tempDir } from "@achq/test-utils/temp-dir";
 import { Credentials } from "../src/credentials.ts";
 import { paths as layout } from "../src/paths.ts";
@@ -20,8 +20,8 @@ describe("credentials", () => {
     const router = fakeRouter("s", { now: () => now });
     cleanups.push(router.stop);
     const paths = layout(tempDir(dirs));
-    const creds = new Credentials({ routerUrl: router.url, containerSecret: "s", repo: "acme/widgets", container: "dev", access: [testAccess()], paths, now: () => now });
-    const tokenFile = path.join(paths.access("test-access"), "token");
+    const creds = new Credentials({ routerUrl: router.url, containerSecret: "s", repo: "acme/widgets", container: "dev", policyProviders: [testPolicyProvider()], paths, now: () => now });
+    const tokenFile = path.join(paths.policyProvider("test-policy-provider"), "token");
 
     const first = await creds.get();
     expect(router.mints()).toBe(1);
@@ -49,7 +49,7 @@ describe("credentials", () => {
   test("the router must accept the container's signature", async () => {
     const router = fakeRouter("right");
     cleanups.push(router.stop);
-    const creds = new Credentials({ routerUrl: router.url, containerSecret: "wrong", repo: "a/b", container: "dev", access: [], paths: layout(tempDir(dirs)) });
+    const creds = new Credentials({ routerUrl: router.url, containerSecret: "wrong", repo: "a/b", container: "dev", policyProviders: [], paths: layout(tempDir(dirs)) });
     await expect(creds.get()).rejects.toThrow("401");
     expect(router.rejected).toEqual(["/credentials"]);
   });

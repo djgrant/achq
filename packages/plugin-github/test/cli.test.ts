@@ -2,7 +2,7 @@ import { afterAll, beforeAll, beforeEach, expect, test } from "bun:test";
 import { Agent, type Change, collectManifest, Container, type Context, plan, resetDeclarations, Trigger, Workspace } from "@achq/core";
 import { githubInstaller } from "../src/installers/index.ts";
 import { configApp, configNeeds } from "../src/installers/config-app.ts";
-import { App, RepoPolicy } from "../src/index.ts";
+import { App, Policy } from "../src/index.ts";
 import { GitHubClient } from "../src/lib/client.ts";
 import { githubCodeHost } from "../src/code-hosts/index.ts";
 import { repoOf } from "../src/code-hosts/remote.ts";
@@ -16,7 +16,7 @@ class TestAgent extends Agent {
 const configManifest = () => {
   resetDeclarations();
   const app = App.get("notation-achq");
-  const code = new RepoPolicy("code", { app, permissions: { contents: "write", issues: "write", pull_requests: "write" } });
+  const code = new Policy("code", { app, permissions: { contents: "write", issues: "write", pull_requests: "write" } });
   const dev = new Container("dev", { image: "./Dockerfile", policies: [code] });
   new Workspace("docs", { container: dev, threads: app.issues.where({ labels: ["docs"] }), branch: "docs/{number}", base: "docs" });
   new Workspace("issues", { container: dev, threads: app.issues, branch: "issue-{number}", base: "main" });
@@ -35,7 +35,7 @@ test("the App slug and what it needs come from the config", () => {
 
 test("a config naming two Apps, or none, is refused", () => {
   const manifest = configManifest();
-  const other = { name: "x", policy: { access: "github", source: "other-app", repo: null, permissions: {} } };
+  const other = { name: "x", policy: { provider: "github", source: "other-app", repo: null, permissions: {} } };
   expect(() => configApp({ ...manifest, policies: [...manifest.policies, other] })).toThrow("several Apps (notation-achq, other-app)");
   expect(() => configApp({ ...manifest, policies: [], workspaces: [], triggers: [] })).toThrow("names no GitHub App");
 });

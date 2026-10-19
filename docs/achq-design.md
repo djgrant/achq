@@ -31,8 +31,8 @@ export default achq(() => {
 
 - **Router**: receives events and wakes the deployer and containers.
 - **Deployer**: creates and updates containers, in its router's Railway project.
-- **A GitHub App** binds to the router. It's a channel and an access provider (see Primitives). The App's webhook points at the router, and the router holds the App's key to check deliveries and mint tokens. The App's installations decide which repos the deployer serves.
-- **Contracts**: GitHub implements four of core's contracts, each registered on its own: a `Channel` (events, threads, replies; the router also gets its installations and sources from it), an `Installer` (the CLI installs the config's App with it), an `AccessProvider` (turns policies into credentials), and a `CodeHost` (reads `.achq/`, writes the status, gives the clone URL; the router uses it to check `/wake`, the CLI for the repo commands). The router gets them with the key, the container without secrets. The infra's Apps are resources `achq up` plans. Claude implements `AgentProvider`: the runtime, and the variables every container needs. The services and CLI find each one by id in `achq/registry`.
+- **A GitHub App** binds to the router. It's a channel and a policy provider (see Primitives). The App's webhook points at the router, and the router holds the App's key to check deliveries and mint tokens. The App's installations decide which repos the deployer serves.
+- **Contracts**: GitHub implements four of core's contracts, each registered on its own: a `Channel` (events, threads, replies; the router also gets its installations and sources from it), an `Installer` (the CLI installs the config's App with it), a `PolicyProvider` (turns policies into credentials), and a `CodeHost` (reads `.achq/`, writes the status, gives the clone URL; the router uses it to check `/wake`, the CLI for the repo commands). The router gets them with the key, the container without secrets. The infra's Apps are resources `achq up` plans. Claude implements `AgentProvider`: the runtime, and the variables every container needs. The services and CLI find each one by id in `achq/registry`.
 - **The container host**: the router and deployer name the host they run on (`containerHost`), and the deployer puts containers on the same one. A plugin provides the router and deployer as resources for `achq up`, and implements core's `ContainerHost` for the deployer, with a shell into containers for `achq ssh` and `resume`. achq's services and CLI only use that contract, and pick an implementation by id. Only Railway is built for now. Putting the router, deployer and containers on different container hosts needs bindings this design assumes away: reaching containers without a private network, and waking them through the container host's API.
 - **`owners`**: the deployer only serves repos owned by these accounts. A public App can be installed by anyone, and without this a stranger's install would get a container on your Railway account running on your Claude token.
 
@@ -45,7 +45,7 @@ import * as github from "achq/github";
 
 const app = github.App.get("notation-achq");
 
-const code = new github.RepoPolicy("code", { app, permissions: { contents: "write", issues: "write", pull_requests: "write" } });
+const code = new github.Policy("code", { app, permissions: { contents: "write", issues: "write", pull_requests: "write" } });
 
 const dev = new Container("dev", {
   image: "./Dockerfile",
@@ -85,7 +85,7 @@ An event finds its container through its thread: event → thread (issue 42) →
 
 ### Channels and threads
 
-- A GitHub App is both a channel and an access provider. Others needn't be: Linear would be a channel, with code access still through a GitHub App's policy, and optionally an access provider for Linear's own API.
+- A GitHub App is both a channel and a policy provider. Others needn't be: Linear would be a channel, with code access still through a GitHub App's policy, and optionally a policy provider for Linear's own API.
 - Listening and replying stay one interface. A reply goes to the thread it came from. Sending somewhere else, such as a Slack notification, would be an extra output on an agent, not half a channel.
 - Each channel defines who's trusted. For GitHub: users with write access. Only trusted messages go into the prompt.
 - Threads are keyed by channel, e.g. `github:notationlabs/yieldstar#42` or `linear:ENG-123`.
@@ -118,28 +118,28 @@ An event finds its container through its thread: event → thread (issue 42) →
 - A trigger is an event and an agent. It doesn't name a container or a workspace.
 - A trigger whose events no workspace's threads cover never runs. The deployer reports it.
 
-### Policies and access providers
+### Policies and policy providers
 
-A policy is plain data, e.g. `{ access: "github", source: "notation-achq", repos: [...], permissions: {...} }`. A repo can also grant access to other repos, or to another service's API:
+A policy is plain data, e.g. `{ provider: "github", source: "notation-achq", repos: [...], permissions: {...} }`. A repo can also grant access to other repos, or to another service's API:
 
 ```ts
-new github.RepoPolicy("shared", { app, repo: "notationlabs/shared", permissions: { contents: "read" } });
+new github.Policy("shared", { app, repo: "notationlabs/shared", permissions: { contents: "read" } });
 new linear.ApiPolicy("linear", { workspace: "notation" });   // Linear's whole workspace: it can't be narrowed
 ```
 
-An access provider is code with a part for each side:
+A policy provider is code with a part for each side:
 
 ```ts
-defineAccess({
+definePolicyProvider({
   id: "github",
-  validate: async (policy, ctx) => {},                     // router: the policy is within what the access provider allows
+  validate: async (policy, ctx) => {},                     // router: the policy is within what the policy provider allows
   mint: async (policy, secret) => ({ value, expiresAt }),  // router: holds the secret, mints a credential
   install: async (credential, dir) => {},                  // container: makes the credential usable by the agent
 });
 ```
 
-- The router and the container load the same access provider code and each calls its own part. The container having `mint` doesn't matter: the code is public, and without the router's secret it fails.
-- **Access providers come from achq or the infra repo, never from subscriber repos.** A repo only refers to access providers that exist; its policies reach the router as data. A repo-supplied access provider would run repo code in the router, next to every App's key.
+- The router and the container load the same policy provider code and each calls its own part. The container having `mint` doesn't matter: the code is public, and without the router's secret it fails.
+- **Policy providers come from achq or the infra repo, never from subscriber repos.** A repo only refers to policy providers that exist; its policies reach the router as data. A repo-supplied policy provider would run repo code in the router, next to every App's key.
 - The deployer runs `validate` on every policy at deploy time. For GitHub: the App is installed on the repos, their owner is in `owners`, and the permissions are within the App's. Failures go to `ACHQ_STATUS`.
 - GitHub policies under one installation become one token covering their repos. Policies across installations get separate tokens, which git picks between with `credential.useHttpPath`.
 - A policy decides what untrusted content the agent could fetch itself (a token with `issues` can read anyone's comments). Not guarded beyond Claude Code's own tool denials.
@@ -194,7 +194,7 @@ The router writes every event it accepts to its volume before answering GitHub, 
 
 ## Credentials
 
-How GitHub's credentials work. Other channels and access providers follow the same pattern where they can.
+How GitHub's credentials work. Other channels and policy providers follow the same pattern where they can.
 
 - Containers never hold App private keys. They ask the router for credentials for their policies.
 - The token endpoint listens on a second port with no public domain, so only the private network reaches it.
@@ -278,4 +278,4 @@ Every part has run together in one process (`packages/test-e2e/test/e2e.test.ts`
 
 - A real queue between the router and containers: ordering, backpressure. The router's persisted events cover crashes and restarts.
 - Hosting the router, deployer and containers on different container hosts.
-- Channels and access providers other than GitHub.
+- Channels and policy providers other than GitHub.

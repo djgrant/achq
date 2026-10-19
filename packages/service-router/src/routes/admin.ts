@@ -1,7 +1,7 @@
 import type { MintRequest, RouterRepoConfig, ValidateRequest } from "@achq/core";
 import { adminSecret } from "@achq/core/secrets";
 import { verifySigned } from "@achq/core/signing";
-import { mint, validate } from "../access.ts";
+import { mint, validate } from "../policies.ts";
 import type { RouterContext } from "../context.ts";
 import { json, noContent, parse, text } from "../http.ts";
 import { reach, signed } from "../reach.ts";

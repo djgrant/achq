@@ -3,10 +3,10 @@
 // The CLI reads ACHQ_STATUS and commits as your gh login.
 import { type ConfigTree, type Credential, type FileLimits, type RepoClient, type CodeHost, STATUS_VARIABLE, type Status } from "@achq/core";
 import { GitHubClient } from "../lib/client.ts";
-import { ACCESS } from "../lib/constants.ts";
+import { POLICY_PROVIDER } from "../lib/constants.ts";
 import type { GitHubUrls } from "../lib/urls.ts";
 import { ghToken, userGitHub } from "../lib/user.ts";
-import type { RepoPolicyData } from "../resources/repo-policy.ts";
+import type { GitHubPolicyData } from "../resources/policy.ts";
 import { DEPLOYER_PERMISSIONS, REPO_NAME } from "./constants.ts";
 import { lastCommit } from "./last-commit.ts";
 import { repoOf } from "./remote.ts";
@@ -68,7 +68,7 @@ export const githubRepos = ({ api, web }: GitHubUrls): CodeHost => {
   const gh = userGitHub(api);
   return {
     repoName: REPO_NAME,
-    deployerPolicy: (source, repo): RepoPolicyData => ({ access: ACCESS, source, repo, permissions: { ...DEPLOYER_PERMISSIONS } }),
+    deployerPolicy: (source, repo): GitHubPolicyData => ({ provider: POLICY_PROVIDER, source, repo, permissions: { ...DEPLOYER_PERMISSIONS } }),
     repo: (repo: string, credential: Credential) => repoClient(repo, credential.value, api),
     async canPush(repo, token) {
       const res = await new GitHubClient(`Bearer ${token}`, api).raw("GET", `/repos/${repo}`);

@@ -8,7 +8,7 @@ beforeEach(resetDeclarations);
 describe("collectManifest", () => {
   test("turns the design doc's repo config into a manifest, in declaration order", () => {
     const app = github.App.get("notation-achq");
-    const code = new github.RepoPolicy("code", { app, permissions: { contents: "write", issues: "write" } });
+    const code = new github.Policy("code", { app, permissions: { contents: "write", issues: "write" } });
     const dev = new Container("dev", { image: "./Dockerfile", policies: [code], files: { "~/.config/foo.toml": "./foo.toml" } });
     new Workspace("docs", { container: dev, threads: app.issues.where({ labels: ["docs"] }), branch: "docs/{number}", base: "docs" });
     new Workspace("issues", { container: dev, threads: app.issues, branch: "issue-{number}", base: "main" });
@@ -16,7 +16,7 @@ describe("collectManifest", () => {
     new Trigger("mention", { event: app.issueComment({ actions: ["created", "edited"], mention: "@claude" }), agent: coder });
 
     expect(collectManifest()).toEqual({
-      policies: [{ name: "code", policy: { access: "github", source: "notation-achq", repo: null, permissions: { contents: "write", issues: "write" } } }],
+      policies: [{ name: "code", policy: { provider: "github", source: "notation-achq", repo: null, permissions: { contents: "write", issues: "write" } } }],
       containers: [{ name: "dev", image: "./Dockerfile", policies: ["code"], files: { "~/.config/foo.toml": "./foo.toml" } }],
       workspaces: [
         { name: "docs", container: "dev", threads: { channel: "github", source: "notation-achq", kind: "issue", labels: ["docs"] }, branch: "docs/{number}", base: "docs" },

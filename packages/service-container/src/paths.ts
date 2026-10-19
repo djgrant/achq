@@ -14,8 +14,8 @@ export const paths = (data: string) => ({
   config: (commit: string) => path.join(data, "config", commit),
   /** Each agent's own config directory (CLAUDE_CONFIG_DIR for Claude). */
   agent: (name: string) => path.join(data, "agents", name),
-  /** Where an access provider's `install` writes its credentials, e.g. `/data/github/`. */
-  access: (id: string) => path.join(data, id),
+  /** Where a policy provider's `install` writes its credentials, e.g. `/data/github/`. */
+  policyProvider: (id: string) => path.join(data, id),
   /** The env (credentials, git identity) the last run gave agents, for `resume`. Mode 600. */
   agentEnv: path.join(data, "credentials", "agent-env.json"),
   threads: path.join(data, "threads"),

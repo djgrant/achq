@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { App } from "@achq/github/infra";
 import { Router } from "@achq/railway/infra";
-import { ACCESS, agentEnv, CHANNELS, channelNamed, CONTAINER_HOSTS, containerHostNamed, findContainerHost, INFRA_MODULES, privateEnv, CODE_HOSTS, codeHostNamed } from "../src/registry.ts";
+import { agentEnv, CHANNELS, channelNamed, CONTAINER_HOSTS, containerHostNamed, findContainerHost, INFRA_MODULES, privateEnv, CODE_HOSTS, codeHostNamed, POLICY_PROVIDERS } from "../src/registry.ts";
 
 test("finds each implementation by id, and names what it knows when it can't", () => {
   expect(channelNamed("github")).toBe(CHANNELS[0]!);
@@ -15,7 +15,7 @@ test("finds each implementation by id, and names what it knows when it can't", (
 
 test("privateEnv is every implementation's, once each", () => {
   const all = privateEnv();
-  for (const i of [...CHANNELS, ...ACCESS, ...CODE_HOSTS, ...CONTAINER_HOSTS]) for (const name of i.privateEnv) expect(all).toContain(name);
+  for (const i of [...CHANNELS, ...POLICY_PROVIDERS, ...CODE_HOSTS, ...CONTAINER_HOSTS]) for (const name of i.privateEnv) expect(all).toContain(name);
   expect(new Set(all).size).toBe(all.length);
 });
 

@@ -8,7 +8,7 @@
     "./infra": "./src/infra.ts",
     "./channels": "./src/channels/index.ts",
     "./installers": "./src/installers/index.ts",
-    "./policies": "./src/policies/index.ts",
+    "./policy": "./src/policy/index.ts",
     "./code-hosts": "./src/code-hosts/index.ts"
   },
   "dependencies": {
