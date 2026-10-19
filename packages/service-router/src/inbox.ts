@@ -1,4 +1,4 @@
-import type { ChannelEvent, ContainerEnvelope } from "@achq/core";
+import type { ChannelEvent, ContainerEnvelope, DeployerEnvelope } from "@achq/core";
 import { adminSecret, containerSecret } from "@achq/core/secrets";
 import type { RouterContext } from "./context.ts";
 import { message } from "./errors.ts";
@@ -11,7 +11,10 @@ export type FailedEntry = InboxEntry & { targets: (Target & { error: string })[]
 
 const send = (ctx: RouterContext, target: Target, entry: InboxEntry) => async (signal?: AbortSignal) => {
   if (target.kind === "deployer") {
-    const envelope = { event: entry.event };
+    const { event } = entry;
+    // targetsFor only picks the deployer for installation and configChanged events, which name their host.
+    if (event.host === undefined) throw new Error(`${event.delivery} isn't one for the deployer`);
+    const envelope: DeployerEnvelope = { event };
     const url = `${ctx.deployerUrl}/events`;
     return ctx.fetch(url, signed(ctx, adminSecret(ctx.key), "POST", url, JSON.stringify(envelope), signal));
   }

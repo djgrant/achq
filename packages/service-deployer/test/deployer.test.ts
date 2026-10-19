@@ -82,8 +82,8 @@ const event = (type: string, repos: string[], source = APP): DeployerEnvelope =>
         ? { action, installation, repositories: list }
         : { action, installation, [`repositories_${action}`]: list };
   const parsed = githubChannel.create({}).parse(source, new Headers({ "x-github-event": name!, "x-github-delivery": `d-${++n}` }), JSON.stringify(payload));
-  if (!parsed?.host) throw new Error(`the GitHub channel ignored ${type}, or didn't name its host`);
-  return { event: { ...parsed, host: parsed.host } };
+  if (parsed?.host === undefined) throw new Error(`the GitHub channel ignored ${type}, or didn't name its host`);
+  return { event: parsed };
 };
 
 beforeEach(() => {

@@ -38,7 +38,7 @@ import type { AccessCredential } from "../contracts/access.ts";
 import type { ChannelCredential, ChannelEvent, ThreadRef } from "../contracts/channel.ts";
 
 /** What the router forwards to the deployer: install and config events, which name the `RepoHost` they're about. */
-export type DeployerEnvelope = { event: ChannelEvent & { host: string } };
+export type DeployerEnvelope = { event: Extract<ChannelEvent, { host: string }> };
 
 export type ContainerEnvelope = {
   event: ChannelEvent;

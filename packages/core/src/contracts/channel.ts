@@ -10,7 +10,16 @@ export type ThreadRef = { channel: string; id: string };
 export const threadKey = (ref: ThreadRef) => `${ref.channel}:${ref.id}`;
 
 /** An event a channel delivered, normalised. Kept small, because the router persists and forwards it. */
-export type ChannelEvent = {
+export type ChannelEvent = ChannelEventBase &
+  (
+    | { host?: undefined; installation?: undefined; configChanged?: undefined }
+    /** For the deployer: the repos the source was installed on (`added`) or removed from, on the `RepoHost` `host`. */
+    | { host: string; installation: { added: string[]; removed: string[] }; configChanged?: undefined }
+    /** For the deployer: whether the repo's `.achq/` may have changed on its default branch, on the `RepoHost` `host`. */
+    | { host: string; configChanged: boolean; installation?: undefined }
+  );
+
+type ChannelEventBase = {
   channel: string;
   /** Which configured sender it came through, e.g. the App's slug. Selectors name one. */
   source: string;
@@ -28,12 +37,6 @@ export type ChannelEvent = {
   previousText?: string;
   /** The message the event is about, as a `Message.id` from `ChannelClient.messages`, when it's one. */
   message?: string;
-  /** For the deployer: the `RepoHost` that `repo`, or the installation's repos, are on. */
-  host?: string;
-  /** For the deployer: the repos the source was installed on (`added`) or removed from. */
-  installation?: { added: string[]; removed: string[] };
-  /** For the deployer: the repo's `.achq/` may have changed on its default branch. */
-  configChanged?: boolean;
   /** Anything else the channel needs later, e.g. the comment ID to react to. */
   detail: { [key: string]: Data };
 };
