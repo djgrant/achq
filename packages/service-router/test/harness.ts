@@ -42,10 +42,7 @@ export const testChannel: Channel = {
   client() {
     throw new Error("not on the router");
   },
-  install() {
-    throw new Error("not on the router");
-  },
-  uninstall() {
+  installation() {
     throw new Error("not on the router");
   },
 };

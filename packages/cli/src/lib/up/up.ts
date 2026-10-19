@@ -9,7 +9,7 @@ import { DEPLOYER_PORT, ENV, known, plan, ROUTER_PRIVATE_PORT, type SyncRequest,
 import { cliContext } from "../context.ts";
 import type { InfraResources } from "../load/infra.ts";
 import { adminRequest } from "../router.ts";
-import { formatChange } from "./format.ts";
+import { planLines } from "../changes.ts";
 
 export type UpOptions = { prune: boolean; dryRun: boolean };
 
@@ -51,8 +51,7 @@ export const up = async ({ router, deployer, resources }: InfraResources, option
 
   const planned = await plan(resources, ctx);
   if (!planned.changes.length) log("  up to date");
-  for (const c of planned.changes) log(`  ${formatChange(c)}`);
-  for (const w of planned.warnings) log(`  ! ${w}`);
+  for (const line of planLines(planned)) log(`  ${line}`);
 
   // A new router's URL is only known once it's made.
   const read = options.dryRun ? planned : await planned.apply();

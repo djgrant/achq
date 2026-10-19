@@ -1,6 +1,4 @@
-import type { Change, SyncResult } from "@achq/core";
-
-export const formatChange = (c: Change) => `${c.op} ${c.target}${c.detail ? ` ${c.detail}` : ""}`;
+import type { SyncResult } from "@achq/core";
 
 export const formatSync = (result: SyncResult, dryRun: boolean) => {
   const lines: string[] = [];

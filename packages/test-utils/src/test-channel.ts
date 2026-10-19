@@ -1,4 +1,4 @@
-import type { Channel, ChannelClient, ChannelCredential, ChannelEvent, Credential, Installation, Message, SelectorData, SourceSettings, Thread, ThreadRef } from "@achq/core";
+import type { Channel, ChannelClient, ChannelCredential, ChannelEvent, Credential, Installation, ManagedResource, Message, SelectorData, SourceSettings, Thread, ThreadRef } from "@achq/core";
 
 type TestThread = { title: string; labels: string[]; messages: Message[] };
 
@@ -68,10 +68,7 @@ export class TestChannel implements Channel {
   async sources(): Promise<SourceSettings[]> {
     throw new Error("not in tests");
   }
-  async install(): Promise<void> {
-    throw new Error("not in tests");
-  }
-  async uninstall(): Promise<string> {
+  installation(): ManagedResource[] {
     throw new Error("not in tests");
   }
 

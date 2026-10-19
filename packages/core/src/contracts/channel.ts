@@ -1,6 +1,7 @@
 import type { Data } from "../resources/data.ts";
 import type { SelectorData } from "../resources/config.ts";
 import type { RepoPlan } from "../resources/repo-plan.ts";
+import type { ManagedResource } from "../resources/resource.ts";
 import type { Installation, SourceSettings } from "../wire/protocol.ts";
 
 /** A thread's identity, qualified by channel. `id` is e.g. `notationlabs/yieldstar#42`. */
@@ -94,10 +95,13 @@ export interface Channel {
   client(credential: Credential): ChannelClient;
 
   // ── The CLI, acting as you ──
-  /** Checks the source the config names can serve it, then installs it on the repo (unless it's a dry run). */
-  install(repo: string, plan: RepoPlan, options: { dryRun: boolean; open(url: string): Promise<void>; log(line: string): void }): Promise<void>;
-  /** Removes the repo from its source. Returns what to tell you. */
-  uninstall(repo: string, plan: RepoPlan): Promise<string>;
+  /**
+   * What makes `repo` subscribe to the sources its config names (`installed`),
+   * or leave them: one resource per source, named after it, for `achq install`
+   * and `uninstall` to plan. Pure: the resources read and change things as you
+   * when they're planned and applied. They become what `installations()` lists.
+   */
+  installation(repo: string, plan: RepoPlan, installed: boolean): ManagedResource[];
 }
 
 export interface ChannelClient {

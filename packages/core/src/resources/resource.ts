@@ -12,7 +12,7 @@ export const RESOURCE_NAME = /^[a-z][a-z0-9-]{0,30}$/;
 export type Context = {
   env: Record<string, string | undefined>;
   log(line: string): void;
-  /** Opens `url` in your browser to `what`, e.g. to create an App. Only `achq up` can, and only while applying. */
+  /** Opens `url` in your browser to `what`, e.g. to create an App. Only the CLI can, and only while applying. */
   open?(url: string, what: string): Promise<void>;
   /** Makes a GENERATED value. */
   newSecret(): string;

@@ -1,15 +1,16 @@
 import { defineCommand } from "@pokit/core";
-import { channelNamed } from "achq/registry";
+import { z } from "zod";
 import { clean } from "../lib/errors.ts";
-import { channelsOf, loadRepoPlan } from "../lib/load/repo-config.ts";
-import { needRepo, repoRoot } from "../lib/workdir.ts";
+import { planInstallation } from "../lib/installation.ts";
 
 export const command = defineCommand({
   label: "Remove this repo from its source's installation",
-  examples: ["achq uninstall"],
-  run: clean(async () => {
-    const { repo } = needRepo();
-    const plan = await loadRepoPlan(repoRoot());
-    for (const id of channelsOf(plan)) console.log(await channelNamed(id).create(process.env).uninstall(repo, plan));
+  examples: ["achq uninstall --dry-run", "achq uninstall"],
+  context: {
+    dryRun: { from: "flag", schema: z.boolean().default(false), description: "Show what would change, and change nothing" },
+  },
+  run: clean(async (_r, { context }) => {
+    const { apply } = await planInstallation(false);
+    if (!context.dryRun && apply) await apply();
   }),
 });
