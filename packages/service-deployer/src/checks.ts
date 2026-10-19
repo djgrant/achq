@@ -1,8 +1,8 @@
 import type { ConfigTree, RepoManifest, SourceSettings } from "@achq/core";
 import { normaliseRepoPath } from "./config/index.ts";
 
-/** The checks in "Checks" and "Subscribing" that need nothing but the manifest, the tree and the router's sources. */
-export const checkManifest = (manifest: RepoManifest, ctx: { source: string; tree: ConfigTree; sources: SourceSettings[] }) => {
+/** The checks in "Checks" that need nothing but the manifest, the tree and the router's sources. */
+export const checkManifest = (manifest: RepoManifest, ctx: { tree: ConfigTree; sources: SourceSettings[] }) => {
   const failures: string[] = [];
   const warnings: string[] = [];
   /** A policy names only its source, so any channel's will do for it. */
@@ -17,8 +17,6 @@ export const checkManifest = (manifest: RepoManifest, ctx: { source: string; tre
     if (typeof n.source !== "string" || !n.source) failures.push(`${n.what} names no source`);
     else if (!known(n.channel, n.source)) failures.push(`${n.what} names ${n.channel ? `${n.channel}:` : ""}${n.source}, which the router doesn't know`);
   }
-  const usesInstalled = manifest.policies.some((p) => p.policy.source === ctx.source) || manifest.workspaces.some((w) => w.threads.source === ctx.source);
-  if (!usesInstalled) failures.push(`no policy or workspace names ${ctx.source}, the source that was installed`);
 
   for (const c of manifest.containers) {
     const path = normaliseRepoPath(c.image);

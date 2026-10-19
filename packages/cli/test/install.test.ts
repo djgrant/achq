@@ -43,7 +43,7 @@ test("a real config evaluates the same in the sandbox as imported with Bun", asy
   expect(sandboxed.workspaces[0].threads).toMatchObject({ channel: "github", source: "notation-achq" });
 });
 
-const status = (at: string): Status => ({ host: "github", repo: "notationlabs/yieldstar", source: "notation-achq", state: "deployed", at, router: "https://achq-router.up.railway.app" });
+const status = (at: string): Status => ({ host: "github", repo: "notationlabs/yieldstar", state: "deployed", at, router: "https://achq-router.up.railway.app" });
 
 test("polling the status stops at the first result newer than the install", async () => {
   const since = new Date("2026-10-17T10:00:00Z");

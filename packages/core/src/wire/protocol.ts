@@ -18,7 +18,7 @@
 //   GET  /admin/repos              → RouterRepoConfig[]                         admin
 //   POST /admin/mint               MintRequest → PolicyCredential[]             admin (the deployer's own access)
 //   POST /admin/validate           ValidateRequest → { problems: string[] }     admin
-//   GET  /admin/installations      → Installation[]                             admin
+//   GET  /admin/installed          → InstalledRepo[]                            admin
 //   GET  /admin/sources            → SourceSettings[]                           admin
 //   POST /admin/sync               SyncRequest → SyncResult                     admin, forwarded to the deployer (wakes it)
 //   GET  /admin/status             → DeployRecord[]                             admin, forwarded to the deployer
@@ -73,8 +73,8 @@ export type ClaimRequest = { repo: string; container: string; workspace: string;
 export type MintRequest = { repo: string; policies: PolicyData[] };
 export type ValidateRequest = { repo: string; policies: PolicyData[] };
 
-/** A repo a channel's source is installed on, and the `CodeHostProvider` the repo is on. */
-export type Installation = { channel: string; source: string; repo: string; host: string };
+/** A repo set up for achq, and the `CodeHostProvider` it's on: what the deployer serves. */
+export type InstalledRepo = { host: string; repo: string };
 
 /** What a source (e.g. a GitHub App) is set up to send and allow, for checks. */
 export type SourceSettings = { channel: string; source: string; events: string[]; permissions: Record<string, string> };
@@ -86,10 +86,9 @@ export type DeployState = "deployed" | "failed" | "uninstalled";
 
 /** The deployer's record of a repo, as ACHQ_STATUS and `/admin/status` show it. */
 export type DeployRecord = {
-  /** The `CodeHostProvider` the repo is on, and the source that installed it there. */
+  /** The `CodeHostProvider` the repo is on. */
   host: string;
   repo: string;
-  source: string;
   state: DeployState;
   at: string;
   error?: string;

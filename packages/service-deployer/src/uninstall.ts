@@ -2,7 +2,7 @@ import { RouterError } from "./clients/router.ts";
 import type { DeployerContext } from "./context.ts";
 
 /** Takes `repo` out of the router. Run one per repo at a time. */
-export const uninstall = async (ctx: DeployerContext, host: string, repo: string, source: string, dryRun: boolean) => {
+export const uninstall = async (ctx: DeployerContext, host: string, repo: string, dryRun: boolean) => {
   const previous = await ctx.store.get(repo);
   if (dryRun) return;
   try {
@@ -11,6 +11,6 @@ export const uninstall = async (ctx: DeployerContext, host: string, repo: string
     if (!(error instanceof RouterError && error.status === 404)) throw error;
   }
   // Containers and volumes are kept, asleep. Reinstalling brings it all back.
-  await ctx.store.put({ ...previous, error: undefined, warnings: undefined, host, repo, source, state: "uninstalled", at: ctx.now().toISOString() });
+  await ctx.store.put({ ...previous, error: undefined, warnings: undefined, host, repo, state: "uninstalled", at: ctx.now().toISOString() });
   ctx.log(`${repo}: uninstalled`);
 };

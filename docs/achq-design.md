@@ -32,7 +32,7 @@ export default achq(() => {
 - **Router**: receives events and wakes the deployer and containers.
 - **Deployer**: creates and updates containers, in its router's Railway project.
 - **A GitHub channel** is a GitHub App, bound to the router. GitHub is both a channel and a policy provider (see Primitives). The App's webhook points at the router, and the router holds the App's key to check deliveries and mint tokens. The App's installations decide which repos the deployer serves.
-- **Contracts**: GitHub implements four of core's contracts, each registered on its own: a `ChannelProvider` (events, threads, replies; the router also gets its sources from it), an `InstallationProvider` (the CLI installs the config's App with it, and the router lists every App's installations with it), a `PolicyProvider` (turns policies into credentials), and a `CodeHostProvider` (reads `.achq/`, writes the status, gives the clone URL; the router uses it to check `/wake`, the CLI for the repo commands). The router gets them with the key, the container without secrets. The infra's channels are resources `achq up` plans. Claude implements `AgentProvider`: the runtime, and the variables every container needs. The services and CLI find each one by id in `achq/registry`.
+- **Contracts**: GitHub implements three of core's contracts, each registered on its own: a `ChannelProvider` (events, threads, replies; the router also gets its sources from it), a `PolicyProvider` (turns policies into credentials), and a `CodeHostProvider` (reads `.achq/`, writes the status, gives the clone URL; the router uses it to check `/wake` and to list the repos installed, the CLI for the repo commands, and to install and uninstall a repo). Installation isn't a contract of its own: it's a repo's lifecycle on its code host, set up for achq or not. For GitHub, a repo is installed when the config's App is installed on it. The router gets them with the key, the container without secrets. The infra's channels are resources `achq up` plans. Claude implements `AgentProvider`: the runtime, and the variables every container needs. The services and CLI find each one by id in `achq/registry`.
 - **The container provider**: the router and deployer name the container provider they run on (`containerProvider`), and the deployer puts containers on the same one. A plugin provides the router and deployer as resources for `achq up`, and implements core's `ContainerProvider` for the deployer, with a shell into containers for `achq ssh` and `resume`. achq's services and CLI only use that contract, and pick an implementation by id. Only Railway is built for now. Putting the router, deployer and containers on different container providers needs bindings this design assumes away: reaching containers without a private network, and waking them through the container provider's API.
 - **`owners`**: the deployer only serves repos owned by these accounts. A public App can be installed by anyone, and without this a stranger's install would get a container on your Railway account running on your Claude token.
 
@@ -140,6 +140,7 @@ definePolicyProvider({
 
 - The router and the container load the same policy provider code and each calls its own part. The container having `mint` doesn't matter: the code is public, and without the router's secret it fails.
 - **Policy providers come from achq or the infra repo, never from subscriber repos.** A repo only refers to policy providers that exist; its policies reach the router as data. A repo-supplied policy provider would run repo code in the router, next to every App's key.
+- A repo's policies always name their source. The deployer's own policy (`deployerPolicy(repo)`: read `.achq/`, write the status) doesn't: for GitHub, the router's policy provider mints it through whichever App is installed on the repo.
 - The deployer runs `validate` on every policy at deploy time. For GitHub: the App is installed on the repos, their owner is in `owners`, and the permissions are within the App's. Failures go to `ACHQ_STATUS`.
 - GitHub policies under one installation become one token covering their repos. Policies across installations get separate tokens, which git picks between with `credential.useHttpPath`.
 - A policy decides what untrusted content the agent could fetch itself (a token with `issues` can read anyone's comments). Not guarded beyond Claude Code's own tool denials.
@@ -148,7 +149,7 @@ definePolicyProvider({
 
 Repo config is code. It never runs anywhere that holds secrets.
 
-1. The deployer downloads `.achq/` from the default branch, with a repo-scoped token from the router.
+1. The deployer downloads `.achq/` from the default branch, with a repo-scoped token from the router, minted through whichever App is installed on the repo.
 2. It strips the types from each file on its own with `Bun.Transpiler`, with macros off. That doesn't run the config's code.
 3. It runs the files as ES modules in QuickJS compiled to WebAssembly, which has no filesystem, network or environment access. The only modules there are the repo's `.achq/` files and a prebuilt `achq`, so any other import fails. A Bun subprocess isn't enough: it runs as the same user and could read the deployer's secrets from `/proc/<pid>/environ`.
 4. The config returns a plain-data manifest: every resource and its inputs. The deployer creates the containers and pushes events, thread selectors and policies to the router. Each container runs its own config again at runtime for the agent settings, which can be code.
@@ -205,9 +206,9 @@ How GitHub's credentials work. Other channels and policy providers follow the sa
 
 ## Subscribing
 
-Installing an App on a repo subscribes it; uninstalling unsubscribes it.
+Installing a repo on its code host subscribes it; uninstalling unsubscribes it. On GitHub, that's installing one of the infra's Apps on it, with `achq install` or from GitHub's settings.
 
-- **Install:** the deployer evaluates the repo's config and deploys its containers, if the repo's owner is in `owners` and its policies name the App that was installed.
+- **Install:** the deployer evaluates the repo's config and deploys its containers, if the repo's owner is in `owners`.
 - **Uninstall:** the repo is removed from the router config, so events stop reaching it. Its containers and volumes are kept, asleep, costing only storage. Reinstalling adds it back and everything is as it was.
 - **Deletion** is explicit: `achq up --prune` deletes the containers and volumes of repos no longer installed. Railway can't restore a deleted service, and a deleted volume only through an emailed link within 48 hours, so achq never deletes on an event.
 
@@ -258,8 +259,8 @@ Installing is done to a repo, from its settings or with `achq install`, not to a
 | Command | Run from | Does |
 |---|---|---|
 | `achq up [--prune] [--dry-run]` | Infra | Brings the infra's resources in line with its code, and is safe to re-run: router and its config, deployer, each channel's App (creating any that are missing) and its webhook settings, then syncs installed repos |
-| `achq status` | Infra or repo | From the infra: Apps, their installations, and each repo's containers and last deploy. From a repo: its `ACHQ_STATUS` |
-| `achq install [--dry-run]` | Repo | Reads the repo's config, checks it, and installs the App its policies name on the repo, then waits for the deploy's outcome in `ACHQ_STATUS`. Opens GitHub's install page if the App has no installation on the account yet. |
+| `achq status` | Infra or repo | From the infra: every installed or deployed repo, its state, when it last deployed, and its containers. From a repo: its `ACHQ_STATUS` |
+| `achq install [--dry-run]` | Repo | Reads the repo's config, checks it, and installs the repo on its code host: on GitHub, the App its policies name, after checking it sends and allows what the config needs, then waits for the deploy's outcome in `ACHQ_STATUS`. Opens GitHub's install page if the App has no installation on the account yet. |
 | `achq uninstall` | Repo | Removes the repo from its App's installation; the uninstall flow above follows |
 | `achq ssh` | Repo | As now |
 | `achq resume <n> [session]` | Repo | Opens a thread's session. With one session it opens it; otherwise it lists them (ID, agent, last run) as a picker, or prints the list when not interactive. |

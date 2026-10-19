@@ -141,7 +141,7 @@ Each folder in `packages/` is a workspace package, prefixed with its kind. Packa
 | `provider.ts` | The provider, e.g. `GitHubPolicyProvider` |
 | `index.ts` | Exports the provider alone, as the registry lists it |
 
-GitHub's are `channel/` (`github.Channel` and `GitHubChannelProvider`), `policy/` (`github.Policy` and `GitHubPolicyProvider`), `installation/` (`Installation`, what `achq install` plans, and `GitHubInstallationProvider`) and `code-host/` (`GitHubCodeHostProvider`, which has no resource). Everything else is in the package's one `src/lib/`, a file per topic: the vendor's API client, its auth, selectors and so on. Railway and Claude still have their older folders: `resources/`, and one named after the contract (`container-hosts/`, `agents/`).
+GitHub's are `channel/` (`github.Channel` and `GitHubChannelProvider`), `policy/` (`github.Policy` and `GitHubPolicyProvider`) and `code-host/` (`github.CodeHost`, the config's App installed on a repo, which `achq install` and `uninstall` plan, and `GitHubCodeHostProvider`). Everything else is in the package's one `src/lib/`, a file per topic: the vendor's API client, its auth, selectors and so on. Railway and Claude still have their older folders: `resources/`, and one named after the contract (`container-hosts/`, `agents/`).
 
 `src/index.ts` is what repo configs import: it runs in the deployer's sandbox, so it and everything it imports is typechecked without Bun or Node types (`tsconfig.sandbox.json`). `src/infra.ts` is what the infra file imports.
 

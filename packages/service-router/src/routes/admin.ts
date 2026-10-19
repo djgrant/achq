@@ -58,8 +58,8 @@ export const admin = async (ctx: RouterContext, req: Request) => {
       if (typeof request?.repo !== "string" || !Array.isArray(request.policies)) return text("bad request", 400);
       return json({ problems: await validate(ctx, request.policies, request.repo) });
     }
-    case "GET /admin/installations":
-      return json((await Promise.all(ctx.installationProviders.map((p) => p.installations()))).flat());
+    case "GET /admin/installed":
+      return json((await Promise.all(Object.values(ctx.codeHostProviders).map((h) => h.installed()))).flat());
     case "GET /admin/sources":
       return json((await Promise.all(ctx.channelProviders.map((c) => c.sources()))).flat());
     case "POST /admin/sync":

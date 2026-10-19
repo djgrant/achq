@@ -2,9 +2,8 @@
 // router, deployer and container only use core's contracts, and find the
 // implementation here by id.
 import { claudeAgent } from "@achq/claude/agents";
-import type { AgentProvider, ChannelProvider, ContainerProvider, ContainerShell, Implementation, InstallationProvider, CodeHostProvider, PolicyProvider } from "@achq/core";
+import type { AgentProvider, ChannelProvider, ContainerProvider, ContainerShell, Implementation, CodeHostProvider, PolicyProvider } from "@achq/core";
 import { githubChannelProvider } from "@achq/github/channel";
-import { githubInstallationProvider } from "@achq/github/installation";
 import { githubPolicyProvider } from "@achq/github/policy";
 import { githubCodeHostProvider } from "@achq/github/code-host";
 import { railwayContainerProvider } from "@achq/railway/container-hosts";
@@ -13,7 +12,6 @@ import * as achq from "./index.ts";
 import * as railway from "./railway.ts";
 
 export const CHANNEL_PROVIDERS: Implementation<ChannelProvider>[] = [githubChannelProvider];
-export const INSTALLATION_PROVIDERS: Implementation<InstallationProvider>[] = [githubInstallationProvider];
 export const POLICY_PROVIDERS: Implementation<PolicyProvider>[] = [githubPolicyProvider];
 export const CODE_HOST_PROVIDERS: Implementation<CodeHostProvider>[] = [githubCodeHostProvider];
 export const CONTAINER_PROVIDERS: (Implementation<ContainerProvider> & { shell: ContainerShell })[] = [railwayContainerProvider];
@@ -28,7 +26,6 @@ const lookup =
   };
 
 export const channelProviderNamed = lookup("channel provider", CHANNEL_PROVIDERS);
-export const installationProviderNamed = lookup("installation provider", INSTALLATION_PROVIDERS);
 export const policyProviderNamed = lookup("policy provider", POLICY_PROVIDERS);
 export const codeHostProviderNamed = lookup("code host provider", CODE_HOST_PROVIDERS);
 export const containerProviderNamed = lookup("container provider", CONTAINER_PROVIDERS);
@@ -36,7 +33,7 @@ export const containerProviderNamed = lookup("container provider", CONTAINER_PRO
 export const findContainerProvider = (id: string | undefined) => CONTAINER_PROVIDERS.find((h) => h.id === id);
 
 /** Every variable only the router and deployer have: the union of every implementation's privateEnv. */
-export const privateEnv = () => [...new Set([...CHANNEL_PROVIDERS, ...INSTALLATION_PROVIDERS, ...POLICY_PROVIDERS, ...CODE_HOST_PROVIDERS, ...CONTAINER_PROVIDERS].flatMap((i) => i.privateEnv))];
+export const privateEnv = () => [...new Set([...CHANNEL_PROVIDERS, ...POLICY_PROVIDERS, ...CODE_HOST_PROVIDERS, ...CONTAINER_PROVIDERS].flatMap((i) => i.privateEnv))];
 
 /** The variables every container needs, for every agent runtime. */
 export const agentEnv = () => AGENT_PROVIDERS.flatMap((a) => a.containerEnv);

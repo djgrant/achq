@@ -1,6 +1,5 @@
 import { afterAll, beforeAll, beforeEach, expect, test } from "bun:test";
 import { Agent, type Change, collectManifest, Container, type Context, plan, resetDeclarations, Trigger, Workspace } from "@achq/core";
-import { githubInstallationProvider } from "../src/installation/index.ts";
 import { configSource, configNeeds } from "../src/lib/config-needs.ts";
 import { Channel, Policy } from "../src/index.ts";
 import { GitHubClient } from "../src/lib/client.ts";
@@ -112,7 +111,8 @@ const installing = async (installed: boolean, opts: { open?: boolean } = {}) => 
     newSecret: () => "secret",
     sleep: async () => {},
   };
-  const resources = githubInstallationProvider.create({}).installation(REPO, configManifest(), installed);
+  const codeHost = githubCodeHostProvider.create({});
+  const resources = installed ? codeHost.install(REPO, configManifest()) : codeHost.uninstall(REPO, configManifest());
   return { planned: await plan(resources, ctx), log, opened };
 };
 
@@ -199,6 +199,6 @@ test("uninstall from an installation on all repos can't be applied: it says wher
 
 test("ACHQ_STATUS is read from the repository variable, and is undefined before the first deploy", async () => {
   expect(await readStatus(gh, "notationlabs/yieldstar")).toBeUndefined();
-  fake.status = { value: JSON.stringify({ host: "github", repo: "notationlabs/yieldstar", source: "notation-achq", state: "deployed", at: "2026-10-17T10:02:00Z" }) };
+  fake.status = { value: JSON.stringify({ host: "github", repo: "notationlabs/yieldstar", state: "deployed", at: "2026-10-17T10:02:00Z" }) };
   expect((await readStatus(gh, "notationlabs/yieldstar"))?.state).toBe("deployed");
 });

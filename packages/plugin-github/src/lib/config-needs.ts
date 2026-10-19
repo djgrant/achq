@@ -1,4 +1,4 @@
-// What a repo's config needs from its installation: the one App it names, and
+// What installing a repo needs, from its config: the one App it names, and
 // what that App must send and allow.
 import type { RepoManifest } from "@achq/core";
 import { CHANNEL, POLICY_PROVIDER } from "./constants.ts";

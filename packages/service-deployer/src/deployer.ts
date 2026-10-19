@@ -13,10 +13,8 @@ export const createDeployer = (deps: DeployerDeps) => {
   const serial = createSerial();
 
   const actions = {
-    deploy: (host: string, repo: string, source: string, options: { dryRun?: boolean } = {}) =>
-      serial(repo.toLowerCase(), () => deploy(ctx, host, repo, source, Boolean(options.dryRun))),
-    uninstall: (host: string, repo: string, source: string, options: { dryRun?: boolean } = {}) =>
-      serial(repo.toLowerCase(), () => uninstall(ctx, host, repo, source, Boolean(options.dryRun))),
+    deploy: (host: string, repo: string, options: { dryRun?: boolean } = {}) => serial(repo.toLowerCase(), () => deploy(ctx, host, repo, Boolean(options.dryRun))),
+    uninstall: (host: string, repo: string, options: { dryRun?: boolean } = {}) => serial(repo.toLowerCase(), () => uninstall(ctx, host, repo, Boolean(options.dryRun))),
   };
 
   /** Every repo's record: what `achq status` shows from the infra. */

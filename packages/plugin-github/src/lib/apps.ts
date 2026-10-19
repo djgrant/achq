@@ -96,6 +96,26 @@ export class Apps {
     return (await res.json()) as InstallationInfo;
   }
 
+  /**
+   * The first configured App whose installation covers `repo`, skipping
+   * suspended ones. An installation is found by the repo's owner, and may cover
+   * only selected repos: minting a token narrowed to `repo` is the one
+   * definitive check that it covers this one.
+   */
+  async installedOn(repo: string): Promise<{ slug: string; installation: InstallationInfo } | undefined> {
+    for (const slug of this.slugs()) {
+      const installation = await this.installation(slug, repo);
+      if (!installation || installation.suspended_at) continue;
+      try {
+        await this.token(slug, installation.id, { repositories: [repo.split("/")[1]!], permissions: { metadata: "read" } });
+        return { slug, installation };
+      } catch {
+        // Not this App's: try the next.
+      }
+    }
+    return undefined;
+  }
+
   /** An installation token, narrowed to `repositories` (names, not owner/name) and `permissions` when given. */
   token(slug: string, installation: number, narrow: { repositories?: string[]; permissions?: Permissions } = {}) {
     return this.asApp(slug).request<AccessToken>("POST", `/app/installations/${installation}/access_tokens`, narrow);
@@ -104,7 +124,7 @@ export class Apps {
 
 const shared = new Map<string, Apps>();
 
-/** The Apps `env` configures, one per configuration: the router's channel, installation provider and policy provider share one JWT cache. */
+/** The Apps `env` configures, one per configuration: the router's channel, code host and policy providers share one JWT cache. */
 export const appsFor = (env: Record<string, string | undefined>) => {
   const api = githubUrls(env).api;
   const configured = `${api} ${env[GITHUB_ENV.apps] ?? ""}`;

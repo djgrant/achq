@@ -30,8 +30,8 @@ const writeStatus = async (ctx: DeployerContext, client: RepoClient | undefined,
   }
 };
 
-/** Deploys `repo`'s `.achq/` on `hostId`, as `source` (e.g. the App) sees it. Run one per repo at a time. */
-export const deploy = async (ctx: DeployerContext, hostId: string, repo: string, source: string, dryRun: boolean): Promise<DeployOutcome> => {
+/** Deploys `repo`'s `.achq/` on `hostId`. Run one per repo at a time. */
+export const deploy = async (ctx: DeployerContext, hostId: string, repo: string, dryRun: boolean): Promise<DeployOutcome> => {
   const { store, log } = ctx;
   const previous = await store.get(repo);
   const at = () => ctx.now().toISOString();
@@ -45,7 +45,6 @@ export const deploy = async (ctx: DeployerContext, hostId: string, repo: string,
       const record: StoredRecord = {
         host: hostId,
         repo,
-        source,
         state: "failed",
         at: at(),
         error,
@@ -66,19 +65,19 @@ export const deploy = async (ctx: DeployerContext, hostId: string, repo: string,
   if (!ctx.owners.has(repo.split("/")[0]!.toLowerCase())) return fail(`${repo.split("/")[0]} isn't an owner this deployer serves`);
 
   try {
-    const policy = host.deployerPolicy(source, repo);
+    const policy = host.deployerPolicy(repo);
     const credentials = await ctx.router.mint({ repo, policies: [policy] });
     const credential = credentials.find((c) => c.provider === policy.provider);
-    if (!credential) throw new DeployFailure(`the router minted no ${policy.provider} credential for ${source} on ${repo}`);
+    if (!credential) throw new DeployFailure(`the router minted no ${policy.provider} credential for ${repo}`);
     client = host.repo(repo, credential);
   } catch (error) {
-    return fail(`couldn't get a token for ${repo} from ${source}: ${message(error)}`);
+    return fail(`couldn't get a token for ${repo}: ${message(error)}`);
   }
 
   try {
     tree = await client.config();
     const last = previous?.deployed;
-    if (previous?.state === "deployed" && previous.host === hostId && previous.source === source && tree.tree && last?.tree === tree.tree) {
+    if (previous?.state === "deployed" && previous.host === hostId && tree.tree && last?.tree === tree.tree) {
       log(`${repo}: .achq/ unchanged at ${tree.commit}`);
       return { repo, outcome: "unchanged", manifest: last.manifest, ...(previous.warnings && { warnings: previous.warnings }) };
     }
@@ -92,7 +91,7 @@ export const deploy = async (ctx: DeployerContext, hostId: string, repo: string,
       throw new DeployFailure(`.achq/config.ts: ${message(error)}`);
     }
 
-    const { failures, warnings } = checkManifest(manifest, { source, tree, sources: await ctx.router.sources() });
+    const { failures, warnings } = checkManifest(manifest, { tree, sources: await ctx.router.sources() });
     const policies = manifest.policies.map((p) => p.policy);
     if (policies.length) {
       const { problems } = await ctx.router.validate({ repo, policies });
@@ -150,7 +149,6 @@ export const deploy = async (ctx: DeployerContext, hostId: string, repo: string,
     const record: StoredRecord = {
       host: hostId,
       repo,
-      source,
       state: "deployed",
       at: at(),
       commit: tree.commit,

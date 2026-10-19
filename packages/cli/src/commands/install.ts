@@ -1,19 +1,19 @@
 import { defineCommand } from "@pokit/core";
 import { clean } from "../lib/errors.ts";
 import { z } from "zod";
-import { planInstallation } from "../lib/installation.ts";
+import { planInstall } from "../lib/install.ts";
 import { formatStatus } from "../lib/status/format.ts";
 import { waitForStatus } from "../lib/status/read.ts";
 
 export const command = defineCommand({
-  label: "Install the source this repo's .achq/config.ts names, and wait for the deploy",
+  label: "Set this repo up for achq on its code host, as its .achq/config.ts needs, and wait for the deploy",
   examples: ["achq install --dry-run", "achq install"],
   context: {
-    dryRun: { from: "flag", schema: z.boolean().default(false), description: "Check the config against its source and show what installing would change, and change nothing" },
+    dryRun: { from: "flag", schema: z.boolean().default(false), description: "Check the config against its code host and show what installing would change, and change nothing" },
   },
   run: clean(async (_r, { context }) => {
     const since = new Date();
-    const { repo, codeHost, apply } = await planInstallation(true);
+    const { repo, codeHost, apply } = await planInstall(true);
     if (context.dryRun || !apply) return;
     await apply();
 

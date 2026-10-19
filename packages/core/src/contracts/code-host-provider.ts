@@ -1,6 +1,8 @@
 import type { PolicyData } from "../resources/config.ts";
+import type { RepoManifest } from "../resources/repo-manifest.ts";
+import type { ManagedResource } from "../resources/resource.ts";
 import type { Credential } from "./channel-provider.ts";
-import type { Status } from "../wire/protocol.ts";
+import type { InstalledRepo, Status } from "../wire/protocol.ts";
 
 /** A repo's default branch head, and the `.achq` tree in it. */
 export type ConfigTree = {
@@ -23,12 +25,16 @@ export interface RepoClient {
   writeStatus(status: Status): Promise<void>;
 }
 
-/** Where repos live. The deployer reads configs from it, the router checks `/wake` against it, containers clone from it. */
+/**
+ * Where repos live. The deployer reads configs from it, the router checks
+ * `/wake` against it, containers clone from it. A repo on it is set up for
+ * achq or not: installing and uninstalling are its lifecycle.
+ */
 export interface CodeHostProvider {
   /** What a repo's name looks like here, e.g. `owner/name`. */
   readonly repoName: RegExp;
-  /** The policy the deployer's own access to `repo` needs, through `source`: read `.achq/`, write the status. */
-  deployerPolicy(source: string, repo: string): PolicyData;
+  /** The policy the deployer's own access to `repo` needs: read `.achq/`, write the status. */
+  deployerPolicy(repo: string): PolicyData;
   /** With a credential minted for `deployerPolicy`. */
   repo(repo: string, credential: Credential): RepoClient;
   /** Whether `token` (from `token`) belongs to someone who can push to `repo`. */
@@ -45,4 +51,12 @@ export interface CodeHostProvider {
   status(repo: string): Promise<Status | undefined>;
   /** The latest commit on `branch` that touched any of `paths`. */
   lastCommit(repo: string, branch: string, paths: string[]): Promise<string>;
+
+  // ── Lifecycle ──
+  /** CLI, as you: what sets `repo` up for achq, planned and applied like any resource. */
+  install(repo: string, manifest: RepoManifest): ManagedResource[];
+  /** CLI, as you: what tears it down. */
+  uninstall(repo: string, manifest: RepoManifest): ManagedResource[];
+  /** Router: the repos currently set up. */
+  installed(): Promise<InstalledRepo[]>;
 }

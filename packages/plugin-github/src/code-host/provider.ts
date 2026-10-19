@@ -1,13 +1,17 @@
 // The deployer reads `.achq/` and writes ACHQ_STATUS with the repo-scoped token
-// the router minted for it. The router checks `/wake` with the caller's token.
-// The CLI reads ACHQ_STATUS and commits as your gh login.
-import { type ConfigTree, type Credential, type FileLimits, type RepoClient, type CodeHostProvider, STATUS_VARIABLE, type Status } from "@achq/core";
+// the router minted for it. The router checks `/wake` with the caller's token,
+// and lists installed repos with the App keys. The CLI reads ACHQ_STATUS,
+// commits, and installs the config's App as your gh login.
+import { type CodeHostProvider, type ConfigTree, type Credential, type FileLimits, type InstalledRepo, type RepoClient, type RepoManifest, STATUS_VARIABLE, type Status } from "@achq/core";
+import type { Apps } from "../lib/apps.ts";
 import { GitHubClient, type GitHubUrls } from "../lib/client.ts";
-import { POLICY_PROVIDER, REPO_NAME } from "../lib/constants.ts";
+import { configNeeds, configSource } from "../lib/config-needs.ts";
+import { CODE_HOST, POLICY_PROVIDER, REPO_NAME } from "../lib/constants.ts";
 import { DEPLOYER_PERMISSIONS } from "../lib/permissions.ts";
 import { lastCommit, readStatus, repoOf } from "../lib/repos.ts";
 import { ghToken, userGitHub } from "../lib/user.ts";
 import type { GitHubPolicyData } from "../policy/resource.ts";
+import { CodeHost } from "./resource.ts";
 
 type TreeEntry = { path: string; mode: string; type: "blob" | "tree" | "commit"; sha: string; size?: number };
 
@@ -61,17 +65,22 @@ const repoClient = (repo: string, token: string, baseUrl: string): RepoClient =>
   };
 };
 
+/** Repos on GitHub. A repo is set up for achq when the config's one App is installed on it. Only the router has the App keys that list where. */
 export class GitHubCodeHostProvider implements CodeHostProvider {
   readonly repoName = REPO_NAME;
   /** You, through your gh login: the CLI's side. */
   private gh: GitHubClient;
 
-  constructor(private urls: GitHubUrls) {
+  constructor(
+    private urls: GitHubUrls,
+    private apps: Apps,
+  ) {
     this.gh = userGitHub(urls.api);
   }
 
-  deployerPolicy(source: string, repo: string): GitHubPolicyData {
-    return { provider: POLICY_PROVIDER, source, repo, permissions: { ...DEPLOYER_PERMISSIONS } };
+  /** Through whichever App is installed on the repo: GitHub's policy provider finds it. */
+  deployerPolicy(repo: string): GitHubPolicyData {
+    return { provider: POLICY_PROVIDER, repo, permissions: { ...DEPLOYER_PERMISSIONS } };
   }
 
   repo(repo: string, credential: Credential) {
@@ -103,5 +112,36 @@ export class GitHubCodeHostProvider implements CodeHostProvider {
 
   lastCommit(repo: string, branch: string, paths: string[]) {
     return lastCommit(this.gh, repo, branch, paths);
+  }
+
+  install(repo: string, manifest: RepoManifest) {
+    return [this.codeHost(repo, manifest, true)];
+  }
+
+  uninstall(repo: string, manifest: RepoManifest) {
+    return [this.codeHost(repo, manifest, false)];
+  }
+
+  private codeHost(repo: string, manifest: RepoManifest, installed: boolean) {
+    const slug = configSource(manifest);
+    return new CodeHost({ slug, repo, installed, needs: configNeeds(manifest, slug) });
+  }
+
+  /** Every repo an App is installed on, once, skipping suspended installations (they can't mint tokens). */
+  async installed(): Promise<InstalledRepo[]> {
+    const out = new Map<string, InstalledRepo>();
+    for (const slug of this.apps.slugs()) {
+      const list = await this.apps.asApp(slug).paginate<{ id: number; suspended_at?: string | null }>("/app/installations");
+      for (const installation of list) {
+        if (installation.suspended_at) continue;
+        const token = await this.apps.token(slug, installation.id, { permissions: { metadata: "read" } });
+        const repos = await new GitHubClient(`token ${token.token}`, this.apps.baseUrl).paginate<{ full_name: string }>(
+          "/installation/repositories",
+          (page) => page.repositories,
+        );
+        for (const r of repos) out.set(r.full_name.toLowerCase(), { host: CODE_HOST, repo: r.full_name });
+      }
+    }
+    return [...out.values()];
   }
 }

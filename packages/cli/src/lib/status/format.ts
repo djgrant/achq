@@ -1,4 +1,4 @@
-import type { DeployRecord, Installation, Status } from "@achq/core";
+import type { DeployRecord, InstalledRepo, Status } from "@achq/core";
 
 export const formatStatus = (status: Status) => {
   const lines = [`${status.state} at ${status.at}${status.commit ? ` (${status.commit.slice(0, 7)})` : ""}${status.error ? `: ${status.error}` : ""}`];
@@ -8,21 +8,21 @@ export const formatStatus = (status: Status) => {
 };
 
 /** Every installed or deployed repo, one row each, with errors underneath. */
-export const infraStatusTable = (records: DeployRecord[], installations: Installation[]) => {
-  const repos = new Map<string, { source: string; installed: boolean; record?: DeployRecord }>();
-  for (const i of installations) repos.set(i.repo.toLowerCase(), { source: i.source, installed: true });
+export const infraStatusTable = (records: DeployRecord[], installed: InstalledRepo[]) => {
+  const repos = new Map<string, { installed: boolean; record?: DeployRecord }>();
+  for (const i of installed) repos.set(i.repo.toLowerCase(), { installed: true });
   for (const r of records) {
     const row = repos.get(r.repo.toLowerCase());
-    repos.set(r.repo.toLowerCase(), { source: r.source, installed: row?.installed ?? false, record: r });
+    repos.set(r.repo.toLowerCase(), { installed: row?.installed ?? false, record: r });
   }
-  if (!repos.size) return "No repo has a source installed";
-  const names = new Map([...installations.map((i) => [i.repo.toLowerCase(), i.repo] as const), ...records.map((r) => [r.repo.toLowerCase(), r.repo] as const)]);
-  const rows = [["REPO", "SOURCE", "STATE", "AT", "CONTAINERS"]];
+  if (!repos.size) return "No repo is installed";
+  const names = new Map([...installed.map((i) => [i.repo.toLowerCase(), i.repo] as const), ...records.map((r) => [r.repo.toLowerCase(), r.repo] as const)]);
+  const rows = [["REPO", "STATE", "AT", "CONTAINERS"]];
   const errors: string[] = [];
-  for (const [key, { source, installed, record }] of [...repos].sort(([a], [b]) => a.localeCompare(b))) {
+  for (const [key, { installed, record }] of [...repos].sort(([a], [b]) => a.localeCompare(b))) {
     const repo = names.get(key)!;
     const state = record ? (installed || record.state !== "deployed" ? record.state : "deployed, not installed") : "installed, not deployed";
-    rows.push([repo, source, state, record?.at ?? "-", record?.containers?.map((c) => c.name).join(",") || "-"]);
+    rows.push([repo, state, record?.at ?? "-", record?.containers?.map((c) => c.name).join(",") || "-"]);
     if (record?.error) errors.push(`${repo}: ${record.error}`);
   }
   const widths = rows[0].map((_, i) => Math.max(...rows.map((r) => r[i].length)));

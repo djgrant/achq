@@ -22,6 +22,3 @@ export const readConfigFiles = (repoDir: string) => {
 
 /** The repo's manifest, evaluated in the sandbox as the deployer does it. */
 export const loadRepoManifest = async (repoDir: string): Promise<RepoManifest> => evaluateConfig(readConfigFiles(repoDir));
-
-/** The channels the config's threads and events come from. */
-export const channelsOf = (manifest: RepoManifest) => [...new Set([...manifest.workspaces.map((w) => w.threads.channel), ...manifest.triggers.map((t) => t.event.channel)])];

@@ -1,11 +1,11 @@
-import type { Installation, MintRequest, PolicyData, RouterRepoConfig, SourceSettings, ValidateRequest } from "@achq/core";
+import type { InstalledRepo, MintRequest, PolicyData, RouterRepoConfig, SourceSettings, ValidateRequest } from "@achq/core";
 import { adminSecret } from "@achq/core/secrets";
 import { verifySigned } from "@achq/core/signing";
 import type { FakeGitHub } from "./github.ts";
 
 /** The router's admin endpoints, checking every request's admin signature. */
 export class FakeRouter {
-  installations: Installation[] = [];
+  installed: InstalledRepo[] = [];
   sources: SourceSettings[] = [];
   /** Problems `/admin/validate` reports for a policy. */
   problems: (policy: PolicyData, repo: string) => string[] = () => [];
@@ -68,7 +68,7 @@ export class FakeRouter {
         return new Response(null, { status: 204 });
       }
     }
-    if (req.method === "GET" && path === "/admin/installations") return Response.json(this.installations);
+    if (req.method === "GET" && path === "/admin/installed") return Response.json(this.installed);
     if (req.method === "GET" && path === "/admin/sources") return Response.json(this.sources);
     return new Response("not found", { status: 404 });
   }

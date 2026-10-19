@@ -4,7 +4,10 @@ import { Resource } from "./resource.ts";
 
 /** Selector and policy data always says which channel or policy provider interprets it. */
 export type SelectorData = { channel: string; source: string; [key: string]: Data };
-/** `source`, when present, is the channel source the policy grants through, e.g. a GitHub App. Deploy currently requires it. */
+/**
+ * `source`, when present, is the channel source the policy grants through, e.g. a GitHub App.
+ * A repo's config always names one; the deployer's own policy leaves it to the policy provider.
+ */
 export type PolicyData = { provider: string; [key: string]: Data } & { source?: string };
 
 /** Which events start a run. Plain data, matched in the router and the container. */

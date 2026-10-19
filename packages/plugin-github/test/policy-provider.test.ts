@@ -3,10 +3,10 @@ import { $ } from "bun";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { ChannelProvider, InstallationProvider, PolicyCredential, PolicyProvider } from "@achq/core";
+import type { ChannelProvider, CodeHostProvider, PolicyCredential, PolicyProvider } from "@achq/core";
 import { FakeGitHub, makeApp } from "@achq/test-utils/github";
 import { githubChannelProvider } from "../src/channel/index.ts";
-import { githubInstallationProvider } from "../src/installation/index.ts";
+import { githubCodeHostProvider } from "../src/code-host/index.ts";
 import type { GitHubPolicyData } from "../src/index.ts";
 import { appsFor, parseApps } from "../src/lib/apps.ts";
 import { githubPolicyProvider } from "../src/policy/index.ts";
@@ -16,14 +16,14 @@ const appA = makeApp("notation-achq", "101", { issues: "write", contents: "write
 const appB = makeApp("djgrant-claude", "202", { issues: "write", contents: "read", metadata: "read" }, ["issue_comment"]);
 const gh = new FakeGitHub([appA, appB]);
 /** The router's parts, from one env. */
-let api: { provider: PolicyProvider; channel: ChannelProvider; installations: InstallationProvider };
+let api: { provider: PolicyProvider; channel: ChannelProvider; codeHost: CodeHostProvider };
 
 const policy = (permissions: Record<string, "read" | "write">, repo: string | null = null, source = "notation-achq"): GitHubPolicyData => ({ provider: "github", source, repo, permissions });
 
 beforeAll(() => {
   gh.start();
   const env = githubEnv(gh.keys(), gh.url);
-  api = { provider: githubPolicyProvider.create(env), channel: githubChannelProvider.create(env), installations: githubInstallationProvider.create(env) };
+  api = { provider: githubPolicyProvider.create(env), channel: githubChannelProvider.create(env), codeHost: githubCodeHostProvider.create(env) };
   gh.installations.push(
     { id: 77, app: appA.slug, account: "notationlabs", permissions: appA.permissions, repos: ["notationlabs/yieldstar", "notationlabs/shared"] },
     { id: 88, app: appA.slug, account: "djgrant", permissions: { contents: "read", metadata: "read" }, repos: ["djgrant/notes"] },
@@ -33,7 +33,7 @@ beforeAll(() => {
 });
 afterAll(() => gh.stop());
 
-test("the channel, installation provider and policy provider made from one configuration share its Apps, and so one JWT cache", () => {
+test("the channel, code host and policy providers made from one configuration share its Apps, and so one JWT cache", () => {
   const env = githubEnv(gh.keys(), gh.url);
   expect(appsFor({ ...env })).toBe(appsFor(env));
   expect(appsFor(githubEnv(gh.keys()))).not.toBe(appsFor(env));
@@ -60,6 +60,14 @@ describe("validate", () => {
     // Installed on the account, but not on this repo.
     const [problem] = await api.provider.validate(policy({ contents: "read" }, "notationlabs/secret"), repo);
     expect(problem).toStartWith("notation-achq's installation on notationlabs doesn't cover notationlabs/secret");
+  });
+
+  test("a policy naming no App goes through whichever App's installation covers the repo", async () => {
+    const { source: _, ...sourceless } = policy({ contents: "read" });
+    expect(await api.provider.validate(sourceless, "notationlabs/yieldstar")).toEqual([]);
+    // notation-achq is installed on djgrant too, but not on djgrant/site.
+    expect(await api.provider.validate(sourceless, "djgrant/site")).toEqual([]);
+    expect(await api.provider.validate(sourceless, "elsewhere/x")).toEqual(["No GitHub App on the router is installed on elsewhere/x"]);
   });
 
   test("authenticates as the App with a JWT the fake checks against its public key", async () => {
@@ -100,20 +108,28 @@ describe("mint", () => {
     expect(credentials.every((c) => c.provider === "github" && c.expiresAt === "2026-10-18T13:00:00Z")).toBe(true);
   });
 
+  test("a policy naming no App is minted through whichever App's installation covers the repo", async () => {
+    const { source: _, ...sourceless } = policy({ contents: "read" });
+    const [own] = await api.provider.mint([sourceless], "notationlabs/yieldstar");
+    expect(own!.scope).toEqual({ source: "notation-achq", installation: 77, repos: ["notationlabs/yieldstar"], permissions: { contents: "read" } });
+    const [site] = await api.provider.mint([sourceless], "djgrant/site");
+    expect(site!.scope).toEqual({ source: "djgrant-claude", installation: 99, repos: ["djgrant/site"], permissions: { contents: "read" } });
+    await expect(api.provider.mint([sourceless], "elsewhere/x")).rejects.toThrow("No GitHub App on the router is installed on elsewhere/x");
+  });
+
   test("fails when an App isn't installed on a policy's repo", async () => {
     await expect(api.provider.mint([policy({ contents: "read" }, "elsewhere/x")], "notationlabs/yieldstar")).rejects.toThrow(/isn't installed on elsewhere\/x/);
   });
 });
 
-describe("installations and sources", () => {
-  test("every repo of every unsuspended installation, per App", async () => {
-    const all = await api.installations.installations();
-    expect(all.sort((a, b) => (a.source + a.repo).localeCompare(b.source + b.repo))).toEqual([
-      { channel: "github", source: "djgrant-claude", repo: "djgrant/notes", host: "github" },
-      { channel: "github", source: "djgrant-claude", repo: "djgrant/site", host: "github" },
-      { channel: "github", source: "notation-achq", repo: "djgrant/notes", host: "github" },
-      { channel: "github", source: "notation-achq", repo: "notationlabs/shared", host: "github" },
-      { channel: "github", source: "notation-achq", repo: "notationlabs/yieldstar", host: "github" },
+describe("installed repos and sources", () => {
+  test("every repo of every unsuspended installation, once", async () => {
+    const all = await api.codeHost.installed();
+    expect(all.sort((a, b) => a.repo.localeCompare(b.repo))).toEqual([
+      { host: "github", repo: "djgrant/notes" },
+      { host: "github", repo: "djgrant/site" },
+      { host: "github", repo: "notationlabs/shared" },
+      { host: "github", repo: "notationlabs/yieldstar" },
     ]);
   });
 

@@ -6,8 +6,8 @@ export type Permission = "read" | "write";
 
 export type GitHubPolicyData = {
   provider: typeof POLICY_PROVIDER;
-  /** The App the policy grants through: the channel source. */
-  source: string;
+  /** The App the policy grants through: the channel source. Without one, whichever App is installed on the repo. */
+  source?: string;
   /** `owner/name`, or null for the repo the config is in. */
   repo: string | null;
   permissions: Record<string, Permission>;

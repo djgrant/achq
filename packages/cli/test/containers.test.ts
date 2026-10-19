@@ -6,7 +6,6 @@ const location = (service: string) => ({ containerProvider: "railway", project: 
 const status: Status = {
   host: "github",
   repo: "notationlabs/yieldstar",
-  source: "notation-achq",
   state: "deployed",
   at: "2026-10-17T10:02:00Z",
   router: "https://achq-router.up.railway.app",

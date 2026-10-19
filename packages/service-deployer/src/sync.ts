@@ -1,28 +1,28 @@
-import type { Installation, RepoManifest, SyncRequest, SyncResult } from "@achq/core";
+import type { InstalledRepo, RepoManifest, SyncRequest, SyncResult } from "@achq/core";
 import type { DeployerContext } from "./context.ts";
 import type { DeployOutcome } from "./deploy.ts";
 
 type Actions = {
-  deploy: (host: string, repo: string, source: string, options: { dryRun: boolean }) => Promise<DeployOutcome>;
-  uninstall: (host: string, repo: string, source: string, options: { dryRun: boolean }) => Promise<void>;
+  deploy: (host: string, repo: string, options: { dryRun: boolean }) => Promise<DeployOutcome>;
+  uninstall: (host: string, repo: string, options: { dryRun: boolean }) => Promise<void>;
 };
 
 /** Deploys every installed repo, uninstalls the rest, and with `prune` deletes containers no manifest has. */
 export const sync = async (ctx: DeployerContext, actions: Actions, { prune = false, dryRun = false }: SyncRequest = {}): Promise<SyncResult> => {
   const result: SyncResult = { deployed: [], unchanged: [], uninstalled: [], pruned: [], failed: [] };
-  const installations: Installation[] = await ctx.router.installations();
-  const installed = new Map(installations.map((i) => [i.repo.toLowerCase(), i]));
+  const repos: InstalledRepo[] = await ctx.router.installed();
+  const installed = new Map(repos.map((i) => [i.repo.toLowerCase(), i]));
   const manifests = new Map<string, RepoManifest | undefined>();
 
   for (const i of installed.values()) {
-    const outcome = await actions.deploy(i.host, i.repo, i.source, { dryRun });
+    const outcome = await actions.deploy(i.host, i.repo, { dryRun });
     if (outcome.outcome === "failed") result.failed.push({ repo: i.repo, error: outcome.error ?? "failed" });
     else result[outcome.outcome].push(i.repo);
     if (outcome.manifest) manifests.set(i.repo.toLowerCase(), outcome.manifest);
   }
   for (const record of await ctx.store.all()) {
     if (record.state === "uninstalled" || installed.has(record.repo.toLowerCase())) continue;
-    await actions.uninstall(record.host, record.repo, record.source, { dryRun });
+    await actions.uninstall(record.host, record.repo, { dryRun });
     result.uninstalled.push(record.repo);
   }
   if (prune) {

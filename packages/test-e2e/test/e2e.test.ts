@@ -21,7 +21,6 @@ import { tempDir } from "@achq/test-utils/temp-dir";
 import { createDeployer, routerClient, deployerHandler } from "@achq/deployer";
 import { FakeGitHub, makeApp } from "@achq/test-utils/github";
 import { githubChannelProvider } from "@achq/github/channel";
-import { githubInstallationProvider } from "@achq/github/installation";
 import { githubPolicyProvider } from "@achq/github/policy";
 import { githubCodeHostProvider } from "@achq/github/code-host";
 import { createRouter } from "@achq/router";
@@ -412,7 +411,6 @@ beforeAll(async () => {
   const deployerUrl = serve((req) => deployerFetch(req));
   router = createRouter({
     channelProviders: [githubChannelProvider.create(githubEnv)],
-    installationProviders: [githubInstallationProvider.create(githubEnv)],
     policyProviders: [policyProvider],
     key: KEY,
     dataDir: routerDir,
@@ -482,7 +480,6 @@ describe("achq end to end", () => {
     expect(status).toEqual({
       host: "github",
       repo: REPO,
-      source: SLUG,
       state: "deployed",
       at: expect.any(String),
       commit: repo.first,
@@ -740,6 +737,6 @@ describe("achq end to end", () => {
     expect(await res.json()).toEqual({ deployed: [], unchanged: [REPO], uninstalled: [], pruned: [], failed: [] });
     expect(containerProvider.removed).toEqual([]);
     const status = await signedFetch(adminSecret(KEY), `${routerPublic}/admin/status`, { method: "GET" });
-    expect(await status.json()).toEqual([expect.objectContaining({ repo: REPO, source: SLUG, state: "deployed", commit: expect.any(String) })]);
+    expect(await status.json()).toEqual([expect.objectContaining({ repo: REPO, state: "deployed", commit: expect.any(String) })]);
   });
 });

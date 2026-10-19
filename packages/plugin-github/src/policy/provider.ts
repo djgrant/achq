@@ -1,7 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import type { PolicyCredential, PolicyData, PolicyProvider } from "@achq/core";
-import type { Apps } from "../lib/apps.ts";
+import type { Apps, InstallationInfo } from "../lib/apps.ts";
 import { botLogin } from "../lib/client.ts";
 import { POLICY_PROVIDER, REPO } from "../lib/constants.ts";
 import { GH_CONFIG_DIR, GH_HOSTS_FILE, GIT_CONFIG_FILE, gitConfig, TOKEN_SUFFIX, tokenFileName, writeAtomic } from "../lib/git-credentials.ts";
@@ -13,10 +13,17 @@ export class GitHubPolicyProvider implements PolicyProvider {
 
   constructor(private apps: Apps) {}
 
+  /** The policy's App and its installation on `repo`: the one it names, or else whichever is installed there. */
+  private async installation(source: string | undefined, repo: string) {
+    if (!source) return this.apps.installedOn(repo);
+    const installation = await this.apps.installation(source, repo);
+    return installation && { slug: source, installation };
+  }
+
   async validate(policy: PolicyData, repo: string): Promise<string[]> {
     const p = policy as Partial<GitHubPolicyData>;
     if (p.provider !== POLICY_PROVIDER) return [`Policy is for policy provider "${p.provider}", not github`];
-    if (typeof p.source !== "string" || !this.apps.has(p.source)) return [`GitHub App "${p.source}" isn't configured on the router`];
+    if (p.source !== undefined && (typeof p.source !== "string" || !this.apps.has(p.source))) return [`GitHub App "${p.source}" isn't configured on the router`];
     const target = p.repo ?? repo;
     if (typeof target !== "string" || !REPO.test(target)) return [`"${target}" isn't an owner/name repo`];
     const permissions = p.permissions ?? {};
@@ -25,13 +32,14 @@ export class GitHubPolicyProvider implements PolicyProvider {
       .map(([name, level]) => `Permission ${name} is "${level}"; it must be "read" or "write"`);
     if (problems.length) return problems;
 
-    const installation = await this.apps.installation(p.source, target);
-    if (!installation) return [`${p.source} isn't installed on ${target}`];
-    if (installation.suspended_at) return [`${p.source}'s installation on ${installation.account.login} is suspended`];
+    const found = await this.installation(p.source, target);
+    if (!found) return [p.source ? `${p.source} isn't installed on ${target}` : `No GitHub App on the router is installed on ${target}`];
+    const { slug, installation } = found;
+    if (installation.suspended_at) return [`${slug}'s installation on ${installation.account.login} is suspended`];
     for (const [name, level] of Object.entries(permissions)) {
       if (!covers(installation.permissions[name], level)) {
         const granted = installation.permissions[name];
-        problems.push(`${p.source} has ${granted ? `${name}: ${granted}` : `no ${name} permission`} on ${installation.account.login}; the policy wants ${name}: ${level}`);
+        problems.push(`${slug} has ${granted ? `${name}: ${granted}` : `no ${name} permission`} on ${installation.account.login}; the policy wants ${name}: ${level}`);
       }
     }
     if (problems.length) return problems;
@@ -39,9 +47,9 @@ export class GitHubPolicyProvider implements PolicyProvider {
     // The installation may cover only selected repos. Minting a token narrowed
     // to the target is the one definitive check that it covers this one.
     try {
-      await this.apps.token(p.source, installation.id, { repositories: [target.split("/")[1]!], permissions: { metadata: "read" } });
+      await this.apps.token(slug, installation.id, { repositories: [target.split("/")[1]!], permissions: { metadata: "read" } });
     } catch (error) {
-      return [`${p.source}'s installation on ${installation.account.login} doesn't cover ${target}: ${(error as Error).message}`];
+      return [`${slug}'s installation on ${installation.account.login} doesn't cover ${target}: ${(error as Error).message}`];
     }
     return [];
   }
@@ -55,18 +63,19 @@ export class GitHubPolicyProvider implements PolicyProvider {
    */
   async mint(policies: PolicyData[], repo: string): Promise<PolicyCredential[]> {
     const groups = new Map<string, { source: string; installation: number; repos: string[]; permissions: Permissions }>();
-    const lookups = new Map<string, Promise<Awaited<ReturnType<Apps["installation"]>>>>();
+    const lookups = new Map<string, Promise<{ slug: string; installation: InstallationInfo } | undefined>>();
     for (const policy of policies) {
       const p = policy as GitHubPolicyData;
       if (p.provider !== POLICY_PROVIDER) continue;
       const target = p.repo ?? repo;
       if (!REPO.test(target)) throw new Error(`"${target}" isn't an owner/name repo`);
-      const lookupKey = `${p.source}\n${target.toLowerCase()}`;
-      if (!lookups.has(lookupKey)) lookups.set(lookupKey, this.apps.installation(p.source, target));
-      const installation = await lookups.get(lookupKey)!;
-      if (!installation) throw new Error(`${p.source} isn't installed on ${target}`);
-      const key = `${p.source}\n${installation.id}\n${target.toLowerCase()}`;
-      const group = groups.get(key) ?? { source: p.source, installation: installation.id, repos: [], permissions: {} };
+      const lookupKey = `${p.source ?? ""}\n${target.toLowerCase()}`;
+      if (!lookups.has(lookupKey)) lookups.set(lookupKey, this.installation(p.source, target));
+      const found = await lookups.get(lookupKey)!;
+      if (!found) throw new Error(p.source ? `${p.source} isn't installed on ${target}` : `No GitHub App on the router is installed on ${target}`);
+      const { slug, installation } = found;
+      const key = `${slug}\n${installation.id}\n${target.toLowerCase()}`;
+      const group = groups.get(key) ?? { source: slug, installation: installation.id, repos: [], permissions: {} };
       groups.set(key, group);
       if (!group.repos.some((r) => r.toLowerCase() === target.toLowerCase())) group.repos.push(target);
       for (const [name, level] of Object.entries(p.permissions)) group.permissions[name] = maxLevel(group.permissions[name], level);

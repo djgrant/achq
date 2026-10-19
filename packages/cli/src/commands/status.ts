@@ -1,6 +1,6 @@
 import { defineCommand } from "@pokit/core";
 import { clean } from "../lib/errors.ts";
-import type { DeployRecord, Installation } from "@achq/core";
+import type { DeployRecord, InstalledRepo } from "@achq/core";
 import { cliContext } from "../lib/context.ts";
 import { secretEnv } from "../lib/env.ts";
 import { loadInfra } from "../lib/load/infra.ts";
@@ -16,11 +16,11 @@ export const command = defineCommand({
     if (file) {
       const infra = await loadInfra(file);
       const router = await routerAccess(infra, cliContext({ env: secretEnv(), log: (line) => console.log(line) }));
-      const [records, installations] = await Promise.all([
+      const [records, installed] = await Promise.all([
         adminRequest<DeployRecord[]>(router, "GET", "/admin/status"),
-        adminRequest<Installation[]>(router, "GET", "/admin/installations"),
+        adminRequest<InstalledRepo[]>(router, "GET", "/admin/installed"),
       ]);
-      console.log(infraStatusTable(records, installations));
+      console.log(infraStatusTable(records, installed));
       return;
     }
     const { repo, codeHost } = needRepo();

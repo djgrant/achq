@@ -2,8 +2,8 @@ import type { DeployerEnvelope } from "@achq/core";
 import type { Store } from "./store.ts";
 
 type Actions = {
-  deploy: (host: string, repo: string, source: string) => Promise<unknown>;
-  uninstall: (host: string, repo: string, source: string) => Promise<unknown>;
+  deploy: (host: string, repo: string) => Promise<unknown>;
+  uninstall: (host: string, repo: string) => Promise<unknown>;
 };
 
 /** Handles events the router forwarded. Each returns false for a delivery it had already handled. */
@@ -19,9 +19,9 @@ export const createEventHandler = (store: Store, actions: Actions) => {
       const { host } = event;
       // One by one: each repo gets its own deploy and its own ACHQ_STATUS.
       if (event.installation) {
-        for (const repo of event.installation.added) await actions.deploy(host, repo, event.source);
-        for (const repo of event.installation.removed) await actions.uninstall(host, repo, event.source);
-      } else if (event.configChanged && event.repo) await actions.deploy(host, event.repo, event.source);
+        for (const repo of event.installation.added) await actions.deploy(host, repo);
+        for (const repo of event.installation.removed) await actions.uninstall(host, repo);
+      } else if (event.configChanged && event.repo) await actions.deploy(host, event.repo);
       // Marked only once handled, so a crash part-way lets the router's replay finish the job.
       await store.markHandled(event.delivery);
       return true;

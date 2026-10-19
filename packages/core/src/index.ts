@@ -8,7 +8,6 @@ export * from "./engine/values.ts";
 export * from "./engine/plan.ts";
 export * from "./contracts/implementation.ts";
 export * from "./contracts/channel-provider.ts";
-export * from "./contracts/installation-provider.ts";
 export * from "./contracts/policy-provider.ts";
 export * from "./contracts/code-host-provider.ts";
 export * from "./contracts/container-provider.ts";
