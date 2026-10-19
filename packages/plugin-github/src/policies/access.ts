@@ -16,11 +16,11 @@ const writeAtomic = (file: string, content: string) => {
   fs.renameSync(tmp, file);
 };
 
-/** Named by App and installation, so a refresh never points a repo at another installation's token. */
+/** Named by source App and installation, so a refresh never points a repo at another installation's token. */
 const tokenFileName = (credential: AccessCredential, index: number) => {
-  const { app, installation, repos } = credential.scope;
+  const { source, installation, repos } = credential.scope;
   const repo = Array.isArray(repos) && repos.length === 1 ? `-${repos[0]}` : "";
-  const name = typeof app === "string" && typeof installation === "number" ? `${app}-${installation}${repo}` : String(index);
+  const name = typeof source === "string" && typeof installation === "number" ? `${source}-${installation}${repo}` : String(index);
   return `${name.replace(/[^A-Za-z0-9_.-]/g, "_")}${TOKEN_SUFFIX}`;
 };
 
@@ -70,7 +70,7 @@ export class GitHubAccess implements AccessProvider {
    * The config's own repo comes first, since gh uses the first token.
    */
   async mint(policies: PolicyData[], repo: string): Promise<AccessCredential[]> {
-    const groups = new Map<string, { app: string; installation: number; repos: string[]; permissions: Permissions }>();
+    const groups = new Map<string, { source: string; installation: number; repos: string[]; permissions: Permissions }>();
     const lookups = new Map<string, Promise<Awaited<ReturnType<Apps["installation"]>>>>();
     for (const policy of policies) {
       const p = policy as RepoPolicyData;
@@ -82,7 +82,7 @@ export class GitHubAccess implements AccessProvider {
       const installation = await lookups.get(lookupKey)!;
       if (!installation) throw new Error(`${p.source} isn't installed on ${target}`);
       const key = `${p.source}\n${installation.id}\n${target.toLowerCase()}`;
-      const group = groups.get(key) ?? { app: p.source, installation: installation.id, repos: [], permissions: {} };
+      const group = groups.get(key) ?? { source: p.source, installation: installation.id, repos: [], permissions: {} };
       groups.set(key, group);
       if (!group.repos.some((r) => r.toLowerCase() === target.toLowerCase())) group.repos.push(target);
       for (const [name, level] of Object.entries(p.permissions)) group.permissions[name] = maxLevel(group.permissions[name], level);
@@ -90,12 +90,12 @@ export class GitHubAccess implements AccessProvider {
     const own = (g: { repos: string[] }) => (g.repos[0]!.toLowerCase() === repo.toLowerCase() ? 0 : 1);
     return Promise.all(
       [...groups.values()].sort((a, b) => own(a) - own(b)).map(async (g) => {
-        const token = await this.apps.token(g.app, g.installation, { repositories: g.repos.map((r) => r.split("/")[1]!), permissions: g.permissions });
+        const token = await this.apps.token(g.source, g.installation, { repositories: g.repos.map((r) => r.split("/")[1]!), permissions: g.permissions });
         return {
           access: ACCESS,
           value: token.token,
           expiresAt: token.expires_at,
-          scope: { app: g.app, installation: g.installation, repos: g.repos, permissions: g.permissions },
+          scope: { source: g.source, installation: g.installation, repos: g.repos, permissions: g.permissions },
         };
       }),
     );
@@ -103,7 +103,7 @@ export class GitHubAccess implements AccessProvider {
 
   /**
    * Container side, no network. Writes each token to
-   * `dir/<app>-<installation>-<repo>.token`, plus gh's `hosts.yml` and a git
+   * `dir/<source>-<installation>-<repo>.token`, plus gh's `hosts.yml` and a git
    * config with a helper per repo URL. gh has one token per host, so it gets
    * the first credential. Every file is replaced atomically, so a running git
    * or gh never reads a half-written token.
@@ -137,7 +137,7 @@ export class GitHubAccess implements AccessProvider {
     const first = mine[0];
     const hosts = path.join(ghDir, GH_HOSTS_FILE);
     if (first) {
-      const user = typeof first.scope.app === "string" ? botLogin(first.scope.app) : "x-access-token";
+      const user = typeof first.scope.source === "string" ? botLogin(first.scope.source) : "x-access-token";
       writeAtomic(hosts, `github.com:\n    oauth_token: ${first.value}\n    user: ${user}\n    git_protocol: https\n`);
     } else {
       fs.rmSync(hosts, { force: true });

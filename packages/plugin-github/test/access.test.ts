@@ -90,10 +90,10 @@ describe("mint", () => {
       { installation: 99, body: { repositories: ["notes"], permissions: { issues: "write" } } },
     ]);
     expect(credentials.map((c) => c.scope)).toEqual([
-      { app: "notation-achq", installation: 77, repos: ["notationlabs/yieldstar"], permissions: { contents: "write", issues: "read" } },
-      { app: "notation-achq", installation: 77, repos: ["notationlabs/shared"], permissions: { contents: "read", issues: "write" } },
-      { app: "notation-achq", installation: 88, repos: ["djgrant/notes"], permissions: { contents: "read" } },
-      { app: "djgrant-claude", installation: 99, repos: ["djgrant/notes"], permissions: { issues: "write" } },
+      { source: "notation-achq", installation: 77, repos: ["notationlabs/yieldstar"], permissions: { contents: "write", issues: "read" } },
+      { source: "notation-achq", installation: 77, repos: ["notationlabs/shared"], permissions: { contents: "read", issues: "write" } },
+      { source: "notation-achq", installation: 88, repos: ["djgrant/notes"], permissions: { contents: "read" } },
+      { source: "djgrant-claude", installation: 99, repos: ["djgrant/notes"], permissions: { issues: "write" } },
     ]);
     // The tokens are real to the fake: each covers what its scope says.
     for (const c of credentials) expect(gh.tokens.get(c.value)!.repos).toEqual(c.scope.repos as string[]);
@@ -133,11 +133,11 @@ describe("installations and sources", () => {
 
 describe("install", () => {
   const container = { access: githubAccess.create({}) }; // no keys, no network
-  const credential = (value: string, installation: number, repos: string[], app = "notation-achq"): AccessCredential => ({
+  const credential = (value: string, installation: number, repos: string[], source = "notation-achq"): AccessCredential => ({
     access: "github",
     value,
     expiresAt: "2026-10-18T13:00:00Z",
-    scope: { app, installation, repos, permissions: {} },
+    scope: { source, installation, repos, permissions: {} },
   });
   let root: string;
   let home: string;
