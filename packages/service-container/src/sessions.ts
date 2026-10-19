@@ -1,10 +1,9 @@
+import type { SessionSummary } from "@achq/core";
 import type { Paths } from "./paths.ts";
 import { allStates, type ThreadState } from "./state.ts";
 
-export type SessionInfo = { id: string; agent: string; workspace: string; lastRun: string };
-
 /** A thread's sessions, most recently run first. */
-export const sessionsFor = (paths: Paths, number: string): (SessionInfo & { state: ThreadState; commit: string })[] =>
+export const sessionsFor = (paths: Paths, number: string): (SessionSummary & { state: ThreadState; commit: string })[] =>
   allStates(paths.threads)
     .filter(({ state }) => state.number === number)
     .flatMap(({ state }) =>
@@ -13,21 +12,5 @@ export const sessionsFor = (paths: Paths, number: string): (SessionInfo & { stat
     .sort((a, b) => b.lastRun.localeCompare(a.lastRun));
 
 /** A JSON array. The laptop's `achq resume` parses it (parseSessions in packages/cli/src/lib/remote/sessions.ts). */
-export const formatSessions = (sessions: SessionInfo[]) =>
+export const formatSessions = (sessions: SessionSummary[]) =>
   JSON.stringify(sessions.map(({ id, agent, workspace, lastRun }) => ({ id, agent, workspace, lastRun })));
-
-/**
- * Which session `resume` opens: the one named (by ID, or by agent if that's
- * unambiguous), or the only one. Otherwise there's nothing to pick from here.
- */
-export const pickSession = <T extends SessionInfo>(sessions: T[], wanted?: string): { session: T } | { error: string } => {
-  if (!sessions.length) return { error: "This thread has no sessions." };
-  if (wanted) {
-    const byId = sessions.filter((s) => s.id === wanted);
-    const matches = byId.length ? byId : sessions.filter((s) => s.agent === wanted);
-    if (matches.length === 1) return { session: matches[0]! };
-    return { error: matches.length ? `Several sessions match "${wanted}":` : `No session matches "${wanted}". This thread's sessions:` };
-  }
-  if (sessions.length === 1) return { session: sessions[0]! };
-  return { error: "This thread has several sessions; name one:" };
-};

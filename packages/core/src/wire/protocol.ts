@@ -99,5 +99,8 @@ export type DeployRecord = {
   warnings?: string[];
 };
 
+/** One of a thread's sessions, as `achq-agent sessions <n>` prints them (a JSON array, most recently run first) for `achq resume`. */
+export type SessionSummary = { id: string; agent: string; workspace: string; lastRun: string };
+
 /** The ACHQ_STATUS repository variable's JSON. */
 export type Status = DeployRecord & { router?: string };

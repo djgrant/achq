@@ -9,12 +9,13 @@ import type { Paths } from "./paths.ts";
 import { runnerPrompt } from "./runner-prompt.ts";
 import { runtimeContext } from "./runtime-context.ts";
 import { defaultRuntimes } from "./runtimes.ts";
-import { formatSessions, pickSession, sessionsFor } from "./sessions.ts";
+import { sessionsFor } from "./sessions.ts";
 
 export type ResumeOptions = {
   paths: Paths;
   number: string;
-  session?: string;
+  /** The session's exact ID. */
+  session: string;
   loadConfig: (commit: string) => Promise<LoadedConfig>;
   container: string;
   runtimes?: Record<string, RuntimeFactory>;
@@ -28,18 +29,16 @@ export type ResumeOptions = {
  * Opens a thread's session interactively in its worktree, holding the
  * thread's lock so the agent's next run waits until you exit. Fails if a run
  * is in progress. Returns the exit status. Run over SSH by the laptop CLI,
- * which does any picking.
+ * which picks the session.
  */
 export const resume = async (opts: ResumeOptions): Promise<number> => {
   const out = opts.out ?? ((text) => console.error(text));
   const sessions = sessionsFor(opts.paths, opts.number);
-  const picked = pickSession(sessions, opts.session);
-  if ("error" in picked) {
-    out(picked.error);
-    if (sessions.length) out(formatSessions(sessions));
+  const session = sessions.find((s) => s.id === opts.session);
+  if (!session) {
+    out([`No session ${opts.session} on thread ${opts.number}. Its sessions:`, ...sessions.map((s) => `  ${s.id}  ${s.agent}  ${s.lastRun}`)].join("\n"));
     return 1;
   }
-  const { session } = picked;
   const config = await opts.loadConfig(session.commit);
   const agent = config.agents.find((a) => a.name === session.agent);
   const factory = agent && (opts.runtimes ?? defaultRuntimes)[agent.runtime];
