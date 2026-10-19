@@ -11,14 +11,13 @@ import { $ } from "bun";
 import { randomUUID } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { ENV, STATUS_VARIABLE, type ContainerHost, type ContainerSpec, type RouterRepoConfig } from "@achq/core";
+import { ENV, STATUS_VARIABLE, type ContainerHost, type ContainerSpec, type RouterRepoConfig, type WakeRequest } from "@achq/core";
 import { adminSecret, containerSecret, implementationSecret } from "@achq/core/secrets";
 import { hmacHex, signedFetch } from "@achq/core/signing";
 import { paths as layout, createAgent, type Runner, readState } from "@achq/container";
 import { fakeClaude } from "@achq/test-utils/fake-claude";
 import { makeOrigin } from "@achq/test-utils/origin";
 import { tempDir } from "@achq/test-utils/temp-dir";
-import { wake } from "../../cli/src/lib/remote/wake.ts";
 import { createDeployer, routerClient, deployerHandler } from "@achq/deployer";
 import { FakeGitHub, makeApp } from "@achq/test-utils/github";
 import { githubChannel } from "@achq/github/channels";
@@ -525,9 +524,17 @@ describe("achq end to end", () => {
   });
 
   test("`achq ssh`'s wake reaches the container through the router, for someone who can push to the repo", async () => {
-    await expect(wake(routerPublic, { host: "github", repo: REPO, container: "dev" }, "gho_mallory")).rejects.toThrow("403 no push access");
+    // What `achq ssh` sends before it connects.
+    const wake = (token: string) =>
+      fetch(`${routerPublic}/wake`, {
+        method: "POST",
+        headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+        body: JSON.stringify({ host: "github", repo: REPO, container: "dev" } satisfies WakeRequest),
+      });
+    const refused = await wake("gho_mallory");
+    expect([refused.status, await refused.text()]).toEqual([403, "no push access"]);
     expect(dev().requests).toEqual([]);
-    await wake(routerPublic, { host: "github", repo: REPO, container: "dev" }, "gho_djgrant");
+    expect((await wake("gho_djgrant")).status).toBe(200);
     expect(dev().requests).toEqual([{ method: "GET", path: "/" }]);
   });
 
