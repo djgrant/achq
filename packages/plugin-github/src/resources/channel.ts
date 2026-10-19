@@ -1,9 +1,9 @@
-// A GitHub App and its webhook, declared in the ACHQ infra. Its webhooks go to
-// the router, and the router mints its tokens. GitHub never gives a private key
-// back, so an App achq can act as is one whose key the router keeps: without
-// one, it's created through the manifest flow.
+// A channel, declared in the ACHQ infra: a GitHub App and its webhook. Its
+// webhooks go to the router, and the router mints its tokens. GitHub never
+// gives a private key back, so an App achq can act as is one whose key the
+// router keeps: without one, it's created through the manifest flow.
 import { all, type Change, type Context, known, ManagedResource, type Planned, type Router, UNKNOWN } from "@achq/core";
-import { AppRef } from "../channels/app-ref.ts";
+import { ChannelRef } from "../channels/channel-ref.ts";
 import { type AppKeys, appsVariable, parseApps } from "../lib/app-keys.ts";
 import { GitHubClient } from "../lib/client.ts";
 import { GITHUB_ENV } from "../lib/constants.ts";
@@ -15,7 +15,7 @@ import { appSlug } from "./app-slug.ts";
 import { APP_EVENTS, APP_PERMISSIONS } from "./constants.ts";
 import { manifestFlow } from "./manifest.ts";
 
-export type AppInputs = {
+export type ChannelInputs = {
   /** The App's name on GitHub, which its slug comes from. */
   name: string;
   /** The organisation that owns it. Without one it's owned by your account and public, so others can install it. */
@@ -23,7 +23,7 @@ export type AppInputs = {
   router: Router;
 };
 
-export type AppProps = {
+export type ChannelProps = {
   /** What its name makes it, and what the router knows it by. */
   slug: string;
   name: string;
@@ -39,12 +39,12 @@ export type AppProps = {
 export type HookConfig = { url?: string; content_type?: string; insecure_ssl?: string };
 
 /** `settings` is where you change what achq can't. */
-export type AppState = { events: string[]; permissions: Record<string, string>; hook: HookConfig; settings: string };
+export type ChannelState = { events: string[]; permissions: Record<string, string>; hook: HookConfig; settings: string };
 
 /** The slug is GitHub's, which can differ from the one its name makes. */
-export type AppAttrs = { slug: string; id: string; privateKey: string };
+export type ChannelAttrs = { slug: string; id: string; privateKey: string };
 
-export type AppChange = { kind: "create" } | { kind: "webhook" };
+export type ChannelChange = { kind: "create" } | { kind: "webhook" };
 
 /** What the live App lacks of what achq needs. */
 export const appProblems = (settings: { events: string[]; permissions: Record<string, string> }) => [
@@ -70,28 +70,29 @@ const hookDiffers = (hookUrl: string, hook: HookConfig) =>
 
 const asApp = (api: string, id: string | number, privateKey: string) => new GitHubClient(`Bearer ${appJwt(id, privateKey)}`, api);
 
-/** Each router's Apps, by slug. */
-const routerApps = new WeakMap<Router, Map<string, App>>();
+/** Each router's channels, by slug. */
+const routerChannels = new WeakMap<Router, Map<string, Channel>>();
 
 /**
- * The router's ACHQ_GITHUB_APPS: every App declared on it, so it's declared
- * once, as a function, when the router is planned. Keys of Apps no longer
- * declared stay: removing an App from the infra doesn't delete it on GitHub.
+ * The router's ACHQ_GITHUB_APPS: the App of every channel declared on it, so
+ * it's declared once, as a function, when the router is planned. Keys of Apps
+ * no longer declared stay: removing a channel from the infra doesn't delete its
+ * App on GitHub.
  */
-const declareKeys = (router: Router, apps: Map<string, App>) =>
+const declareKeys = (router: Router, channels: Map<string, Channel>) =>
   router.variables(() => ({
-    [GITHUB_ENV.apps]: all([router.env, all([...apps.values()].map((app) => app.outputs()))]).map(([env, created]) =>
+    [GITHUB_ENV.apps]: all([router.env, all([...channels.values()].map((channel) => channel.outputs()))]).map(([env, created]) =>
       appsVariable({ ...parseApps(env[GITHUB_ENV.apps]), ...Object.fromEntries(created.map(({ slug, id, privateKey }) => [slug, { id, privateKey }])) }),
     ),
   }));
 
-export class App extends ManagedResource<AppProps, AppState, AppAttrs, AppChange> {
-  readonly kind = "github-app";
+export class Channel extends ManagedResource<ChannelProps, ChannelState, ChannelAttrs, ChannelChange> {
+  readonly kind = "github-channel";
   readonly slug: string;
 
   constructor(
     name: string,
-    readonly inputs: AppInputs,
+    readonly inputs: ChannelInputs,
   ) {
     const { router } = inputs;
     const slug = appSlug(inputs.name);
@@ -104,21 +105,21 @@ export class App extends ManagedResource<AppProps, AppState, AppAttrs, AppChange
       stored: router.env.map((env) => parseApps(env[GITHUB_ENV.apps])[slug]),
     });
     this.slug = slug;
-    let apps = routerApps.get(router);
-    if (!apps) {
-      routerApps.set(router, (apps = new Map()));
-      declareKeys(router, apps);
+    let channels = routerChannels.get(router);
+    if (!channels) {
+      routerChannels.set(router, (channels = new Map()));
+      declareKeys(router, channels);
     }
-    if (apps.has(slug)) throw new Error(`Two Apps are named ${slug}`);
-    apps.set(slug, this);
+    if (channels.has(slug)) throw new Error(`Two channels are named ${slug}`);
+    channels.set(slug, this);
   }
 
-  /** Adopts an App declared in the ACHQ infra, by its slug. */
+  /** Adopts a channel declared in the ACHQ infra, by its App's slug. */
   static get(slug: string) {
-    return new AppRef(slug);
+    return new ChannelRef(slug);
   }
 
-  async read({ slug, org, stored }: AppProps, ctx: Context): Promise<AppState | undefined> {
+  async read({ slug, org, stored }: ChannelProps, ctx: Context): Promise<ChannelState | undefined> {
     if (!stored) return undefined;
     const { api, web } = githubUrls(ctx.env);
     const client = asApp(api, stored.id, stored.privateKey);
@@ -129,28 +130,28 @@ export class App extends ManagedResource<AppProps, AppState, AppAttrs, AppChange
     return { events: settings.events, permissions: settings.permissions, hook, settings: appSettingsUrl(slug, org, web) };
   }
 
-  diff({ hookUrl }: AppProps, current: AppState | undefined): AppChange[] {
+  diff({ hookUrl }: ChannelProps, current: ChannelState | undefined): ChannelChange[] {
     return !current ? [{ kind: "create" }] : hookDiffers(hookUrl, current.hook) ? [{ kind: "webhook" }] : [];
   }
 
-  describe(change: AppChange, { slug, name, org, hookUrl }: AppProps): Change {
+  describe(change: ChannelChange, { slug, name, org, hookUrl }: ChannelProps): Change {
     switch (change.kind) {
       case "create":
-        return { op: "+", target: `github app ${name}${org ? ` (${org})` : ""}`, detail: "opens GitHub to create it" };
+        return { op: "+", target: `github channel ${name}${org ? ` (${org})` : ""}`, detail: "opens GitHub to create its App" };
       case "webhook":
         return { op: "~", target: `${slug} webhook`, detail: `→ ${known(hookUrl) ? hookUrl : "the router's URL"}` };
     }
   }
 
-  check({ slug }: AppProps, current: AppState) {
+  check({ slug }: ChannelProps, current: ChannelState) {
     return appProblems(current).map((problem) => `${slug} ${problem}: change it at ${current.settings}`);
   }
 
-  planned({ slug, stored }: AppProps, current: AppState | undefined): Planned<AppAttrs> {
+  planned({ slug, stored }: ChannelProps, current: ChannelState | undefined): Planned<ChannelAttrs> {
     return current && stored ? { slug, ...stored } : { slug: UNKNOWN, id: UNKNOWN, privateKey: UNKNOWN };
   }
 
-  async apply({ slug, name, org, hookUrl, key, stored }: AppProps, _: AppState | undefined, changes: AppChange[], ctx: Context): Promise<AppAttrs> {
+  async apply({ slug, name, org, hookUrl, key, stored }: ChannelProps, _: ChannelState | undefined, changes: ChannelChange[], ctx: Context): Promise<ChannelAttrs> {
     const { api, web } = githubUrls(ctx.env);
     if (changes.some((c) => c.kind === "webhook")) {
       await asApp(api, stored!.id, stored!.privateKey).request("PATCH", "/app/hook/config", hookConfig(hookUrl, key, stored!.id));

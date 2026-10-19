@@ -1,8 +1,8 @@
 import { Issues } from "./issues.ts";
 import { type CommentAction, eventSelector, type IssueAction } from "./selectors.ts";
 
-/** A GitHub App a repo adopts by slug. Its webhooks reach the repo's containers through the router. */
-export class AppRef {
+/** A channel a repo adopts by its App's slug: the config side of `Channel`. Its webhooks reach the repo's containers through the router. */
+export class ChannelRef {
   readonly issues: Issues;
   constructor(readonly slug: string) {
     this.issues = new Issues(slug);

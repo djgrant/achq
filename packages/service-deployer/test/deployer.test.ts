@@ -250,7 +250,7 @@ describe("checks", () => {
     github.commit(REPO, repoFiles());
     expect((await makeDeployer().deploy("github", REPO, "other-app")).error).toBe("no policy or workspace names other-app, the source that was installed");
 
-    github.commit(REPO, repoFiles({ ".achq/config.ts": DOC_CONFIG["config.ts"].replace(`App.get("notation-achq")`, `App.get("ghost")`) }));
+    github.commit(REPO, repoFiles({ ".achq/config.ts": DOC_CONFIG["config.ts"].replace(`Channel.get("notation-achq")`, `Channel.get("ghost")`) }));
     const { error } = await makeDeployer().deploy("github", REPO, APP);
     expect(error).toContain("policy code names ghost, which the router doesn't know");
     expect(error).toContain("no policy or workspace names notation-achq");
@@ -262,7 +262,7 @@ describe("checks", () => {
     expect((await makeDeployer().deploy("github", REPO, APP)).error).toBe("container dev's image .achq/Dockerfile doesn't exist");
 
     router.sources.push({ channel: "github", source: "second", events: ["issues"], permissions: {} });
-    const config = `${DOC_CONFIG["config.ts"]}\nnew Trigger("lonely", { event: github.App.get("second").issue(), agent: triage });`;
+    const config = `${DOC_CONFIG["config.ts"]}\nnew Trigger("lonely", { event: github.Channel.get("second").issue(), agent: triage });`;
     github.commit(REPO, repoFiles({ ".achq/config.ts": config }));
     const outcome = await makeDeployer().deploy("github", REPO, APP);
     expect(outcome).toMatchObject({ outcome: "deployed", warnings: ["trigger lonely never runs: no workspace's threads come from github:second"] });

@@ -1,6 +1,6 @@
 import { Policy as CorePolicy } from "@achq/core";
 import { POLICY_PROVIDER } from "../lib/constants.ts";
-import type { AppRef } from "../channels/app-ref.ts";
+import type { ChannelRef } from "../channels/channel-ref.ts";
 
 export type Permission = "read" | "write";
 
@@ -13,10 +13,10 @@ export type GitHubPolicyData = {
   permissions: Record<string, Permission>;
 };
 
-/** Access to one repo through an App's installation. Defaults to the config's own repo. */
+/** Access to one repo through its channel's App installation. Defaults to the config's own repo. */
 export class Policy extends CorePolicy {
-  constructor(name: string, inputs: { app: AppRef; repo?: string; permissions: Record<string, Permission> }) {
-    const data: GitHubPolicyData = { provider: POLICY_PROVIDER, source: inputs.app.slug, repo: inputs.repo ?? null, permissions: inputs.permissions };
+  constructor(name: string, inputs: { channel: ChannelRef; repo?: string; permissions: Record<string, Permission> }) {
+    const data: GitHubPolicyData = { provider: POLICY_PROVIDER, source: inputs.channel.slug, repo: inputs.repo ?? null, permissions: inputs.permissions };
     super(name, data);
   }
 }

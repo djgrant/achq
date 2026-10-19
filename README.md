@@ -24,12 +24,12 @@ export default achq(() => {
   const router = new railway.Router("router", { project: "achq" });
   // Runs in its router's Railway project, and puts containers there.
   new railway.Deployer("deployer", { router, owners: ["djgrant", "notationlabs"] });
-  new github.App("personal", { name: "djgrant-claude", router });
-  new github.App("notation", { name: "notation-achq", org: "notationlabs", router });
+  new github.Channel("personal", { name: "djgrant-claude", router });
+  new github.Channel("notation", { name: "notation-achq", org: "notationlabs", router });
 });
 ```
 
-`achq up` needs `RAILWAY_API_TOKEN` and `CLAUDE_CODE_OAUTH_TOKEN` (from `claude setup-token`) in its environment; how they get there is up to you (`op run`, direnv, …). It plans the Railway project, the router, the deployer and each App as one graph, prints what would change, then makes it. An App that doesn't exist yet is created through GitHub's manifest flow in your browser. Its private key goes straight into the router's variables on Railway and never touches your machine. Then it syncs every installed repo. Re-running it changes only what differs; `--dry-run` shows what would change.
+`achq up` needs `RAILWAY_API_TOKEN` and `CLAUDE_CODE_OAUTH_TOKEN` (from `claude setup-token`) in its environment; how they get there is up to you (`op run`, direnv, …). It plans the Railway project, the router, the deployer and each channel as one graph, prints what would change, then makes it. An App that doesn't exist yet is created through GitHub's manifest flow in your browser. Its private key goes straight into the router's variables on Railway and never touches your machine. Then it syncs every installed repo. Re-running it changes only what differs; `--dry-run` shows what would change.
 
 | Service | Exposure | Does |
 |---|---|---|
@@ -44,16 +44,16 @@ export default achq(() => {
 import { Claude, Container, Trigger, Workspace } from "achq";
 import * as github from "achq/github";
 
-const app = github.App.get("notation-achq");
+const channel = github.Channel.get("notation-achq");
 
-const code = new github.Policy("code", { app, permissions: { contents: "write", issues: "write", pull_requests: "write" } });
+const code = new github.Policy("code", { channel, permissions: { contents: "write", issues: "write", pull_requests: "write" } });
 const dev = new Container("dev", { image: "./Dockerfile", policies: [code] });
 
-new Workspace("docs", { container: dev, threads: app.issues.where({ labels: ["docs"] }), branch: "docs-{number}", base: "docs" });
-new Workspace("issues", { container: dev, threads: app.issues, branch: "issue-{number}", base: "main" });
+new Workspace("docs", { container: dev, threads: channel.issues.where({ labels: ["docs"] }), branch: "docs-{number}", base: "docs" });
+new Workspace("issues", { container: dev, threads: channel.issues, branch: "issue-{number}", base: "main" });
 
 const coder = new Claude("coder", { model: "claude-opus-5-5", effort: "high", systemPrompt: "./prompts/system.md" });
-new Trigger("mention", { event: app.issueComment({ actions: ["created", "edited"], mention: "@claude" }), agent: coder });
+new Trigger("mention", { event: channel.issueComment({ actions: ["created", "edited"], mention: "@claude" }), agent: coder });
 ```
 
 - **Container**: an image, the policies its agents get tokens for, and startup files.

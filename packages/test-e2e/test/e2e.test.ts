@@ -43,10 +43,10 @@ const ACHQ: Record<string, string> = {
   ".achq/config.ts": `
 import { Container, Workspace, Trigger } from "achq";
 import * as github from "achq/github";
-import { app } from "./app.ts";
+import { channel } from "./channel.ts";
 import { coder } from "./agents/coder.ts";
 
-const code = new github.Policy("code", { app, permissions: { contents: "write", issues: "write", pull_requests: "write" } });
+const code = new github.Policy("code", { channel, permissions: { contents: "write", issues: "write", pull_requests: "write" } });
 
 const dev = new Container("dev", {
   image: "./Dockerfile",
@@ -54,14 +54,14 @@ const dev = new Container("dev", {
   files: { "~/.config/yieldstar.toml": "./yieldstar.toml" },
 });
 
-new Workspace("docs", { container: dev, threads: app.issues.where({ labels: ["docs"] }), branch: "docs/{number}", base: "docs" });
-new Workspace("issues", { container: dev, threads: app.issues, branch: "issue-{number}", base: "main" });
+new Workspace("docs", { container: dev, threads: channel.issues.where({ labels: ["docs"] }), branch: "docs/{number}", base: "docs" });
+new Workspace("issues", { container: dev, threads: channel.issues, branch: "issue-{number}", base: "main" });
 
-new Trigger("mention", { event: app.issueComment({ actions: ["created", "edited"], mention: "@claude" }), agent: coder });
+new Trigger("mention", { event: channel.issueComment({ actions: ["created", "edited"], mention: "@claude" }), agent: coder });
 `,
-  ".achq/app.ts": `
+  ".achq/channel.ts": `
 import * as github from "achq/github";
-export const app = github.App.get("${SLUG}");
+export const channel = github.Channel.get("${SLUG}");
 `,
   ".achq/agents/coder.ts": `
 import { Claude } from "achq";

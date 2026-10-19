@@ -25,7 +25,7 @@ const infra = () =>
     achq(() => {
       const router = new railway.Router("router", { project: "achq" });
       new railway.Deployer("deployer", { router, owners: ["djgrant", "notationlabs"] });
-      new github.App("personal", { name: "djgrant-claude", router });
+      new github.Channel("personal", { name: "djgrant-claude", router });
     })(),
   );
 
@@ -137,7 +137,7 @@ const FRESH = [
   "  + achq-router volume /data",
   "  + achq-router public domain → :8080",
   "  ~ achq-router variables AGENT_WEBHOOK_KEY, DATA_DIR, PORT",
-  "  + github app djgrant-claude opens GitHub to create it",
+  "  + github channel djgrant-claude opens GitHub to create its App",
   "  ~ achq-router variables ACHQ_GITHUB_APPS",
   "  ~ achq-router variables ACHQ_DEPLOYER_URL, ACHQ_REF",
   "  ~ achq-router deploy",

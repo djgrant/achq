@@ -24,15 +24,15 @@ Both the infra and repos are written as a resource graph, Pulumi-shaped: resourc
 export default achq(() => {
   const router = new railway.Router("router", { project: "achq" });
   new railway.Deployer("deployer", { router, owners: ["djgrant", "notationlabs"] });
-  new github.App("personal", { name: "djgrant-claude", router });
-  new github.App("notation", { name: "notation-achq", org: "notationlabs", router });
+  new github.Channel("personal", { name: "djgrant-claude", router });
+  new github.Channel("notation", { name: "notation-achq", org: "notationlabs", router });
 });
 ```
 
 - **Router**: receives events and wakes the deployer and containers.
 - **Deployer**: creates and updates containers, in its router's Railway project.
-- **A GitHub App** binds to the router. It's a channel and a policy provider (see Primitives). The App's webhook points at the router, and the router holds the App's key to check deliveries and mint tokens. The App's installations decide which repos the deployer serves.
-- **Contracts**: GitHub implements four of core's contracts, each registered on its own: a `Channel` (events, threads, replies; the router also gets its installations and sources from it), an `Installer` (the CLI installs the config's App with it), a `PolicyProvider` (turns policies into credentials), and a `CodeHost` (reads `.achq/`, writes the status, gives the clone URL; the router uses it to check `/wake`, the CLI for the repo commands). The router gets them with the key, the container without secrets. The infra's Apps are resources `achq up` plans. Claude implements `AgentProvider`: the runtime, and the variables every container needs. The services and CLI find each one by id in `achq/registry`.
+- **A GitHub channel** is a GitHub App, bound to the router. GitHub is both a channel and a policy provider (see Primitives). The App's webhook points at the router, and the router holds the App's key to check deliveries and mint tokens. The App's installations decide which repos the deployer serves.
+- **Contracts**: GitHub implements four of core's contracts, each registered on its own: a `Channel` (events, threads, replies; the router also gets its installations and sources from it), an `Installer` (the CLI installs the config's App with it), a `PolicyProvider` (turns policies into credentials), and a `CodeHost` (reads `.achq/`, writes the status, gives the clone URL; the router uses it to check `/wake`, the CLI for the repo commands). The router gets them with the key, the container without secrets. The infra's channels are resources `achq up` plans. Claude implements `AgentProvider`: the runtime, and the variables every container needs. The services and CLI find each one by id in `achq/registry`.
 - **The container host**: the router and deployer name the host they run on (`containerHost`), and the deployer puts containers on the same one. A plugin provides the router and deployer as resources for `achq up`, and implements core's `ContainerHost` for the deployer, with a shell into containers for `achq ssh` and `resume`. achq's services and CLI only use that contract, and pick an implementation by id. Only Railway is built for now. Putting the router, deployer and containers on different container hosts needs bindings this design assumes away: reaching containers without a private network, and waking them through the container host's API.
 - **`owners`**: the deployer only serves repos owned by these accounts. A public App can be installed by anyone, and without this a stranger's install would get a container on your Railway account running on your Claude token.
 
@@ -43,9 +43,9 @@ export default achq(() => {
 import { Container, Workspace, Trigger, Claude } from "achq";
 import * as github from "achq/github";
 
-const app = github.App.get("notation-achq");
+const channel = github.Channel.get("notation-achq");
 
-const code = new github.Policy("code", { app, permissions: { contents: "write", issues: "write", pull_requests: "write" } });
+const code = new github.Policy("code", { channel, permissions: { contents: "write", issues: "write", pull_requests: "write" } });
 
 const dev = new Container("dev", {
   image: "./Dockerfile",
@@ -53,19 +53,19 @@ const dev = new Container("dev", {
   files: { "~/.config/foo.toml": "./foo.toml" },
 });
 
-new Workspace("docs", { container: dev, threads: app.issues.where({ labels: ["docs"] }), branch: "docs-{number}", base: "docs" });
-new Workspace("issues", { container: dev, threads: app.issues, branch: "issue-{number}", base: "main" });
+new Workspace("docs", { container: dev, threads: channel.issues.where({ labels: ["docs"] }), branch: "docs-{number}", base: "docs" });
+new Workspace("issues", { container: dev, threads: channel.issues, branch: "issue-{number}", base: "main" });
 
 const coder = new Claude("coder", { model: "claude-opus-5-5", effort: "high", systemPrompt: "./prompts/system.md", settings: { /* … */ } });
 const triage = new Claude("triage", { model: "claude-haiku-5-5", systemPrompt: "./prompts/triage.md" });
 
-new Trigger("mention", { event: app.issueComment({ actions: ["created", "edited"], mention: "@claude" }), agent: coder });
-new Trigger("triage", { event: app.issue({ actions: ["opened"] }), agent: triage });
+new Trigger("mention", { event: channel.issueComment({ actions: ["created", "edited"], mention: "@claude" }), agent: coder });
+new Trigger("triage", { event: channel.issue({ actions: ["opened"] }), agent: triage });
 ```
 
 - Resources take config. The framework decides how to apply it (files, flags, directories).
 - Every resource has a name. Names are identities: in plans, in `resume`, and in session keys.
-- A repo **adopts** an App by slug with `github.App.get`. It's typed as a GitHub App, so every GitHub event and permission is typed, but not which ones this App has enabled. That's checked at runtime against the live App (see Checks).
+- A repo **adopts** a channel by its App's slug with `github.Channel.get`. It's typed as a GitHub channel, so every GitHub event and permission is typed, but not which ones this App has enabled. That's checked at runtime against the live App (see Checks).
 - The trigger (`mention`) belongs to the repo, not the ACHQ infra.
 - Events, thread selectors and policies must be plain data, because they cross into the router: it filters on events without waking anything, and mints credentials for policies. Agent settings can be code.
 
@@ -89,7 +89,7 @@ An event finds its container through its thread: event → thread (issue 42) →
 - Listening and replying stay one interface. A reply goes to the thread it came from. Sending somewhere else, such as a Slack notification, would be an extra output on an agent, not half a channel.
 - Each channel defines who's trusted. For GitHub: users with write access. Only trusted messages go into the prompt.
 - Threads are keyed by channel, e.g. `github:notationlabs/yieldstar#42` or `linear:ENG-123`.
-- A thread selector (`app.issues`, `app.issues.where({ labels: ["docs"] })`) is a plain-data description of which threads match, not a list.
+- A thread selector (`channel.issues`, `channel.issues.where({ labels: ["docs"] })`) is a plain-data description of which threads match, not a list.
 
 ### Containers
 
@@ -123,7 +123,7 @@ An event finds its container through its thread: event → thread (issue 42) →
 A policy is plain data, e.g. `{ provider: "github", source: "notation-achq", repos: [...], permissions: {...} }`. A repo can also grant access to other repos, or to another service's API:
 
 ```ts
-new github.Policy("shared", { app, repo: "notationlabs/shared", permissions: { contents: "read" } });
+new github.Policy("shared", { channel, repo: "notationlabs/shared", permissions: { contents: "read" } });
 new linear.ApiPolicy("linear", { workspace: "notation" });   // Linear's whole workspace: it can't be narrowed
 ```
 
@@ -188,7 +188,7 @@ The router writes every event it accepts to its volume before answering GitHub, 
 
 ## App keys
 
-- An App is added by declaring it in the ACHQ infra. `up` notices it has no credentials and runs GitHub's manifest flow.
+- An App is added by declaring its channel in the ACHQ infra. `up` notices it has no credentials and runs GitHub's manifest flow.
 - `up` writes the App's private key straight to the router's Railway variables. It never touches the local machine. The ACHQ infra's local environment only needs the Railway token and the Claude token.
 - Anything else that needs an App key goes through the router's signed endpoint.
 
@@ -257,7 +257,7 @@ Installing is done to a repo, from its settings or with `achq install`, not to a
 
 | Command | Run from | Does |
 |---|---|---|
-| `achq up [--prune] [--dry-run]` | Infra | Brings the infra's resources in line with its code, and is safe to re-run: router and its config, deployer, each App (creating any that are missing) and its webhook settings, then syncs installed repos |
+| `achq up [--prune] [--dry-run]` | Infra | Brings the infra's resources in line with its code, and is safe to re-run: router and its config, deployer, each channel's App (creating any that are missing) and its webhook settings, then syncs installed repos |
 | `achq status` | Infra or repo | From the infra: Apps, their installations, and each repo's containers and last deploy. From a repo: its `ACHQ_STATUS` |
 | `achq install [--dry-run]` | Repo | Reads the repo's config, checks it, and installs the App its policies name on the repo, then waits for the deploy's outcome in `ACHQ_STATUS`. Opens GitHub's install page if the App has no installation on the account yet. |
 | `achq uninstall` | Repo | Removes the repo from its App's installation; the uninstall flow above follows |

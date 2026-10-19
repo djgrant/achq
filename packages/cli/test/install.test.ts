@@ -13,13 +13,13 @@ import { Container, Workspace, Trigger, Claude } from "achq";
 import * as github from "achq/github";
 import { docsLabels } from "./lib/labels.ts";
 
-const app = github.App.get("notation-achq");
-const code = new github.Policy("code", { app, permissions: { contents: "write", issues: "write", pull_requests: "write" } });
+const channel = github.Channel.get("notation-achq");
+const code = new github.Policy("code", { channel, permissions: { contents: "write", issues: "write", pull_requests: "write" } });
 const dev = new Container("dev", { image: "./Dockerfile", policies: [code] });
-new Workspace("docs", { container: dev, threads: app.issues.where({ labels: docsLabels }), branch: "docs/{number}", base: "docs" });
-new Workspace("issues", { container: dev, threads: app.issues, branch: "issue-{number}", base: "main" });
+new Workspace("docs", { container: dev, threads: channel.issues.where({ labels: docsLabels }), branch: "docs/{number}", base: "docs" });
+new Workspace("issues", { container: dev, threads: channel.issues, branch: "issue-{number}", base: "main" });
 const coder = new Claude("coder", { model: "claude-opus-5-5", effort: "high" });
-new Trigger("mention", { event: app.issueComment({ actions: ["created", "edited"], mention: "@claude" }), agent: coder });
+new Trigger("mention", { event: channel.issueComment({ actions: ["created", "edited"], mention: "@claude" }), agent: coder });
 `;
 
 let repoDir: string;

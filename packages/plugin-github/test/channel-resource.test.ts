@@ -15,7 +15,7 @@ import {
 } from "@achq/core";
 import { appsVariable } from "../src/lib/app-keys.ts";
 import { appWebhookSecret } from "../src/lib/webhook-secret.ts";
-import { App } from "../src/resources/app.ts";
+import { Channel } from "../src/resources/channel.ts";
 
 const { privateKey: pem, publicKey } = generateKeyPairSync("rsa", { modulusLength: 2048, privateKeyEncoding: { type: "pkcs8", format: "pem" }, publicKeyEncoding: { type: "spki", format: "pem" } });
 const PERMISSIONS = { contents: "write", issues: "write", pull_requests: "write", metadata: "read", actions_variables: "write" };
@@ -106,7 +106,7 @@ class StubRouter extends Router {
     this.groups.push(values);
     return new Output<Record<string, string>>([], () => ({}));
   }
-  /** Its ACHQ_GITHUB_APPS, as the Apps declared it. */
+  /** Its ACHQ_GITHUB_APPS, as the channels declared it. */
   apps(ctx: Context): EnvValue {
     expect(this.groups.length).toBe(1);
     const group = this.groups[0]!;
@@ -120,45 +120,45 @@ const OTHER = { "old-app": { id: "7", privateKey: "old-key" } };
 
 const infra = (stored: object, router: Partial<Service> = {}) => {
   const r = new StubRouter({ url: ROUTER, key: KEY, exists: true, env: { ACHQ_GITHUB_APPS: appsVariable(stored as never) }, ...router });
-  return { router: r, app: new App("personal", { name: "djgrant-claude", router: r }) };
+  return { router: r, channel: new Channel("personal", { name: "djgrant-claude", router: r }) };
 };
 
 const summary = (changes: Change[]) => changes.map((c) => `${c.op} ${c.target}${c.detail ? ` ${c.detail}` : ""}`);
 
-test("an App's comparison is pure: it takes what was read and says what differs", () => {
+test("a channel's comparison is pure: it takes what was read and says what differs", () => {
   const { router } = infra({});
-  const app = new App("org", { name: "Notation ACHQ", org: "notationlabs", router });
+  const channel = new Channel("org", { name: "Notation ACHQ", org: "notationlabs", router });
   const props = { slug: "notation-achq", name: "Notation ACHQ", org: "notationlabs", hookUrl: HOOK, key: KEY };
-  expect(app.slug).toBe("notation-achq");
+  expect(channel.slug).toBe("notation-achq");
 
-  const create = app.diff(props, undefined);
-  expect(create.map((c) => app.describe(c, props))).toEqual([{ op: "+", target: "github app Notation ACHQ (notationlabs)", detail: "opens GitHub to create it" }]);
-  expect(app.planned(props, undefined)).toEqual({ slug: UNKNOWN, id: UNKNOWN, privateKey: UNKNOWN });
+  const create = channel.diff(props, undefined);
+  expect(create.map((c) => channel.describe(c, props))).toEqual([{ op: "+", target: "github channel Notation ACHQ (notationlabs)", detail: "opens GitHub to create its App" }]);
+  expect(channel.planned(props, undefined)).toEqual({ slug: UNKNOWN, id: UNKNOWN, privateKey: UNKNOWN });
 
   const known = { ...props, stored: { id: "1", privateKey: "k" } };
   const settingsUrl = "https://github.com/organizations/notationlabs/settings/apps/notation-achq/permissions";
   const current = { events: ["issues", "push"], permissions: { ...PERMISSIONS, contents: "read" }, hook: { url: HOOK, content_type: "json", insecure_ssl: "0" }, settings: settingsUrl };
-  expect(app.diff(known, current)).toEqual([]);
-  expect(app.planned(known, current)).toEqual({ slug: "notation-achq", id: "1", privateKey: "k" });
-  expect(app.check(known, current)).toEqual([
+  expect(channel.diff(known, current)).toEqual([]);
+  expect(channel.planned(known, current)).toEqual({ slug: "notation-achq", id: "1", privateKey: "k" });
+  expect(channel.check(known, current)).toEqual([
     `notation-achq doesn't send issue_comment: change it at ${settingsUrl}`,
     `notation-achq lacks contents: write: change it at ${settingsUrl}`,
   ]);
 
   const drifted = { ...current, hook: { ...current.hook, insecure_ssl: "1" } };
-  expect(app.diff(known, drifted).map((c) => app.describe(c, known))).toEqual([{ op: "~", target: "notation-achq webhook", detail: `→ ${HOOK}` }]);
+  expect(channel.diff(known, drifted).map((c) => channel.describe(c, known))).toEqual([{ op: "~", target: "notation-achq webhook", detail: `→ ${HOOK}` }]);
   // A new router's URL isn't known yet, so it differs from whatever the webhook has.
   const unknown = { ...known, hookUrl: UNKNOWN as never };
-  expect(app.diff(unknown, current).map((c) => app.describe(c, unknown))).toEqual([{ op: "~", target: "notation-achq webhook", detail: "→ the router's URL" }]);
+  expect(channel.diff(unknown, current).map((c) => channel.describe(c, unknown))).toEqual([{ op: "~", target: "notation-achq webhook", detail: "→ the router's URL" }]);
 });
 
-test("a new App plans as a create without calling GitHub, then is created with its webhook secret", async () => {
+test("a new channel plans as a create without calling GitHub, then is created with its webhook secret", async () => {
   const log: string[] = [];
-  const { router, app } = infra(OTHER);
+  const { router, channel } = infra(OTHER);
   const ctx = context(log);
   const keys = router.apps(ctx);
-  const planned = await plan([app], ctx);
-  expect(summary(planned.changes)).toEqual(["+ github app djgrant-claude opens GitHub to create it"]);
+  const planned = await plan([channel], ctx);
+  expect(summary(planned.changes)).toEqual(["+ github channel djgrant-claude opens GitHub to create its App"]);
   expect(planned.value(keys)).toBe(UNKNOWN);
   expect(calls).toEqual([]);
 
@@ -170,18 +170,18 @@ test("a new App plans as a create without calling GitHub, then is created with i
   expect(JSON.parse(applied.value(keys) as string)).toEqual({ ...OTHER, "djgrant-claude": { id: "4242", privateKey: pem } });
 });
 
-test("creating an App without a browser to open fails, saying so", async () => {
-  const { app } = infra({});
-  const planned = await plan([app], context([], false));
+test("creating a channel's App without a browser to open fails, saying so", async () => {
+  const { channel } = infra({});
+  const planned = await plan([channel], context([], false));
   await expect(planned.apply()).rejects.toThrow("Creating GitHub App djgrant-claude opens your browser, which only `achq up` can do");
 });
 
-test("a known App's drifted webhook plans as a change and is fixed", async () => {
+test("a known channel's drifted webhook plans as a change and is fixed", async () => {
   hook = { url: "https://old.example/webhook", content_type: "json", insecure_ssl: "0" };
-  const { router, app } = infra(STORED);
+  const { router, channel } = infra(STORED);
   const ctx = context();
   const keys = router.apps(ctx);
-  const planned = await plan([app], ctx);
+  const planned = await plan([channel], ctx);
   expect(summary(planned.changes)).toEqual([`~ djgrant-claude webhook → ${HOOK}`]);
   expect(calls.every((c) => c.method === "GET" && c.jwtOk)).toBe(true);
   expect(hook.url).toBe("https://old.example/webhook");
@@ -192,19 +192,19 @@ test("a known App's drifted webhook plans as a change and is fixed", async () =>
   expect(applied.value(keys)).toBe(appsVariable(STORED));
 });
 
-test("a known App's webhook follows a new router, whose URL is only known once it's applied", async () => {
+test("a known channel's webhook follows a new router, whose URL is only known once it's applied", async () => {
   hook = { url: HOOK, content_type: "json", insecure_ssl: "0" };
-  const { app } = infra(STORED, { url: "https://new.example", exists: false });
-  const planned = await plan([app], context());
+  const { channel } = infra(STORED, { url: "https://new.example", exists: false });
+  const planned = await plan([channel], context());
   expect(summary(planned.changes)).toEqual(["+ router", "~ djgrant-claude webhook → the router's URL"]);
   await planned.apply();
   expect(hook.url).toBe("https://new.example/webhook");
 });
 
-test("an up-to-date App plans nothing, and what it lacks shows as warnings", async () => {
+test("an up-to-date channel plans nothing, and what it lacks shows as warnings", async () => {
   hook = { url: HOOK, content_type: "json", insecure_ssl: "0" };
   settings = { events: ["issues", "push"], permissions: { ...PERMISSIONS, actions_variables: "read" } };
-  const planned = await plan([infra(STORED).app], context());
+  const planned = await plan([infra(STORED).channel], context());
   expect(planned.changes).toEqual([]);
   expect(planned.warnings).toEqual([
     `djgrant-claude doesn't send issue_comment: change it at ${web()}/settings/apps/djgrant-claude/permissions`,
@@ -214,17 +214,17 @@ test("an up-to-date App plans nothing, and what it lacks shows as warnings", asy
   expect(calls.some((c) => c.method === "PATCH")).toBe(false);
 });
 
-test("one ACHQ_GITHUB_APPS group per router holds every App declared on it, even after the group", async () => {
+test("one ACHQ_GITHUB_APPS group per router holds the App of every channel declared on it, even after the group", async () => {
   hook = { url: HOOK, content_type: "json", insecure_ssl: "0" };
-  const { router, app } = infra(STORED);
+  const { router, channel } = infra(STORED);
   const ctx = context();
-  expect((await plan([app], ctx)).value(router.apps(ctx))).toBe(appsVariable(STORED));
-  // A new App, declared after the first made the group: the variable waits on it.
-  const later = new App("org", { name: "Notation ACHQ", org: "notationlabs", router });
-  expect((await plan([app, later], ctx)).value(router.apps(ctx))).toBe(UNKNOWN);
+  expect((await plan([channel], ctx)).value(router.apps(ctx))).toBe(appsVariable(STORED));
+  // A new channel, declared after the first made the group: the variable waits on it.
+  const later = new Channel("org", { name: "Notation ACHQ", org: "notationlabs", router });
+  expect((await plan([channel, later], ctx)).value(router.apps(ctx))).toBe(UNKNOWN);
 });
 
-test("two Apps with one slug are refused", () => {
+test("two channels with one slug are refused", () => {
   const { router } = infra({});
-  expect(() => new App("again", { name: "DJGrant Claude", router })).toThrow("Two Apps are named djgrant-claude");
+  expect(() => new Channel("again", { name: "DJGrant Claude", router })).toThrow("Two channels are named djgrant-claude");
 });

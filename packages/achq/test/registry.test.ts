@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { App } from "@achq/github/infra";
+import { Channel } from "@achq/github/infra";
 import { Router } from "@achq/railway/infra";
 import { agentEnv, CHANNELS, channelNamed, CONTAINER_HOSTS, containerHostNamed, findContainerHost, INFRA_MODULES, privateEnv, CODE_HOSTS, codeHostNamed, POLICY_PROVIDERS } from "../src/registry.ts";
 
@@ -24,6 +24,6 @@ test("agentEnv asks for the Claude token", () => {
 });
 
 test("the infra's imports resolve to the infra sides", () => {
-  expect((INFRA_MODULES["achq/github"] as { App: unknown }).App).toBe(App);
+  expect((INFRA_MODULES["achq/github"] as { Channel: unknown }).Channel).toBe(Channel);
   expect((INFRA_MODULES["achq/railway"] as { Router: unknown }).Router).toBe(Router);
 });

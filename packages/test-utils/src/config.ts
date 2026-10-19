@@ -5,9 +5,9 @@ import { Container, Workspace, Trigger } from "achq";
 import * as github from "achq/github";
 import { coder, triage } from "./agents.ts";
 
-const app = github.App.get("notation-achq");
+const channel = github.Channel.get("notation-achq");
 
-const code = new github.Policy("code", { app, permissions: { contents: "write", issues: "write", pull_requests: "write" } });
+const code = new github.Policy("code", { channel, permissions: { contents: "write", issues: "write", pull_requests: "write" } });
 
 const dev = new Container("dev", {
   image: "./Dockerfile",
@@ -15,11 +15,11 @@ const dev = new Container("dev", {
   files: { "~/.config/foo.toml": "./foo.toml" },
 });
 
-new Workspace("docs", { container: dev, threads: app.issues.where({ labels: ["docs"] }), branch: "docs/{number}", base: "docs" });
-new Workspace("issues", { container: dev, threads: app.issues, branch: "issue-{number}", base: "main" });
+new Workspace("docs", { container: dev, threads: channel.issues.where({ labels: ["docs"] }), branch: "docs/{number}", base: "docs" });
+new Workspace("issues", { container: dev, threads: channel.issues, branch: "issue-{number}", base: "main" });
 
-new Trigger("mention", { event: app.issueComment({ actions: ["created", "edited"], mention: "@claude" }), agent: coder });
-new Trigger("triage", { event: app.issue({ actions: ["opened"] }), agent: triage });
+new Trigger("mention", { event: channel.issueComment({ actions: ["created", "edited"], mention: "@claude" }), agent: coder });
+new Trigger("triage", { event: channel.issue({ actions: ["opened"] }), agent: triage });
 `,
   "agents.ts": `
 import { Claude } from "achq";

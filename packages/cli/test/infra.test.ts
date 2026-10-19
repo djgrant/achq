@@ -69,15 +69,15 @@ test("the deployer and every resource that names a router use the infra's", () =
   const declared = achq(() => {
     const router = new railway.Router("router", { project: "achq" });
     new railway.Deployer("deployer", { router, owners: [] });
-    new github.App("personal", { name: "djgrant-claude", router });
+    new github.Channel("personal", { name: "djgrant-claude", router });
   })();
   const elsewhere = achq(() => {
     const router = new railway.Router("router", { project: "achq" });
     new railway.Deployer("deployer", { router, owners: [] });
   })();
-  // An App on another infra's router, declared alongside this one.
-  const stray = declared.resources.find((r) => r instanceof github.App)!;
-  expect(() => checkInfra({ resources: [...elsewhere.resources, stray] })).toThrow("github-app personal must use router router");
+  // A channel on another infra's router, declared alongside this one.
+  const stray = declared.resources.find((r) => r instanceof github.Channel)!;
+  expect(() => checkInfra({ resources: [...elsewhere.resources, stray] })).toThrow("github-channel personal must use router router");
 });
 
 test("an achq.infra.ts file, written as the design shows, loads with its imports resolved to achq", async () => {
@@ -93,16 +93,16 @@ export default achq(() => {
     router,
     owners: ["djgrant", "notationlabs"],
   });
-  new github.App("personal", { name: "djgrant-claude", router });
-  new github.App("notation", { name: "notation-achq", org: "notationlabs", router });
+  new github.Channel("personal", { name: "djgrant-claude", router });
+  new github.Channel("notation", { name: "notation-achq", org: "notationlabs", router });
 });
 `,
   );
   const loaded = await loadInfra(path.join(tmp, "achq.infra.ts"));
   expect(loaded.router.containerHost).toBe("railway");
   expect(loaded.deployer.inputs.owners).toEqual(["djgrant", "notationlabs"]);
-  const apps = loaded.resources.filter((r) => r.kind === "github-app");
-  expect(apps.map((a) => [(a as any).inputs.name, (a as any).inputs.org])).toEqual([["djgrant-claude", undefined], ["notation-achq", "notationlabs"]]);
-  // The infra's App is the class the CLI knows: its imports resolved to this checkout.
-  expect(apps[0]).toBeInstanceOf(github.App);
+  const channels = loaded.resources.filter((r) => r.kind === "github-channel");
+  expect(channels.map((c) => [(c as any).inputs.name, (c as any).inputs.org])).toEqual([["djgrant-claude", undefined], ["notation-achq", "notationlabs"]]);
+  // The infra's channel is the class the CLI knows: its imports resolved to this checkout.
+  expect(channels[0]).toBeInstanceOf(github.Channel);
 });
