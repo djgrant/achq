@@ -14,7 +14,7 @@ test("the infra status lists installed and deployed repos, with errors underneat
     ],
   );
   expect(table.split("\n")).toEqual([
-    "REPO                    APP             STATE                    AT                    CONTAINERS",
+    "REPO                    SOURCE          STATE                    AT                    CONTAINERS",
     "djgrant/new             djgrant-claude  installed, not deployed  -                     -",
     "djgrant/rfcs            djgrant-claude  failed                   2026-10-17T11:00:00Z  -",
     "notationlabs/yieldstar  notation-achq   deployed                 2026-10-17T10:00:00Z  dev",

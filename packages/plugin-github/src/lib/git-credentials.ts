@@ -1,5 +1,7 @@
 // The files that make agents' tokens usable by git and gh, as
 // `GitHubPolicyProvider.install` writes them in its directory.
+import * as fs from "node:fs";
+import type { PolicyCredential } from "@achq/core";
 
 export const GH_CONFIG_DIR = "gh";
 export const GH_HOSTS_FILE = "hosts.yml";
@@ -34,4 +36,19 @@ export const gitConfig = (entries: { repo: string; tokenFile: string }[]) => {
     }
   }
   return lines.join("\n") + "\n";
+};
+
+/** Writes a file so a reader sees the old content or the new, never half of either. */
+export const writeAtomic = (file: string, content: string) => {
+  const tmp = `${file}.${process.pid}.${Math.random().toString(36).slice(2)}.tmp`;
+  fs.writeFileSync(tmp, content, { mode: 0o600 });
+  fs.renameSync(tmp, file);
+};
+
+/** Named by source App and installation, so a refresh never points a repo at another installation's token. */
+export const tokenFileName = (credential: PolicyCredential, index: number) => {
+  const { source, installation, repos } = credential.scope;
+  const repo = Array.isArray(repos) && repos.length === 1 ? `-${repos[0]}` : "";
+  const name = typeof source === "string" && typeof installation === "number" ? `${source}-${installation}${repo}` : String(index);
+  return `${name.replace(/[^A-Za-z0-9_.-]/g, "_")}${TOKEN_SUFFIX}`;
 };

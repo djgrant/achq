@@ -15,9 +15,9 @@ export const infraStatusTable = (records: DeployRecord[], installations: Install
     const row = repos.get(r.repo.toLowerCase());
     repos.set(r.repo.toLowerCase(), { source: r.source, installed: row?.installed ?? false, record: r });
   }
-  if (!repos.size) return "No repos have installed an App";
+  if (!repos.size) return "No repo has a source installed";
   const names = new Map([...installations.map((i) => [i.repo.toLowerCase(), i.repo] as const), ...records.map((r) => [r.repo.toLowerCase(), r.repo] as const)]);
-  const rows = [["REPO", "APP", "STATE", "AT", "CONTAINERS"]];
+  const rows = [["REPO", "SOURCE", "STATE", "AT", "CONTAINERS"]];
   const errors: string[] = [];
   for (const [key, { source, installed, record }] of [...repos].sort(([a], [b]) => a.localeCompare(b))) {
     const repo = names.get(key)!;

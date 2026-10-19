@@ -65,7 +65,7 @@ export type Credential = {
   value: string;
   /** ISO time. */
   expiresAt: string;
-  /** What it covers, for the policy provider or channel that minted it. e.g. `{ app, repos, permissions }`. */
+  /** What it covers, for the policy provider or channel that minted it. e.g. `{ source, repos, permissions }`. */
   scope: { [key: string]: Data };
 };
 
