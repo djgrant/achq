@@ -1,6 +1,6 @@
 import type { Installation, SourceSettings } from "@achq/core";
 import { GitHubClient } from "../lib/client.ts";
-import { CHANNEL } from "./constants.ts";
+import { CHANNEL, REPO_HOST } from "../lib/constants.ts";
 import type { Apps } from "../lib/apps.ts";
 
 /** Every repo each App is installed on, skipping suspended installations (they can't mint tokens). */
@@ -15,7 +15,7 @@ export const installations = async (apps: Apps): Promise<Installation[]> => {
         "/installation/repositories",
         (page) => page.repositories,
       );
-      for (const r of repos) out.push({ provider: CHANNEL, source: slug, repo: r.full_name });
+      for (const r of repos) out.push({ channel: CHANNEL, source: slug, repo: r.full_name, host: REPO_HOST });
     }
   }
   return out;

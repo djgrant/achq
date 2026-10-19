@@ -1,7 +1,7 @@
 // Agents' credentials are installed on the volume by each access provider. The
 // runner's channel credentials are kept in memory only.
 import * as fs from "node:fs";
-import type { CredentialsRequest, CredentialsResponse, AccessProvider, Credential } from "@achq/core";
+import type { AccessProvider, ChannelCredential, CredentialsRequest, CredentialsResponse } from "@achq/core";
 import { signedFetch } from "@achq/core/signing";
 import { REFRESH_BEFORE_MS } from "./constants.ts";
 import type { Paths } from "./paths.ts";
@@ -44,9 +44,9 @@ export class Credentials {
   }
 
   /** The channel credential for a source, for the runner's ChannelClient. Never given to agents. */
-  async channel(channel: string, source: string): Promise<Credential> {
+  async channel(channel: string, source: string): Promise<ChannelCredential> {
     const { channels } = await this.get();
-    const mine = channels.filter((c) => c.provider === channel);
+    const mine = channels.filter((c) => c.channel === channel);
     const found = mine.find((c) => c.scope.source === source) ?? mine[0];
     if (!found) throw new Error(`The router gave no credential for channel ${channel} (${source})`);
     return found;
@@ -68,14 +68,14 @@ export class Credentials {
 
     const env: Record<string, string> = {};
     for (const a of access) {
-      const mine = response.credentials.filter((c) => c.provider === a.id);
+      const mine = response.credentials.filter((c) => c.access === a.id);
       if (!mine.length) continue;
       const dir = paths.access(a.id);
       fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
       Object.assign(env, (await a.install(mine, dir)).env);
     }
-    const unknown = response.credentials.filter((c) => !access.some((p) => p.id === c.provider));
-    if (unknown.length) this.opts.log?.(`no access provider installs ${[...new Set(unknown.map((c) => c.provider))].join(", ")} credentials`);
+    const unknown = response.credentials.filter((c) => !access.some((a) => a.id === c.access));
+    if (unknown.length) this.opts.log?.(`no access provider installs ${[...new Set(unknown.map((c) => c.access))].join(", ")} credentials`);
 
     this.current = { ...response, env };
     return this.current;

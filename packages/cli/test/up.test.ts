@@ -4,7 +4,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { achq, type SyncResult } from "@achq/core";
-import { adminSecret, providerSecret } from "@achq/core/secrets";
+import { adminSecret, implementationSecret } from "@achq/core/secrets";
 import { verifySigned } from "@achq/core/signing";
 import * as github from "@achq/github/infra";
 import { type FakeRailway, startFakeRailway } from "@achq/test-utils/railway";
@@ -18,7 +18,7 @@ const { privateKey: pem, publicKey } = generateKeyPairSync("rsa", { modulusLengt
 const pemBody = pem.split("\n")[5]; // a line from the middle of the key
 
 /** GitHub's webhook secret for an App: github's label under the router's key. */
-const appWebhookSecret = (key: string, appId: string | number) => providerSecret(key, `github-app-webhook:${appId}`);
+const appWebhookSecret = (key: string, appId: string | number) => implementationSecret(key, `github-app-webhook:${appId}`);
 
 const infra = () =>
   checkInfra(
@@ -144,7 +144,7 @@ const FRESH = [
   "  + service achq-deployer",
   "  + achq-deployer volume /data",
   "  ~ achq-deployer variables RAILWAY_API_TOKEN, ACHQ_RAILWAY_PROJECT_ID, ACHQ_RAILWAY_ENVIRONMENT_ID, DATA_DIR, PORT",
-  "  ~ achq-deployer variables AGENT_WEBHOOK_KEY, ACHQ_ROUTER_URL, ACHQ_ROUTER_PUBLIC_URL, ACHQ_OWNERS, ACHQ_CONTAINER_ENV, ACHQ_REF, ACHQ_PLATFORM",
+  "  ~ achq-deployer variables AGENT_WEBHOOK_KEY, ACHQ_ROUTER_URL, ACHQ_ROUTER_PUBLIC_URL, ACHQ_OWNERS, ACHQ_CONTAINER_ENV, ACHQ_REF, ACHQ_CONTAINER_HOST",
   "  ~ achq-deployer deploy",
 ];
 
@@ -190,7 +190,7 @@ test("up creates everything, puts the App's key only in the router's variables, 
     ACHQ_OWNERS: "djgrant,notationlabs",
     RAILWAY_API_TOKEN: "railway-token",
     ACHQ_ROUTER_PUBLIC_URL: ROUTER_URL,
-    ACHQ_PLATFORM: "railway",
+    ACHQ_CONTAINER_HOST: "railway",
     ACHQ_RAILWAY_PROJECT_ID: fake.project("achq")!.id,
     ACHQ_CONTAINER_ENV: JSON.stringify({ CLAUDE_CODE_OAUTH_TOKEN: "claude-token" }),
     ACHQ_REF: "abc123",

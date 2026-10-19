@@ -16,7 +16,7 @@
 //   PUT  /admin/repos/<owner>/<repo>   RouterRepoConfig → 204                   admin
 //   DELETE /admin/repos/<owner>/<repo> → 204                                    admin
 //   GET  /admin/repos              → RouterRepoConfig[]                         admin
-//   POST /admin/mint               MintRequest → Credential[]                   admin (the deployer's own access)
+//   POST /admin/mint               MintRequest → AccessCredential[]             admin (the deployer's own access)
 //   POST /admin/validate           ValidateRequest → { problems: string[] }     admin
 //   GET  /admin/installations      → Installation[]                             admin
 //   GET  /admin/sources            → SourceSettings[]                           admin
@@ -34,7 +34,8 @@
 //   POST /events                   EventEnvelope → 202                          container-signed
 import type { RepoPlan } from "../resources/repo-plan.ts";
 import type { PolicyData, SelectorData } from "../resources/config.ts";
-import type { ChannelEvent, Credential, ThreadRef } from "../contracts/channel.ts";
+import type { AccessCredential } from "../contracts/access.ts";
+import type { ChannelCredential, ChannelEvent, ThreadRef } from "../contracts/channel.ts";
 
 export type EventEnvelope = {
   event: ChannelEvent;
@@ -59,9 +60,9 @@ export type WakeRequest = { host: string; repo: string; container: string };
 export type CredentialsRequest = { repo: string; container: string };
 export type CredentialsResponse = {
   /** For the agent: one or more per access provider, covering the container's policies. */
-  credentials: Credential[];
+  credentials: AccessCredential[];
   /** For the runner only, never the agent: one per channel source the container's workspaces use. */
-  channels: Credential[];
+  channels: ChannelCredential[];
 };
 
 export type ClaimRequest = { repo: string; container: string; workspace: string; thread: ThreadRef };
@@ -69,7 +70,8 @@ export type ClaimRequest = { repo: string; container: string; workspace: string;
 export type MintRequest = { repo: string; policies: PolicyData[] };
 export type ValidateRequest = { repo: string; policies: PolicyData[] };
 
-export type Installation = { provider: string; source: string; repo: string };
+/** A repo a channel's source is installed on, and the `RepoHost` the repo is on. */
+export type Installation = { channel: string; source: string; repo: string; host: string };
 
 /** What a source (e.g. a GitHub App) is set up to send and allow, for checks. */
 export type SourceSettings = { channel: string; source: string; events: string[]; permissions: Record<string, string> };

@@ -12,7 +12,7 @@ export type EnvValues = Record<string, EnvValue>;
 /** The router or the deployer: one of achq's services, on its container host. */
 export abstract class Service extends Resource {
   /** The `ContainerHost` it runs on, by id. */
-  abstract readonly platform: string;
+  abstract readonly containerHost: string;
   /** The file in achq it runs, e.g. `packages/service-router/src/main.ts`. */
   abstract readonly entry: string;
   /** The port it listens on. A public service gets a public URL for this port. */

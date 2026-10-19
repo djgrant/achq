@@ -36,7 +36,7 @@ test("the App slug and what it needs come from the config", () => {
 
 test("a config naming two Apps, or none, is refused", () => {
   const plan = configPlan();
-  const other = { name: "x", policy: { provider: "github", app: "other-app", repo: null, permissions: {} } };
+  const other = { name: "x", policy: { access: "github", app: "other-app", repo: null, permissions: {} } };
   expect(() => configApp({ ...plan, policies: [...plan.policies, other] })).toThrow("several Apps (notation-achq, other-app)");
   expect(() => configApp({ ...plan, policies: [], workspaces: [], triggers: [] })).toThrow("names no GitHub App");
 });

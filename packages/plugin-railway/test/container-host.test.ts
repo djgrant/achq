@@ -96,7 +96,7 @@ test("list reads services' repo and container, locate says where, remove deletes
     { repo: spec.repo, name: "docs", service: "notationlabs-yieldstar-docs" },
   ]);
   expect(await host.locate(spec.repo, "dev")).toEqual({
-    platform: "railway",
+    containerHost: "railway",
     project: host.options.projectId,
     environment: host.options.environmentId,
     service: "notationlabs-yieldstar-dev",

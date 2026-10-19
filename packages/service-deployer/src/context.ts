@@ -22,8 +22,8 @@ export type DeployerDeps = {
   router: RouterClient;
   /** The repo hosts, by id. */
   hosts: Record<string, RepoHost>;
-  /** The source a policy goes through, from its access provider. */
-  policySource: (policy: PolicyData) => string | undefined;
+  /** The channel source a policy goes through, from its access provider. */
+  policySource: (policy: PolicyData) => { channel: string; source: string } | undefined;
   owners: string[];
   dataDir: string;
   evaluate?: Evaluate;

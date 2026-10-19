@@ -1,6 +1,3 @@
-/** The channel's id, in events, selectors and channel credentials. */
-export const CHANNEL = "github";
-
 /** The directory whose changes redeploy a repo. */
 export const CONFIG_DIR = ".achq/";
 

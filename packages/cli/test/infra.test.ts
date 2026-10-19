@@ -17,7 +17,7 @@ afterEach(() => fs.rmSync(tmp, { recursive: true, force: true }));
 const nothing = new core.Output<any>([], () => core.UNKNOWN);
 
 class ElsewhereRouter extends core.Router {
-  readonly platform = "elsewhere";
+  readonly containerHost = "elsewhere";
   readonly url = nothing;
   readonly key = nothing;
   readonly env = nothing;
@@ -26,7 +26,7 @@ class ElsewhereRouter extends core.Router {
 }
 
 class ElsewhereDeployer extends core.Deployer {
-  readonly platform = "elsewhere";
+  readonly containerHost = "elsewhere";
   readonly env = nothing;
   constructor(
     name: string,
@@ -38,7 +38,7 @@ class ElsewhereDeployer extends core.Deployer {
   variables = () => nothing;
 }
 
-test("the router and deployer must run on one platform, one achq can put containers on", () => {
+test("the router and deployer must run on one container host, one achq can put containers on", () => {
   expect(() =>
     checkInfra(
       achq(() => {
@@ -46,7 +46,7 @@ test("the router and deployer must run on one platform, one achq can put contain
         new ElsewhereDeployer("deployer", { router, owners: [] });
       })(),
     ),
-  ).toThrow("must share a platform");
+  ).toThrow("must share a container host");
   expect(() =>
     checkInfra(
       achq(() => {
@@ -99,7 +99,7 @@ export default achq(() => {
 `,
   );
   const loaded = await loadInfra(path.join(tmp, "achq.infra.ts"));
-  expect(loaded.router.platform).toBe("railway");
+  expect(loaded.router.containerHost).toBe("railway");
   expect(loaded.deployer.inputs.owners).toEqual(["djgrant", "notationlabs"]);
   const apps = loaded.resources.filter((r) => r.kind === "github-app");
   expect(apps.map((a) => [(a as any).inputs.name, (a as any).inputs.org])).toEqual([["djgrant-claude", undefined], ["notation-achq", "notationlabs"]]);

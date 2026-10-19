@@ -1,10 +1,10 @@
 // Every request is signed with adminSecret(AGENT_WEBHOOK_KEY).
-import type { Installation, MintRequest, SourceSettings, ValidateRequest, Credential, RouterRepoConfig } from "@achq/core";
+import type { AccessCredential, Installation, MintRequest, SourceSettings, ValidateRequest, RouterRepoConfig } from "@achq/core";
 import { adminSecret } from "@achq/core/secrets";
 import { signedFetch } from "@achq/core/signing";
 
 export interface RouterClient {
-  mint(request: MintRequest): Promise<Credential[]>;
+  mint(request: MintRequest): Promise<AccessCredential[]>;
   validate(request: ValidateRequest): Promise<{ problems: string[] }>;
   putRepo(config: RouterRepoConfig): Promise<void>;
   deleteRepo(repo: string): Promise<void>;

@@ -83,6 +83,7 @@ describe("parse", () => {
     const event = parse("push", push([], "refs/heads/feature"))!;
     expect(event.type).toBe("push");
     expect(event.repo).toBe("notationlabs/yieldstar");
+    expect(event.host).toBe("github");
     expect(event.detail).toEqual({ ref: "refs/heads/feature", after: "b".repeat(40), deleted: false });
   });
 
@@ -101,6 +102,7 @@ describe("parse", () => {
     })!;
     expect(created.type).toBe("installation.created");
     expect(created.repo).toBeUndefined();
+    expect(created.host).toBe("github");
     expect(created.detail).toEqual({ installation: 77, account: "notationlabs" });
     expect(created.installation).toEqual({ added: ["notationlabs/a", "notationlabs/b"], removed: [] });
     const deleted = parse("installation", { action: "deleted", installation: { id: 77, account }, repositories: [{ full_name: "notationlabs/a" }] })!;

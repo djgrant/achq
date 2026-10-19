@@ -91,7 +91,7 @@ class RouterService extends ManagedResource<Service, true, Omit<Service, "exists
 
 /** A router whose variable groups are recorded, not set. */
 class StubRouter extends Router {
-  readonly platform = "stub";
+  readonly containerHost = "stub";
   readonly url: Output<string>;
   readonly key: Output<string>;
   readonly env: Output<Record<string, string>>;
@@ -116,7 +116,7 @@ class StubRouter extends Router {
 }
 
 class StubDeployer extends Deployer {
-  readonly platform = "stub";
+  readonly containerHost = "stub";
   readonly env = new Output<Record<string, string>>([], () => ({}));
   constructor(readonly inputs: { router: Router; owners: string[] }) {
     super("deployer");

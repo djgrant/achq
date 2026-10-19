@@ -1,1 +1,1 @@
-export { claudeAgent } from "./provider.ts";
+export { claudeAgent } from "./agent.ts";

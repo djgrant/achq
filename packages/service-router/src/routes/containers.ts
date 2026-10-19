@@ -1,4 +1,4 @@
-import { type ClaimRequest, type Credential, type CredentialsRequest, type RouterRepoConfig, threadKey } from "@achq/core";
+import { type ChannelCredential, type ClaimRequest, type CredentialsRequest, type RouterRepoConfig, threadKey } from "@achq/core";
 import { containerSecret } from "@achq/core/secrets";
 import { verifySigned } from "@achq/core/signing";
 import { mint } from "../access.ts";
@@ -7,7 +7,7 @@ import { json, noContent, parse, text } from "../http.ts";
 import { repoFile } from "../store.ts";
 
 /** One client credential per (channel, source) the container's workspaces select threads from. */
-const mintClients = async (ctx: RouterContext, config: RouterRepoConfig, container: string): Promise<Credential[]> => {
+const mintClients = async (ctx: RouterContext, config: RouterRepoConfig, container: string): Promise<ChannelCredential[]> => {
   const sources = new Map<string, { channel: string; source: string }>();
   for (const w of config.workspaces) {
     const { channel, source } = w.threads;
@@ -38,7 +38,10 @@ export const credentials = async (ctx: RouterContext, req: Request) => {
   const found = await fromContainer<CredentialsRequest>(ctx, req, "/credentials");
   if ("error" in found) return found.error;
   const { config, container } = found;
-  return json({ credentials: await mint(ctx, container.policies, config.repo), channels: await mintClients(ctx, config, container.name) });
+  const credentials = await mint(ctx, container.policies, config.repo);
+  const channels = await mintClients(ctx, config, container.name);
+  // `provider` is what containers built before credentials named `access` and `channel` read. It can go once every container's image is rebuilt.
+  return json({ credentials: credentials.map((c) => ({ ...c, provider: c.access })), channels: channels.map((c) => ({ ...c, provider: c.channel })) });
 };
 
 export const claim = async (ctx: RouterContext, req: Request) => {

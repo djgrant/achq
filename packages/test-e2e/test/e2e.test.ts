@@ -12,7 +12,7 @@ import { randomUUID } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { ENV, STATUS_VARIABLE, type ContainerHost, type ContainerSpec, type RouterRepoConfig, type ServiceState } from "@achq/core";
-import { adminSecret, containerSecret, providerSecret } from "@achq/core/secrets";
+import { adminSecret, containerSecret, implementationSecret } from "@achq/core/secrets";
 import { hmacHex, signedFetch } from "@achq/core/signing";
 import { paths as layout, createAgent, type Runner, readState } from "@achq/container";
 import { fakeClaude } from "@achq/test-utils/fake-claude";
@@ -36,7 +36,7 @@ const INSTALLATION = 51_234_567;
 const BOT = `${SLUG}[bot]`;
 const THREAD = (n: number) => `github:${REPO}#${n}`;
 /** GitHub's webhook secret for an App: github's label under the router's key. */
-const appWebhookSecret = (key: string, appId: string | number) => providerSecret(key, `github-app-webhook:${appId}`);
+const appWebhookSecret = (key: string, appId: string | number) => implementationSecret(key, `github-app-webhook:${appId}`);
 
 // ─── The repo ────────────────────────────────────────────────────────────────
 
@@ -131,7 +131,7 @@ class TestContainerHost implements ContainerHost {
     this.removed.push(this.id(repo, name));
   }
   async locate(repo: string, name: string) {
-    return { platform: "test", service: this.id(repo, name) };
+    return { containerHost: "test", service: this.id(repo, name) };
   }
 
   /** Waits for every container's runs to finish. */
@@ -489,7 +489,7 @@ describe("achq end to end", () => {
       state: "deployed",
       at: expect.any(String),
       commit: repo.first,
-      containers: [{ name: "dev", location: { platform: "test", service: `${REPO}/dev` } }],
+      containers: [{ name: "dev", location: { containerHost: "test", service: `${REPO}/dev` } }],
       router: routerPublic,
     });
 
@@ -513,7 +513,7 @@ describe("achq end to end", () => {
         {
           name: "dev",
           url: `http://localhost:${dev().server.port}`,
-          policies: [{ provider: "github", app: SLUG, repo: REPO, permissions: { contents: "write", issues: "write", pull_requests: "write" } }],
+          policies: [{ access: "github", app: SLUG, repo: REPO, permissions: { contents: "write", issues: "write", pull_requests: "write" } }],
         },
       ],
       workspaces: [

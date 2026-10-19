@@ -1,13 +1,13 @@
-import type { Channel, ChannelClient, ChannelEvent, Credential, RepoPlan, SelectorData, ThreadRef } from "@achq/core";
+import type { Channel, ChannelClient, ChannelCredential, ChannelEvent, Credential, RepoPlan, SelectorData, ThreadRef } from "@achq/core";
 import type { Apps } from "../lib/apps.ts";
-import { REPO } from "../lib/constants.ts";
+import { CHANNEL, REPO } from "../lib/constants.ts";
 import type { GitHubUrls } from "../lib/urls.ts";
 import { userGitHub } from "../lib/user.ts";
 import { appWebhookSecret } from "../lib/webhook-secret.ts";
 import { checkApp } from "./app-check.ts";
 import { GitHubChannelClient } from "./client.ts";
 import { configApp } from "./config-app.ts";
-import { CHANNEL, CLIENT_PERMISSIONS } from "./constants.ts";
+import { CLIENT_PERMISSIONS } from "./constants.ts";
 import { parseEvent } from "./events.ts";
 import { installRepo, uninstallRepo } from "./install.ts";
 import { installations, sources } from "./installations.ts";
@@ -39,13 +39,13 @@ export class GitHubChannel implements Channel {
     return parseEvent(source, headers, body);
   }
 
-  async mintClient(source: string, repo: string): Promise<Credential> {
+  async mintClient(source: string, repo: string): Promise<ChannelCredential> {
     if (!REPO.test(repo)) throw new Error(`Not a repo: ${repo}`);
     const installation = await this.apps.installation(source, repo);
     if (!installation) throw new Error(`${source} isn't installed on ${repo}`);
     const token = await this.apps.token(source, installation.id, { repositories: [repo.split("/")[1]!], permissions: CLIENT_PERMISSIONS });
     return {
-      provider: CHANNEL,
+      channel: CHANNEL,
       value: token.token,
       expiresAt: token.expires_at,
       scope: { source, app: source, installation: installation.id, repos: [repo], permissions: CLIENT_PERMISSIONS },

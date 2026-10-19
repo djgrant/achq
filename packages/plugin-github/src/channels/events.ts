@@ -1,5 +1,6 @@
 import type { ChannelEvent, Data } from "@achq/core";
-import { CHANNEL, COMMENT_ACTIONS, CONFIG_DIR, INSTALLATION_ACTIONS, INSTALLATION_REPOS_ACTIONS, ISSUE_ACTIONS, PUSH_COMMIT_CAP, TRUSTED } from "./constants.ts";
+import { CHANNEL, REPO_HOST } from "../lib/constants.ts";
+import { COMMENT_ACTIONS, CONFIG_DIR, INSTALLATION_ACTIONS, INSTALLATION_REPOS_ACTIONS, ISSUE_ACTIONS, PUSH_COMMIT_CAP, TRUSTED } from "./constants.ts";
 import { labelNames } from "./labels.ts";
 import { messageId, OPENING_POST_ID } from "./messages.ts";
 import { issueThreadId } from "./threads.ts";
@@ -67,6 +68,7 @@ export const parseEvent = (source: string, headers: Headers, body: string): Chan
       ...base,
       type: "push",
       repo,
+      host: REPO_HOST,
       configChanged: p.ref === `refs/heads/${p.repository?.default_branch}` && (touchesConfig || truncated),
       detail: { ref: p.ref ?? "", after: p.after ?? "", deleted: Boolean(p.deleted) },
     };
@@ -81,6 +83,7 @@ export const parseEvent = (source: string, headers: Headers, body: string): Chan
     return {
       ...base,
       type: `${name}.${p.action}`,
+      host: REPO_HOST,
       installation: {
         added: name === "installation" ? (adds ? listed : []) : fullNames(p.repositories_added),
         removed: name === "installation" ? (adds ? [] : listed) : fullNames(p.repositories_removed),

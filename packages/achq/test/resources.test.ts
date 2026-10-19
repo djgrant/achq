@@ -16,7 +16,7 @@ describe("collectPlan", () => {
     new Trigger("mention", { event: app.issueComment({ actions: ["created", "edited"], mention: "@claude" }), agent: coder });
 
     expect(collectPlan()).toEqual({
-      policies: [{ name: "code", policy: { provider: "github", app: "notation-achq", repo: null, permissions: { contents: "write", issues: "write" } } }],
+      policies: [{ name: "code", policy: { access: "github", app: "notation-achq", repo: null, permissions: { contents: "write", issues: "write" } } }],
       containers: [{ name: "dev", image: "./Dockerfile", policies: ["code"], files: { "~/.config/foo.toml": "./foo.toml" } }],
       workspaces: [
         { name: "docs", container: "dev", threads: { channel: "github", source: "notation-achq", kind: "issue", labels: ["docs"] }, branch: "docs/{number}", base: "docs" },

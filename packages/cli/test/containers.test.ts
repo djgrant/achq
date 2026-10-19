@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import type { Status } from "@achq/core";
 import { containersOf, pickContainer } from "../src/lib/remote/containers.ts";
 
-const location = (service: string) => ({ platform: "railway", project: "p1", environment: "e1", service });
+const location = (service: string) => ({ containerHost: "railway", project: "p1", environment: "e1", service });
 const status: Status = {
   host: "github",
   repo: "notationlabs/yieldstar",
@@ -13,12 +13,17 @@ const status: Status = {
   containers: [
     { name: "dev", location: location("notationlabs-yieldstar-dev") },
     { name: "docs", location: location("notationlabs-yieldstar-docs") },
-    { name: "elsewhere", location: { platform: "fly" } },
+    { name: "elsewhere", location: { containerHost: "fly" } },
   ],
 };
 
 test("containers come from ACHQ_STATUS; only ones on a container host achq knows are listed", () => {
   expect(containersOf(status).map((c) => c.name)).toEqual(["dev", "docs"]);
+});
+
+test("a status written before the rename names its host `platform`", () => {
+  const old = { ...status, containers: [{ name: "dev", location: { platform: "railway", project: "p1", environment: "e1", service: "notationlabs-yieldstar-dev" } }] };
+  expect(containersOf(old).map((c) => c.name)).toEqual(["dev"]);
 });
 
 test("one container is picked without asking; several need --container or a pick", () => {

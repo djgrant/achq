@@ -13,11 +13,11 @@ const data: z.ZodType<Data> = z.lazy(() =>
 const tagged = <K extends string>(key: K) =>
   z
     .record(z.string(), data)
-    .refine((r) => typeof r[key] === "string" && (r[key] as string).length > 0 && (r[key] as string).length <= 100, `needs a "${key}"`) as unknown as z.ZodType<
+    .refine((r) => typeof r[key] === "string" && (r[key] as string).length > 0 && (r[key] as string).length <= 100, `needs "${key}"`) as unknown as z.ZodType<
     { [P in K]: string } & { [key: string]: Data }
   >;
 const selector = tagged("channel");
-const policyData = tagged("provider");
+const policyData = tagged("access");
 
 const planSchema = z.strictObject({
   policies: z.array(z.strictObject({ name, policy: policyData })).max(100),

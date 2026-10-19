@@ -11,13 +11,13 @@ export const main = () => {
 
   const key = need(ENV.key);
   const routerUrl = need(ENV.routerUrl);
-  const containerHost = containerHostNamed(need(ENV.platform)).create(env);
+  const containerHost = containerHostNamed(need(ENV.containerHost)).create(env);
   const access = ACCESS.map((a) => a.create(env));
   const deployer = createDeployer({
     containerHost,
     router: routerClient({ url: routerUrl, key }),
     hosts: Object.fromEntries(REPO_HOSTS.map((h) => [h.id, h.create(env)])),
-    policySource: (policy) => access.find((a) => a.id === policy.provider)?.policySource(policy),
+    policySource: (policy) => access.find((a) => a.id === policy.access)?.policySource(policy),
     owners: need(ENV.owners).split(",").map((o) => o.trim()).filter(Boolean),
     dataDir: env[ENV.dataDir] || DEFAULT_DATA_DIR,
     env: {

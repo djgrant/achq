@@ -33,7 +33,7 @@ export const ENV = {
   /** Where a service's or container's volume is. Its container host sets it. */
   dataDir: "DATA_DIR",
   /** The `ContainerHost` the deployer puts containers on, by id. */
-  platform: "ACHQ_PLATFORM",
+  containerHost: "ACHQ_CONTAINER_HOST",
 } as const;
 
 /** Where achq's own code is. The router and deployer run it from there. */

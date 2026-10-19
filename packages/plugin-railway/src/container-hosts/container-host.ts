@@ -4,7 +4,7 @@
 import { randomBytes } from "node:crypto";
 import { type Change, type Context, type ContainerHost, type ContainerSpec, ENV, plan, type ServiceState } from "@achq/core";
 import { type ProjectSnapshot, RailwayClient } from "../lib/client.ts";
-import { PLATFORM, RAILWAY_API, RAILWAY_ENV } from "../lib/constants.ts";
+import { CONTAINER_HOST, RAILWAY_API, RAILWAY_ENV } from "../lib/constants.ts";
 import { containerServiceName, containerUrl } from "../lib/names.ts";
 import { BRANCH, CONNECTED, SOURCE_HOST } from "./constants.ts";
 import { containerService } from "./container-service.ts";
@@ -112,7 +112,7 @@ export class RailwayContainerHost implements ContainerHost {
   }
 
   async locate(repo: string, name: string) {
-    return { platform: PLATFORM, project: this.options.projectId, environment: this.options.environmentId, service: containerServiceName(repo, name) };
+    return { containerHost: CONTAINER_HOST, project: this.options.projectId, environment: this.options.environmentId, service: containerServiceName(repo, name) };
   }
 }
 

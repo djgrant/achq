@@ -43,7 +43,7 @@ describe("credentials", () => {
 
     now += 2 * 60 * 60_000; // all expired: waits for new ones
     expect((await creds.get()).credentials[0]!.value).toBe("agent-token-3");
-    expect(await creds.channel("test", "app")).toMatchObject({ provider: "test" });
+    expect(await creds.channel("test", "app")).toMatchObject({ channel: "test" });
   });
 
   test("the router must accept the container's signature", async () => {

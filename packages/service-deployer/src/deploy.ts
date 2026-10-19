@@ -70,8 +70,8 @@ export const deploy = async (ctx: DeployerContext, hostId: string, repo: string,
   try {
     const policy = host.deployerPolicy(source, repo);
     const credentials = await ctx.router.mint({ repo, policies: [policy] });
-    const credential = credentials.find((c) => c.provider === policy.provider);
-    if (!credential) throw new DeployFailure(`the router minted no ${policy.provider} credential for ${source} on ${repo}`);
+    const credential = credentials.find((c) => c.access === policy.access);
+    if (!credential) throw new DeployFailure(`the router minted no ${policy.access} credential for ${source} on ${repo}`);
     client = host.repo(repo, credential);
   } catch (error) {
     return fail(`couldn't get a token for ${repo} from ${source}: ${message(error)}`);

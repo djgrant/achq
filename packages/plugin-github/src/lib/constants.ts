@@ -3,8 +3,12 @@ export const GITHUB_WEB = "https://github.com";
 export const API_VERSION = "2022-11-28";
 export const USER_AGENT = "achq";
 
+/** The channel's id, in events, selectors and channel credentials. */
+export const CHANNEL = "github";
 /** The access provider's id, in policies and agent credentials. */
-export const PROVIDER = "github";
+export const ACCESS = "github";
+/** The repo host's id, in installations, events and deploy records. */
+export const REPO_HOST = "github";
 
 /** `owner/name`. */
 export const REPO = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;

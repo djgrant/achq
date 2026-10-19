@@ -33,11 +33,11 @@ export const testChannel: Channel = {
     return { channel: "test", source, detail: {}, ...data };
   },
   async mintClient(source, forRepo) {
-    return { provider: "test-client", value: `client:${source}:${forRepo}`, expiresAt: hour(), scope: { source, repo: forRepo } };
+    return { channel: "test", value: `client:${source}:${forRepo}`, expiresAt: hour(), scope: { source, repo: forRepo } };
   },
   matchEvent: (selector, event) => selector.type === event.type,
   matchThread: (selector, thread) => ((selector.labels as string[] | undefined) ?? []).every((l) => thread.labels.includes(l)),
-  installations: async () => [{ provider: "test", source: "app", repo }],
+  installations: async () => [{ channel: "test", source: "app", repo, host: "test" }],
   sources: async () => [{ channel: "test", source: "app", events: ["comment"], permissions: {} }],
   client() {
     throw new Error("not on the router");
@@ -52,17 +52,17 @@ export const testChannel: Channel = {
 
 export const testAccess: AccessProvider = {
   id: "test",
-  policySource: (policy) => (typeof policy.source === "string" ? policy.source : undefined),
+  policySource: (policy) => (typeof policy.source === "string" ? { channel: "test", source: policy.source } : undefined),
   validate: async (policy) => (policy.ok === false ? [`${policy.name} isn't allowed`] : []),
   mint: async (policies, forRepo) =>
-    policies.map((p) => ({ provider: "test", value: `token:${p.name}`, expiresAt: hour(), scope: { repo: forRepo, policy: p.name } })),
+    policies.map((p) => ({ access: "test", value: `token:${p.name}`, expiresAt: hour(), scope: { repo: forRepo, policy: p.name } })),
   install: async () => ({ env: {} }),
 };
 
 /** `push-token` can push to `repo`; `read-token` and anything else can't. */
 export const testHost: RepoHost = {
   repoName: /^[\w.-]+\/[\w.-]+$/,
-  deployerPolicy: (source, forRepo) => ({ provider: "test", source, repo: forRepo }),
+  deployerPolicy: (source, forRepo) => ({ access: "test", source, repo: forRepo }),
   repo() {
     throw new Error("not on the router");
   },
@@ -181,7 +181,7 @@ export const boot = async ({ dir = mkdtempSync(join(tmpdir(), "achq-router-")), 
 
 // Two containers. `dev` has a docs workspace before its catch-all; `docsbox` only takes docs threads.
 export const selector = (labels?: string[]): SelectorData => ({ channel: "test", source: "app", ...(labels && { labels }) });
-export const policy = (name: string): PolicyData => ({ provider: "test", name });
+export const policy = (name: string): PolicyData => ({ access: "test", name });
 export const config = (dev: { url: string }, docsbox: { url: string }): RouterRepoConfig => ({
   host: "test",
   repo,

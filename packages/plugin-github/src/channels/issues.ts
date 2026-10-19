@@ -1,5 +1,5 @@
 import { ThreadSelector } from "@achq/core";
-import { CHANNEL } from "./constants.ts";
+import { CHANNEL } from "../lib/constants.ts";
 
 /** Labels a thread must all have. */
 export type IssueFilter = { labels?: string[] };

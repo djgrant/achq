@@ -1,7 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { AccessProvider, Credential, PolicyData } from "@achq/core";
-import { PROVIDER, REPO } from "../lib/constants.ts";
+import type { AccessCredential, AccessProvider, PolicyData } from "@achq/core";
+import { ACCESS, CHANNEL, REPO } from "../lib/constants.ts";
 import { GH_CONFIG_DIR, GH_HOSTS_FILE, GIT_CONFIG_FILE, POLICY_LEVELS, TOKEN_SUFFIX } from "./constants.ts";
 import type { RepoPolicyData } from "../resources/repo-policy.ts";
 import type { Apps } from "../lib/apps.ts";
@@ -17,7 +17,7 @@ const writeAtomic = (file: string, content: string) => {
 };
 
 /** Named by App and installation, so a refresh never points a repo at another installation's token. */
-const tokenFileName = (credential: Credential, index: number) => {
+const tokenFileName = (credential: AccessCredential, index: number) => {
   const { app, installation, repos } = credential.scope;
   const repo = Array.isArray(repos) && repos.length === 1 ? `-${repos[0]}` : "";
   const name = typeof app === "string" && typeof installation === "number" ? `${app}-${installation}${repo}` : String(index);
@@ -25,18 +25,18 @@ const tokenFileName = (credential: Credential, index: number) => {
 };
 
 export class GitHubAccess implements AccessProvider {
-  readonly id = PROVIDER;
+  readonly id = ACCESS;
 
   constructor(private apps: Apps) {}
 
-  /** A policy goes through its App. */
+  /** A policy goes through its App, the channel's source. */
   policySource(policy: PolicyData) {
-    return typeof policy.app === "string" ? policy.app : undefined;
+    return typeof policy.app === "string" ? { channel: CHANNEL, source: policy.app } : undefined;
   }
 
   async validate(policy: PolicyData, repo: string): Promise<string[]> {
     const p = policy as Partial<RepoPolicyData>;
-    if (p.provider !== PROVIDER) return [`Policy is for provider "${p.provider}", not github`];
+    if (p.access !== ACCESS) return [`Policy is for access "${p.access}", not github`];
     if (typeof p.app !== "string" || !this.apps.has(p.app)) return [`GitHub App "${p.app}" isn't configured on the router`];
     const target = p.repo ?? repo;
     if (typeof target !== "string" || !REPO.test(target)) return [`"${target}" isn't an owner/name repo`];
@@ -74,12 +74,12 @@ export class GitHubAccess implements AccessProvider {
    * with one that needs write.
    * The config's own repo comes first, since gh uses the first token.
    */
-  async mint(policies: PolicyData[], repo: string): Promise<Credential[]> {
+  async mint(policies: PolicyData[], repo: string): Promise<AccessCredential[]> {
     const groups = new Map<string, { app: string; installation: number; repos: string[]; permissions: Permissions }>();
     const lookups = new Map<string, Promise<Awaited<ReturnType<Apps["installation"]>>>>();
     for (const policy of policies) {
       const p = policy as RepoPolicyData;
-      if (p.provider !== PROVIDER) continue;
+      if (p.access !== ACCESS) continue;
       const target = p.repo ?? repo;
       if (!REPO.test(target)) throw new Error(`"${target}" isn't an owner/name repo`);
       const lookupKey = `${p.app}\n${target.toLowerCase()}`;
@@ -97,7 +97,7 @@ export class GitHubAccess implements AccessProvider {
       [...groups.values()].sort((a, b) => own(a) - own(b)).map(async (g) => {
         const token = await this.apps.token(g.app, g.installation, { repositories: g.repos.map((r) => r.split("/")[1]!), permissions: g.permissions });
         return {
-          provider: PROVIDER,
+          access: ACCESS,
           value: token.token,
           expiresAt: token.expires_at,
           scope: { app: g.app, installation: g.installation, repos: g.repos, permissions: g.permissions },
@@ -120,8 +120,8 @@ export class GitHubAccess implements AccessProvider {
    * The env is the same on every refresh. Only the files behind it change.
    * A caller that sets its own `GIT_CONFIG_COUNT` must merge, not overwrite.
    */
-  async install(credentials: Credential[], dir: string): Promise<{ env: Record<string, string> }> {
-    const mine = credentials.filter((c) => c.provider === PROVIDER);
+  async install(credentials: AccessCredential[], dir: string): Promise<{ env: Record<string, string> }> {
+    const mine = credentials.filter((c) => c.access === ACCESS);
     const ghDir = path.join(dir, GH_CONFIG_DIR);
     fs.mkdirSync(ghDir, { recursive: true, mode: 0o700 });
 

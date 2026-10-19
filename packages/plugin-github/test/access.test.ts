@@ -3,7 +3,7 @@ import { $ } from "bun";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AccessProvider, Channel, Credential } from "@achq/core";
+import type { AccessCredential, AccessProvider, Channel } from "@achq/core";
 import { FakeGitHub, makeApp } from "@achq/test-utils/github";
 import { githubChannel } from "../src/channels/index.ts";
 import type { RepoPolicyData } from "../src/index.ts";
@@ -18,7 +18,7 @@ const gh = new FakeGitHub([appA, appB]);
 /** The router's parts, from one env. */
 let api: { access: AccessProvider; channel: Channel };
 
-const policy = (permissions: Record<string, "read" | "write">, repo: string | null = null, app = "notation-achq"): RepoPolicyData => ({ provider: "github", app, repo, permissions });
+const policy = (permissions: Record<string, "read" | "write">, repo: string | null = null, app = "notation-achq"): RepoPolicyData => ({ access: "github", app, repo, permissions });
 
 beforeAll(() => {
   gh.start();
@@ -34,8 +34,8 @@ beforeAll(() => {
 afterAll(() => gh.stop());
 
 test("a policy goes through its App", () => {
-  expect(api.access.policySource(policy({ contents: "read" }))).toBe("notation-achq");
-  expect(api.access.policySource({ provider: "github" })).toBeUndefined();
+  expect(api.access.policySource(policy({ contents: "read" }))).toEqual({ channel: "github", source: "notation-achq" });
+  expect(api.access.policySource({ access: "github" })).toBeUndefined();
 });
 
 test("the channel and access provider made from one env share its Apps, and so one JWT cache", () => {
@@ -81,7 +81,7 @@ describe("mint", () => {
         policy({ contents: "write", issues: "read" }),
         policy({ contents: "read" }, "djgrant/notes"),
         policy({ issues: "write" }, "djgrant/notes", "djgrant-claude"),
-        { provider: "linear", workspace: "notation" },
+        { access: "linear", workspace: "notation" },
       ],
       "notationlabs/yieldstar",
     );
@@ -101,7 +101,7 @@ describe("mint", () => {
     ]);
     // The tokens are real to the fake: each covers what its scope says.
     for (const c of credentials) expect(gh.tokens.get(c.value)!.repos).toEqual(c.scope.repos as string[]);
-    expect(credentials.every((c) => c.provider === "github" && c.expiresAt === "2026-10-18T13:00:00Z")).toBe(true);
+    expect(credentials.every((c) => c.access === "github" && c.expiresAt === "2026-10-18T13:00:00Z")).toBe(true);
   });
 
   test("fails when an App isn't installed on a policy's repo", async () => {
@@ -113,11 +113,11 @@ describe("installations and sources", () => {
   test("every repo of every unsuspended installation, per App", async () => {
     const all = await api.channel.installations();
     expect(all.sort((a, b) => (a.source + a.repo).localeCompare(b.source + b.repo))).toEqual([
-      { provider: "github", source: "djgrant-claude", repo: "djgrant/notes" },
-      { provider: "github", source: "djgrant-claude", repo: "djgrant/site" },
-      { provider: "github", source: "notation-achq", repo: "djgrant/notes" },
-      { provider: "github", source: "notation-achq", repo: "notationlabs/shared" },
-      { provider: "github", source: "notation-achq", repo: "notationlabs/yieldstar" },
+      { channel: "github", source: "djgrant-claude", repo: "djgrant/notes", host: "github" },
+      { channel: "github", source: "djgrant-claude", repo: "djgrant/site", host: "github" },
+      { channel: "github", source: "notation-achq", repo: "djgrant/notes", host: "github" },
+      { channel: "github", source: "notation-achq", repo: "notationlabs/shared", host: "github" },
+      { channel: "github", source: "notation-achq", repo: "notationlabs/yieldstar", host: "github" },
     ]);
   });
 
@@ -137,8 +137,8 @@ describe("installations and sources", () => {
 
 describe("install", () => {
   const container = { access: githubAccess.create({}) }; // no keys, no network
-  const credential = (value: string, installation: number, repos: string[], app = "notation-achq"): Credential => ({
-    provider: "github",
+  const credential = (value: string, installation: number, repos: string[], app = "notation-achq"): AccessCredential => ({
+    access: "github",
     value,
     expiresAt: "2026-10-18T13:00:00Z",
     scope: { app, installation, repos, permissions: {} },

@@ -15,7 +15,7 @@ export const sync = async (ctx: DeployerContext, actions: Actions, { prune = fal
   const plans = new Map<string, RepoPlan | undefined>();
 
   for (const i of installed.values()) {
-    const outcome = await actions.deploy(i.provider, i.repo, i.source, { dryRun });
+    const outcome = await actions.deploy(i.host, i.repo, i.source, { dryRun });
     if (outcome.outcome === "failed") result.failed.push({ repo: i.repo, error: outcome.error ?? "failed" });
     else result[outcome.outcome].push(i.repo);
     if (outcome.plan) plans.set(i.repo.toLowerCase(), outcome.plan);

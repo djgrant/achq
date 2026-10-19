@@ -23,9 +23,10 @@ export const checkInfra = (infra: Infra): InfraResources => {
   const deployers = infra.resources.filter((r): r is Deployer => r instanceof Deployer);
   if (routers.length !== 1 || deployers.length !== 1) throw new Error("The infra must declare one router and one deployer");
   const [router, deployer] = [routers[0]!, deployers[0]!];
-  if (router.platform !== deployer.platform) throw new Error(`The router runs on ${router.platform} and the deployer on ${deployer.platform}; they must share a platform`);
-  // The deployer puts containers on its own platform.
-  containerHostNamed(deployer.platform);
+  // The router, deployer and containers reach each other over their container host's private network.
+  if (router.containerHost !== deployer.containerHost) throw new Error(`The router runs on ${router.containerHost} and the deployer on ${deployer.containerHost}; they must share a container host`);
+  // The deployer puts containers on its own container host.
+  containerHostNamed(deployer.containerHost);
   if (deployer.inputs.router !== router) throw new Error(`Deployer ${deployer.name} must use router ${router.name}`);
   for (const r of infra.resources) {
     const inputs = (r as { inputs?: { router?: unknown; deployer?: unknown } }).inputs;

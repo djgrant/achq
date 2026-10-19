@@ -1,22 +1,23 @@
-import type { ConfigTree, PolicyData, RepoPlan, SourceSettings } from "@achq/core";
+import type { ConfigTree, RepoPlan, SourceSettings } from "@achq/core";
 import { normaliseRepoPath } from "./config/index.ts";
+import type { DeployerContext } from "./context.ts";
 
 /** The checks in "Checks" and "Subscribing" that need nothing but the plan, the tree and the router's sources. */
-export const checkPlan = (plan: RepoPlan, ctx: { source: string; tree: ConfigTree; sources: SourceSettings[]; policySource: (policy: PolicyData) => string | undefined }) => {
+export const checkPlan = (plan: RepoPlan, ctx: { source: string; tree: ConfigTree; sources: SourceSettings[]; policySource: DeployerContext["policySource"] }) => {
   const failures: string[] = [];
   const warnings: string[] = [];
   const known = (channel: string, source: string) => ctx.sources.find((s) => s.channel === channel && s.source === source);
 
-  const named: { what: string; channel: string; source: unknown }[] = [
-    ...plan.policies.map((p) => ({ what: `policy ${p.name}`, channel: p.policy.provider, source: ctx.policySource(p.policy) })),
+  const named: { what: string; channel?: string; source?: unknown }[] = [
+    ...plan.policies.map((p) => ({ what: `policy ${p.name}`, ...ctx.policySource(p.policy) })),
     ...plan.workspaces.map((w) => ({ what: `workspace ${w.name}`, channel: w.threads.channel, source: w.threads.source })),
     ...plan.triggers.map((t) => ({ what: `trigger ${t.name}`, channel: t.event.channel, source: t.event.source })),
   ];
   for (const n of named) {
-    if (typeof n.source !== "string" || !n.source) failures.push(`${n.what} names no source`);
+    if (!n.channel || typeof n.source !== "string" || !n.source) failures.push(`${n.what} names no source`);
     else if (!known(n.channel, n.source)) failures.push(`${n.what} names ${n.channel}:${n.source}, which the router doesn't know`);
   }
-  const usesInstalled = plan.policies.some((p) => ctx.policySource(p.policy) === ctx.source) || plan.workspaces.some((w) => w.threads.source === ctx.source);
+  const usesInstalled = plan.policies.some((p) => ctx.policySource(p.policy)?.source === ctx.source) || plan.workspaces.some((w) => w.threads.source === ctx.source);
   if (!usesInstalled) failures.push(`no policy or workspace names ${ctx.source}, the source that was installed`);
 
   for (const c of plan.containers) {

@@ -8,9 +8,9 @@ test("the infra status lists installed and deployed repos, with errors underneat
       { host: "github", repo: "djgrant/rfcs", source: "djgrant-claude", state: "failed", at: "2026-10-17T11:00:00Z", error: "no .achq/config.ts" },
     ],
     [
-      { provider: "github", source: "notation-achq", repo: "NotationLabs/yieldstar" },
-      { provider: "github", source: "djgrant-claude", repo: "djgrant/rfcs" },
-      { provider: "github", source: "djgrant-claude", repo: "djgrant/new" },
+      { channel: "github", source: "notation-achq", repo: "NotationLabs/yieldstar", host: "github" },
+      { channel: "github", source: "djgrant-claude", repo: "djgrant/rfcs", host: "github" },
+      { channel: "github", source: "djgrant-claude", repo: "djgrant/new", host: "github" },
     ],
   );
   expect(table.split("\n")).toEqual([

@@ -5,7 +5,7 @@ import { createHmac } from "node:crypto";
 const derive = (key: string, label: string) => createHmac("sha256", key).update(label).digest("hex");
 
 /** A secret for an implementation's own use, e.g. a channel's webhook secret. Its label must start with the implementation's id. */
-export const providerSecret = (key: string, label: string) => derive(key, label);
+export const implementationSecret = (key: string, label: string) => derive(key, label);
 
 /** A container signs its requests to the router with this. The router signs events to the container with it too. */
 export const containerSecret = (key: string, repo: string, container: string) =>

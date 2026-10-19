@@ -25,8 +25,8 @@ export const fakeRouter = (secret: string, opts: { expiresIn?: () => number; now
         mints++;
         const expiresAt = new Date((opts.now ?? Date.now)() + (opts.expiresIn?.() ?? 60 * 60_000)).toISOString();
         const response: CredentialsResponse = {
-          credentials: [{ provider: "test-access", value: `agent-token-${mints}`, expiresAt, scope: {} }],
-          channels: [{ provider: "test", value: CHANNEL_TOKEN, expiresAt, scope: { source: "app" } }],
+          credentials: [{ access: "test-access", value: `agent-token-${mints}`, expiresAt, scope: {} }],
+          channels: [{ channel: "test", value: CHANNEL_TOKEN, expiresAt, scope: { source: "app" } }],
         };
         return Response.json(response);
       }

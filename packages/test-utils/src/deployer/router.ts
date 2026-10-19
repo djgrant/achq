@@ -50,7 +50,7 @@ export class FakeRouter {
       this.mints.push(request);
       const value = `tok-${++this.n}`;
       this.github.tokens.set(value, request.repo);
-      return Response.json([{ provider: "github", value, expiresAt: new Date(Date.now() + 3600_000).toISOString(), scope: { repos: [request.repo] } }]);
+      return Response.json([{ access: "github", value, expiresAt: new Date(Date.now() + 3600_000).toISOString(), scope: { repos: [request.repo] } }]);
     }
     if (req.method === "POST" && path === "/admin/validate") {
       const request = body as ValidateRequest;

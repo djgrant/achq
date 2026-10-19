@@ -16,8 +16,8 @@ export const createEventHandler = (store: Store, actions: Actions) => {
     inflight.add(event.delivery);
     try {
       if (await store.handled(event.delivery)) return false;
-      // The channel the event came through hosts the repos it names.
-      const host = event.channel;
+      // An event queued before events named their host has none: GitHub's channel and repo host share an id. Drop once the router's inbox has drained.
+      const host = event.host ?? event.channel;
       // One by one: each repo gets its own deploy and its own ACHQ_STATUS.
       if (event.installation) {
         for (const repo of event.installation.added) await actions.deploy(host, repo, event.source);

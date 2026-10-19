@@ -27,6 +27,8 @@ export type ChannelEvent = {
   previousText?: string;
   /** The message the event is about, as a `Message.id` from `ChannelClient.messages`, when it's one. */
   message?: string;
+  /** For the deployer: the `RepoHost` that `repo`, or the installation's repos, are on. */
+  host?: string;
   /** For the deployer: the repos the source was installed on (`added`) or removed from. */
   installation?: { added: string[]; removed: string[] };
   /** For the deployer: the repo's `.achq/` may have changed on its default branch. */
@@ -58,13 +60,15 @@ export type Message = {
 };
 
 export type Credential = {
-  provider: string;
   value: string;
   /** ISO time. */
   expiresAt: string;
-  /** What it covers, for the `install` of the access provider or channel that minted it. e.g. `{ app, repos, permissions }`. */
+  /** What it covers, for the access provider or channel that minted it. e.g. `{ app, repos, permissions }`. */
   scope: { [key: string]: Data };
 };
+
+/** For the container's runner: minted by the channel it names. */
+export type ChannelCredential = Credential & { channel: string };
 
 /** Where threads live. Hears events, reads threads, posts replies, decides who's trusted. */
 export interface Channel {
@@ -76,8 +80,8 @@ export interface Channel {
   /** Normalises a verified delivery, or returns undefined for ones achq never acts on. */
   parse(source: string, headers: Headers, body: string): ChannelEvent | undefined;
   /** A credential the container's runner (not the agent) uses for `ChannelClient`. Its scope names the `source`. */
-  mintClient(source: string, repo: string): Promise<Credential>;
-  /** The repos each source is installed on: what the deployer serves. */
+  mintClient(source: string, repo: string): Promise<ChannelCredential>;
+  /** The repos each source is installed on, and the repo host they're on: what the deployer serves. */
   installations(): Promise<Installation[]>;
   /** What each source is set up to send and allow, for the deployer's checks. */
   sources(): Promise<SourceSettings[]>;

@@ -39,6 +39,6 @@ export class MemoryContainerHost implements ContainerHost {
     this.services.delete(this.id(repo, name));
   }
   async locate(repo: string, name: string) {
-    return { platform: "memory", service: this.id(repo, name) };
+    return { containerHost: "memory", service: this.id(repo, name) };
   }
 }

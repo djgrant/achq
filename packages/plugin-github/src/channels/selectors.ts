@@ -1,5 +1,5 @@
 import { EventSelector } from "@achq/core";
-import { CHANNEL } from "./constants.ts";
+import { CHANNEL } from "../lib/constants.ts";
 
 export type EventSelectorData = {
   channel: typeof CHANNEL;

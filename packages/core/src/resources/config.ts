@@ -4,7 +4,7 @@ import { Resource } from "./resource.ts";
 
 /** Selector and policy data always says which channel or access provider interprets it. */
 export type SelectorData = { channel: string; [key: string]: Data };
-export type PolicyData = { provider: string; [key: string]: Data };
+export type PolicyData = { access: string; [key: string]: Data };
 
 /** Which events start a run. Plain data, matched in the router and the container. */
 export class EventSelector {

@@ -1,5 +1,5 @@
 import type { ChannelEvent, SelectorData, ThreadRef } from "@achq/core";
-import { CHANNEL } from "./constants.ts";
+import { CHANNEL } from "../lib/constants.ts";
 import type { EventSelectorData } from "./selectors.ts";
 import type { IssueSelectorData } from "./issues.ts";
 import { mentions } from "./mentions.ts";

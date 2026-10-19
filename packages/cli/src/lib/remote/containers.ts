@@ -6,7 +6,8 @@ export type Located = { name: string; location: Record<string, string>; shell: C
 /** The containers ACHQ_STATUS says the repo has, that a container host achq knows can reach. */
 export const containersOf = (status: Status): Located[] =>
   (status.containers ?? []).flatMap((c) => {
-    const shell = findContainerHost(c.location.platform)?.shell;
+    // `platform` is the key before it was `containerHost`: an unchanged repo keeps its old ACHQ_STATUS. Drop it once every repo has redeployed.
+    const shell = findContainerHost(c.location.containerHost ?? c.location.platform)?.shell;
     return shell?.reachable(c.location) ? [{ name: c.name, location: c.location, shell }] : [];
   });
 

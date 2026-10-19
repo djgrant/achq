@@ -9,8 +9,8 @@ const accessFor = (ctx: RouterContext, id: string) => {
 
 /** One `mint` per access provider, for the policies that name it. */
 export const mint = async (ctx: RouterContext, policies: PolicyData[], repo: string) => {
-  const ids = [...new Set(policies.map((p) => p.provider))];
-  const minted = await Promise.all(ids.map((id) => accessFor(ctx, id).mint(policies.filter((p) => p.provider === id), repo)));
+  const ids = [...new Set(policies.map((p) => p.access))];
+  const minted = await Promise.all(ids.map((id) => accessFor(ctx, id).mint(policies.filter((p) => p.access === id), repo)));
   return minted.flat();
 };
 
@@ -18,8 +18,8 @@ export const mint = async (ctx: RouterContext, policies: PolicyData[], repo: str
 export const validate = async (ctx: RouterContext, policies: PolicyData[], repo: string) => {
   const problems = await Promise.all(
     policies.map((p) => {
-      const found = ctx.access.find((x) => x.id === p.provider);
-      return found ? found.validate(p, repo) : [`No access provider "${p.provider}"`];
+      const found = ctx.access.find((x) => x.id === p.access);
+      return found ? found.validate(p, repo) : [`No access provider "${p.access}"`];
     }),
   );
   return problems.flat();

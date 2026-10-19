@@ -1,6 +1,6 @@
 import * as core from "@achq/core";
 import type { Context, EnvValues, Output, Resource } from "@achq/core";
-import { PLATFORM, RAILWAY_ENV } from "../lib/constants.ts";
+import { CONTAINER_HOST, RAILWAY_ENV } from "../lib/constants.ts";
 import { need } from "../lib/env.ts";
 import { hostServiceName, privateUrl } from "../lib/names.ts";
 import { ServiceParts } from "./service-parts.ts";
@@ -13,7 +13,7 @@ import { Router } from "./router.ts";
  * what its container host needs: the token and the project.
  */
 export class Deployer extends core.Deployer {
-  readonly platform = PLATFORM;
+  readonly containerHost = CONTAINER_HOST;
   readonly project: Project;
   readonly env: Output<Record<string, string>>;
   private readonly parts: ServiceParts;

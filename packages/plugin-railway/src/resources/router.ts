@@ -1,6 +1,6 @@
 import * as core from "@achq/core";
 import { type Context, ENV, type EnvValues, GENERATED, type Output, type Resource } from "@achq/core";
-import { PLATFORM } from "../lib/constants.ts";
+import { CONTAINER_HOST } from "../lib/constants.ts";
 import { hostServiceName, privateUrl } from "../lib/names.ts";
 import { ServiceParts } from "./service-parts.ts";
 import { Project } from "./project.ts";
@@ -11,7 +11,7 @@ import { Project } from "./project.ts";
  * its private network. Applying waits for its deploy to go live.
  */
 export class Router extends core.Router {
-  readonly platform = PLATFORM;
+  readonly containerHost = CONTAINER_HOST;
   readonly project: Project;
   readonly url: Output<string>;
   readonly key: Output<string>;

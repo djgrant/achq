@@ -29,7 +29,7 @@ export const channelNamed = lookup("channel", CHANNELS);
 export const accessNamed = lookup("access provider", ACCESS);
 export const repoHostNamed = lookup("repo host", REPO_HOSTS);
 export const containerHostNamed = lookup("container host", CONTAINER_HOSTS);
-/** For a location's `platform`, which may name a host this build doesn't have. */
+/** For a location's `containerHost`, which may name a host this build doesn't have. */
 export const findContainerHost = (id: string | undefined) => CONTAINER_HOSTS.find((h) => h.id === id);
 
 /** Every variable only the router and deployer have: the union of every implementation's privateEnv. */
