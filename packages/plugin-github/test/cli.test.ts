@@ -9,7 +9,7 @@ import { repoOf } from "../src/repo-hosts/remote.ts";
 import { readStatus } from "../src/repo-hosts/status.ts";
 
 class TestAgent extends Agent {
-  readonly agentKind = "test";
+  readonly runtime = "test";
 }
 
 // The design's example config, declared directly.

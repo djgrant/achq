@@ -1,5 +1,5 @@
 import { Agent } from "@achq/core";
-import { AGENT_KIND } from "../lib/constants.ts";
+import { RUNTIME } from "../lib/constants.ts";
 
 export type ClaudeConfig = {
   model?: string;
@@ -13,5 +13,5 @@ export type ClaudeConfig = {
 };
 
 export class Claude extends Agent<ClaudeConfig> {
-  readonly agentKind = AGENT_KIND;
+  readonly runtime = RUNTIME;
 }

@@ -48,7 +48,7 @@ export type RuntimeContext = {
 
 export type RuntimeFactory = (agent: Agent, ctx: RuntimeContext) => AgentRuntime;
 
-/** An agent runtime package, e.g. Claude. Its id is its agents' `agentKind`. */
+/** An agent runtime package, e.g. Claude. Its id is its agents' `runtime`. */
 export interface AgentProvider {
   readonly id: string;
   /** What every container needs for it. `achq up` reads these from your environment. */

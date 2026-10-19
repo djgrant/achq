@@ -181,7 +181,7 @@ describe("parsePlan", () => {
     const base = JSON.parse(JSON.stringify(DOC_PLAN));
     expect(parsePlan(JSON.stringify(base))).toEqual(base);
     expect(() => parsePlan(JSON.stringify({ ...base, extra: 1 }))).toThrow("invalid");
-    expect(() => parsePlan(JSON.stringify({ ...base, agents: [{ name: "Bad Name", kind: "claude" }] }))).toThrow("agents.0.name");
+    expect(() => parsePlan(JSON.stringify({ ...base, agents: [{ name: "Bad Name", runtime: "claude" }] }))).toThrow("agents.0.name");
     expect(() => parsePlan(JSON.stringify({ ...base, workspaces: [{ ...base.workspaces[0], threads: { source: "x" } }] }))).toThrow(`needs "channel"`);
     expect(() => parsePlan(JSON.stringify({ ...base, policies: [{ name: "p", policy: { access: "" } }] }))).toThrow(`needs "access"`);
   });

@@ -22,7 +22,7 @@ describe("collectPlan", () => {
         { name: "docs", container: "dev", threads: { channel: "github", source: "notation-achq", kind: "issue", labels: ["docs"] }, branch: "docs/{number}", base: "docs" },
         { name: "issues", container: "dev", threads: { channel: "github", source: "notation-achq", kind: "issue" }, branch: "issue-{number}", base: "main" },
       ],
-      agents: [{ name: "coder", kind: "claude" }],
+      agents: [{ name: "coder", runtime: "claude" }],
       triggers: [
         { name: "mention", event: { channel: "github", source: "notation-achq", event: "issue_comment", actions: ["created", "edited"], mention: "@claude" }, agent: "coder" },
       ],

@@ -72,7 +72,7 @@ export class Workspace extends Resource {
 /** Who does the work. Subclasses (Claude) hold config, which can include code. */
 export abstract class Agent<Config = unknown> extends Resource {
   readonly kind = "agent";
-  abstract readonly agentKind: string;
+  abstract readonly runtime: string;
   constructor(
     name: string,
     readonly config: Config,

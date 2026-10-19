@@ -42,7 +42,7 @@ export const resume = async (opts: ResumeOptions): Promise<number> => {
   const { session } = picked;
   const config = await opts.loadConfig(session.commit);
   const agent = config.agents.find((a) => a.name === session.agent);
-  const factory = agent && (opts.runtimes ?? defaultRuntimes)[agent.agentKind];
+  const factory = agent && (opts.runtimes ?? defaultRuntimes)[agent.runtime];
   if (!agent || !factory) throw new Error(`Agent ${session.agent} isn't in the config at ${session.commit}`);
   const container = config.plan.containers.find((c) => c.name === opts.container);
   const runtime = factory(agent, runtimeContext(config.root, {

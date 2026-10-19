@@ -36,8 +36,8 @@ export const DOC_PLAN = {
     { name: "issues", container: "dev", threads: { channel: "github", source: "notation-achq", kind: "issue" }, branch: "issue-{number}", base: "main" },
   ],
   agents: [
-    { name: "coder", kind: "claude" },
-    { name: "triage", kind: "claude" },
+    { name: "coder", runtime: "claude" },
+    { name: "triage", runtime: "claude" },
   ],
   triggers: [
     { name: "mention", event: { channel: "github", source: "notation-achq", event: "issue_comment", actions: ["created", "edited"], mention: "@claude" }, agent: "coder" },

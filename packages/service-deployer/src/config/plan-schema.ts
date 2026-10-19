@@ -23,7 +23,7 @@ const planSchema = z.strictObject({
   policies: z.array(z.strictObject({ name, policy: policyData })).max(100),
   containers: z.array(z.strictObject({ name, image: text, policies: z.array(name).max(100), files: z.record(z.string().max(1000), data) })).min(1).max(20),
   workspaces: z.array(z.strictObject({ name, container: name, threads: selector, branch: text, base: text })).max(100),
-  agents: z.array(z.strictObject({ name, kind: z.string().min(1).max(100) })).max(100),
+  agents: z.array(z.strictObject({ name, runtime: z.string().min(1).max(100) })).max(100),
   triggers: z.array(z.strictObject({ name, event: selector, agent: name })).max(100),
 });
 

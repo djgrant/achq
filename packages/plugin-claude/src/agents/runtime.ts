@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { stableStringify, toData, type AgentRuntime, type RunContext, type RunResult, type RuntimeContext } from "@achq/core";
+import { RUNTIME } from "../lib/constants.ts";
 import { BIN_ENV, CLAUDE_ENV, DENIED, SETTINGS_FILE, SYSTEM_PROMPT_FILE } from "./constants.ts";
 import type { Claude } from "../resources/claude.ts";
 import { transcriptExists, updateClaudeJson, writeFiles } from "./config-dir.ts";
@@ -21,7 +22,8 @@ export const claudeRuntime = (agent: Claude, ctx: RuntimeContext): AgentRuntime 
 
     async sessionKey() {
       const prefix = {
-        kind: "claude",
+        // Named `kind` so existing session keys still match.
+        kind: RUNTIME,
         name: agent.name,
         config: toData(config, `agent ${agent.name} config`),
         systemPrompt,

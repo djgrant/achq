@@ -12,7 +12,7 @@ export type RepoPlan = {
   policies: { name: string; policy: PolicyData }[];
   containers: { name: string; image: string; policies: string[]; files: Record<string, Data> }[];
   workspaces: { name: string; container: string; threads: SelectorData; branch: string; base: string }[];
-  agents: { name: string; kind: string }[];
+  agents: { name: string; runtime: string }[];
   triggers: { name: string; event: SelectorData; agent: string }[];
 };
 
@@ -45,7 +45,7 @@ export const collectPlan = (resources: Resource[] = registered()): RepoPlan => {
       branch: w.inputs.branch,
       base: w.inputs.base,
     })),
-    agents: of(Agent).map((a) => ({ name: a.name, kind: a.agentKind })),
+    agents: of(Agent).map((a) => ({ name: a.name, runtime: a.runtime })),
     triggers: of(Trigger).map((t) => ({
       name: t.name,
       event: t.inputs.event.data,

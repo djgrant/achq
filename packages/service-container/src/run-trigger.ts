@@ -34,7 +34,7 @@ export type TriggerDeps = {
 export const runTrigger = async (deps: TriggerDeps, r: TriggerRun) => {
   const { trigger, event, config, client, thread, state, cwd, log } = r;
   const agent = config.agents.find((a) => a.name === trigger.agent);
-  const factory = agent && deps.runtimes[agent.agentKind];
+  const factory = agent && deps.runtimes[agent.runtime];
   if (!agent || !factory) return reply(client, thread.ref, `⚠️ Trigger \`${trigger.name}\` names agent \`${trigger.agent}\`, which this container can't run.`, log);
 
   const mention = typeof trigger.event.mention === "string" ? trigger.event.mention : undefined;
