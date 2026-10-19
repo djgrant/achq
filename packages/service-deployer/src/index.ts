@@ -3,7 +3,6 @@ export * from "./context.ts";
 export * from "./deploy.ts";
 export * from "./checks.ts";
 export * from "./events.ts";
-export * from "./policies.ts";
 export * from "./server.ts";
 export * from "./store.ts";
 export * from "./atomic-write.ts";

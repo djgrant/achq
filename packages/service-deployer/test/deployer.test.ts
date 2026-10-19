@@ -137,14 +137,14 @@ describe("install", () => {
       },
     });
 
-    // Policies validated with `repo: null` resolved to this repo; router config pushed.
-    const resolved = { ...DOC_PLAN.policies[0]!.policy, repo: REPO };
-    expect(router.validations).toEqual([{ repo: REPO, policies: [resolved] }]);
+    // Policies validated as declared, for this repo; router config pushed.
+    const declared = DOC_PLAN.policies[0]!.policy;
+    expect(router.validations).toEqual([{ repo: REPO, policies: [declared] }]);
     expect(router.repos.get(REPO)).toEqual({
       host: "github",
       repo: REPO,
       commit,
-      containers: [{ name: "dev", url: "http://dev.notationlabs-yieldstar.internal:3000", policies: [resolved] }],
+      containers: [{ name: "dev", url: "http://dev.notationlabs-yieldstar.internal:3000", policies: [declared] }],
       workspaces: DOC_PLAN.workspaces,
       triggers: DOC_PLAN.triggers.map(({ name, event }) => ({ name, event })),
     } as never);

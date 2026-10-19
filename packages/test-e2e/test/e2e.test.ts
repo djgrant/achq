@@ -513,7 +513,8 @@ describe("achq end to end", () => {
         {
           name: "dev",
           url: `http://localhost:${dev().server.port}`,
-          policies: [{ access: "github", app: SLUG, repo: REPO, permissions: { contents: "write", issues: "write", pull_requests: "write" } }],
+          // As declared: no repo means the config's own, which the router mints for.
+          policies: [{ access: "github", app: SLUG, repo: null, permissions: { contents: "write", issues: "write", pull_requests: "write" } }],
         },
       ],
       workspaces: [

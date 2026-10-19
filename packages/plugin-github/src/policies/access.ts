@@ -1,7 +1,8 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import type { AccessCredential, AccessProvider, PolicyData } from "@achq/core";
-import { ACCESS, CHANNEL, REPO } from "../lib/constants.ts";
+import { ACCESS, REPO } from "../lib/constants.ts";
+import { policySource } from "../lib/policy-source.ts";
 import { GH_CONFIG_DIR, GH_HOSTS_FILE, GIT_CONFIG_FILE, POLICY_LEVELS, TOKEN_SUFFIX } from "./constants.ts";
 import type { RepoPolicyData } from "../resources/repo-policy.ts";
 import type { Apps } from "../lib/apps.ts";
@@ -29,9 +30,8 @@ export class GitHubAccess implements AccessProvider {
 
   constructor(private apps: Apps) {}
 
-  /** A policy goes through its App, the channel's source. */
   policySource(policy: PolicyData) {
-    return typeof policy.app === "string" ? { channel: CHANNEL, source: policy.app } : undefined;
+    return policySource(policy);
   }
 
   async validate(policy: PolicyData, repo: string): Promise<string[]> {

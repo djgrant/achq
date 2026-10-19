@@ -5,7 +5,6 @@ import { containerSecret } from "@achq/core/secrets";
 import { checkPlan } from "./checks.ts";
 import { isSourceFile, normaliseRepoPath } from "./config/index.ts";
 import type { DeployerContext } from "./context.ts";
-import { resolvePolicy } from "./policies.ts";
 import { type ImageRecord, type StoredRecord, wireRecord } from "./store.ts";
 
 export type DeployOutcome = {
@@ -94,7 +93,7 @@ export const deploy = async (ctx: DeployerContext, hostId: string, repo: string,
     }
 
     const { failures, warnings } = checkPlan(plan, { source, tree, sources: await ctx.router.sources(), policySource: ctx.policySource });
-    const policies = plan.policies.map((p) => resolvePolicy(p.policy, repo));
+    const policies = plan.policies.map((p) => p.policy);
     if (policies.length) {
       const { problems } = await ctx.router.validate({ repo, policies });
       failures.push(...problems);
@@ -135,7 +134,7 @@ export const deploy = async (ctx: DeployerContext, hostId: string, repo: string,
         await ctx.containerHost.deploy(repo, c.name);
       }
       images[c.name] = { dockerfile, blob };
-      routerContainers.push({ name: c.name, url, policies: c.policies.map((n) => resolvePolicy(plan.policies.find((p) => p.name === n)!.policy, repo)) });
+      routerContainers.push({ name: c.name, url, policies: c.policies.map((n) => plan.policies.find((p) => p.name === n)!.policy) });
     }
     // Containers removed from the config are left alone, asleep; only `sync({ prune })` deletes them.
 
