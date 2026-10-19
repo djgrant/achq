@@ -159,10 +159,9 @@ describe("install", () => {
       containers: [{ name: "dev", location: { containerHost: "memory", service: `${REPO}/dev` } }],
       router: "https://router.example",
     });
-    const [record] = await deployer.status();
-    expect(record).toMatchObject({ repo: REPO, state: "deployed", commit });
-    expect(record).not.toHaveProperty("plan");
-    expect(record).not.toHaveProperty("deployed");
+    // The infra's status is the same record.
+    const { router: _router, ...record } = github.variable(REPO, STATUS_VARIABLE);
+    expect(await deployer.status()).toEqual([record]);
   });
 
   test("installing on several repos deploys each, each with its own ACHQ_STATUS", async () => {

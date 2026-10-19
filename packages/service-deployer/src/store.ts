@@ -8,9 +8,12 @@ import { MAX_DELIVERIES } from "./constants.ts";
 export type ImageRecord = { dockerfile: string; blob: string };
 
 /** The last deploy that succeeded, kept across later failures and uninstalls. */
-export type DeployedSnapshot = { commit: string; tree: string; plan: RepoPlan; images: Record<string, ImageRecord> };
+export type DeployedSnapshot = { tree: string; plan: RepoPlan; images: Record<string, ImageRecord> };
 
 export type StoredRecord = DeployRecord & { deployed?: DeployedSnapshot };
+
+/** The record without what only the deployer reads. */
+export const wireRecord = ({ deployed: _deployed, ...record }: StoredRecord): DeployRecord => record;
 
 export const recordFile = (repo: string) => `${repo.toLowerCase().replace("/", "__").replace(/[^a-z0-9_.-]/g, "_")}.json`;
 

@@ -735,6 +735,6 @@ describe("achq end to end", () => {
     expect(await res.json()).toEqual({ deployed: [], unchanged: [REPO], uninstalled: [], pruned: [], failed: [] });
     expect(host.removed).toEqual([]);
     const status = await signedFetch(adminSecret(KEY), `${routerPublic}/admin/status`, { method: "GET" });
-    expect(await status.json()).toEqual([expect.objectContaining({ repo: REPO, source: SLUG, state: "deployed", tree: expect.any(String) })]);
+    expect(await status.json()).toEqual([expect.objectContaining({ repo: REPO, source: SLUG, state: "deployed", commit: expect.any(String) })]);
   });
 });

@@ -3,6 +3,7 @@ import { type DeployerDeps, deployerContext } from "./context.ts";
 import { deploy } from "./deploy.ts";
 import { createEventHandler } from "./events.ts";
 import { createSerial } from "./serial.ts";
+import { wireRecord } from "./store.ts";
 import { sync } from "./sync.ts";
 import { uninstall } from "./uninstall.ts";
 
@@ -18,8 +19,8 @@ export const createDeployer = (deps: DeployerDeps) => {
       serial(repo.toLowerCase(), () => uninstall(ctx, host, repo, source, Boolean(options.dryRun))),
   };
 
-  /** Every repo's record, without plans: what `achq status` shows from the infra. */
-  const status = async (): Promise<DeployRecord[]> => (await ctx.store.all()).map(({ plan: _plan, deployed: _deployed, ...record }) => record);
+  /** Every repo's record: what `achq status` shows from the infra. */
+  const status = async (): Promise<DeployRecord[]> => (await ctx.store.all()).map(wireRecord);
 
   return {
     ...actions,

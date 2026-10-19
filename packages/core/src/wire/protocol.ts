@@ -84,7 +84,7 @@ export type SyncResult = { deployed: string[]; unchanged: string[]; uninstalled:
 
 export type DeployState = "deployed" | "failed" | "uninstalled";
 
-/** The deployer's record of a repo. ACHQ_STATUS holds it without `plan` and `tree`. */
+/** The deployer's record of a repo, as ACHQ_STATUS and `/admin/status` show it. */
 export type DeployRecord = {
   /** The `RepoHost` the repo is on, and the source that installed it there. */
   host: string;
@@ -94,13 +94,10 @@ export type DeployRecord = {
   at: string;
   error?: string;
   commit?: string;
-  /** The `.achq` tree last deployed. */
-  tree?: string;
-  plan?: RepoPlan;
   /** Per container: where to find it, from `ContainerHost.locate`. */
   containers?: { name: string; location: Record<string, string> }[];
   warnings?: string[];
 };
 
 /** The ACHQ_STATUS repository variable's JSON. */
-export type Status = Omit<DeployRecord, "plan" | "tree"> & { router?: string };
+export type Status = DeployRecord & { router?: string };

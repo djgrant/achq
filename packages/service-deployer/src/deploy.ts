@@ -6,7 +6,7 @@ import { checkPlan } from "./checks.ts";
 import { isSourceFile, normaliseRepoPath } from "./config/index.ts";
 import type { DeployerContext } from "./context.ts";
 import { resolvePolicy } from "./policies.ts";
-import type { ImageRecord, StoredRecord } from "./store.ts";
+import { type ImageRecord, type StoredRecord, wireRecord } from "./store.ts";
 
 export type DeployOutcome = {
   repo: string;
@@ -24,9 +24,8 @@ const message = (error: unknown) => (error instanceof Error ? error.message : St
 
 const writeStatus = async (ctx: DeployerContext, client: RepoClient | undefined, record: StoredRecord) => {
   if (!client) return;
-  const { plan: _plan, tree: _tree, deployed: _deployed, ...status } = record;
   try {
-    await client.writeStatus({ ...status, ...(ctx.env.routerPublicUrl && { router: ctx.env.routerPublicUrl }) } satisfies Status);
+    await client.writeStatus({ ...wireRecord(record), ...(ctx.env.routerPublicUrl && { router: ctx.env.routerPublicUrl }) } satisfies Status);
   } catch (error) {
     ctx.log(`${record.repo}: couldn't write ACHQ_STATUS: ${message(error)}`);
   }
@@ -51,7 +50,7 @@ export const deploy = async (ctx: DeployerContext, hostId: string, repo: string,
         state: "failed",
         at: at(),
         error,
-        ...(tree && { commit: tree.commit, ...(tree.tree && { tree: tree.tree }) }),
+        ...(tree && { commit: tree.commit }),
         ...(warnings?.length && { warnings }),
         ...(previous?.deployed && { deployed: previous.deployed }),
       };
@@ -79,9 +78,10 @@ export const deploy = async (ctx: DeployerContext, hostId: string, repo: string,
 
   try {
     tree = await client.config();
-    if (previous?.state === "deployed" && previous.host === hostId && previous.source === source && tree.tree && previous.tree === tree.tree) {
+    const last = previous?.deployed;
+    if (previous?.state === "deployed" && previous.host === hostId && previous.source === source && tree.tree && last?.tree === tree.tree) {
       log(`${repo}: .achq/ unchanged at ${tree.commit}`);
-      return { repo, outcome: "unchanged", ...(previous.warnings && { warnings: previous.warnings }), ...(previous.plan && { plan: previous.plan }) };
+      return { repo, outcome: "unchanged", plan: last.plan, ...(previous.warnings && { warnings: previous.warnings }) };
     }
     if (!tree.tree || !tree.blobs.has("config.ts")) throw new DeployFailure(`there's no .achq/config.ts on ${tree.branch}`);
     const files = await client.download(tree, [...tree.blobs.keys()].filter(isSourceFile), ctx.fileLimits);
@@ -156,11 +156,9 @@ export const deploy = async (ctx: DeployerContext, hostId: string, repo: string,
       state: "deployed",
       at: at(),
       commit: tree.commit,
-      tree: tree.tree,
-      plan,
       containers: located,
       ...(warnings.length && { warnings }),
-      deployed: { commit: tree.commit, tree: tree.tree, plan, images },
+      deployed: { tree: tree.tree, plan, images },
     };
     await store.put(record);
     await writeStatus(ctx, client, record);
