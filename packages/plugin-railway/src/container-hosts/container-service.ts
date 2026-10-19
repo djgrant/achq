@@ -37,13 +37,11 @@ export const containerService = (container: ContainerSpec, at: At) => {
       service: name,
       values: {
         ...container.env,
-        [ENV.repo]: container.repo,
-        [ENV.container]: container.name,
         [BRANCH]: container.branch,
         [ENV.dataDir]: VOLUME,
         PORT: String(CONTAINER_PORT),
         // Railway sleeps a service 5–10 minutes after its last outbound packet, and private traffic counts.
-        ...(container.env[ENV.routerUrl] && { [ENV.keepAwakeUrl]: `${container.env[ENV.routerUrl]}/` }),
+        [ENV.keepAwakeUrl]: `${container.env[ENV.routerUrl]}/`,
       },
     },
     { parent: service },

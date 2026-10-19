@@ -131,7 +131,6 @@ describe("install", () => {
         ACHQ_ROUTER_URL: ENV.routerUrl,
         ACHQ_REF: ENV.ref,
         ACHQ_PRIVATE_ENV: "RAILWAY_API_TOKEN,ACHQ_GITHUB_APPS",
-        PORT: "3000",
       },
     });
 

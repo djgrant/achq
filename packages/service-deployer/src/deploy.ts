@@ -1,6 +1,6 @@
 // See "Subscribing", "Config changes", "Checks" and "Deploy results" in
 // docs/achq-design.md.
-import { CONTAINER_PORT, type ConfigTree, ENV, type DeployRecord, type RepoClient, type RepoPlan, type RouterRepoConfig, type Status } from "@achq/core";
+import { type ConfigTree, ENV, type DeployRecord, type RepoClient, type RepoPlan, type RouterRepoConfig, type Status } from "@achq/core";
 import { containerSecret } from "@achq/core/secrets";
 import { checkPlan } from "./checks.ts";
 import { isSourceFile, normaliseRepoPath } from "./config/index.ts";
@@ -125,7 +125,6 @@ export const deploy = async (ctx: DeployerContext, hostId: string, repo: string,
           [ENV.routerUrl]: ctx.env.routerUrl,
           [ENV.ref]: ctx.env.ref,
           [ENV.privateEnv]: ctx.env.privateEnv.join(","),
-          PORT: String(CONTAINER_PORT),
         },
       });
       const before = previous?.deployed?.images[c.name];

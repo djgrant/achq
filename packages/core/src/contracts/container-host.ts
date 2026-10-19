@@ -6,6 +6,7 @@ export type ContainerSpec = {
   /** Dockerfile path in the repo, e.g. `.achq/Dockerfile`. */
   dockerfile: string;
   branch: string;
+  /** The variables achq defines. The host adds only its own (e.g. PORT). */
   env: Record<string, string>;
 };
 

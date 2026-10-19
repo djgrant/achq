@@ -7,7 +7,20 @@ import { RailwayClient } from "../src/lib/client.ts";
 let fake: FakeRailway;
 let host: RailwayContainerHost;
 
-const spec = { host: "github", repo: "NotationLabs/yieldstar", name: "dev", dockerfile: ".achq/Dockerfile", branch: "main", env: { CLAUDE_CODE_OAUTH_TOKEN: "tok" } };
+const spec = {
+  host: "github",
+  repo: "NotationLabs/yieldstar",
+  name: "dev",
+  dockerfile: ".achq/Dockerfile",
+  branch: "main",
+  // As the deployer sets them.
+  env: {
+    CLAUDE_CODE_OAUTH_TOKEN: "tok",
+    ACHQ_REPO: "NotationLabs/yieldstar",
+    ACHQ_CONTAINER: "dev",
+    ACHQ_ROUTER_URL: "http://router.internal:8081",
+  },
+};
 
 beforeEach(async () => {
   fake = startFakeRailway();
@@ -30,7 +43,14 @@ test("ensure creates a private service with a volume, and a second ensure change
   expect(result).toEqual({ url: "http://notationlabs-yieldstar-dev.railway.internal:3000" });
   const service = fake.service("notationlabs-yieldstar-dev")!;
   expect(service.settings).toMatchObject({ dockerfilePath: ".achq/Dockerfile", healthcheckPath: "/", sleepApplication: true });
-  expect(service.variables).toMatchObject({ CLAUDE_CODE_OAUTH_TOKEN: "tok", ACHQ_REPO: spec.repo, ACHQ_CONTAINER: "dev", ACHQ_BRANCH: "main" });
+  // The deployer's variables, and the host's own.
+  expect(service.variables).toEqual({
+    ...spec.env,
+    ACHQ_BRANCH: "main",
+    DATA_DIR: "/data",
+    PORT: "3000",
+    ACHQ_KEEP_AWAKE_URL: "http://router.internal:8081/",
+  });
   expect(fake.project("achq")!.volumes).toEqual([expect.objectContaining({ serviceId: service.id, mountPath: "/data" })]);
   expect(fake.mutations).not.toContain("serviceDomainCreate");
   expect(fake.mutations).not.toContain("serviceConnect"); // ensure doesn't build
@@ -49,7 +69,7 @@ test("ensure removes a public domain and fixes the private hostname, and only ch
   service.endpoint!.dnsName = "old-name";
   fake.mutations.length = 0;
 
-  const changes = await host.plan({ ...spec, env: { CLAUDE_CODE_OAUTH_TOKEN: "new" } });
+  const changes = await host.plan({ ...spec, env: { ...spec.env, CLAUDE_CODE_OAUTH_TOKEN: "new" } });
   expect(changes.map((c) => `${c.op} ${c.target}`)).toEqual([
     "~ notationlabs-yieldstar-dev private hostname",
     "- notationlabs-yieldstar-dev public domain",
@@ -58,7 +78,7 @@ test("ensure removes a public domain and fixes the private hostname, and only ch
   expect(changes[2].detail).toBe("CLAUDE_CODE_OAUTH_TOKEN"); // names, never values
   expect(fake.mutations).toEqual([]); // planning mutates nothing
 
-  await host.ensure({ ...spec, env: { CLAUDE_CODE_OAUTH_TOKEN: "new" } });
+  await host.ensure({ ...spec, env: { ...spec.env, CLAUDE_CODE_OAUTH_TOKEN: "new" } });
   expect(service.domains).toEqual([]);
   expect(service.endpoint!.dnsName).toBe("notationlabs-yieldstar-dev");
   expect(fake.mutations).toEqual(["privateNetworkEndpointRename", "serviceDomainDelete", "variableCollectionUpsert"]);
@@ -89,7 +109,7 @@ test("the first deploy connects the repo and turns automatic deploys off; later 
 
 test("list reads services' repo and container, locate says where, remove deletes the volume too", async () => {
   await host.ensure(spec);
-  await host.ensure({ ...spec, name: "docs" });
+  await host.ensure({ ...spec, name: "docs", env: { ...spec.env, ACHQ_CONTAINER: "docs" } });
   expect(await host.list()).toEqual([
     { repo: spec.repo, name: "dev" },
     { repo: spec.repo, name: "docs" },
