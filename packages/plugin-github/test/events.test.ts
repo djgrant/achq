@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { messageId } from "../src/channels/messages.ts";
+import { messageId } from "../src/lib/threads.ts";
 import { commentPayload, installation, issuePayload, parse, repository, user } from "./payloads.ts";
 
 describe("parse", () => {

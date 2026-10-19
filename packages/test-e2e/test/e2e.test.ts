@@ -20,10 +20,10 @@ import { makeOrigin } from "@achq/test-utils/origin";
 import { tempDir } from "@achq/test-utils/temp-dir";
 import { createDeployer, routerClient, deployerHandler } from "@achq/deployer";
 import { FakeGitHub, makeApp } from "@achq/test-utils/github";
-import { githubChannel } from "@achq/github/channels";
+import { githubChannel } from "@achq/github/channel";
 import { githubInstallationProvider } from "@achq/github/installation";
 import { githubPolicyProvider } from "@achq/github/policy";
-import { githubCodeHost } from "@achq/github/code-hosts";
+import { githubCodeHost } from "@achq/github/code-host";
 import { createRouter } from "@achq/router";
 import { privateEnv } from "achq/registry";
 

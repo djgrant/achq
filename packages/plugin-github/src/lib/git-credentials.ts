@@ -1,3 +1,11 @@
+// The files that make agents' tokens usable by git and gh, as
+// `GitHubPolicyProvider.install` writes them in its directory.
+
+export const GH_CONFIG_DIR = "gh";
+export const GH_HOSTS_FILE = "hosts.yml";
+export const GIT_CONFIG_FILE = "gitconfig";
+export const TOKEN_SUFFIX = ".token";
+
 /** A double-quoted git config value. */
 const gitQuote = (s: string) => `"${s.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
 /** A single-quoted shell word. */

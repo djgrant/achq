@@ -3,7 +3,7 @@ export const GITHUB_WEB = "https://github.com";
 export const API_VERSION = "2022-11-28";
 export const USER_AGENT = "achq";
 
-/** The channel's id, in events, selectors and channel credentials. */
+/** The channel's id, in events, selectors, channel credentials and installations. */
 export const CHANNEL = "github";
 /** The policy provider's id, in policies and agent credentials. */
 export const POLICY_PROVIDER = "github";
@@ -12,12 +12,8 @@ export const CODE_HOST = "github";
 
 /** `owner/name`. */
 export const REPO = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
-
-/** App JWTs are valid for nine minutes and reused for five. */
-export const JWT_REUSE_MS = 5 * 60_000;
-
-/** read < write < admin. */
-export const PERMISSION_RANK: Record<string, number> = { read: 1, write: 2, admin: 3 };
+/** GitHub's rules for owner and repository names. */
+export const REPO_NAME = /^[A-Za-z0-9-]{1,39}\/[A-Za-z0-9._-]{1,100}$/;
 
 /** The variables GitHub's parts read. */
 export const GITHUB_ENV = {

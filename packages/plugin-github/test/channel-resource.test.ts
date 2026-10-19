@@ -13,9 +13,8 @@ import {
   Router,
   UNKNOWN,
 } from "@achq/core";
-import { appsVariable } from "../src/lib/app-keys.ts";
-import { appWebhookSecret } from "../src/lib/webhook-secret.ts";
-import { Channel } from "../src/resources/channel.ts";
+import { appsVariable, appWebhookSecret } from "../src/lib/apps.ts";
+import { Channel } from "../src/channel/resource.ts";
 
 const { privateKey: pem, publicKey } = generateKeyPairSync("rsa", { modulusLength: 2048, privateKeyEncoding: { type: "pkcs8", format: "pem" }, publicKeyEncoding: { type: "spki", format: "pem" } });
 const PERMISSIONS = { contents: "write", issues: "write", pull_requests: "write", metadata: "read", actions_variables: "write" };

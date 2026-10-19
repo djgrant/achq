@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { ChannelEvent } from "@achq/core";
 import type { EventSelectorData, IssueSelectorData } from "../src/index.ts";
-import { mentions } from "../src/channels/mentions.ts";
+import { mentions } from "../src/lib/selectors.ts";
 import { channel, commentPayload, issuePayload, parse, repository } from "./payloads.ts";
 
 describe("matchEvent", () => {

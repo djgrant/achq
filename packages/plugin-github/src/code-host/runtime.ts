@@ -2,15 +2,12 @@
 // the router minted for it. The router checks `/wake` with the caller's token.
 // The CLI reads ACHQ_STATUS and commits as your gh login.
 import { type ConfigTree, type Credential, type FileLimits, type RepoClient, type CodeHost, STATUS_VARIABLE, type Status } from "@achq/core";
-import { GitHubClient } from "../lib/client.ts";
-import { POLICY_PROVIDER } from "../lib/constants.ts";
-import type { GitHubUrls } from "../lib/urls.ts";
+import { GitHubClient, type GitHubUrls } from "../lib/client.ts";
+import { POLICY_PROVIDER, REPO_NAME } from "../lib/constants.ts";
+import { DEPLOYER_PERMISSIONS } from "../lib/permissions.ts";
+import { lastCommit, readStatus, repoOf } from "../lib/repos.ts";
 import { ghToken, userGitHub } from "../lib/user.ts";
-import type { GitHubPolicyData } from "../resources/policy.ts";
-import { DEPLOYER_PERMISSIONS, REPO_NAME } from "./constants.ts";
-import { lastCommit } from "./last-commit.ts";
-import { repoOf } from "./remote.ts";
-import { readStatus } from "./status.ts";
+import type { GitHubPolicyData } from "../policy/resource.ts";
 
 type TreeEntry = { path: string; mode: string; type: "blob" | "tree" | "commit"; sha: string; size?: number };
 
@@ -64,22 +61,47 @@ const repoClient = (repo: string, token: string, baseUrl: string): RepoClient =>
   };
 };
 
-export const githubRepos = ({ api, web }: GitHubUrls): CodeHost => {
-  const gh = userGitHub(api);
-  return {
-    repoName: REPO_NAME,
-    deployerPolicy: (source, repo): GitHubPolicyData => ({ provider: POLICY_PROVIDER, source, repo, permissions: { ...DEPLOYER_PERMISSIONS } }),
-    repo: (repo: string, credential: Credential) => repoClient(repo, credential.value, api),
-    async canPush(repo, token) {
-      const res = await new GitHubClient(`Bearer ${token}`, api).raw("GET", `/repos/${repo}`);
-      if (!res.ok) return false;
-      const data = (await res.json()) as { permissions?: { push?: boolean } };
-      return data.permissions?.push === true;
-    },
-    cloneUrl: (repo) => `${web}/${repo}.git`,
-    repoOf: (remote) => repoOf(remote, web),
-    token: ghToken,
-    status: (repo) => readStatus(gh, repo),
-    lastCommit: (repo, branch, paths) => lastCommit(gh, repo, branch, paths),
-  };
-};
+export class GitHubCodeHost implements CodeHost {
+  readonly repoName = REPO_NAME;
+  /** You, through your gh login: the CLI's side. */
+  private gh: GitHubClient;
+
+  constructor(private urls: GitHubUrls) {
+    this.gh = userGitHub(urls.api);
+  }
+
+  deployerPolicy(source: string, repo: string): GitHubPolicyData {
+    return { provider: POLICY_PROVIDER, source, repo, permissions: { ...DEPLOYER_PERMISSIONS } };
+  }
+
+  repo(repo: string, credential: Credential) {
+    return repoClient(repo, credential.value, this.urls.api);
+  }
+
+  async canPush(repo: string, token: string) {
+    const res = await new GitHubClient(`Bearer ${token}`, this.urls.api).raw("GET", `/repos/${repo}`);
+    if (!res.ok) return false;
+    const data = (await res.json()) as { permissions?: { push?: boolean } };
+    return data.permissions?.push === true;
+  }
+
+  cloneUrl(repo: string) {
+    return `${this.urls.web}/${repo}.git`;
+  }
+
+  repoOf(remote: string) {
+    return repoOf(remote, this.urls.web);
+  }
+
+  token() {
+    return ghToken();
+  }
+
+  status(repo: string) {
+    return readStatus(this.gh, repo);
+  }
+
+  lastCommit(repo: string, branch: string, paths: string[]) {
+    return lastCommit(this.gh, repo, branch, paths);
+  }
+}

@@ -3,17 +3,12 @@
 // gives a private key back, so an App achq can act as is one whose key the
 // router keeps: without one, it's created through the manifest flow.
 import { all, type Change, type Context, known, ManagedResource, type Planned, type Router, UNKNOWN } from "@achq/core";
-import { ChannelRef } from "../channels/channel-ref.ts";
-import { type AppKeys, appsVariable, parseApps } from "../lib/app-keys.ts";
-import { GitHubClient } from "../lib/client.ts";
+import { type AppKeys, appJwt, appsVariable, appWebhookSecret, parseApps } from "../lib/apps.ts";
+import { GitHubClient, githubUrls } from "../lib/client.ts";
 import { GITHUB_ENV } from "../lib/constants.ts";
-import { appJwt } from "../lib/jwt.ts";
-import { covers } from "../lib/permissions.ts";
-import { githubUrls } from "../lib/urls.ts";
-import { appWebhookSecret } from "../lib/webhook-secret.ts";
-import { appSlug } from "./app-slug.ts";
-import { APP_EVENTS, APP_PERMISSIONS } from "./constants.ts";
-import { manifestFlow } from "./manifest.ts";
+import { appSlug, manifestFlow } from "../lib/manifest.ts";
+import { APP_EVENTS, APP_PERMISSIONS, covers } from "../lib/permissions.ts";
+import { ChannelRef } from "./config.ts";
 
 export type ChannelInputs = {
   /** The App's name on GitHub, which its slug comes from. */

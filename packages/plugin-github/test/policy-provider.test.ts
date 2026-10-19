@@ -5,11 +5,10 @@ import * as os from "node:os";
 import * as path from "node:path";
 import type { Channel, InstallationProvider, PolicyCredential, PolicyProvider } from "@achq/core";
 import { FakeGitHub, makeApp } from "@achq/test-utils/github";
-import { githubChannel } from "../src/channels/index.ts";
+import { githubChannel } from "../src/channel/index.ts";
 import { githubInstallationProvider } from "../src/installation/index.ts";
 import type { GitHubPolicyData } from "../src/index.ts";
-import { parseApps } from "../src/lib/app-keys.ts";
-import { appsFor } from "../src/lib/apps.ts";
+import { appsFor, parseApps } from "../src/lib/apps.ts";
 import { githubPolicyProvider } from "../src/policy/index.ts";
 import { githubEnv } from "./payloads.ts";
 

@@ -2,8 +2,18 @@
 // your browser. GitHub redirects back with a code, which converts into the
 // App's credentials. They stay in memory.
 import { randomBytes } from "node:crypto";
-import { GITHUB_API, GITHUB_WEB, USER_AGENT } from "../lib/constants.ts";
-import { ACHQ_HOMEPAGE, APP_EVENTS, APP_PERMISSIONS } from "./constants.ts";
+import { GITHUB_API, GITHUB_WEB, USER_AGENT } from "./constants.ts";
+import { APP_EVENTS, APP_PERMISSIONS } from "./permissions.ts";
+
+/** The homepage every App's manifest links to. */
+const ACHQ_HOMEPAGE = "https://github.com/djgrant/achq";
+
+/** The slug GitHub gives an App with this name. */
+export const appSlug = (name: string) =>
+  name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
 
 export type CreatedApp = { id: number; slug: string; pem: string; html_url: string };
 

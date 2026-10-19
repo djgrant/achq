@@ -1,6 +1,6 @@
 import { Policy as CorePolicy } from "@achq/core";
 import { POLICY_PROVIDER } from "../lib/constants.ts";
-import type { ChannelRef } from "../channels/channel-ref.ts";
+import type { ChannelRef } from "../channel/config.ts";
 
 export type Permission = "read" | "write";
 

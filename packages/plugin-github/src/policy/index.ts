@@ -1,7 +1,7 @@
 import type { Implementation, PolicyProvider } from "@achq/core";
 import { appsFor } from "../lib/apps.ts";
 import { POLICY_PROVIDER, PRIVATE_ENV } from "../lib/constants.ts";
-import { GitHubPolicyProvider } from "./provider.ts";
+import { GitHubPolicyProvider } from "./runtime.ts";
 
 /** Policies, as App installation tokens. Shares the channel's Apps (and JWT cache) when made from the same configuration. */
 export const githubPolicyProvider: Implementation<PolicyProvider> = {

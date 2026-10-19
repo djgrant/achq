@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { messageId } from "../src/channels/messages.ts";
+import { messageId } from "../src/lib/threads.ts";
 
 test("message IDs sort chronologically as strings, the opening post first", () => {
   const ids = [10, 9, 100, 4_000_000_000, 1].map(messageId);

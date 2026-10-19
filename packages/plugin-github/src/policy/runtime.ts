@@ -1,13 +1,12 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import type { PolicyCredential, PolicyData, PolicyProvider } from "@achq/core";
-import { POLICY_PROVIDER, REPO } from "../lib/constants.ts";
-import { GH_CONFIG_DIR, GH_HOSTS_FILE, GIT_CONFIG_FILE, POLICY_LEVELS, TOKEN_SUFFIX } from "./constants.ts";
-import type { GitHubPolicyData } from "../resources/policy.ts";
 import type { Apps } from "../lib/apps.ts";
-import { botLogin } from "../lib/bot.ts";
-import { gitConfig } from "./git-credentials.ts";
-import { covers, maxLevel, type Permissions } from "../lib/permissions.ts";
+import { botLogin } from "../lib/client.ts";
+import { POLICY_PROVIDER, REPO } from "../lib/constants.ts";
+import { GH_CONFIG_DIR, GH_HOSTS_FILE, GIT_CONFIG_FILE, gitConfig, TOKEN_SUFFIX } from "../lib/git-credentials.ts";
+import { covers, maxLevel, type Permissions, POLICY_LEVELS } from "../lib/permissions.ts";
+import type { GitHubPolicyData } from "./resource.ts";
 
 /** Writes a file so a reader sees the old content or the new, never half of either. */
 const writeAtomic = (file: string, content: string) => {

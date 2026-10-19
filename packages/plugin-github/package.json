@@ -6,10 +6,10 @@
   "exports": {
     ".": "./src/index.ts",
     "./infra": "./src/infra.ts",
-    "./channels": "./src/channels/index.ts",
+    "./channel": "./src/channel/index.ts",
     "./installation": "./src/installation/index.ts",
     "./policy": "./src/policy/index.ts",
-    "./code-hosts": "./src/code-hosts/index.ts"
+    "./code-host": "./src/code-host/index.ts"
   },
   "dependencies": {
     "@achq/core": "workspace:*"

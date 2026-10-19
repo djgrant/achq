@@ -1,8 +1,7 @@
-import { appWebhookSecret } from "../src/lib/webhook-secret.ts";
 import { hmacHex } from "@achq/core/signing";
 import { makeApp } from "@achq/test-utils/github";
-import { githubChannel } from "../src/channels/index.ts";
-import type { AppKeys } from "../src/lib/app-keys.ts";
+import { githubChannel } from "../src/channel/index.ts";
+import { type AppKeys, appWebhookSecret } from "../src/lib/apps.ts";
 
 export const KEY = "the-webhook-key";
 

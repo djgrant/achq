@@ -3,10 +3,10 @@
 // implementation here by id.
 import { claudeAgent } from "@achq/claude/agents";
 import type { AgentProvider, Channel, ContainerHost, ContainerShell, Implementation, InstallationProvider, CodeHost, PolicyProvider } from "@achq/core";
-import { githubChannel } from "@achq/github/channels";
+import { githubChannel } from "@achq/github/channel";
 import { githubInstallationProvider } from "@achq/github/installation";
 import { githubPolicyProvider } from "@achq/github/policy";
-import { githubCodeHost } from "@achq/github/code-hosts";
+import { githubCodeHost } from "@achq/github/code-host";
 import { railwayContainerHost } from "@achq/railway/container-hosts";
 import * as github from "./github-infra.ts";
 import * as achq from "./index.ts";

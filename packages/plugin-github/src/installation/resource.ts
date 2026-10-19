@@ -2,9 +2,8 @@
 // by the installation provider from a repo's config, not declared, and read
 // and changed as your gh login, not as the App.
 import { type Change, type Context, ManagedResource } from "@achq/core";
-import type { GitHubClient } from "../lib/client.ts";
+import { type GitHubClient, githubUrls } from "../lib/client.ts";
 import { covers } from "../lib/permissions.ts";
-import { githubUrls } from "../lib/urls.ts";
 import { userGitHub } from "../lib/user.ts";
 
 export type AppSettings = { events: string[]; permissions: Record<string, string> };

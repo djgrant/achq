@@ -1,5 +1,4 @@
-import { Issues } from "./issues.ts";
-import { type CommentAction, eventSelector, type IssueAction } from "./selectors.ts";
+import { type CommentAction, eventSelector, type IssueAction, Issues } from "../lib/selectors.ts";
 
 /** A channel a repo adopts by its App's slug: the config side of `Channel`. Its webhooks reach the repo's containers through the router. */
 export class ChannelRef {

@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
-import { appWebhookSecret } from "../src/lib/webhook-secret.ts";
+import { appWebhookSecret } from "../src/lib/apps.ts";
 import { hmacHex } from "@achq/core/signing";
-import { verifyGitHubSignature } from "../src/channels/signature.ts";
+import { verifyGitHubSignature } from "../src/lib/webhooks.ts";
 
 test("GitHub signatures", () => {
   const s = appWebhookSecret("k", 42);

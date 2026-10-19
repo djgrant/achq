@@ -1,7 +1,8 @@
+// What a repo's config needs from its installation: the one App it names, and
+// what that App must send and allow.
 import type { RepoManifest } from "@achq/core";
-import { maxLevel } from "../lib/permissions.ts";
-import { CHANNEL, POLICY_PROVIDER } from "../lib/constants.ts";
-import { CONFIG_EVENTS, CONFIG_PERMISSIONS } from "./constants.ts";
+import { CHANNEL, POLICY_PROVIDER } from "./constants.ts";
+import { CONFIG_EVENTS, CONFIG_PERMISSIONS, maxLevel } from "./permissions.ts";
 
 /** The one App slug the config's policies and selectors name. */
 export const configApp = (manifest: RepoManifest) => {

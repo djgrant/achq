@@ -132,22 +132,20 @@ Each folder in `packages/` is a workspace package, prefixed with its kind. Packa
 
 **A resource is one class**: what it's declared with, and, if achq keeps it in shape, how it's read, compared and changed (`ManagedResource`: `read`, `diff`, `describe`, `planned`, `apply`, `check`). A resource made of others returns them from `children`. `achq up` plans the infra's resources; nothing else knows how they're made.
 
-**A plugin's folders are named after the contract their code implements**:
+**A concept has one name on both sides, and one folder in its plugin**: what a config or the infra declares (its resource) and the implementation of core's contract that achq's services and CLI call (its runtime) share the concept's name, and live side by side. A concept folder holds only those:
 
-| Folder | Holds |
+| File | Holds |
 |---|---|
-| `resources/` | Every class that extends `Resource`, one per file |
-| `channels/` | A `Channel` |
-| `installation/` | An `InstallationProvider`: subscribes repos to a channel's sources, and lists them |
-| `policy/` | A `PolicyProvider`: turns policies into credentials |
-| `code-hosts/` | A `CodeHost` |
-| `container-hosts/` | A `ContainerHost` and its shell |
-| `agents/` | An `AgentProvider` |
-| `lib/` | What implements no contract: the vendor's API client, and code or constants more than one folder uses |
+| `resource.ts` | The resource, e.g. `github.Policy` |
+| `config.ts` | What a repo's config adopts an infra resource by, when the resource itself imports Node code, e.g. `github.Channel.get` |
+| `runtime.ts` | The runtime, e.g. `GitHubPolicyProvider` |
+| `index.ts` | Exports the runtime alone, as the registry lists it |
 
-A folder holds its implementation and the code only it uses, and its `index.ts` exports the implementation alone. `src/index.ts` is what repo configs import: it runs in the deployer's sandbox, so it and everything it imports is typechecked without Bun or Node types (`tsconfig.sandbox.json`). `src/infra.ts` is what the infra file imports.
+GitHub's are `channel/` (`github.Channel` and `GitHubChannel`), `policy/` (`github.Policy` and `GitHubPolicyProvider`), `installation/` (`Installation`, what `achq install` plans, and `GitHubInstallationProvider`) and `code-host/` (`GitHubCodeHost`, which has no resource). Everything else is in the package's one `src/lib/`, a file per topic: the vendor's API client, its auth, selectors and so on. Railway and Claude still have their older folders: `resources/`, and one named after the contract (`container-hosts/`, `agents/`).
 
-The services and the CLI never import a plugin. They use core's contracts and find implementations by id in `achq/registry`. Adding one means implementing the contract in its folder and listing it there.
+`src/index.ts` is what repo configs import: it runs in the deployer's sandbox, so it and everything it imports is typechecked without Bun or Node types (`tsconfig.sandbox.json`). `src/infra.ts` is what the infra file imports.
+
+The services and the CLI never import a plugin. They use core's contracts and find implementations by id in `achq/registry`. Adding one means implementing the contract in its concept's folder and listing it there.
 
 ```sh
 bun install

@@ -1,12 +1,11 @@
 import { afterAll, beforeAll, beforeEach, expect, test } from "bun:test";
 import { Agent, type Change, collectManifest, Container, type Context, plan, resetDeclarations, Trigger, Workspace } from "@achq/core";
 import { githubInstallationProvider } from "../src/installation/index.ts";
-import { configApp, configNeeds } from "../src/installation/config-app.ts";
+import { configApp, configNeeds } from "../src/lib/config-app.ts";
 import { Channel, Policy } from "../src/index.ts";
 import { GitHubClient } from "../src/lib/client.ts";
-import { githubCodeHost } from "../src/code-hosts/index.ts";
-import { repoOf } from "../src/code-hosts/remote.ts";
-import { readStatus } from "../src/code-hosts/status.ts";
+import { githubCodeHost } from "../src/code-host/index.ts";
+import { readStatus, repoOf } from "../src/lib/repos.ts";
 
 class TestAgent extends Agent {
   readonly runtime = "test";

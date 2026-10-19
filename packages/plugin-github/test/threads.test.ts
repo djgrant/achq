@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { slugify } from "../src/channels/threads.ts";
+import { slugify } from "../src/lib/threads.ts";
 
 test("slugify", () => {
   expect(slugify("Fix: the Café's  broken (login) flow!")).toBe("fix-the-cafe-s-broken-login-flow");

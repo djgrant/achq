@@ -1,9 +1,29 @@
+// Webhook deliveries: checking their signature, and normalising the ones achq acts on.
 import type { ChannelEvent, Data } from "@achq/core";
-import { CHANNEL, CODE_HOST } from "../lib/constants.ts";
-import { COMMENT_ACTIONS, CONFIG_DIR, INSTALLATION_ACTIONS, INSTALLATION_REPOS_ACTIONS, ISSUE_ACTIONS, PUSH_COMMIT_CAP, TRUSTED } from "./constants.ts";
-import { labelNames } from "./labels.ts";
-import { messageId, OPENING_POST_ID } from "./messages.ts";
-import { issueThreadId } from "./threads.ts";
+import { hmacHex, safeEqual } from "@achq/core/signing";
+import { CHANNEL, CODE_HOST } from "./constants.ts";
+import { issueThreadId, labelNames, messageId, OPENING_POST_ID, TRUSTED } from "./threads.ts";
+
+/** The directory whose changes redeploy a repo. */
+const CONFIG_DIR = ".achq/";
+
+/**
+ * A webhook `push` payload's `commits` array "includes a maximum of 2048
+ * commits" (https://docs.github.com/en/webhooks/webhook-events-and-payloads#push).
+ * A push listing that many may have dropped some, so it can't tell us whether
+ * `.achq/` changed. The limit of 20 is the Events API's, not webhooks'.
+ */
+const PUSH_COMMIT_CAP = 2048;
+
+/** The webhook actions achq acts on, per event. */
+const ISSUE_ACTIONS = new Set(["opened", "edited", "reopened", "labeled"]);
+const COMMENT_ACTIONS = new Set(["created", "edited"]);
+const INSTALLATION_ACTIONS = new Set(["created", "deleted", "suspend", "unsuspend"]);
+const INSTALLATION_REPOS_ACTIONS = new Set(["added", "removed"]);
+
+/** Checks GitHub's X-Hub-Signature-256 header against the raw body. */
+export const verifyGitHubSignature = (secret: string, body: string, header: string | null) =>
+  Boolean(header?.startsWith("sha256=")) && safeEqual(header!, `sha256=${hmacHex(secret, body)}`);
 
 const fullNames = (repos: unknown): string[] =>
   Array.isArray(repos) ? repos.map((r) => r?.full_name).filter((n): n is string => typeof n === "string") : [];

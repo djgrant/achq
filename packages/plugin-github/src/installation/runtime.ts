@@ -2,7 +2,7 @@ import type { Installation as CoreInstallation, InstallationProvider, RepoManife
 import type { Apps } from "../lib/apps.ts";
 import { GitHubClient } from "../lib/client.ts";
 import { CHANNEL, CODE_HOST } from "../lib/constants.ts";
-import { configApp, configNeeds } from "./config-app.ts";
+import { configApp, configNeeds } from "../lib/config-app.ts";
 import { Installation } from "./resource.ts";
 
 /** Installs the config's one App on a repo, as you. Only the router has the App keys that list where each App is installed. */

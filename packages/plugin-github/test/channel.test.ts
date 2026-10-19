@@ -1,10 +1,10 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { appWebhookSecret } from "../src/lib/webhook-secret.ts";
+import { appWebhookSecret } from "../src/lib/apps.ts";
 import { hmacHex } from "@achq/core/signing";
 import { FakeGitHub } from "@achq/test-utils/github";
-import { githubChannel } from "../src/channels/index.ts";
-import type { GitHubChannel } from "../src/channels/channel.ts";
-import { messageId } from "../src/channels/messages.ts";
+import { githubChannel } from "../src/channel/index.ts";
+import type { GitHubChannel } from "../src/channel/runtime.ts";
+import { messageId } from "../src/lib/threads.ts";
 import { appA, appB, channel, commentPayload, githubEnv, headers, KEY, keys } from "./payloads.ts";
 
 describe("verify", () => {

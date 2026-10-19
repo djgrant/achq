@@ -1,10 +1,43 @@
-// Router only: the container never has App keys.
-import { GitHubClient } from "./client.ts";
-import { appJwt } from "./jwt.ts";
-import { GITHUB_API, GITHUB_ENV, JWT_REUSE_MS } from "./constants.ts";
-import { type AppKeys, parseApps } from "./app-keys.ts";
+// Acting as a GitHub App: its keys, the JWTs they sign, installation tokens,
+// and the webhook secret. Only the router and `achq up` have App keys; the
+// container never does.
+import { createSign } from "node:crypto";
+import { implementationSecret } from "@achq/core/secrets";
+import { GitHubClient, githubUrls } from "./client.ts";
+import { GITHUB_API, GITHUB_ENV } from "./constants.ts";
 import type { Permissions } from "./permissions.ts";
-import { githubUrls } from "./urls.ts";
+
+/** App JWTs are valid for nine minutes and reused for five. */
+const JWT_REUSE_MS = 5 * 60_000;
+
+/** `{ [slug]: { id, privateKey } }`, from ACHQ_GITHUB_APPS. */
+export type AppKeys = Record<string, { id: string; privateKey: string }>;
+
+/** Reads ACHQ_GITHUB_APPS. */
+export const parseApps = (json: string | undefined): AppKeys => {
+  if (!json) return {};
+  const parsed = JSON.parse(json);
+  for (const [slug, app] of Object.entries<any>(parsed)) {
+    if (!app || typeof app.privateKey !== "string" || (typeof app.id !== "string" && typeof app.id !== "number")) {
+      throw new Error(`GitHub App "${slug}" needs an id and a privateKey`);
+    }
+  }
+  return Object.fromEntries(Object.entries<any>(parsed).map(([slug, a]) => [slug, { id: String(a.id), privateKey: a.privateKey }]));
+};
+
+/** ACHQ_GITHUB_APPS' JSON, stable, so the same Apps always make the same variable. */
+export const appsVariable = (apps: AppKeys) => JSON.stringify(Object.fromEntries(Object.entries(apps).sort(([a], [b]) => a.localeCompare(b))));
+
+/** A JWT that authenticates as the GitHub App itself, valid for nine minutes. */
+export const appJwt = (appId: string | number, privateKey: string, now = Date.now()): string => {
+  const iat = Math.floor(now / 1000) - 60;
+  const encode = (value: object) => Buffer.from(JSON.stringify(value)).toString("base64url");
+  const unsigned = `${encode({ alg: "RS256", typ: "JWT" })}.${encode({ iat, exp: iat + 600, iss: String(appId) })}`;
+  return `${unsigned}.${createSign("RSA-SHA256").update(unsigned).sign(privateKey, "base64url")}`;
+};
+
+/** An App's webhook secret, from its App ID (sent in X-GitHub-Hook-Installation-Target-ID). */
+export const appWebhookSecret = (key: string, appId: string | number) => implementationSecret(key, `github-app-webhook:${appId}`);
 
 /** `GET /repos/{r}/installation`, the fields achq uses. */
 export type InstallationInfo = {
