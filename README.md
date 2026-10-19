@@ -125,7 +125,7 @@ Each folder in `packages/` is a workspace package, prefixed with its kind. Packa
 | Service | `service-router`, `service-deployer`, `service-container` | What runs: `main.ts` reads its settings from the environment and wires it up from the registry |
 | Tool | `cli` | `commands/` (one per command), `lib/` |
 | Facade | `achq` | What configs and the infra import (`achq`, `achq/github`, `achq/railway`), and `achq/registry`: one list of implementations per contract |
-| Library | `lib-flock`, `lib-sandbox` | Know nothing about achq |
+| Library | `utils` | Know nothing about achq: `utils/flock` (file locks), `utils/sandbox` (QuickJS) |
 | Testing | `test-utils`, `test-e2e` | Fakes shared across packages; the whole system end to end |
 
 **Core** is in four parts: `resources/` (the `Resource` class, what configs and the infra declare), `engine/` (outputs, `plan` and `apply`), `contracts/` (one file per contract), `wire/` (the HTTP protocol, its constants, signing and secrets).

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { threadKey } from "@achq/core";
-import { acquire, BUSY } from "@achq/flock";
+import { acquire, BUSY } from "@achq/utils/flock";
 import { resume } from "../src/resume.ts";
 import { formatSessions, sessionsFor } from "../src/sessions.ts";
 import { world } from "./world.ts";

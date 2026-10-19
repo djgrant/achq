@@ -1,6 +1,6 @@
 import * as fs from "node:fs";
 import { type AccessProvider, type Channel, type ChannelEvent, type ContainerEnvelope, type RepoManifest, type RuntimeContext, type RuntimeFactory, threadKey } from "@achq/core";
-import { acquire } from "@achq/flock";
+import { acquire } from "@achq/utils/flock";
 import { agentEnv, saveAgentEnv } from "./agent-env.ts";
 import { claimThread } from "./claim.ts";
 import type { LoadedConfig } from "./config/loader.ts";

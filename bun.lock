@@ -47,17 +47,6 @@
       "name": "@achq/core",
       "version": "0.1.0",
     },
-    "packages/lib-flock": {
-      "name": "@achq/flock",
-      "version": "0.1.0",
-    },
-    "packages/lib-sandbox": {
-      "name": "@achq/sandbox",
-      "version": "0.1.0",
-      "dependencies": {
-        "quickjs-emscripten": "^0.32.0",
-      },
-    },
     "packages/plugin-claude": {
       "name": "@achq/claude",
       "version": "0.1.0",
@@ -96,7 +85,7 @@
       },
       "dependencies": {
         "@achq/core": "workspace:*",
-        "@achq/flock": "workspace:*",
+        "@achq/utils": "workspace:*",
         "achq": "workspace:*",
         "mustache": "^4",
       },
@@ -111,7 +100,7 @@
       "version": "0.1.0",
       "dependencies": {
         "@achq/core": "workspace:*",
-        "@achq/sandbox": "workspace:*",
+        "@achq/utils": "workspace:*",
         "achq": "workspace:*",
         "zod": "^4.3.6",
       },
@@ -153,6 +142,13 @@
         "@achq/core": "workspace:*",
       },
     },
+    "packages/utils": {
+      "name": "@achq/utils",
+      "version": "0.1.0",
+      "dependencies": {
+        "quickjs-emscripten": "^0.32.0",
+      },
+    },
   },
   "packages": {
     "@achq/claude": ["@achq/claude@workspace:packages/plugin-claude"],
@@ -167,17 +163,15 @@
 
     "@achq/e2e": ["@achq/e2e@workspace:packages/test-e2e"],
 
-    "@achq/flock": ["@achq/flock@workspace:packages/lib-flock"],
-
     "@achq/github": ["@achq/github@workspace:packages/plugin-github"],
 
     "@achq/railway": ["@achq/railway@workspace:packages/plugin-railway"],
 
     "@achq/router": ["@achq/router@workspace:packages/service-router"],
 
-    "@achq/sandbox": ["@achq/sandbox@workspace:packages/lib-sandbox"],
-
     "@achq/test-utils": ["@achq/test-utils@workspace:packages/test-utils"],
+
+    "@achq/utils": ["@achq/utils@workspace:packages/utils"],
 
     "@colors/colors": ["@colors/colors@1.5.0", "", {}, "sha512-ooWCrlZP11i8GImSjTHYHLkvFDP48nS4+204nGb1RiX/WXYHmJA2III9/e2DWVabCESdW7hBAEzHRqUn9OUVvQ=="],
 

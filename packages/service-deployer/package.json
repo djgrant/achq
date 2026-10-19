@@ -9,7 +9,7 @@
   },
   "dependencies": {
     "@achq/core": "workspace:*",
-    "@achq/sandbox": "workspace:*",
+    "@achq/utils": "workspace:*",
     "achq": "workspace:*",
     "zod": "^4.3.6"
   },

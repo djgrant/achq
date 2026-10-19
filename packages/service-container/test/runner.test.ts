@@ -4,7 +4,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { threadKey } from "@achq/core";
 import { signedHeaders } from "@achq/core/signing";
-import { lockedArgv } from "@achq/flock";
+import { lockedArgv } from "@achq/utils/flock";
 import { CHANNEL_TOKEN } from "@achq/test-utils/container-router";
 import { Runner } from "../src/runner.ts";
 import { readState } from "../src/state.ts";

@@ -1,5 +1,5 @@
 import { threadKey as keyOf, type RuntimeFactory } from "@achq/core";
-import { BUSY, lockedArgv } from "@achq/flock";
+import { BUSY, lockedArgv } from "@achq/utils/flock";
 import { savedAgentEnv } from "./agent-env.ts";
 import type { LoadedConfig } from "./config/loader.ts";
 import { withoutPrivate } from "./env.ts";
