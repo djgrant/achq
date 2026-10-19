@@ -3,7 +3,7 @@ import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DOC_CONFIG, DOC_PLAN } from "@achq/test-utils/config";
-import { evaluateConfig, parsePlan } from "../src/config/index.ts";
+import { evaluateConfig, parseManifest } from "../src/config/index.ts";
 
 /** A config that declares a container, then runs `body`, then exports whatever `body` left in `leak`. */
 const probe = (body: string) => ({
@@ -18,7 +18,7 @@ new Policy("probe", { access: "probe", leak: String(leak) });
 const leakOf = async (body: string) => (await evaluateConfig(probe(body))).policies[0]!.policy.leak as string;
 
 describe("evaluateConfig", () => {
-  test("evaluates the design doc's config across files into the exact plan", async () => {
+  test("evaluates the design doc's config across files into the exact manifest", async () => {
     expect(await evaluateConfig(DOC_CONFIG)).toEqual(DOC_PLAN as never);
   });
 
@@ -28,8 +28,8 @@ describe("evaluateConfig", () => {
   });
 
   test("a config that logs doesn't crash", async () => {
-    const plan = await evaluateConfig({ "config.ts": `import { Container } from "achq"; console.log("hi", { a: 1 }); new Container("dev", { image: "./Dockerfile" });` });
-    expect(plan.containers[0]!.name).toBe("dev");
+    const manifest = await evaluateConfig({ "config.ts": `import { Container } from "achq"; console.log("hi", { a: 1 }); new Container("dev", { image: "./Dockerfile" });` });
+    expect(manifest.containers[0]!.name).toBe("dev");
   });
 });
 
@@ -61,8 +61,8 @@ describe("the sandbox has no host access", () => {
 
   test("a dynamic import has no loader to reach", async () => {
     await expect(evaluateConfig({ "config.ts": `const m = "node:" + "fs"; await import(m);` })).rejects.toThrow();
-    const plan = await evaluateConfig(probe(`(import(["node", "fs"].join(":")) as Promise<any>).catch(() => {}); leak = "still here";`));
-    expect(plan.policies[0]!.policy.leak).toBe("still here");
+    const manifest = await evaluateConfig(probe(`(import(["node", "fs"].join(":")) as Promise<any>).catch(() => {}); leak = "still here";`));
+    expect(manifest.policies[0]!.policy.leak).toBe("still here");
   });
 
   test("an infinite loop is stopped by the time limit", async () => {
@@ -106,12 +106,12 @@ describe("imports are limited to achq and .achq/", () => {
   });
 
   test("files under .achq/ resolve, with or without an extension", async () => {
-    const plan = await evaluateConfig({
+    const manifest = await evaluateConfig({
       "config.ts": `import { Container } from "achq"; import { image } from "./lib/x"; import data from "./data.json"; new Container(data.name, { image });`,
       "lib/x.ts": `export const image = "./Dockerfile";`,
       "data.json": `{ "name": "dev" }`,
     });
-    expect(plan.containers[0]).toMatchObject({ name: "dev", image: "./Dockerfile" });
+    expect(manifest.containers[0]).toMatchObject({ name: "dev", image: "./Dockerfile" });
   });
 
   test("a bad path in the file map is refused", async () => {
@@ -157,15 +157,15 @@ describe("errors read well in ACHQ_STATUS", () => {
     await expect(evaluateConfig({ "config.ts": `const a = 1;\nconst x = ;` })).rejects.toThrow(".achq/config.ts:2:11: Unexpected ;");
   });
 
-  test("a throw in config, and collectPlan's own checks", async () => {
+  test("a throw in config, and collectManifest's own checks", async () => {
     await expect(evaluateConfig({ "config.ts": `throw new Error("nope");` })).rejects.toThrow("The config threw: Error: nope");
     await expect(evaluateConfig({ "config.ts": `import "achq";` })).rejects.toThrow("The config threw: Error: The config declares no containers");
     await expect(evaluateConfig({ "config.ts": `import { Container } from "achq"; new Container("Bad", { image: "x" });` })).rejects.toThrow("must be lowercase");
   });
 
-  test("a config that forges its plan is still checked", async () => {
-    const forge = (plan: string) => evaluateConfig({
-        "config.ts": `import { Container } from "achq"; new Container("dev", { image: "x" }); const s = JSON.stringify; JSON.stringify = () => ${plan};`,
+  test("a config that forges its manifest is still checked", async () => {
+    const forge = (manifest: string) => evaluateConfig({
+        "config.ts": `import { Container } from "achq"; new Container("dev", { image: "x" }); const s = JSON.stringify; JSON.stringify = () => ${manifest};`,
       });
     await expect(forge(`"not json"`)).rejects.toThrow("isn't valid JSON");
     await expect(forge(`s({ policies: [] })`)).rejects.toThrow("invalid at containers");
@@ -176,13 +176,13 @@ describe("errors read well in ACHQ_STATUS", () => {
   });
 });
 
-describe("parsePlan", () => {
+describe("parseManifest", () => {
   test("rejects extra fields, bad names, missing channels and non-finite data", () => {
     const base = JSON.parse(JSON.stringify(DOC_PLAN));
-    expect(parsePlan(JSON.stringify(base))).toEqual(base);
-    expect(() => parsePlan(JSON.stringify({ ...base, extra: 1 }))).toThrow("invalid");
-    expect(() => parsePlan(JSON.stringify({ ...base, agents: [{ name: "Bad Name", runtime: "claude" }] }))).toThrow("agents.0.name");
-    expect(() => parsePlan(JSON.stringify({ ...base, workspaces: [{ ...base.workspaces[0], threads: { source: "x" } }] }))).toThrow(`needs "channel"`);
-    expect(() => parsePlan(JSON.stringify({ ...base, policies: [{ name: "p", policy: { access: "" } }] }))).toThrow(`needs "access"`);
+    expect(parseManifest(JSON.stringify(base))).toEqual(base);
+    expect(() => parseManifest(JSON.stringify({ ...base, extra: 1 }))).toThrow("invalid");
+    expect(() => parseManifest(JSON.stringify({ ...base, agents: [{ name: "Bad Name", runtime: "claude" }] }))).toThrow("agents.0.name");
+    expect(() => parseManifest(JSON.stringify({ ...base, workspaces: [{ ...base.workspaces[0], threads: { source: "x" } }] }))).toThrow(`needs "channel"`);
+    expect(() => parseManifest(JSON.stringify({ ...base, policies: [{ name: "p", policy: { access: "" } }] }))).toThrow(`needs "access"`);
   });
 });

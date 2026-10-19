@@ -24,9 +24,9 @@ describe("loadConfig", () => {
     const load = createConfigLoader({ mirror: paths.mirror, dir: paths.config, fetch: () => (fetches++, fetchMirror(paths.mirror, git.origin)) });
 
     const config = await load(git.first);
-    expect(config.plan.containers).toEqual([{ name: "dev", image: "./Dockerfile", policies: [], files: { "~/.config/tool.toml": "./tool.toml" } }]);
-    expect(config.plan.workspaces.map((w) => [w.name, w.branch, w.base])).toEqual([["docs", "docs/{number}", "docs"], ["issues", "issue-{number}", "main"]]);
-    expect(config.plan.triggers.map((t) => t.agent)).toEqual(["coder", "triage", "coder"]);
+    expect(config.manifest.containers).toEqual([{ name: "dev", image: "./Dockerfile", policies: [], files: { "~/.config/tool.toml": "./tool.toml" } }]);
+    expect(config.manifest.workspaces.map((w) => [w.name, w.branch, w.base])).toEqual([["docs", "docs/{number}", "docs"], ["issues", "issue-{number}", "main"]]);
+    expect(config.manifest.triggers.map((t) => t.agent)).toEqual(["coder", "triage", "coder"]);
     const coder = config.agents.find((a) => a.name === "coder")!;
     expect(coder).toBeInstanceOf(Claude);
     expect((coder as Claude).config.settings).toEqual({ env: { AGENT: "CODER" }, permissions: { deny: ["Read(./secrets/**)", "Read(./keys/**)"] } });

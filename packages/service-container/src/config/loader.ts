@@ -7,7 +7,7 @@
 // already fetched also loads offline, which `resume` needs.
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { Agent, RepoPlan } from "@achq/core";
+import type { Agent, RepoManifest } from "@achq/core";
 import { CONFIG_DIR } from "../constants.ts";
 import { extractTree, hasCommit } from "../repo.ts";
 import { bundleConfig } from "./bundle.ts";
@@ -17,7 +17,7 @@ export type LoadedConfig = {
   commit: string;
   /** The extracted `.achq/` directory: paths in the config are relative to it. */
   root: string;
-  plan: RepoPlan;
+  manifest: RepoManifest;
   /** The live Agent objects, with their config as code evaluated. */
   agents: Agent[];
 };

@@ -1,8 +1,8 @@
 // See "Subscribing", "Config changes", "Checks" and "Deploy results" in
 // docs/achq-design.md.
-import { type ConfigTree, ENV, type DeployRecord, type RepoClient, type RepoPlan, type RouterRepoConfig, type Status } from "@achq/core";
+import { type ConfigTree, ENV, type DeployRecord, type RepoClient, type RepoManifest, type RouterRepoConfig, type Status } from "@achq/core";
 import { containerSecret } from "@achq/core/secrets";
-import { checkPlan } from "./checks.ts";
+import { checkManifest } from "./checks.ts";
 import { isSourceFile, normaliseRepoPath } from "./config/index.ts";
 import type { DeployerContext } from "./context.ts";
 import { type ImageRecord, type StoredRecord, wireRecord } from "./store.ts";
@@ -12,8 +12,8 @@ export type DeployOutcome = {
   outcome: "deployed" | "unchanged" | "failed";
   error?: string;
   warnings?: string[];
-  /** The plan deployed (or, for a dry run, that would be). */
-  plan?: RepoPlan;
+  /** The manifest deployed (or, for a dry run, that would be). */
+  manifest?: RepoManifest;
 };
 
 /** A failure that's reported as-is. */
@@ -80,26 +80,26 @@ export const deploy = async (ctx: DeployerContext, hostId: string, repo: string,
     const last = previous?.deployed;
     if (previous?.state === "deployed" && previous.host === hostId && previous.source === source && tree.tree && last?.tree === tree.tree) {
       log(`${repo}: .achq/ unchanged at ${tree.commit}`);
-      return { repo, outcome: "unchanged", plan: last.plan, ...(previous.warnings && { warnings: previous.warnings }) };
+      return { repo, outcome: "unchanged", manifest: last.manifest, ...(previous.warnings && { warnings: previous.warnings }) };
     }
     if (!tree.tree || !tree.blobs.has("config.ts")) throw new DeployFailure(`there's no .achq/config.ts on ${tree.branch}`);
     const files = await client.download(tree, [...tree.blobs.keys()].filter(isSourceFile), ctx.fileLimits);
 
-    let plan: RepoPlan;
+    let manifest: RepoManifest;
     try {
-      plan = await ctx.evaluate(files);
+      manifest = await ctx.evaluate(files);
     } catch (error) {
       throw new DeployFailure(`.achq/config.ts: ${message(error)}`);
     }
 
-    const { failures, warnings } = checkPlan(plan, { source, tree, sources: await ctx.router.sources() });
-    const policies = plan.policies.map((p) => p.policy);
+    const { failures, warnings } = checkManifest(manifest, { source, tree, sources: await ctx.router.sources() });
+    const policies = manifest.policies.map((p) => p.policy);
     if (policies.length) {
       const { problems } = await ctx.router.validate({ repo, policies });
       failures.push(...problems);
     }
     if (failures.length) return fail(failures.join("; "), warnings);
-    if (dryRun) return { repo, outcome: "deployed", plan, ...(warnings.length && { warnings }) };
+    if (dryRun) return { repo, outcome: "deployed", manifest, ...(warnings.length && { warnings }) };
 
     // Only a new container, a moved image or a changed Dockerfile needs a
     // build. Containers load their config and credentials at runtime, so
@@ -107,7 +107,7 @@ export const deploy = async (ctx: DeployerContext, hostId: string, repo: string,
     const images: Record<string, ImageRecord> = {};
     const routerContainers: RouterRepoConfig["containers"] = [];
     const located: NonNullable<DeployRecord["containers"]> = [];
-    for (const c of plan.containers) {
+    for (const c of manifest.containers) {
       const dockerfile = `.achq/${normaliseRepoPath(c.image)!}`;
       const blob = tree.blobs.get(dockerfile.slice(".achq/".length))!.sha;
       const { url } = await ctx.containerHost.ensure({
@@ -133,7 +133,7 @@ export const deploy = async (ctx: DeployerContext, hostId: string, repo: string,
         await ctx.containerHost.deploy(repo, c.name);
       }
       images[c.name] = { dockerfile, blob };
-      routerContainers.push({ name: c.name, url, policies: c.policies.map((n) => plan.policies.find((p) => p.name === n)!.policy) });
+      routerContainers.push({ name: c.name, url, policies: c.policies.map((n) => manifest.policies.find((p) => p.name === n)!.policy) });
     }
     // Containers removed from the config are left alone, asleep; only `sync({ prune })` deletes them.
 
@@ -142,10 +142,10 @@ export const deploy = async (ctx: DeployerContext, hostId: string, repo: string,
       repo,
       commit: tree.commit,
       containers: routerContainers,
-      workspaces: plan.workspaces,
-      triggers: plan.triggers.map((t) => ({ name: t.name, event: t.event })),
+      workspaces: manifest.workspaces,
+      triggers: manifest.triggers.map((t) => ({ name: t.name, event: t.event })),
     });
-    for (const c of plan.containers) located.push({ name: c.name, location: await ctx.containerHost.locate(repo, c.name) });
+    for (const c of manifest.containers) located.push({ name: c.name, location: await ctx.containerHost.locate(repo, c.name) });
 
     const record: StoredRecord = {
       host: hostId,
@@ -156,12 +156,12 @@ export const deploy = async (ctx: DeployerContext, hostId: string, repo: string,
       commit: tree.commit,
       containers: located,
       ...(warnings.length && { warnings }),
-      deployed: { tree: tree.tree, plan, images },
+      deployed: { tree: tree.tree, manifest, images },
     };
     await store.put(record);
     await writeStatus(ctx, client, record);
     log(`${repo}: deployed ${tree.commit}`);
-    return { repo, outcome: "deployed", plan, ...(warnings.length && { warnings }) };
+    return { repo, outcome: "deployed", manifest, ...(warnings.length && { warnings }) };
   } catch (error) {
     return fail(message(error));
   }

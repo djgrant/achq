@@ -1,5 +1,5 @@
 import * as fs from "node:fs";
-import { type AccessProvider, type Channel, type ChannelEvent, type ContainerEnvelope, type RepoPlan, type RuntimeContext, type RuntimeFactory, threadKey } from "@achq/core";
+import { type AccessProvider, type Channel, type ChannelEvent, type ContainerEnvelope, type RepoManifest, type RuntimeContext, type RuntimeFactory, threadKey } from "@achq/core";
 import { acquire } from "@achq/flock";
 import { agentEnv, saveAgentEnv } from "./agent-env.ts";
 import { claimThread } from "./claim.ts";
@@ -47,8 +47,8 @@ export type RunnerOptions = {
   log?: (line: string) => void;
 };
 
-type Workspace = RepoPlan["workspaces"][number];
-type Trigger = RepoPlan["triggers"][number];
+type Workspace = RepoManifest["workspaces"][number];
+type Trigger = RepoManifest["triggers"][number];
 
 export class Runner {
   readonly paths: Paths;
@@ -131,8 +131,8 @@ export class Runner {
       const client = await this.client(channel, event.source);
       return reply(client, event.thread, `⚠️ Couldn't load \`.achq/\` at ${commit.slice(0, 7)}: ${message}`, this.log);
     }
-    const workspaces = config.plan.workspaces.filter((w) => w.container === this.opts.container && w.threads.channel === channel.id);
-    const triggers = config.plan.triggers.filter((t) => t.event.channel === channel.id && channel.matchEvent(t.event, event));
+    const workspaces = config.manifest.workspaces.filter((w) => w.container === this.opts.container && w.threads.channel === channel.id);
+    const triggers = config.manifest.triggers.filter((t) => t.event.channel === channel.id && channel.matchEvent(t.event, event));
     if (!workspaces.length || !triggers.length) return this.log(`[${event.delivery}] no trigger here matches ${event.type}`);
 
     const key = threadKey(event.thread);
@@ -188,7 +188,7 @@ export class Runner {
   private contextFor(config: LoadedConfig): RuntimeContext {
     let ctx = this.contexts.get(config.commit);
     if (!ctx) {
-      const container = config.plan.containers.find((c) => c.name === this.opts.container);
+      const container = config.manifest.containers.find((c) => c.name === this.opts.container);
       if (!container) throw new Error(`The config at ${config.commit} has no container "${this.opts.container}"`);
       const containerFiles = resolveFiles(container.files, config.root);
       writeFiles(containerFiles, this.paths.home);

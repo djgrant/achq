@@ -1,22 +1,22 @@
 // Evaluates a repo's `.achq/` without trusting it. Each file is transpiled on
 // its own with macros off, so none of its code runs here. It runs in the
-// sandbox, where a prebuilt achq is the only thing to import. The plan that
+// sandbox, where a prebuilt achq is the only thing to import. The manifest that
 // comes back is checked strictly, since the config could have forged it.
 import { posix } from "node:path";
 import { type Limits, run } from "@achq/sandbox";
-import type { RepoPlan } from "@achq/core";
+import type { RepoManifest } from "@achq/core";
 import { LOADERS, SANDBOX_ENTRY, SANDBOX_IMPORTS, SANDBOX_LIB, SANDBOX_ROOT } from "../constants.ts";
 import { achqModules } from "./library.ts";
 import { isSourceFile, normaliseRepoPath } from "./paths.ts";
-import { parsePlan } from "./plan-schema.ts";
+import { parseManifest } from "./manifest-schema.ts";
 import { transpile } from "./transpile.ts";
 
 export class ConfigError extends Error {}
 
-export type Evaluate = (files: Record<string, string>) => Promise<RepoPlan>;
+export type Evaluate = (files: Record<string, string>) => Promise<RepoManifest>;
 
 /** `files` are `.achq/`'s files, keyed by path relative to it (`config.ts`, `lib/x.ts`). */
-export const evaluateConfig = async (files: Record<string, string>, limits: Partial<Limits> = {}): Promise<RepoPlan> => {
+export const evaluateConfig = async (files: Record<string, string>, limits: Partial<Limits> = {}): Promise<RepoManifest> => {
   const modules: Record<string, string> = { ...(await achqModules()) };
   for (const [path, contents] of Object.entries(files)) {
     const normal = normaliseRepoPath(path);
@@ -30,7 +30,7 @@ export const evaluateConfig = async (files: Record<string, string>, limits: Part
     }
   }
   if (!(`${SANDBOX_ROOT}/config.ts` in modules)) throw new ConfigError("There's no .achq/config.ts");
-  modules[SANDBOX_ENTRY] = `import "${SANDBOX_ROOT}/config.ts"; import plan from "${SANDBOX_LIB}/plan.js"; export default plan();`;
+  modules[SANDBOX_ENTRY] = `import "${SANDBOX_ROOT}/config.ts"; import manifest from "${SANDBOX_LIB}/manifest.js"; export default manifest();`;
 
   const resolve = (specifier: string, importer: string) => {
     if (specifier in SANDBOX_IMPORTS) return SANDBOX_IMPORTS[specifier];
@@ -43,7 +43,7 @@ export const evaluateConfig = async (files: Record<string, string>, limits: Part
     throw new ConfigError(`The config ${error.message.replaceAll(SANDBOX_ROOT, ".achq")}`);
   });
   try {
-    return parsePlan(result);
+    return parseManifest(result);
   } catch (error) {
     const tail = logs.length ? ` (config logged: ${logs.slice(-3).join(" | ")})` : "";
     throw new ConfigError(`${(error as Error).message}${tail}`);

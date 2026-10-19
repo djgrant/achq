@@ -1,6 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { RepoPlan } from "@achq/core";
+import type { RepoManifest } from "@achq/core";
 import { evaluateConfig } from "@achq/deployer/config";
 
 /** Every file under `.achq/`, by path relative to it. */
@@ -20,8 +20,8 @@ export const readConfigFiles = (repoDir: string) => {
   return files;
 };
 
-/** The repo's plan, evaluated in the sandbox as the deployer does it. */
-export const loadRepoPlan = async (repoDir: string): Promise<RepoPlan> => evaluateConfig(readConfigFiles(repoDir));
+/** The repo's manifest, evaluated in the sandbox as the deployer does it. */
+export const loadRepoManifest = async (repoDir: string): Promise<RepoManifest> => evaluateConfig(readConfigFiles(repoDir));
 
 /** The channels the config's threads and events come from. */
-export const channelsOf = (plan: RepoPlan) => [...new Set([...plan.workspaces.map((w) => w.threads.channel), ...plan.triggers.map((t) => t.event.channel)])];
+export const channelsOf = (manifest: RepoManifest) => [...new Set([...manifest.workspaces.map((w) => w.threads.channel), ...manifest.triggers.map((t) => t.event.channel)])];

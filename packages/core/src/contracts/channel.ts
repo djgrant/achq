@@ -1,6 +1,6 @@
 import type { Data } from "../resources/data.ts";
 import type { SelectorData } from "../resources/config.ts";
-import type { RepoPlan } from "../resources/repo-plan.ts";
+import type { RepoManifest } from "../resources/repo-manifest.ts";
 import type { ManagedResource } from "../resources/resource.ts";
 import type { Installation, SourceSettings } from "../wire/protocol.ts";
 
@@ -104,7 +104,7 @@ export interface Channel {
    * and `uninstall` to plan. Pure: the resources read and change things as you
    * when they're planned and applied. They become what `installations()` lists.
    */
-  installation(repo: string, plan: RepoPlan, installed: boolean): ManagedResource[];
+  installation(repo: string, manifest: RepoManifest, installed: boolean): ManagedResource[];
 }
 
 export interface ChannelClient {

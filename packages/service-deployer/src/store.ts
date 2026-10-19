@@ -1,6 +1,6 @@
 import { mkdir, readdir } from "node:fs/promises";
 import { join } from "node:path";
-import type { DeployRecord, RepoPlan } from "@achq/core";
+import type { DeployRecord, RepoManifest } from "@achq/core";
 import { atomicWrite } from "./atomic-write.ts";
 import { MAX_DELIVERIES } from "./constants.ts";
 
@@ -8,7 +8,7 @@ import { MAX_DELIVERIES } from "./constants.ts";
 export type ImageRecord = { dockerfile: string; blob: string };
 
 /** The last deploy that succeeded, kept across later failures and uninstalls. */
-export type DeployedSnapshot = { tree: string; plan: RepoPlan; images: Record<string, ImageRecord> };
+export type DeployedSnapshot = { tree: string; manifest: RepoManifest; images: Record<string, ImageRecord> };
 
 export type StoredRecord = DeployRecord & { deployed?: DeployedSnapshot };
 

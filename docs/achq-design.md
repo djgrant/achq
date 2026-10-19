@@ -151,7 +151,7 @@ Repo config is code. It never runs anywhere that holds secrets.
 1. The deployer downloads `.achq/` from the default branch, with a repo-scoped token from the router.
 2. It strips the types from each file on its own with `Bun.Transpiler`, with macros off. That doesn't run the config's code.
 3. It runs the files as ES modules in QuickJS compiled to WebAssembly, which has no filesystem, network or environment access. The only modules there are the repo's `.achq/` files and a prebuilt `achq`, so any other import fails. A Bun subprocess isn't enough: it runs as the same user and could read the deployer's secrets from `/proc/<pid>/environ`.
-4. The config returns a plain-data plan: every resource and its inputs. The deployer creates the containers and pushes events, thread selectors and policies to the router. Each container runs its own config again at runtime for the agent settings, which can be code.
+4. The config returns a plain-data manifest: every resource and its inputs. The deployer creates the containers and pushes events, thread selectors and policies to the router. Each container runs its own config again at runtime for the agent settings, which can be code.
 
 Config can only import `achq` and its own files under `.achq/`.
 
@@ -222,7 +222,7 @@ The App owns the whole lifecycle, including keeping a repo's deployment in line 
 
 - The App subscribes to `push`. The router forwards to the deployer pushes to a deployed repo's default branch that touch `.achq/`. A push payload's commit list is capped for very large pushes (2048 commits, per GitHub's webhook docs), so a push that hits the cap is forwarded whatever it touches.
 - The deployer compares the `.achq/` tree at the new head with the one it last deployed. If it's the same, it stops.
-- Otherwise it evaluates the config again and compares the resulting plan with the deployed one. It redeploys only what changed: a container whose image or policies changed is rebuilt; router config is updated for triggers and workspaces.
+- Otherwise it evaluates the config again and compares the resulting manifest with the deployed one. It redeploys only what changed: a container whose image or policies changed is rebuilt; router config is updated for triggers and workspaces.
 - The deployer starts builds itself; Railway's auto-deploy is turned off. A container is only rebuilt when it's new, or its image path or Dockerfile changed.
 - Everything else in the config reaches containers without a rebuild: the router forwards each event with the commit its config came from, and the container loads that commit's `.achq/` from its mirror (cached per commit).
 - Containers removed from the config are handled like uninstalls: kept asleep, deleted only by `achq up --prune`.

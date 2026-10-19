@@ -8,7 +8,7 @@ import type { Resource } from "./resource.ts";
  * refer to each other by name. Arrays keep declaration order, which decides
  * which workspace claims a thread.
  */
-export type RepoPlan = {
+export type RepoManifest = {
   policies: { name: string; policy: PolicyData }[];
   containers: { name: string; image: string; policies: string[]; files: Record<string, Data> }[];
   workspaces: { name: string; container: string; threads: SelectorData; branch: string; base: string }[];
@@ -16,8 +16,8 @@ export type RepoPlan = {
   triggers: { name: string; event: SelectorData; agent: string }[];
 };
 
-/** Turns the declared resources into a plan, checking names and references. */
-export const collectPlan = (resources: Resource[] = declared()): RepoPlan => {
+/** Turns the declared resources into a manifest, checking names and references. */
+export const collectManifest = (resources: Resource[] = declared()): RepoManifest => {
   const seen = new Set<string>();
   for (const r of resources) {
     const id = `${r.kind}:${r.name}`;
@@ -30,7 +30,7 @@ export const collectPlan = (resources: Resource[] = declared()): RepoPlan => {
     return r.name;
   };
 
-  const plan: RepoPlan = {
+  const manifest: RepoManifest = {
     policies: of(Policy).map((p) => ({ name: p.name, policy: p.policy })),
     containers: of(Container).map((c) => ({
       name: c.name,
@@ -52,6 +52,6 @@ export const collectPlan = (resources: Resource[] = declared()): RepoPlan => {
       agent: ref(t.inputs.agent, `trigger ${t.name}`),
     })),
   };
-  if (!plan.containers.length) throw new Error("The config declares no containers");
-  return plan;
+  if (!manifest.containers.length) throw new Error("The config declares no containers");
+  return manifest;
 };

@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, beforeEach, expect, test } from "bun:test";
-import { Agent, type Change, collectPlan, Container, type Context, plan, resetDeclarations, Trigger, Workspace } from "@achq/core";
+import { Agent, type Change, collectManifest, Container, type Context, plan, resetDeclarations, Trigger, Workspace } from "@achq/core";
 import { githubChannel } from "../src/channels/index.ts";
 import { configApp, configNeeds } from "../src/channels/config-app.ts";
 import { App, RepoPolicy } from "../src/index.ts";
@@ -13,7 +13,7 @@ class TestAgent extends Agent {
 }
 
 // The design's example config, declared directly.
-const configPlan = () => {
+const configManifest = () => {
   resetDeclarations();
   const app = App.get("notation-achq");
   const code = new RepoPolicy("code", { app, permissions: { contents: "write", issues: "write", pull_requests: "write" } });
@@ -21,23 +21,23 @@ const configPlan = () => {
   new Workspace("docs", { container: dev, threads: app.issues.where({ labels: ["docs"] }), branch: "docs/{number}", base: "docs" });
   new Workspace("issues", { container: dev, threads: app.issues, branch: "issue-{number}", base: "main" });
   new Trigger("mention", { event: app.issueComment({ actions: ["created", "edited"], mention: "@claude" }), agent: new TestAgent("coder", {}) });
-  return collectPlan();
+  return collectManifest();
 };
 
 test("the App slug and what it needs come from the config", () => {
-  const plan = configPlan();
-  expect(configApp(plan)).toBe("notation-achq");
-  expect(configNeeds(plan, "notation-achq")).toEqual({
+  const manifest = configManifest();
+  expect(configApp(manifest)).toBe("notation-achq");
+  expect(configNeeds(manifest, "notation-achq")).toEqual({
     events: ["issue_comment", "push"],
     permissions: { metadata: "read", actions_variables: "write", issues: "write", contents: "write", pull_requests: "write" },
   });
 });
 
 test("a config naming two Apps, or none, is refused", () => {
-  const plan = configPlan();
+  const manifest = configManifest();
   const other = { name: "x", policy: { access: "github", source: "other-app", repo: null, permissions: {} } };
-  expect(() => configApp({ ...plan, policies: [...plan.policies, other] })).toThrow("several Apps (notation-achq, other-app)");
-  expect(() => configApp({ ...plan, policies: [], workspaces: [], triggers: [] })).toThrow("names no GitHub App");
+  expect(() => configApp({ ...manifest, policies: [...manifest.policies, other] })).toThrow("several Apps (notation-achq, other-app)");
+  expect(() => configApp({ ...manifest, policies: [], workspaces: [], triggers: [] })).toThrow("names no GitHub App");
 });
 
 test("a repo comes from an https or ssh remote on GitHub", () => {
@@ -113,7 +113,7 @@ const installing = async (installed: boolean, opts: { open?: boolean } = {}) => 
     newSecret: () => "secret",
     sleep: async () => {},
   };
-  const resources = githubChannel.create({}).installation(REPO, configPlan(), installed);
+  const resources = githubChannel.create({}).installation(REPO, configManifest(), installed);
   return { planned: await plan(resources, ctx), log, opened };
 };
 

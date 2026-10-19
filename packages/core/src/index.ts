@@ -3,7 +3,7 @@ export * from "./resources/declarations.ts";
 export * from "./resources/resource.ts";
 export * from "./resources/config.ts";
 export * from "./resources/infra.ts";
-export * from "./resources/repo-plan.ts";
+export * from "./resources/repo-manifest.ts";
 export * from "./engine/values.ts";
 export * from "./engine/plan.ts";
 export * from "./contracts/implementation.ts";

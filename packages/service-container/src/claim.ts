@@ -1,9 +1,9 @@
-import { type Channel, type ChannelEvent, type ClaimRequest, type RepoPlan, type Thread, threadKey } from "@achq/core";
+import { type Channel, type ChannelEvent, type ClaimRequest, type RepoManifest, type Thread, threadKey } from "@achq/core";
 import { signedFetch } from "@achq/core/signing";
 import type { Paths } from "./paths.ts";
 import { readState, type ThreadState, writeState } from "./state.ts";
 
-type Workspace = RepoPlan["workspaces"][number];
+type Workspace = RepoManifest["workspaces"][number];
 
 export type ClaimOptions = {
   paths: Paths;

@@ -32,7 +32,7 @@
 // Container (CONTAINER_PORT, private):
 //   GET  /                         health
 //   POST /events                   ContainerEnvelope → 202                      container-signed
-import type { RepoPlan } from "../resources/repo-plan.ts";
+import type { RepoManifest } from "../resources/repo-manifest.ts";
 import type { PolicyData, SelectorData } from "../resources/config.ts";
 import type { AccessCredential } from "../contracts/access.ts";
 import type { ChannelCredential, ChannelEvent, ThreadRef } from "../contracts/channel.ts";
@@ -54,7 +54,7 @@ export type RouterRepoConfig = {
   /** The commit whose `.achq/` config this is. Forwarded with events so containers run the same config. */
   commit: string;
   containers: { name: string; url: string; policies: PolicyData[] }[];
-  workspaces: RepoPlan["workspaces"];
+  workspaces: RepoManifest["workspaces"];
   triggers: { name: string; event: SelectorData }[];
 };
 

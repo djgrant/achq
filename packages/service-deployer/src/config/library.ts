@@ -4,11 +4,11 @@ import { SANDBOX_LIB } from "../constants.ts";
 
 let lib: Promise<Record<string, string>> | undefined;
 
-/** The modules a config may import, built with code splitting so they share one list of declarations, plus the plan entry. */
+/** The modules a config may import, built with code splitting so they share one list of declarations, plus the manifest entry. */
 export const achqModules = () =>
   (lib ??= (async () => {
     const result = await Bun.build({
-      entrypoints: [...CONFIG_MODULES.map((specifier) => Bun.resolveSync(specifier, import.meta.dir)), Bun.resolveSync("./plan.ts", import.meta.dir)],
+      entrypoints: [...CONFIG_MODULES.map((specifier) => Bun.resolveSync(specifier, import.meta.dir)), Bun.resolveSync("./manifest.ts", import.meta.dir)],
       target: "browser",
       format: "esm",
       splitting: true,

@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { type ChannelClient, type ChannelEvent, type RepoPlan, type RuntimeContext, type RuntimeFactory, type Thread, threadKey } from "@achq/core";
+import { type ChannelClient, type ChannelEvent, type RepoManifest, type RuntimeContext, type RuntimeFactory, type Thread, threadKey } from "@achq/core";
 import { parseCommand, type Command } from "./command.ts";
 import type { LoadedConfig } from "./config/loader.ts";
 import type { Paths } from "./paths.ts";
@@ -8,7 +8,7 @@ import { reply } from "./reply.ts";
 import { describeHead } from "./repo.ts";
 import { type ThreadState, writeState } from "./state.ts";
 
-type Trigger = RepoPlan["triggers"][number];
+type Trigger = RepoManifest["triggers"][number];
 
 export type TriggerRun = {
   trigger: Trigger;
