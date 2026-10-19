@@ -4,9 +4,9 @@ import { githubInstaller } from "../src/installers/index.ts";
 import { configApp, configNeeds } from "../src/installers/config-app.ts";
 import { App, RepoPolicy } from "../src/index.ts";
 import { GitHubClient } from "../src/lib/client.ts";
-import { githubRepoHost } from "../src/repo-hosts/index.ts";
-import { repoOf } from "../src/repo-hosts/remote.ts";
-import { readStatus } from "../src/repo-hosts/status.ts";
+import { githubCodeHost } from "../src/code-hosts/index.ts";
+import { repoOf } from "../src/code-hosts/remote.ts";
+import { readStatus } from "../src/code-hosts/status.ts";
 
 class TestAgent extends Agent {
   readonly runtime = "test";
@@ -46,9 +46,9 @@ test("a repo comes from an https or ssh remote on GitHub", () => {
   expect(repoOf("git@github.com:notationlabs/yieldstar.git", web)).toBe("notationlabs/yieldstar");
   expect(repoOf("https://github.com/djgrant/achq", web)).toBe("djgrant/achq");
   expect(repoOf("https://gitlab.com/notationlabs/yieldstar.git", web)).toBeUndefined();
-  // The repo host's, with the web URL the env points it at.
-  expect(githubRepoHost.create({}).repoOf("git@github.com:notationlabs/yieldstar.git")).toBe("notationlabs/yieldstar");
-  expect(githubRepoHost.create({ GITHUB_WEB_URL: "http://localhost:3000" }).repoOf("http://localhost:3000/o/r.git")).toBe("o/r");
+  // The code host's, with the web URL the env points it at.
+  expect(githubCodeHost.create({}).repoOf("git@github.com:notationlabs/yieldstar.git")).toBe("notationlabs/yieldstar");
+  expect(githubCodeHost.create({ GITHUB_WEB_URL: "http://localhost:3000" }).repoOf("http://localhost:3000/o/r.git")).toBe("o/r");
 });
 
 // ── A fake GitHub, as your gh login sees it ──

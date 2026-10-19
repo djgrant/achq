@@ -22,7 +22,7 @@ import { createDeployer, routerClient, deployerHandler } from "@achq/deployer";
 import { FakeGitHub, makeApp } from "@achq/test-utils/github";
 import { githubChannel } from "@achq/github/channels";
 import { githubAccess } from "@achq/github/policies";
-import { githubRepoHost } from "@achq/github/repo-hosts";
+import { githubCodeHost } from "@achq/github/code-hosts";
 import { createRouter } from "@achq/router";
 import { privateEnv } from "achq/registry";
 
@@ -406,7 +406,7 @@ beforeAll(async () => {
   routerDir = path.join(root, "router");
   const githubEnv = { ACHQ_GITHUB_APPS: JSON.stringify(github.keys()), GITHUB_API_URL: github.url, AGENT_WEBHOOK_KEY: KEY };
   const access = githubAccess.create(githubEnv);
-  const hosts = { github: githubRepoHost.create(githubEnv) };
+  const hosts = { github: githubCodeHost.create(githubEnv) };
   let deployerFetch: (req: Request) => Promise<Response> = async () => new Response("starting", { status: 503 });
   const deployerUrl = serve((req) => deployerFetch(req));
   router = createRouter({

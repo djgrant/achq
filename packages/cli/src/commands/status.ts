@@ -23,8 +23,8 @@ export const command = defineCommand({
       console.log(infraStatusTable(records, installations));
       return;
     }
-    const { repo, repoHost } = needRepo();
-    const status = await repoHost.status(repo);
+    const { repo, codeHost } = needRepo();
+    const status = await codeHost.status(repo);
     if (!status) {
       console.log(`${repo} has no ACHQ_STATUS: it hasn't been deployed`);
       return;

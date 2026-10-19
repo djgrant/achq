@@ -1,4 +1,4 @@
-import type { ContainerHost, FileLimits, RepoHost } from "@achq/core";
+import type { ContainerHost, FileLimits, CodeHost } from "@achq/core";
 import type { RouterClient } from "./clients/router.ts";
 import { type Evaluate, evaluateConfig } from "./config/index.ts";
 import { DEFAULT_FILE_LIMITS } from "./constants.ts";
@@ -20,8 +20,8 @@ export type DeployerEnv = {
 export type DeployerDeps = {
   containerHost: ContainerHost;
   router: RouterClient;
-  /** The repo hosts, by id. */
-  hosts: Record<string, RepoHost>;
+  /** The code hosts, by id. */
+  hosts: Record<string, CodeHost>;
   owners: string[];
   dataDir: string;
   evaluate?: Evaluate;

@@ -10,7 +10,7 @@ import { needRepo, repoRoot } from "./workdir.ts";
 
 /** Plans installing (or removing) this repo's sources and prints the plan. `apply` is undefined when nothing would change. */
 export const planInstallation = async (installed: boolean) => {
-  const { repo, repoHost } = needRepo();
+  const { repo, codeHost } = needRepo();
   const config = await loadRepoManifest(repoRoot());
   const resources = channelsOf(config).flatMap((id) => installerNamed(id).installation(repo, config, installed));
   const planned = await plan(resources, cliContext({ env: process.env, log: (line) => console.log(line), open: openInBrowser }));
@@ -20,5 +20,5 @@ export const planInstallation = async (installed: boolean) => {
     const verb = names.length === 1 ? (installed ? "is" : "isn't") : installed ? "are" : "aren't";
     console.log(`${names.join(", ")} ${verb} ${installed ? "already " : ""}installed on ${repo}`);
   }
-  return { repo, repoHost, apply: planned.changes.length ? () => planned.apply() : undefined };
+  return { repo, codeHost, apply: planned.changes.length ? () => planned.apply() : undefined };
 };

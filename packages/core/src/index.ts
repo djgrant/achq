@@ -10,7 +10,7 @@ export * from "./contracts/implementation.ts";
 export * from "./contracts/channel.ts";
 export * from "./contracts/installer.ts";
 export * from "./contracts/access.ts";
-export * from "./contracts/repo-host.ts";
+export * from "./contracts/code-host.ts";
 export * from "./contracts/container-host.ts";
 export * from "./contracts/agent.ts";
 export * from "./wire/constants.ts";

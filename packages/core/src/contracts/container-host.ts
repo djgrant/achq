@@ -1,5 +1,5 @@
 export type ContainerSpec = {
-  /** The `RepoHost` the repo is on. */
+  /** The `CodeHost` the repo is on. */
   host: string;
   repo: string;
   name: string;

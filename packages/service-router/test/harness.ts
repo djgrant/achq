@@ -4,7 +4,7 @@ import { afterEach, expect } from "bun:test";
 import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { ContainerEnvelope, DeployerEnvelope, PolicyData, SelectorData, AccessProvider, Channel, ChannelEvent, RepoHost, RouterRepoConfig } from "@achq/core";
+import type { ContainerEnvelope, DeployerEnvelope, PolicyData, SelectorData, AccessProvider, Channel, ChannelEvent, CodeHost, RouterRepoConfig } from "@achq/core";
 import { adminSecret, containerSecret } from "@achq/core/secrets";
 import { hmacHex, safeEqual, signedHeaders, verifySigned } from "@achq/core/signing";
 import { createRouter } from "../src/router.ts";
@@ -53,7 +53,7 @@ export const testAccess: AccessProvider = {
 };
 
 /** `push-token` can push to `repo`; `read-token` and anything else can't. */
-export const testHost: RepoHost = {
+export const testHost: CodeHost = {
   repoName: /^[\w.-]+\/[\w.-]+$/,
   deployerPolicy: (source, forRepo) => ({ access: "test", source, repo: forRepo }),
   repo() {

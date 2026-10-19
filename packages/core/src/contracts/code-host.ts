@@ -24,7 +24,7 @@ export interface RepoClient {
 }
 
 /** Where repos live. The deployer reads configs from it, the router checks `/wake` against it, containers clone from it. */
-export interface RepoHost {
+export interface CodeHost {
   /** What a repo's name looks like here, e.g. `owner/name`. */
   readonly repoName: RegExp;
   /** The policy the deployer's own access to `repo` needs, through `source`: read `.achq/`, write the status. */

@@ -11,9 +11,9 @@ export const threadKey = (ref: ThreadRef) => `${ref.channel}:${ref.id}`;
 export type ChannelEvent = ChannelEventBase &
   (
     | { host?: undefined; installation?: undefined; configChanged?: undefined }
-    /** For the deployer: the repos the source was installed on (`added`) or removed from, on the `RepoHost` `host`. */
+    /** For the deployer: the repos the source was installed on (`added`) or removed from, on the `CodeHost` `host`. */
     | { host: string; installation: { added: string[]; removed: string[] }; configChanged?: undefined }
-    /** For the deployer: whether the repo's `.achq/` may have changed on its default branch, on the `RepoHost` `host`. */
+    /** For the deployer: whether the repo's `.achq/` may have changed on its default branch, on the `CodeHost` `host`. */
     | { host: string; configChanged: boolean; installation?: undefined }
   );
 
@@ -83,7 +83,7 @@ export interface Channel {
   parse(source: string, headers: Headers, body: string): ChannelEvent | undefined;
   /** A credential the container's runner (not the agent) uses for `ChannelClient`. Its scope names the `source`. */
   mintClient(source: string, repo: string): Promise<ChannelCredential>;
-  /** The repos each source is installed on, and the repo host they're on: what the deployer serves. */
+  /** The repos each source is installed on, and the code host they're on: what the deployer serves. */
   installations(): Promise<Installation[]>;
   /** What each source is set up to send and allow, for the deployer's checks. */
   sources(): Promise<SourceSettings[]>;

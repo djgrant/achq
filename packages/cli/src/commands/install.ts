@@ -13,12 +13,12 @@ export const command = defineCommand({
   },
   run: clean(async (_r, { context }) => {
     const since = new Date();
-    const { repo, repoHost, apply } = await planInstallation(true);
+    const { repo, codeHost, apply } = await planInstallation(true);
     if (context.dryRun || !apply) return;
     await apply();
 
     console.log("Waiting for the deploy's result…");
-    const status = await waitForStatus((r) => repoHost.status(r), repo, since);
+    const status = await waitForStatus((r) => codeHost.status(r), repo, since);
     if (!status) {
       console.log("No result after 3 minutes. Run `achq up` from the infra to sync installs, then `achq status`.");
       process.exitCode = 1;

@@ -7,8 +7,8 @@ export const USER_AGENT = "achq";
 export const CHANNEL = "github";
 /** The access provider's id, in policies and agent credentials. */
 export const ACCESS = "github";
-/** The repo host's id, in installations, events and deploy records. */
-export const REPO_HOST = "github";
+/** The code host's id, in installations, events and deploy records. */
+export const CODE_HOST = "github";
 
 /** `owner/name`. */
 export const REPO = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;

@@ -37,7 +37,7 @@ import type { PolicyData, SelectorData } from "../resources/config.ts";
 import type { AccessCredential } from "../contracts/access.ts";
 import type { ChannelCredential, ChannelEvent, ThreadRef } from "../contracts/channel.ts";
 
-/** What the router forwards to the deployer: install and config events, which name the `RepoHost` they're about. */
+/** What the router forwards to the deployer: install and config events, which name the `CodeHost` they're about. */
 export type DeployerEnvelope = { event: Extract<ChannelEvent, { host: string }> };
 
 export type ContainerEnvelope = {
@@ -48,7 +48,7 @@ export type ContainerEnvelope = {
 
 /** What the deployer tells the router about a deployed repo. Plain data. */
 export type RouterRepoConfig = {
-  /** The `RepoHost` the repo is on. */
+  /** The `CodeHost` the repo is on. */
   host: string;
   repo: string;
   /** The commit whose `.achq/` config this is. Forwarded with events so containers run the same config. */
@@ -73,7 +73,7 @@ export type ClaimRequest = { repo: string; container: string; workspace: string;
 export type MintRequest = { repo: string; policies: PolicyData[] };
 export type ValidateRequest = { repo: string; policies: PolicyData[] };
 
-/** A repo a channel's source is installed on, and the `RepoHost` the repo is on. */
+/** A repo a channel's source is installed on, and the `CodeHost` the repo is on. */
 export type Installation = { channel: string; source: string; repo: string; host: string };
 
 /** What a source (e.g. a GitHub App) is set up to send and allow, for checks. */
@@ -86,7 +86,7 @@ export type DeployState = "deployed" | "failed" | "uninstalled";
 
 /** The deployer's record of a repo, as ACHQ_STATUS and `/admin/status` show it. */
 export type DeployRecord = {
-  /** The `RepoHost` the repo is on, and the source that installed it there. */
+  /** The `CodeHost` the repo is on, and the source that installed it there. */
   host: string;
   repo: string;
   source: string;

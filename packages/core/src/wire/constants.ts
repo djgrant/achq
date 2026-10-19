@@ -19,7 +19,7 @@ export const ENV = {
   repo: "ACHQ_REPO",
   container: "ACHQ_CONTAINER",
   containerSecret: "ACHQ_CONTAINER_SECRET",
-  /** Where the container clones its repo from: `RepoHost.cloneUrl`. */
+  /** Where the container clones its repo from: `CodeHost.cloneUrl`. */
   repoUrl: "ACHQ_REPO_URL",
   /** What the deployer gives every container, as JSON: the agent runtimes' variables. */
   containerEnv: "ACHQ_CONTAINER_ENV",
@@ -37,7 +37,7 @@ export const ENV = {
 
 /** Where achq's own code is. The router and deployer run it from there. */
 export const ACHQ_SOURCE = {
-  /** The `RepoHost` it lives on. */
+  /** The `CodeHost` it lives on. */
   host: "github",
   repo: "djgrant/achq",
   branch: "main",

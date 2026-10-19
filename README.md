@@ -140,7 +140,7 @@ Each folder in `packages/` is a workspace package, prefixed with its kind. Packa
 | `channels/` | A `Channel` |
 | `installers/` | An `Installer`: subscribes a repo to a channel's sources |
 | `policies/` | An `AccessProvider`: turns policies into credentials |
-| `repo-hosts/` | A `RepoHost` |
+| `code-hosts/` | A `CodeHost` |
 | `container-hosts/` | A `ContainerHost` and its shell |
 | `agents/` | An `AgentProvider` |
 | `lib/` | What implements no contract: the vendor's API client, and code or constants more than one folder uses |

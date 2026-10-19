@@ -1,5 +1,5 @@
 import { ENV, ROUTER_PRIVATE_PORT, ROUTER_PUBLIC_PORT } from "@achq/core";
-import { ACCESS, CHANNELS, REPO_HOSTS } from "achq/registry";
+import { ACCESS, CHANNELS, CODE_HOSTS } from "achq/registry";
 import { DEFAULT_DATA_DIR } from "./constants.ts";
 import { createRouter } from "./router.ts";
 
@@ -15,7 +15,7 @@ export const main = async () => {
   const router = createRouter({
     channels: CHANNELS.map((c) => c.create(env)),
     access: ACCESS.map((a) => a.create(env)),
-    hosts: Object.fromEntries(REPO_HOSTS.map((h) => [h.id, h.create(env)])),
+    hosts: Object.fromEntries(CODE_HOSTS.map((h) => [h.id, h.create(env)])),
     key,
     deployerUrl: need(ENV.deployerUrl),
     dataDir: env[ENV.dataDir] ?? DEFAULT_DATA_DIR,

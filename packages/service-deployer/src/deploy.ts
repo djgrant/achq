@@ -59,7 +59,7 @@ export const deploy = async (ctx: DeployerContext, hostId: string, repo: string,
     return { repo, outcome: "failed", error, ...(warnings?.length && { warnings }) };
   };
 
-  if (!host) return fail(`achq doesn't know the repo host "${hostId}"`);
+  if (!host) return fail(`achq doesn't know the code host "${hostId}"`);
   if (!host.repoName.test(repo)) return fail(`"${repo}" isn't a repository name on ${hostId}`);
   // A stranger can install a public App. Their repo is recorded as failed but
   // never touched: no token is minted and nothing is read or evaluated.

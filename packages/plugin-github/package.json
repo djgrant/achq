@@ -9,7 +9,7 @@
     "./channels": "./src/channels/index.ts",
     "./installers": "./src/installers/index.ts",
     "./policies": "./src/policies/index.ts",
-    "./repo-hosts": "./src/repo-hosts/index.ts"
+    "./code-hosts": "./src/code-hosts/index.ts"
   },
   "dependencies": {
     "@achq/core": "workspace:*"

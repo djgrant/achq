@@ -9,7 +9,7 @@ import { evaluateConfig } from "../src/config/index.ts";
 import { DOC_CONFIG, DOC_PLAN } from "@achq/test-utils/config";
 import { createDeployer } from "../src/deployer.ts";
 import { githubChannel } from "@achq/github/channels";
-import { githubRepoHost } from "@achq/github/repo-hosts";
+import { githubCodeHost } from "@achq/github/code-hosts";
 import { FakeGitHub } from "@achq/test-utils/deployer/github";
 import { FakeRouter } from "@achq/test-utils/deployer/router";
 import { MemoryContainerHost } from "@achq/test-utils/deployer/container-host";
@@ -36,11 +36,11 @@ const repoFiles = (overrides: Record<string, string | undefined> = {}) => {
   return Object.fromEntries(Object.entries(files).filter((e): e is [string, string] => e[1] !== undefined));
 };
 
-/** The deployer's GitHub repo host, as main.ts builds it from the registry. */
+/** The deployer's GitHub code host, as main.ts builds it from the registry. */
 const DEPLOYER_PERMISSIONS = { contents: "read", metadata: "read", actions_variables: "write" };
 const githubDeps = () => {
   const env = { GITHUB_API_URL: github.url };
-  return { hosts: { github: githubRepoHost.create(env) } };
+  return { hosts: { github: githubCodeHost.create(env) } };
 };
 
 let github: FakeGitHub;
@@ -273,7 +273,7 @@ describe("checks", () => {
 describe("config changes", () => {
   test("a repo on another host deploys again, even with the same .achq tree", async () => {
     github.commit(REPO, repoFiles());
-    const github2 = githubRepoHost.create({ GITHUB_API_URL: github.url });
+    const github2 = githubCodeHost.create({ GITHUB_API_URL: github.url });
     const deployer = createDeployer({
       containerHost: host,
       router: routerClient({ url: router.url, key: KEY }),
@@ -295,7 +295,7 @@ describe("config changes", () => {
   });
 
   test("a host achq doesn't know fails without touching anything", async () => {
-    expect(await makeDeployer().deploy("gitlab", REPO, APP)).toMatchObject({ outcome: "failed", error: `achq doesn't know the repo host "gitlab"` });
+    expect(await makeDeployer().deploy("gitlab", REPO, APP)).toMatchObject({ outcome: "failed", error: `achq doesn't know the code host "gitlab"` });
     expect(router.mints).toEqual([]);
     expect(host.ops()).toEqual([]);
   });
