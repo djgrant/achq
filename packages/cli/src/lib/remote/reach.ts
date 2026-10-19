@@ -15,7 +15,6 @@ export const reachContainer = async (prompter: Prompter, { host, repo, repoHost 
     const name = await prompter.select({ message: "Container", options: containers.map((c) => ({ value: c.name, label: c.name })) });
     container = containers.find((c) => c.name === name)!;
   }
-  if (!status.router) throw new Error(`${repo}'s ACHQ_STATUS doesn't say where the router is`);
   await wake(status.router, { host, repo, container: container.name }, repoHost.token());
   return container;
 };

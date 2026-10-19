@@ -7,8 +7,6 @@ export const DEFAULT_FILE_LIMITS: FileLimits = { maxFiles: 200, maxBytes: 1024 *
 export const MAX_DELIVERIES = 5000;
 
 export const DEFAULT_DATA_DIR = "/data";
-/** The achq commit containers run when ACHQ_REF isn't set. */
-export const DEFAULT_REF = "main";
 
 /** The loader for each file extension evaluation reads. */
 export const LOADERS = { ts: "ts", mts: "ts", tsx: "tsx", js: "js", mjs: "js", json: "json" } as const;

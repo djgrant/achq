@@ -13,7 +13,7 @@ export type DeployerEnv = {
   key: string;
   routerUrl: string;
   /** The router's public URL, for ACHQ_STATUS. */
-  routerPublicUrl?: string;
+  routerPublicUrl: string;
   ref: string;
 };
 

@@ -103,4 +103,4 @@ export type DeployRecord = {
 export type SessionSummary = { id: string; agent: string; workspace: string; lastRun: string };
 
 /** The ACHQ_STATUS repository variable's JSON. */
-export type Status = DeployRecord & { router?: string };
+export type Status = DeployRecord & { router: string };

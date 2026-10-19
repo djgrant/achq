@@ -1,7 +1,7 @@
 import { DEPLOYER_PORT, ENV } from "@achq/core";
 import { containerHostNamed, privateEnv, REPO_HOSTS } from "achq/registry";
 import { createDeployer } from "./deployer.ts";
-import { DEFAULT_DATA_DIR, DEFAULT_REF } from "./constants.ts";
+import { DEFAULT_DATA_DIR } from "./constants.ts";
 import { routerClient } from "./clients/router.ts";
 import { deployerHandler } from "./server.ts";
 
@@ -23,8 +23,8 @@ export const main = () => {
       privateEnv: privateEnv(),
       key,
       routerUrl,
-      routerPublicUrl: env[ENV.routerPublicUrl] || undefined,
-      ref: env[ENV.ref] || DEFAULT_REF,
+      routerPublicUrl: need(ENV.routerPublicUrl),
+      ref: need(ENV.ref),
     },
   });
 

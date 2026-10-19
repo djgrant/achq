@@ -24,7 +24,7 @@ const message = (error: unknown) => (error instanceof Error ? error.message : St
 const writeStatus = async (ctx: DeployerContext, client: RepoClient | undefined, record: StoredRecord) => {
   if (!client) return;
   try {
-    await client.writeStatus({ ...wireRecord(record), ...(ctx.env.routerPublicUrl && { router: ctx.env.routerPublicUrl }) } satisfies Status);
+    await client.writeStatus({ ...wireRecord(record), router: ctx.env.routerPublicUrl } satisfies Status);
   } catch (error) {
     ctx.log(`${record.repo}: couldn't write ACHQ_STATUS: ${message(error)}`);
   }
