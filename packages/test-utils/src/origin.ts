@@ -3,15 +3,16 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 
 export const CONFIG = `
-import { Claude, Container, EventSelector, ThreadSelector, Trigger, Workspace } from "achq";
+import { Container, EventSelector, ThreadSelector, Trigger, Workspace } from "achq";
+import * as claude from "achq/claude";
 import { settingsFor } from "./lib/settings.ts";
 
 const dev = new Container("dev", { image: "./Dockerfile", files: { "~/.config/tool.toml": "./tool.toml" } });
 new Workspace("docs", { container: dev, threads: new ThreadSelector({ channel: "test", labels: ["docs"] }), branch: "docs/{number}", base: "docs" });
 new Workspace("issues", { container: dev, threads: new ThreadSelector({ channel: "test" }), branch: "issue-{number}", base: "main" });
 
-const coder = new Claude("coder", { model: "claude-opus-5-5", effort: "high", systemPrompt: "./prompts/coder.md", settings: settingsFor("coder") });
-const triage = new Claude("triage", { model: "claude-haiku-5-5", effort: "max", systemPrompt: "./prompts/triage.md" });
+const coder = new claude.Agent("coder", { model: "claude-opus-5-5", effort: "high", systemPrompt: "./prompts/coder.md", settings: settingsFor("coder") });
+const triage = new claude.Agent("triage", { model: "claude-haiku-5-5", effort: "max", systemPrompt: "./prompts/triage.md" });
 
 new Trigger("mention", { event: new EventSelector({ channel: "test", type: "comment", mention: "@claude" }), agent: coder });
 new Trigger("triage", { event: new EventSelector({ channel: "test", type: "opened" }), agent: triage });

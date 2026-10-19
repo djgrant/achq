@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./claude": "./src/claude.ts",
     "./github": "./src/github.ts",
     "./railway": "./src/railway.ts",
     "./registry": "./src/registry.ts"

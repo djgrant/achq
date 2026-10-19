@@ -32,7 +32,7 @@ export default achq(() => {
 - **Router**: receives events and wakes the deployer and containers.
 - **Deployer**: creates and updates containers, in its router's Railway project.
 - **A GitHub channel** is a GitHub App, bound to the router. GitHub is both a channel and a policy provider (see Primitives). The App's webhook points at the router, and the router holds the App's key to check deliveries and mint tokens. The App's installations decide which repos the deployer serves.
-- **Contracts**: GitHub implements three of core's contracts, each registered on its own: a `ChannelProvider` (events, threads, replies; the router also gets its sources from it), a `PolicyProvider` (turns policies into credentials), and a `CodeHostProvider` (reads `.achq/`, writes the status, gives the clone URL; the router uses it to check `/wake` and to list the repos installed, the CLI for the repo commands, and to install and uninstall a repo). Installation isn't a contract of its own: it's a repo's lifecycle on its code host, set up for achq or not. For GitHub, a repo is installed when the config's App is installed on it. The router gets them with the key, the container without secrets. The infra's channels are resources `achq up` plans. Claude implements `AgentProvider`: the runtime, and the variables every container needs. The services and CLI find each one by id in `achq/registry`.
+- **Contracts**: GitHub implements three of core's contracts, each registered on its own: a `ChannelProvider` (events, threads, replies; the router also gets its sources from it), a `PolicyProvider` (turns policies into credentials), and a `CodeHostProvider` (reads `.achq/`, writes the status, gives the clone URL; the router uses it to check `/wake` and to list the repos installed, the CLI for the repo commands, and to install and uninstall a repo). Installation isn't a contract of its own: it's a repo's lifecycle on its code host, set up for achq or not. For GitHub, a repo is installed when the config's App is installed on it. The router gets them with the key, the container without secrets. The infra's channels are resources `achq up` plans. Claude implements `AgentProvider` (`ClaudeAgentProvider`): the runtime, and the variables every container needs. Configs declare its agents as `claude.Agent`, from `achq/claude`. The services and CLI find each one by id in `achq/registry`.
 - **The container provider**: the router and deployer name the container provider they run on (`containerProvider`), and the deployer puts containers on the same one. A plugin provides the router and deployer as resources for `achq up`, and implements core's `ContainerProvider` for the deployer, with a shell into containers for `achq ssh` and `resume`. achq's services and CLI only use that contract, and pick an implementation by id. Only Railway is built for now. Putting the router, deployer and containers on different container providers needs bindings this design assumes away: reaching containers without a private network, and waking them through the container provider's API.
 - **`owners`**: the deployer only serves repos owned by these accounts. A public App can be installed by anyone, and without this a stranger's install would get a container on your Railway account running on your Claude token.
 
@@ -40,7 +40,8 @@ export default achq(() => {
 
 ```ts
 // .achq/config.ts
-import { Container, Workspace, Trigger, Claude } from "achq";
+import { Container, Workspace, Trigger } from "achq";
+import * as claude from "achq/claude";
 import * as github from "achq/github";
 
 const channel = github.Channel.get("notation-achq");
@@ -56,8 +57,8 @@ const dev = new Container("dev", {
 new Workspace("docs", { container: dev, threads: channel.issues.where({ labels: ["docs"] }), branch: "docs-{number}", base: "docs" });
 new Workspace("issues", { container: dev, threads: channel.issues, branch: "issue-{number}", base: "main" });
 
-const coder = new Claude("coder", { model: "claude-opus-5-5", effort: "high", systemPrompt: "./prompts/system.md", settings: { /* … */ } });
-const triage = new Claude("triage", { model: "claude-haiku-5-5", systemPrompt: "./prompts/triage.md" });
+const coder = new claude.Agent("coder", { model: "claude-opus-5-5", effort: "high", systemPrompt: "./prompts/system.md", settings: { /* … */ } });
+const triage = new claude.Agent("triage", { model: "claude-haiku-5-5", systemPrompt: "./prompts/triage.md" });
 
 new Trigger("mention", { event: channel.issueComment({ actions: ["created", "edited"], mention: "@claude" }), agent: coder });
 new Trigger("triage", { event: channel.issue({ actions: ["opened"] }), agent: triage });
@@ -151,10 +152,10 @@ Repo config is code. It never runs anywhere that holds secrets.
 
 1. The deployer downloads `.achq/` from the default branch, with a repo-scoped token from the router, minted through whichever App is installed on the repo.
 2. It strips the types from each file on its own with `Bun.Transpiler`, with macros off. That doesn't run the config's code.
-3. It runs the files as ES modules in QuickJS compiled to WebAssembly, which has no filesystem, network or environment access. The only modules there are the repo's `.achq/` files and a prebuilt `achq`, so any other import fails. A Bun subprocess isn't enough: it runs as the same user and could read the deployer's secrets from `/proc/<pid>/environ`.
+3. It runs the files as ES modules in QuickJS compiled to WebAssembly, which has no filesystem, network or environment access. The only modules there are the repo's `.achq/` files and a prebuilt `achq` (`achq`, `achq/github`, `achq/claude`), so any other import fails. A Bun subprocess isn't enough: it runs as the same user and could read the deployer's secrets from `/proc/<pid>/environ`.
 4. The config returns a plain-data manifest: every resource and its inputs. The deployer creates the containers and pushes events, thread selectors and policies to the router. Each container runs its own config again at runtime for the agent settings, which can be code.
 
-Config can only import `achq` and its own files under `.achq/`.
+Config can only import `achq`, `achq/github`, `achq/claude` and its own files under `.achq/`.
 
 In the container, the config runs natively (step 4), in the runner's process. That process holds the container secret, so code in the repo's own `.achq/` can mint the container's credentials, including the runner's channel credential. Anyone who can push to the default branch can already change what the agent does, so this doesn't widen who can act, but it's an exception to "never runs anywhere that holds secrets". Running it in a separate process without the secret would close it.
 

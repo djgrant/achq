@@ -1,7 +1,7 @@
-import { Agent } from "@achq/core";
+import { Agent as CoreAgent } from "@achq/core";
 import { RUNTIME } from "../lib/constants.ts";
 
-export type ClaudeConfig = {
+export type AgentConfig = {
   model?: string;
   effort?: "low" | "medium" | "high" | "xhigh" | "max";
   /** The repo's system prompt, a path relative to `.achq/`. Appended after achq's runner prompt. */
@@ -12,6 +12,7 @@ export type ClaudeConfig = {
   files?: Record<string, string | Record<string, unknown>>;
 };
 
-export class Claude extends Agent<ClaudeConfig> {
+/** An agent that runs Claude Code: `new claude.Agent("coder", { model, effort, systemPrompt })`. */
+export class Agent extends CoreAgent<AgentConfig> {
   readonly runtime = RUNTIME;
 }

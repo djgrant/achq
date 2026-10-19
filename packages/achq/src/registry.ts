@@ -1,12 +1,13 @@
 // The implementations achq is built with, one list per contract. The CLI,
 // router, deployer and container only use core's contracts, and find the
 // implementation here by id.
-import { claudeAgent } from "@achq/claude/agents";
+import { claudeAgentProvider } from "@achq/claude/agent";
 import type { AgentProvider, ChannelProvider, ContainerProvider, ContainerShell, Implementation, CodeHostProvider, PolicyProvider } from "@achq/core";
 import { githubChannelProvider } from "@achq/github/channel";
 import { githubPolicyProvider } from "@achq/github/policy";
 import { githubCodeHostProvider } from "@achq/github/code-host";
 import { railwayContainerProvider } from "@achq/railway/container";
+import * as claude from "./claude.ts";
 import * as github from "./github-infra.ts";
 import * as achq from "./index.ts";
 import * as railway from "./railway.ts";
@@ -15,7 +16,7 @@ export const CHANNEL_PROVIDERS: Implementation<ChannelProvider>[] = [githubChann
 export const POLICY_PROVIDERS: Implementation<PolicyProvider>[] = [githubPolicyProvider];
 export const CODE_HOST_PROVIDERS: Implementation<CodeHostProvider>[] = [githubCodeHostProvider];
 export const CONTAINER_PROVIDERS: (Implementation<ContainerProvider> & { shell: ContainerShell })[] = [railwayContainerProvider];
-export const AGENT_PROVIDERS: AgentProvider[] = [claudeAgent];
+export const AGENT_PROVIDERS: AgentProvider[] = [claudeAgentProvider];
 
 const lookup =
   <T extends { id: string }>(kind: string, all: T[]) =>
@@ -39,6 +40,6 @@ export const privateEnv = () => [...new Set([...CHANNEL_PROVIDERS, ...POLICY_PRO
 export const agentEnv = () => AGENT_PROVIDERS.flatMap((a) => a.containerEnv);
 
 /** The bare imports a repo's `.achq/` may use. */
-export const CONFIG_MODULES = ["achq", "achq/github"];
+export const CONFIG_MODULES = ["achq", "achq/github", "achq/claude"];
 /** What the infra file's imports resolve to. */
-export const INFRA_MODULES: Record<string, object> = { achq, "achq/github": github, "achq/railway": railway };
+export const INFRA_MODULES: Record<string, object> = { achq, "achq/github": github, "achq/claude": claude, "achq/railway": railway };

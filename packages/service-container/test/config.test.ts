@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { Claude } from "@achq/claude";
+import * as claude from "@achq/claude";
 import { makeOrigin } from "@achq/test-utils/origin";
 import { tempDir } from "@achq/test-utils/temp-dir";
 import { bundleConfig } from "../src/config/bundle.ts";
@@ -28,17 +28,17 @@ describe("loadConfig", () => {
     expect(config.manifest.workspaces.map((w) => [w.name, w.branch, w.base])).toEqual([["docs", "docs/{number}", "docs"], ["issues", "issue-{number}", "main"]]);
     expect(config.manifest.triggers.map((t) => t.agent)).toEqual(["coder", "triage", "coder"]);
     const coder = config.agents.find((a) => a.name === "coder")!;
-    expect(coder).toBeInstanceOf(Claude);
-    expect((coder as Claude).config.settings).toEqual({ env: { AGENT: "CODER" }, permissions: { deny: ["Read(./secrets/**)", "Read(./keys/**)"] } });
+    expect(coder).toBeInstanceOf(claude.Agent);
+    expect((coder as claude.Agent).config.settings).toEqual({ env: { AGENT: "CODER" }, permissions: { deny: ["Read(./secrets/**)", "Read(./keys/**)"] } });
     expect(fs.readFileSync(path.join(config.root, "prompts/coder.md"), "utf8")).toBe("You are the coder.\n");
     expect(await load(git.first)).toBe(config);
 
     // Another commit is another config, fetched on demand.
     const { after: next } = await git.commit({ ".achq/lib/settings.ts": `export const settingsFor = (name: string) => ({ n: name.length * 2 });\n` });
     const changed = await load(next);
-    expect((changed.agents.find((a) => a.name === "coder") as Claude).config.settings).toEqual({ n: 10 });
+    expect((changed.agents.find((a) => a.name === "coder") as claude.Agent).config.settings).toEqual({ n: 10 });
     expect(fetches).toBe(2);
-    expect(((await load(git.first)).agents[0] as Claude).config.settings).toEqual({ env: { AGENT: "CODER" }, permissions: { deny: ["Read(./secrets/**)", "Read(./keys/**)"] } });
+    expect(((await load(git.first)).agents[0] as claude.Agent).config.settings).toEqual({ env: { AGENT: "CODER" }, permissions: { deny: ["Read(./secrets/**)", "Read(./keys/**)"] } });
     await expect(load("0".repeat(40))).rejects.toThrow("isn't in the repo");
   });
 
@@ -62,7 +62,7 @@ describe("loadConfig", () => {
     const root = tempDir(dirs);
     const achq = path.join(root, ".achq");
     fs.mkdirSync(achq);
-    fs.writeFileSync(path.join(achq, "config.ts"), `import { Claude } from "achq"; new Claude("a", {});`);
+    fs.writeFileSync(path.join(achq, "config.ts"), `import * as claude from "achq/claude"; new claude.Agent("a", {});`);
     await expect(evaluateBundle(await bundleConfig(achq, path.join(root, "out")))).rejects.toThrow("no containers");
   });
 });

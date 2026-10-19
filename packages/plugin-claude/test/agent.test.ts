@@ -4,9 +4,9 @@ import * as path from "node:path";
 import { resetDeclarations, type RunContext, type RuntimeContext } from "@achq/core";
 import { fakeClaude } from "@achq/test-utils/fake-claude";
 import { tempDir } from "@achq/test-utils/temp-dir";
-import { claudeAgent } from "../src/agents/index.ts";
-import { DENIED } from "../src/agents/constants.ts";
-import { Claude, type ClaudeConfig } from "../src/index.ts";
+import { claudeAgentProvider } from "../src/agent/index.ts";
+import { DENIED } from "../src/lib/constants.ts";
+import { Agent, type AgentConfig } from "../src/index.ts";
 
 const dirs: string[] = [];
 afterEach(() => {
@@ -30,14 +30,14 @@ const setup = () => {
     containerFiles: { "~/.config/tool.toml": "level = 1\n" },
     env: { ACHQ_CLAUDE_BIN: claude.bin },
   };
-  const runtime = (config: ClaudeConfig, c: RuntimeContext = ctx, name = "coder") => claudeAgent.runtime(new Claude(name, config), c);
+  const runtime = (config: AgentConfig, c: RuntimeContext = ctx, name = "coder") => claudeAgentProvider.runtime(new Agent(name, config), c);
   return { root, achq, ctx, runtime, claude };
 };
 
 describe("session keys", () => {
   test("change with everything in the cached prefix, and nothing else", async () => {
     const { achq, ctx, runtime } = setup();
-    const base: ClaudeConfig = { model: "claude-opus-5-5", effort: "high", systemPrompt: "./prompts/system.md", settings: { a: 1 }, files: { "~/.claude/statusline.sh": "./statusline.sh" } };
+    const base: AgentConfig = { model: "claude-opus-5-5", effort: "high", systemPrompt: "./prompts/system.md", settings: { a: 1 }, files: { "~/.claude/statusline.sh": "./statusline.sh" } };
     const key = await runtime(base).sessionKey();
     expect(await runtime({ ...base }).sessionKey()).toBe(key);
     // Key order in settings doesn't matter.

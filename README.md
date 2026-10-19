@@ -41,7 +41,8 @@ export default achq(() => {
 
 ```ts
 // .achq/config.ts
-import { Claude, Container, Trigger, Workspace } from "achq";
+import { Container, Trigger, Workspace } from "achq";
+import * as claude from "achq/claude";
 import * as github from "achq/github";
 
 const channel = github.Channel.get("notation-achq");
@@ -52,7 +53,7 @@ const dev = new Container("dev", { image: "./Dockerfile", policies: [code] });
 new Workspace("docs", { container: dev, threads: channel.issues.where({ labels: ["docs"] }), branch: "docs-{number}", base: "docs" });
 new Workspace("issues", { container: dev, threads: channel.issues, branch: "issue-{number}", base: "main" });
 
-const coder = new Claude("coder", { model: "claude-opus-5-5", effort: "high", systemPrompt: "./prompts/system.md" });
+const coder = new claude.Agent("coder", { model: "claude-opus-5-5", effort: "high", systemPrompt: "./prompts/system.md" });
 new Trigger("mention", { event: channel.issueComment({ actions: ["created", "edited"], mention: "@claude" }), agent: coder });
 ```
 
@@ -124,7 +125,7 @@ Each folder in `packages/` is a workspace package, prefixed with its kind. Packa
 | Plugin | `plugin-github`, `plugin-railway`, `plugin-claude` | Implementations of core's contracts for one vendor |
 | Service | `service-router`, `service-deployer`, `service-container` | What runs: `main.ts` reads its settings from the environment and wires it up from the registry |
 | Tool | `cli` | `commands/` (one per command), `lib/` |
-| Facade | `achq` | What configs and the infra import (`achq`, `achq/github`, `achq/railway`), and `achq/registry`: one list of implementations per contract |
+| Facade | `achq` | What configs and the infra import (`achq`, `achq/github`, `achq/claude`, `achq/railway`), and `achq/registry`: one list of implementations per contract |
 | Library | `utils` | Know nothing about achq: `utils/flock` (file locks), `utils/sandbox` (QuickJS) |
 | Testing | `test-utils`, `test-e2e` | Fakes shared across packages; the whole system end to end |
 
@@ -141,7 +142,7 @@ Each folder in `packages/` is a workspace package, prefixed with its kind. Packa
 | `provider.ts` | The provider, e.g. `GitHubPolicyProvider` |
 | `index.ts` | Exports the provider alone, as the registry lists it |
 
-GitHub's are `channel/` (`github.Channel` and `GitHubChannelProvider`), `policy/` (`github.Policy` and `GitHubPolicyProvider`) and `code-host/` (`github.CodeHost`, the config's App installed on a repo, which `achq install` and `uninstall` plan, and `GitHubCodeHostProvider`). Everything else is in the package's one `src/lib/`, a file per topic: the vendor's API client, its auth, selectors and so on. Railway's are `container/` (`RailwayContainerProvider`, with its shell, `railway ssh`; the resource is core's `Container`), `router/` (`railway.Router`) and `deployer/` (`railway.Deployer`), which hold only a resource; its `lib/` has Railway's own objects as resources (`Project`, `Service`, `Deployment`, `Variables`) and the GraphQL client. Claude still has its older folders: `resources/`, and `agents/`, named after the contract.
+GitHub's are `channel/` (`github.Channel` and `GitHubChannelProvider`), `policy/` (`github.Policy` and `GitHubPolicyProvider`) and `code-host/` (`github.CodeHost`, the config's App installed on a repo, which `achq install` and `uninstall` plan, and `GitHubCodeHostProvider`). Everything else is in the package's one `src/lib/`, a file per topic: the vendor's API client, its auth, selectors and so on. Railway's are `container/` (`RailwayContainerProvider`, with its shell, `railway ssh`; the resource is core's `Container`), `router/` (`railway.Router`) and `deployer/` (`railway.Deployer`), which hold only a resource; its `lib/` has Railway's own objects as resources (`Project`, `Service`, `Deployment`, `Variables`) and the GraphQL client. Claude's is `agent/` (`claude.Agent` and `ClaudeAgentProvider`).
 
 `src/index.ts` is what repo configs import: it runs in the deployer's sandbox, so it and everything it imports is typechecked without Bun or Node types (`tsconfig.sandbox.json`). `src/infra.ts` is what the infra file imports.
 

@@ -22,9 +22,9 @@ new Trigger("mention", { event: channel.issueComment({ actions: ["created", "edi
 new Trigger("triage", { event: channel.issue({ actions: ["opened"] }), agent: triage });
 `,
   "agents.ts": `
-import { Claude } from "achq";
-export const coder = new Claude("coder", { model: "claude-opus-5-5", effort: "high", systemPrompt: "./prompts/system.md", settings: { hooks: [1, 2].map((n) => n * 2) } });
-export const triage = new Claude("triage", { model: "claude-haiku-5-5", systemPrompt: "./prompts/triage.md" });
+import * as claude from "achq/claude";
+export const coder = new claude.Agent("coder", { model: "claude-opus-5-5", effort: "high", systemPrompt: "./prompts/system.md", settings: { hooks: [1, 2].map((n) => n * 2) } });
+export const triage = new claude.Agent("triage", { model: "claude-haiku-5-5", systemPrompt: "./prompts/triage.md" });
 `,
 };
 

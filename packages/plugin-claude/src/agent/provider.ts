@@ -1,15 +1,23 @@
+// Claude Code as an agent runtime: each agent gets its own config directory,
+// and each run is a headless `claude -p` in the thread's worktree.
 import { createHash } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { stableStringify, toData, type AgentRuntime, type RunContext, type RunResult, type RuntimeContext } from "@achq/core";
-import { RUNTIME } from "../lib/constants.ts";
-import { BIN_ENV, CLAUDE_ENV, DENIED, SETTINGS_FILE, SYSTEM_PROMPT_FILE } from "./constants.ts";
-import type { Claude } from "../resources/claude.ts";
-import { transcriptExists, updateClaudeJson, writeFiles } from "./config-dir.ts";
-import { claudeSettings, effortFlags } from "./settings.ts";
-import { eachLine, StreamStats, tokens } from "./stream.ts";
+import { type Agent as CoreAgent, type AgentProvider, type AgentRuntime, type RunContext, type RunResult, type RuntimeContext, stableStringify, toData } from "@achq/core";
+import { claudeSettings, effortFlags, transcriptExists, updateClaudeJson, writeFiles } from "../lib/config-dir.ts";
+import { BIN_ENV, CLAUDE_ENV, DENIED, RUNTIME, SETTINGS_FILE, SYSTEM_PROMPT_FILE, TOKEN_ENV } from "../lib/constants.ts";
+import { eachLine, StreamStats, tokens } from "../lib/stream.ts";
+import type { Agent } from "./resource.ts";
 
-export const claudeRuntime = (agent: Claude, ctx: RuntimeContext): AgentRuntime => {
+export class ClaudeAgentProvider implements AgentProvider {
+  readonly id = RUNTIME;
+  readonly containerEnv = [{ name: TOKEN_ENV, hint: "Run `claude setup-token`." }];
+
+  /** A field, not a method: the container lists it by id, apart from the provider. */
+  readonly runtime = (agent: CoreAgent, ctx: RuntimeContext) => agentRuntime(agent as Agent, ctx);
+}
+
+const agentRuntime = (agent: Agent, ctx: RuntimeContext): AgentRuntime => {
   const config = agent.config;
   const claude = ctx.env[BIN_ENV] || "claude";
   const repoPrompt = config.systemPrompt ? ctx.readFile(config.systemPrompt) : "";

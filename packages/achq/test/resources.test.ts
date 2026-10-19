@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, test } from "bun:test";
-import { Claude } from "@achq/claude";
+import * as claude from "@achq/claude";
 import * as github from "@achq/github";
 import { collectManifest, Container, declared, resetDeclarations, Trigger, Workspace } from "@achq/core";
 
@@ -12,7 +12,7 @@ describe("collectManifest", () => {
     const dev = new Container("dev", { image: "./Dockerfile", policies: [code], files: { "~/.config/foo.toml": "./foo.toml" } });
     new Workspace("docs", { container: dev, threads: channel.issues.where({ labels: ["docs"] }), branch: "docs/{number}", base: "docs" });
     new Workspace("issues", { container: dev, threads: channel.issues, branch: "issue-{number}", base: "main" });
-    const coder = new Claude("coder", { model: "claude-opus-5-5", settings: { computed: [1, 2].map((n) => n * 2) } });
+    const coder = new claude.Agent("coder", { model: "claude-opus-5-5", settings: { computed: [1, 2].map((n) => n * 2) } });
     new Trigger("mention", { event: channel.issueComment({ actions: ["created", "edited"], mention: "@claude" }), agent: coder });
 
     expect(collectManifest()).toEqual({
@@ -38,7 +38,7 @@ describe("collectManifest", () => {
 
   test("rejects duplicate names within a kind, but not across kinds", () => {
     new Container("dev", { image: "./Dockerfile" });
-    new Claude("dev", {});
+    new claude.Agent("dev", {});
     expect(() => collectManifest()).not.toThrow();
     new Container("dev", { image: "./Other" });
     expect(() => collectManifest()).toThrow('Two containers are named "dev"');

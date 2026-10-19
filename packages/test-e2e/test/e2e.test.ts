@@ -64,9 +64,9 @@ import * as github from "achq/github";
 export const channel = github.Channel.get("${SLUG}");
 `,
   ".achq/agents/coder.ts": `
-import { Claude } from "achq";
+import * as claude from "achq/claude";
 const deny = ["secrets", "keys"].map((dir) => \`Read(./\${dir}/**)\`);
-export const coder = new Claude("coder", { model: "claude-opus-5-5", effort: "high", systemPrompt: "./prompts/system.md", settings: { permissions: { deny } } });
+export const coder = new claude.Agent("coder", { model: "claude-opus-5-5", effort: "high", systemPrompt: "./prompts/system.md", settings: { permissions: { deny } } });
 `,
   ".achq/prompts/system.md": "You maintain yieldstar. Keep changes small.\n",
   ".achq/yieldstar.toml": "level = 1\n",
