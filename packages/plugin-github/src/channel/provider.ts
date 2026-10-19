@@ -1,4 +1,4 @@
-import type { Channel, ChannelClient, ChannelCredential, ChannelEvent, Credential, Message, SelectorData, SourceSettings, Thread, ThreadRef } from "@achq/core";
+import type { ChannelProvider, ChannelClient, ChannelCredential, ChannelEvent, Credential, Message, SelectorData, SourceSettings, Thread, ThreadRef } from "@achq/core";
 import { type Apps, appWebhookSecret } from "../lib/apps.ts";
 import { botLogin, GitHubClient } from "../lib/client.ts";
 import { CHANNEL, GITHUB_API, REPO } from "../lib/constants.ts";
@@ -8,7 +8,7 @@ import { labelNames, messageId, OPENING_POST_ID, parseThreadId, slugify, TRUSTED
 import { parseEvent, verifyGitHubSignature } from "../lib/webhooks.ts";
 
 /** Apps as channels: each App is a source. Only the router has the key that verifies webhooks. */
-export class GitHubChannel implements Channel {
+export class GitHubChannelProvider implements ChannelProvider {
   readonly id = CHANNEL;
 
   constructor(

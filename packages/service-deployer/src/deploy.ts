@@ -35,7 +35,7 @@ export const deploy = async (ctx: DeployerContext, hostId: string, repo: string,
   const { store, log } = ctx;
   const previous = await store.get(repo);
   const at = () => ctx.now().toISOString();
-  const host = ctx.hosts[hostId];
+  const host = ctx.codeHostProviders[hostId];
   let client: RepoClient | undefined;
   let tree: ConfigTree | undefined;
 
@@ -110,7 +110,7 @@ export const deploy = async (ctx: DeployerContext, hostId: string, repo: string,
     for (const c of manifest.containers) {
       const dockerfile = `.achq/${normaliseRepoPath(c.image)!}`;
       const blob = tree.blobs.get(dockerfile.slice(".achq/".length))!.sha;
-      const { url } = await ctx.containerHost.ensure({
+      const { url } = await ctx.containerProvider.ensure({
         host: hostId,
         repo,
         name: c.name,
@@ -130,7 +130,7 @@ export const deploy = async (ctx: DeployerContext, hostId: string, repo: string,
       const before = previous?.deployed?.images[c.name];
       if (!before || before.dockerfile !== dockerfile || before.blob !== blob) {
         log(`${repo}: building ${c.name} from ${dockerfile}`);
-        await ctx.containerHost.deploy(repo, c.name);
+        await ctx.containerProvider.deploy(repo, c.name);
       }
       images[c.name] = { dockerfile, blob };
       routerContainers.push({ name: c.name, url, policies: c.policies.map((n) => manifest.policies.find((p) => p.name === n)!.policy) });
@@ -145,7 +145,7 @@ export const deploy = async (ctx: DeployerContext, hostId: string, repo: string,
       workspaces: manifest.workspaces,
       triggers: manifest.triggers.map((t) => ({ name: t.name, event: t.event })),
     });
-    for (const c of manifest.containers) located.push({ name: c.name, location: await ctx.containerHost.locate(repo, c.name) });
+    for (const c of manifest.containers) located.push({ name: c.name, location: await ctx.containerProvider.locate(repo, c.name) });
 
     const record: StoredRecord = {
       host: hostId,

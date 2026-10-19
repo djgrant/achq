@@ -2,8 +2,8 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { appWebhookSecret } from "../src/lib/apps.ts";
 import { hmacHex } from "@achq/core/signing";
 import { FakeGitHub } from "@achq/test-utils/github";
-import { githubChannel } from "../src/channel/index.ts";
-import type { GitHubChannel } from "../src/channel/runtime.ts";
+import { githubChannelProvider } from "../src/channel/index.ts";
+import type { GitHubChannelProvider } from "../src/channel/provider.ts";
 import { messageId } from "../src/lib/threads.ts";
 import { appA, appB, channel, commentPayload, githubEnv, headers, KEY, keys } from "./payloads.ts";
 
@@ -32,7 +32,7 @@ describe("verify", () => {
   });
 
   test("a container-side instance, without the key, verifies nothing", async () => {
-    expect(await githubChannel.create(githubEnv(keys)).verify(headers("issue_comment", body), body)).toBeUndefined();
+    expect(await githubChannelProvider.create(githubEnv(keys)).verify(headers("issue_comment", body), body)).toBeUndefined();
   });
 });
 
@@ -40,12 +40,12 @@ describe("verify", () => {
 
 describe("against GitHub", () => {
   const gh = new FakeGitHub([appA, appB]);
-  let api: { channel: GitHubChannel };
+  let api: { channel: GitHubChannelProvider };
   const repo = "notationlabs/yieldstar";
 
   beforeAll(() => {
     gh.start();
-    api = { channel: githubChannel.create(githubEnv(gh.keys(), gh.url, KEY)) as GitHubChannel };
+    api = { channel: githubChannelProvider.create(githubEnv(gh.keys(), gh.url, KEY)) as GitHubChannelProvider };
     gh.installations.push({ id: 77, app: appA.slug, account: "notationlabs", permissions: appA.permissions, repos: [repo, "notationlabs/shared"] });
     gh.users.set("notation-achq[bot]", { id: 555, login: "notation-achq[bot]" });
     gh.addIssue(repo, { number: 42, title: "Fix the login flow, please!", body: "It's broken", labels: [{ name: "docs" }] });

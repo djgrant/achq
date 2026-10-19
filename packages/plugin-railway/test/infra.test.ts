@@ -208,7 +208,7 @@ test("planning needs a Railway token", async () => {
 
 test("the deployer runs in a Railway router's project", () => {
   class Elsewhere extends core.Router {
-    readonly containerHost = "elsewhere";
+    readonly containerProvider = "elsewhere";
     readonly url = undefined as unknown as Output<string>;
     readonly key = undefined as unknown as Output<string>;
     readonly env = undefined as unknown as Output<Record<string, string>>;

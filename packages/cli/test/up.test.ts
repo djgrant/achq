@@ -144,7 +144,7 @@ const FRESH = [
   "  + service achq-deployer",
   "  + achq-deployer volume /data",
   "  ~ achq-deployer variables RAILWAY_API_TOKEN, ACHQ_RAILWAY_PROJECT_ID, ACHQ_RAILWAY_ENVIRONMENT_ID, DATA_DIR, PORT",
-  "  ~ achq-deployer variables AGENT_WEBHOOK_KEY, ACHQ_ROUTER_URL, ACHQ_ROUTER_PUBLIC_URL, ACHQ_OWNERS, ACHQ_CONTAINER_ENV, ACHQ_REF, ACHQ_CONTAINER_HOST",
+  "  ~ achq-deployer variables AGENT_WEBHOOK_KEY, ACHQ_ROUTER_URL, ACHQ_ROUTER_PUBLIC_URL, ACHQ_OWNERS, ACHQ_CONTAINER_ENV, ACHQ_REF, ACHQ_CONTAINER_PROVIDER",
   "  ~ achq-deployer deploy",
 ];
 
@@ -190,7 +190,7 @@ test("up creates everything, puts the App's key only in the router's variables, 
     ACHQ_OWNERS: "djgrant,notationlabs",
     RAILWAY_API_TOKEN: "railway-token",
     ACHQ_ROUTER_PUBLIC_URL: ROUTER_URL,
-    ACHQ_CONTAINER_HOST: "railway",
+    ACHQ_CONTAINER_PROVIDER: "railway",
     ACHQ_RAILWAY_PROJECT_ID: fake.project("achq")!.id,
     ACHQ_CONTAINER_ENV: JSON.stringify({ CLAUDE_CODE_OAUTH_TOKEN: "claude-token" }),
     ACHQ_REF: "abc123",

@@ -61,7 +61,7 @@ export const admin = async (ctx: RouterContext, req: Request) => {
     case "GET /admin/installations":
       return json((await Promise.all(ctx.installationProviders.map((p) => p.installations()))).flat());
     case "GET /admin/sources":
-      return json((await Promise.all(ctx.channels.map((c) => c.sources()))).flat());
+      return json((await Promise.all(ctx.channelProviders.map((c) => c.sources()))).flat());
     case "POST /admin/sync":
       return toDeployer(ctx, "POST", "/sync", body);
     case "GET /admin/status":

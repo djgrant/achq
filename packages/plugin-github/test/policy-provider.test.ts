@@ -3,9 +3,9 @@ import { $ } from "bun";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { Channel, InstallationProvider, PolicyCredential, PolicyProvider } from "@achq/core";
+import type { ChannelProvider, InstallationProvider, PolicyCredential, PolicyProvider } from "@achq/core";
 import { FakeGitHub, makeApp } from "@achq/test-utils/github";
-import { githubChannel } from "../src/channel/index.ts";
+import { githubChannelProvider } from "../src/channel/index.ts";
 import { githubInstallationProvider } from "../src/installation/index.ts";
 import type { GitHubPolicyData } from "../src/index.ts";
 import { appsFor, parseApps } from "../src/lib/apps.ts";
@@ -16,14 +16,14 @@ const appA = makeApp("notation-achq", "101", { issues: "write", contents: "write
 const appB = makeApp("djgrant-claude", "202", { issues: "write", contents: "read", metadata: "read" }, ["issue_comment"]);
 const gh = new FakeGitHub([appA, appB]);
 /** The router's parts, from one env. */
-let api: { provider: PolicyProvider; channel: Channel; installations: InstallationProvider };
+let api: { provider: PolicyProvider; channel: ChannelProvider; installations: InstallationProvider };
 
 const policy = (permissions: Record<string, "read" | "write">, repo: string | null = null, source = "notation-achq"): GitHubPolicyData => ({ provider: "github", source, repo, permissions });
 
 beforeAll(() => {
   gh.start();
   const env = githubEnv(gh.keys(), gh.url);
-  api = { provider: githubPolicyProvider.create(env), channel: githubChannel.create(env), installations: githubInstallationProvider.create(env) };
+  api = { provider: githubPolicyProvider.create(env), channel: githubChannelProvider.create(env), installations: githubInstallationProvider.create(env) };
   gh.installations.push(
     { id: 77, app: appA.slug, account: "notationlabs", permissions: appA.permissions, repos: ["notationlabs/yieldstar", "notationlabs/shared"] },
     { id: 88, app: appA.slug, account: "djgrant", permissions: { contents: "read", metadata: "read" }, repos: ["djgrant/notes"] },

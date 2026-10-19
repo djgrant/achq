@@ -9,10 +9,10 @@ import { type Context, Resource } from "./resource.ts";
 export type EnvValue = Input<string> | typeof GENERATED;
 export type EnvValues = Record<string, EnvValue>;
 
-/** The router or the deployer: one of achq's services, on its container host. */
+/** The router or the deployer: one of achq's services, on its container provider. */
 export abstract class Service extends Resource {
-  /** The `ContainerHost` it runs on, by id. */
-  abstract readonly containerHost: string;
+  /** The `ContainerProvider` it runs on, by id. */
+  abstract readonly containerProvider: string;
   /** The file in achq it runs, e.g. `packages/service-router/src/main.ts`. */
   abstract readonly entry: string;
   /** The port it listens on. A public service gets a public URL for this port. */
@@ -48,7 +48,7 @@ export abstract class Router extends Service {
   abstract readonly key: Output<string>;
 }
 
-/** Evaluates repo config and deploys its containers, on its container host. */
+/** Evaluates repo config and deploys its containers, on its container provider. */
 export abstract class Deployer extends Service {
   readonly kind = "deployer";
   readonly entry = "packages/service-deployer/src/main.ts";

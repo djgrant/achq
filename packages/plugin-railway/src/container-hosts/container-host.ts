@@ -2,14 +2,14 @@
 // are turned off once a service is connected. `ensure` reconciles the service
 // and its variables; `deploy` builds, imperatively.
 import { randomBytes } from "node:crypto";
-import { type Change, type Context, type ContainerHost, type ContainerSpec, ENV, plan } from "@achq/core";
+import { type Change, type Context, type ContainerProvider, type ContainerSpec, ENV, plan } from "@achq/core";
 import { type ProjectSnapshot, RailwayClient } from "../lib/client.ts";
-import { CONTAINER_HOST, RAILWAY_API, RAILWAY_ENV } from "../lib/constants.ts";
+import { CONTAINER_PROVIDER, RAILWAY_API, RAILWAY_ENV } from "../lib/constants.ts";
 import { containerServiceName, containerUrl } from "../lib/names.ts";
 import { BRANCH, CONNECTED, SOURCE_HOST } from "./constants.ts";
 import { containerService } from "./container-service.ts";
 
-export type RailwayContainerHostOptions = {
+export type RailwayContainerProviderOptions = {
   token: string;
   projectId: string;
   environmentId: string;
@@ -17,12 +17,12 @@ export type RailwayContainerHostOptions = {
   endpoint?: string;
 };
 
-export class RailwayContainerHost implements ContainerHost {
+export class RailwayContainerProvider implements ContainerProvider {
   readonly railway: RailwayClient;
   /** What its containers' resources are planned with. */
   private readonly ctx: Context;
 
-  constructor(readonly options: RailwayContainerHostOptions) {
+  constructor(readonly options: RailwayContainerProviderOptions) {
     const endpoint = options.endpoint ?? RAILWAY_API;
     this.railway = new RailwayClient(options.token, endpoint);
     this.ctx = {
@@ -105,6 +105,6 @@ export class RailwayContainerHost implements ContainerHost {
   }
 
   async locate(repo: string, name: string) {
-    return { containerHost: CONTAINER_HOST, project: this.options.projectId, environment: this.options.environmentId, service: containerServiceName(repo, name) };
+    return { containerProvider: CONTAINER_PROVIDER, project: this.options.projectId, environment: this.options.environmentId, service: containerServiceName(repo, name) };
   }
 }

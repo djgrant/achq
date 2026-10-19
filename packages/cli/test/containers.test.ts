@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import type { Status } from "@achq/core";
 import { containersOf, pickContainer } from "../src/lib/remote/containers.ts";
 
-const location = (service: string) => ({ containerHost: "railway", project: "p1", environment: "e1", service });
+const location = (service: string) => ({ containerProvider: "railway", project: "p1", environment: "e1", service });
 const status: Status = {
   host: "github",
   repo: "notationlabs/yieldstar",
@@ -13,11 +13,11 @@ const status: Status = {
   containers: [
     { name: "dev", location: location("notationlabs-yieldstar-dev") },
     { name: "docs", location: location("notationlabs-yieldstar-docs") },
-    { name: "elsewhere", location: { containerHost: "fly" } },
+    { name: "elsewhere", location: { containerProvider: "fly" } },
   ],
 };
 
-test("containers come from ACHQ_STATUS; only ones on a container host achq knows are listed", () => {
+test("containers come from ACHQ_STATUS; only ones on a container provider achq knows are listed", () => {
   expect(containersOf(status).map((c) => c.name)).toEqual(["dev", "docs"]);
 });
 

@@ -1,6 +1,6 @@
 import { hmacHex } from "@achq/core/signing";
 import { makeApp } from "@achq/test-utils/github";
-import { githubChannel } from "../src/channel/index.ts";
+import { githubChannelProvider } from "../src/channel/index.ts";
 import { type AppKeys, appWebhookSecret } from "../src/lib/apps.ts";
 
 export const KEY = "the-webhook-key";
@@ -64,7 +64,7 @@ export const headers = (event: string, body: string, over: Record<string, string
 export const appA = makeApp("notation-achq", "101", { issues: "write", contents: "write", metadata: "read" });
 export const appB = makeApp("djgrant-claude", "202", { issues: "write", contents: "read", metadata: "read" });
 export const keys = { [appA.slug]: { id: appA.id, privateKey: appA.privateKey }, [appB.slug]: { id: appB.id, privateKey: appB.privateKey } };
-export const channel = githubChannel.create(githubEnv(keys, undefined, KEY));
+export const channel = githubChannelProvider.create(githubEnv(keys, undefined, KEY));
 export const parse = (event: string, payload: object) => {
   const body = JSON.stringify(payload);
   return channel.parse("notation-achq", headers(event, body), body);

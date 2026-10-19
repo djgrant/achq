@@ -19,25 +19,25 @@ export const ENV = {
   repo: "ACHQ_REPO",
   container: "ACHQ_CONTAINER",
   containerSecret: "ACHQ_CONTAINER_SECRET",
-  /** Where the container clones its repo from: `CodeHost.cloneUrl`. */
+  /** Where the container clones its repo from: `CodeHostProvider.cloneUrl`. */
   repoUrl: "ACHQ_REPO_URL",
   /** What the deployer gives every container, as JSON: the agent runtimes' variables. */
   containerEnv: "ACHQ_CONTAINER_ENV",
   /** Comma-separated: variables a container never hands to an agent: every implementation's `privateEnv`. */
   privateEnv: "ACHQ_PRIVATE_ENV",
-  /** A URL a container fetches every few minutes while it's working, on container hosts that sleep idle services. */
+  /** A URL a container fetches every few minutes while it's working, on container providers that sleep idle services. */
   keepAwakeUrl: "ACHQ_KEEP_AWAKE_URL",
   /** The achq commit a container or service runs. */
   ref: "ACHQ_REF",
-  /** Where a service's or container's volume is. Its container host sets it. */
+  /** Where a service's or container's volume is. Its container provider sets it. */
   dataDir: "DATA_DIR",
-  /** The `ContainerHost` the deployer puts containers on, by id. */
-  containerHost: "ACHQ_CONTAINER_HOST",
+  /** The `ContainerProvider` the deployer puts containers on, by id. */
+  containerProvider: "ACHQ_CONTAINER_PROVIDER",
 } as const;
 
 /** Where achq's own code is. The router and deployer run it from there. */
 export const ACHQ_SOURCE = {
-  /** The `CodeHost` it lives on. */
+  /** The `CodeHostProvider` it lives on. */
   host: "github",
   repo: "djgrant/achq",
   branch: "main",

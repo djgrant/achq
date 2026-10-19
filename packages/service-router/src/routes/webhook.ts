@@ -6,7 +6,7 @@ import { safeName } from "../store.ts";
 import { targetsFor } from "../targets.ts";
 
 const verified = async (ctx: RouterContext, headers: Headers, body: string) => {
-  for (const channel of ctx.channels) {
+  for (const channel of ctx.channelProviders) {
     const source = await channel.verify(headers, body);
     if (source) return { channel, source };
   }

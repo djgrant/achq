@@ -3,7 +3,7 @@
 // real. Fakes stand only at the true boundaries:
 // - GitHub's API. It checks App JWTs against a real RSA key and serves repo
 //   data from a real git repository.
-// - The container host. It starts a real runner for each container the
+// - The container provider. It starts a real runner for each container the
 //   deployer ensures, with the env the deployer gave it.
 // - The `claude` executable.
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
@@ -11,7 +11,7 @@ import { $ } from "bun";
 import { randomUUID } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { ENV, STATUS_VARIABLE, type ContainerHost, type ContainerSpec, type RouterRepoConfig, type WakeRequest } from "@achq/core";
+import { ENV, STATUS_VARIABLE, type ContainerProvider, type ContainerSpec, type RouterRepoConfig, type WakeRequest } from "@achq/core";
 import { adminSecret, containerSecret, implementationSecret } from "@achq/core/secrets";
 import { hmacHex, signedFetch } from "@achq/core/signing";
 import { paths as layout, createAgent, type Runner, readState } from "@achq/container";
@@ -20,10 +20,10 @@ import { makeOrigin } from "@achq/test-utils/origin";
 import { tempDir } from "@achq/test-utils/temp-dir";
 import { createDeployer, routerClient, deployerHandler } from "@achq/deployer";
 import { FakeGitHub, makeApp } from "@achq/test-utils/github";
-import { githubChannel } from "@achq/github/channel";
+import { githubChannelProvider } from "@achq/github/channel";
 import { githubInstallationProvider } from "@achq/github/installation";
 import { githubPolicyProvider } from "@achq/github/policy";
-import { githubCodeHost } from "@achq/github/code-host";
+import { githubCodeHostProvider } from "@achq/github/code-host";
 import { createRouter } from "@achq/router";
 import { privateEnv } from "achq/registry";
 
@@ -74,12 +74,12 @@ export const coder = new Claude("coder", { model: "claude-opus-5-5", effort: "hi
   ".achq/Dockerfile": "FROM oven/bun:1\n",
 };
 
-// ─── The container host ──────────────────────────────────────────────────────
+// ─── The container provider ──────────────────────────────────────────────────────
 
 type Hosted = { spec: ContainerSpec; runner: Runner; server: ReturnType<typeof Bun.serve>; requests: { method: string; path: string }[] };
 
 /** Each ensured container is a real runner on a real port, started from the env the deployer gave it. */
-class TestContainerHost implements ContainerHost {
+class TestContainerProvider implements ContainerProvider {
   readonly containers = new Map<string, Hosted>();
   readonly specs: ContainerSpec[] = [];
   readonly builds: string[] = [];
@@ -128,7 +128,7 @@ class TestContainerHost implements ContainerHost {
     this.removed.push(this.id(repo, name));
   }
   async locate(repo: string, name: string) {
-    return { containerHost: "test", service: this.id(repo, name) };
+    return { containerProvider: "test", service: this.id(repo, name) };
   }
 
   /** Waits for every container's runs to finish. */
@@ -149,7 +149,7 @@ let root: string;
 let repo: Awaited<ReturnType<typeof makeOrigin>>;
 let claude: ReturnType<typeof fakeClaude>;
 let github: FakeGitHub;
-let host: TestContainerHost;
+let containerProvider: TestContainerProvider;
 let router: ReturnType<typeof createRouter>;
 let routerDir: string;
 let routerPublic: string;
@@ -161,7 +161,7 @@ const logs: string[] = [];
 const until = async (what: string, condition: () => boolean | Promise<boolean>, timeoutMs = 10_000) => {
   const deadline = Date.now() + timeoutMs;
   while (!(await condition())) {
-    if (Date.now() > deadline) throw new Error(`Timed out waiting for ${what}\n${[...logs, ...host.logs].slice(-30).join("\n")}`);
+    if (Date.now() > deadline) throw new Error(`Timed out waiting for ${what}\n${[...logs, ...containerProvider.logs].slice(-30).join("\n")}`);
     await Bun.sleep(10);
   }
 };
@@ -169,7 +169,7 @@ const until = async (what: string, condition: () => boolean | Promise<boolean>, 
 /** Every delivery the router accepted has reached its targets, and every run they started has finished. */
 const settle = async () => {
   await router.settled();
-  await host.idle();
+  await containerProvider.idle();
 };
 
 const serve = (fetch: (req: Request) => Promise<Response>) => {
@@ -360,7 +360,7 @@ const routerClaims = () => {
   return fs.existsSync(file) ? (JSON.parse(fs.readFileSync(file, "utf8")) as Record<string, Record<string, string>>) : {};
 };
 
-const dev = () => host.get(REPO, "dev");
+const dev = () => containerProvider.get(REPO, "dev");
 const devPaths = () => layout(dev().spec.env.DATA_DIR ?? path.join(root, "containers", "dev"));
 const events = () => dev().requests.filter((r) => r.method === "POST" && r.path === "/events").length;
 const threadState = (n: number) => readState(devPaths().thread(THREAD(n)));
@@ -407,11 +407,11 @@ beforeAll(async () => {
   routerDir = path.join(root, "router");
   const githubEnv = { ACHQ_GITHUB_APPS: JSON.stringify(github.keys()), GITHUB_API_URL: github.url, AGENT_WEBHOOK_KEY: KEY };
   const policyProvider = githubPolicyProvider.create(githubEnv);
-  const hosts = { github: githubCodeHost.create(githubEnv) };
+  const codeHostProviders = { github: githubCodeHostProvider.create(githubEnv) };
   let deployerFetch: (req: Request) => Promise<Response> = async () => new Response("starting", { status: 503 });
   const deployerUrl = serve((req) => deployerFetch(req));
   router = createRouter({
-    channels: [githubChannel.create(githubEnv)],
+    channelProviders: [githubChannelProvider.create(githubEnv)],
     installationProviders: [githubInstallationProvider.create(githubEnv)],
     policyProviders: [policyProvider],
     key: KEY,
@@ -419,7 +419,7 @@ beforeAll(async () => {
     deployerUrl,
     delays: [20, 50, 100, 200],
     attemptTimeout: 30_000,
-    hosts,
+    codeHostProviders,
     log: (line) => logs.push(`router: ${line}`),
   });
   await router.start();
@@ -432,8 +432,8 @@ beforeAll(async () => {
     return router.privateFetch(req);
   });
 
-  // Containers: what the image and the host provide besides the deployer's env.
-  host = new TestContainerHost((spec) => ({
+  // Containers: what the image and the container provider provide besides the deployer's env.
+  containerProvider = new TestContainerProvider((spec) => ({
     DATA_DIR: path.join(root, "containers", spec.name),
     ACHQ_REPO_URL: repo.origin,
     ACHQ_CLAUDE_BIN: claude.bin,
@@ -441,15 +441,15 @@ beforeAll(async () => {
     PATH: process.env.PATH!,
     FAKE_CLAUDE_LOG: claude.log,
   }));
-  stops.push(() => host.stop());
+  stops.push(() => containerProvider.stop());
 
   // The deployer, reaching the router on its private port.
   const deployer = createDeployer({
-    containerHost: host,
+    containerProvider,
     router: routerClient({ url: routerPrivate, key: KEY }),
     owners: [OWNER],
     dataDir: path.join(root, "deployer"),
-    hosts,
+    codeHostProviders,
     env: { containerEnv: { CLAUDE_CODE_OAUTH_TOKEN: "claude-oauth-token" }, privateEnv: privateEnv(), key: KEY, routerUrl: routerPrivate, routerPublicUrl: routerPublic, ref: "e2e" },
     log: (line) => logs.push(`deployer: ${line}`),
   });
@@ -457,9 +457,9 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  if (process.env.E2E_LOGS) console.log([...logs, ...(host?.logs ?? [])].join("\n"));
+  if (process.env.E2E_LOGS) console.log([...logs, ...(containerProvider?.logs ?? [])].join("\n"));
   await router?.settled();
-  await host?.idle();
+  await containerProvider?.idle();
   for (const stop of stops.splice(0).reverse()) stop();
   for (const dir of dirs.splice(0)) fs.rmSync(dir, { recursive: true, force: true });
 });
@@ -486,13 +486,13 @@ describe("achq end to end", () => {
       state: "deployed",
       at: expect.any(String),
       commit: repo.first,
-      containers: [{ name: "dev", location: { containerHost: "test", service: `${REPO}/dev` } }],
+      containers: [{ name: "dev", location: { containerProvider: "test", service: `${REPO}/dev` } }],
       router: routerPublic,
     });
 
     // One container, built once, holding the secret the router signs its events with.
-    expect(host.specs.map((s) => s.name)).toEqual(["dev"]);
-    expect(host.builds).toEqual([`${REPO}/dev`]);
+    expect(containerProvider.specs.map((s) => s.name)).toEqual(["dev"]);
+    expect(containerProvider.builds).toEqual([`${REPO}/dev`]);
     const spec = dev().spec;
     expect(spec).toMatchObject({ repo: REPO, name: "dev", dockerfile: ".achq/Dockerfile", branch: "main" });
     expect(spec.env[ENV.containerSecret]).toBe(containerSecret(KEY, REPO, "dev"));
@@ -670,7 +670,7 @@ describe("achq end to end", () => {
 
     const [config] = await admin<RouterRepoConfig[]>("GET", "/admin/repos");
     expect(config!.commit).toBe(after);
-    expect(host.builds).toEqual([`${REPO}/dev`]);
+    expect(containerProvider.builds).toEqual([`${REPO}/dev`]);
     expect(github.variable(REPO, STATUS_VARIABLE)).toMatchObject({ state: "deployed", commit: after });
     // The push itself wakes no container.
     const requests = dev().requests.length;
@@ -708,7 +708,7 @@ describe("achq end to end", () => {
     await settle();
     expect(dev().requests.length).toBe(before);
     expect(claude.calls()).toHaveLength(calls);
-    expect(host.removed).toEqual([]);
+    expect(containerProvider.removed).toEqual([]);
   });
 
   test("reinstalling brings everything back as it was: no rebuild, the thread keeps its workspace and resumes its session", async () => {
@@ -717,7 +717,7 @@ describe("achq end to end", () => {
     await settle();
     const [config] = await admin<RouterRepoConfig[]>("GET", "/admin/repos");
     expect(config!.commit).toBe(latest.commit);
-    expect(host.builds).toEqual([`${REPO}/dev`]);
+    expect(containerProvider.builds).toEqual([`${REPO}/dev`]);
     expect(github.variable(REPO, STATUS_VARIABLE)).toMatchObject({ state: "deployed", commit: latest.commit });
 
     // Relabelled meanwhile: the thread sticks to the workspace that claimed it.
@@ -738,7 +738,7 @@ describe("achq end to end", () => {
     const res = await signedFetch(adminSecret(KEY), `${routerPublic}/admin/sync`, { method: "POST", body: JSON.stringify({ prune: true }) });
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ deployed: [], unchanged: [REPO], uninstalled: [], pruned: [], failed: [] });
-    expect(host.removed).toEqual([]);
+    expect(containerProvider.removed).toEqual([]);
     const status = await signedFetch(adminSecret(KEY), `${routerPublic}/admin/status`, { method: "GET" });
     expect(await status.json()).toEqual([expect.objectContaining({ repo: REPO, source: SLUG, state: "deployed", commit: expect.any(String) })]);
   });

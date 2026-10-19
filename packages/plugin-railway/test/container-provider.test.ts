@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, expect, test } from "bun:test";
 import { type FakeRailway, startFakeRailway } from "@achq/test-utils/railway";
-import { railwayContainerHost } from "../src/container-hosts/index.ts";
-import { RailwayContainerHost } from "../src/container-hosts/container-host.ts";
+import { railwayContainerProvider } from "../src/container-hosts/index.ts";
+import { RailwayContainerProvider } from "../src/container-hosts/container-host.ts";
 import { RailwayClient } from "../src/lib/client.ts";
 
 let fake: FakeRailway;
-let host: RailwayContainerHost;
+let host: RailwayContainerProvider;
 
 const spec = {
   host: "github",
@@ -27,7 +27,7 @@ beforeEach(async () => {
   const railway = new RailwayClient("t", fake.url);
   const projectId = await railway.createProject("achq", "ws");
   const project = await railway.project(projectId);
-  host = new RailwayContainerHost({ token: "t", projectId, environmentId: project.environmentId, endpoint: fake.url });
+  host = new RailwayContainerProvider({ token: "t", projectId, environmentId: project.environmentId, endpoint: fake.url });
   fake.mutations.length = 0;
 });
 afterEach(() => fake.stop());
@@ -115,7 +115,7 @@ test("list reads services' repo and container, locate says where, remove deletes
     { repo: spec.repo, name: "docs" },
   ]);
   expect(await host.locate(spec.repo, "dev")).toEqual({
-    containerHost: "railway",
+    containerProvider: "railway",
     project: host.options.projectId,
     environment: host.options.environmentId,
     service: "notationlabs-yieldstar-dev",
@@ -133,10 +133,10 @@ test("only builds repos on GitHub", async () => {
 });
 
 test("the deployer makes it from its environment: the token and the project", async () => {
-  expect(railwayContainerHost.id).toBe("railway");
-  expect(railwayContainerHost.privateEnv).toEqual(["RAILWAY_API_TOKEN", "RAILWAY_TOKEN"]);
-  expect(() => railwayContainerHost.create({ RAILWAY_API_TOKEN: "t" })).toThrow("Missing ACHQ_RAILWAY_PROJECT_ID");
-  const made = railwayContainerHost.create({
+  expect(railwayContainerProvider.id).toBe("railway");
+  expect(railwayContainerProvider.privateEnv).toEqual(["RAILWAY_API_TOKEN", "RAILWAY_TOKEN"]);
+  expect(() => railwayContainerProvider.create({ RAILWAY_API_TOKEN: "t" })).toThrow("Missing ACHQ_RAILWAY_PROJECT_ID");
+  const made = railwayContainerProvider.create({
     RAILWAY_API_TOKEN: "t",
     RAILWAY_API_URL: fake.url,
     ACHQ_RAILWAY_PROJECT_ID: host.options.projectId,

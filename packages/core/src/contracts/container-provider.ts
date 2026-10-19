@@ -1,5 +1,5 @@
 export type ContainerSpec = {
-  /** The `CodeHost` the repo is on. */
+  /** The `CodeHostProvider` the repo is on. */
   host: string;
   repo: string;
   name: string;
@@ -7,14 +7,14 @@ export type ContainerSpec = {
   dockerfile: string;
   branch: string;
   /**
-   * The variables achq defines. The host adds its own: PORT, and DATA_DIR since it owns the volume's mount path.
-   * The host may read ACHQ_ROUTER_URL (to keep the container awake) and ACHQ_REPO / ACHQ_CONTAINER (to list containers); these match `repo` and `name`.
+   * The variables achq defines. The provider adds its own: PORT, and DATA_DIR since it owns the volume's mount path.
+   * The provider may read ACHQ_ROUTER_URL (to keep the container awake) and ACHQ_REPO / ACHQ_CONTAINER (to list containers); these match `repo` and `name`.
    */
   env: Record<string, string>;
 };
 
 /** Where containers run. */
-export interface ContainerHost {
+export interface ContainerProvider {
   /** Creates or updates the container's service and volume. Doesn't build. Returns the URL the router reaches it on. */
   ensure(spec: ContainerSpec): Promise<{ url: string }>;
   /** Builds and deploys the container from the head of its branch. */
@@ -26,7 +26,7 @@ export interface ContainerHost {
   locate(repo: string, name: string): Promise<Record<string, string>>;
 }
 
-/** A container at a location its host's `locate` gave, for `achq ssh` and `achq resume`. */
+/** A container at a location its provider's `locate` gave, for `achq ssh` and `achq resume`. */
 export interface ContainerShell {
   /** Whether the location has what `open` and `run` need. */
   reachable(location: Record<string, string>): boolean;

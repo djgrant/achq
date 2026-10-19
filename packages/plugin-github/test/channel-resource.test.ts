@@ -89,7 +89,7 @@ class RouterService extends ManagedResource<Service, true, Omit<Service, "exists
 
 /** A router whose variable groups are recorded, not set. */
 class StubRouter extends Router {
-  readonly containerHost = "stub";
+  readonly containerProvider = "stub";
   readonly url: Output<string>;
   readonly key: Output<string>;
   readonly env: Output<Record<string, string>>;

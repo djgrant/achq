@@ -27,14 +27,14 @@ export const sync = async (ctx: DeployerContext, actions: Actions, { prune = fal
   }
   if (prune) {
     const records = new Map((await ctx.store.all()).map((r) => [r.repo.toLowerCase(), r]));
-    for (const c of await ctx.containerHost.list()) {
+    for (const c of await ctx.containerProvider.list()) {
       const key = c.repo.toLowerCase();
       // A repo still installed keeps every container its last known manifest has.
       // With no known manifest (it has never deployed), nothing of it is removed.
       const manifest = manifests.get(key) ?? records.get(key)?.deployed?.manifest;
       const remove = !installed.has(key) || (manifest !== undefined && !manifest.containers.some((p) => p.name === c.name));
       if (!remove) continue;
-      if (!dryRun) await ctx.containerHost.remove(c.repo, c.name);
+      if (!dryRun) await ctx.containerProvider.remove(c.repo, c.name);
       result.pruned.push(`${c.repo}/${c.name}`);
     }
   }

@@ -4,7 +4,7 @@ import { afterEach, expect } from "bun:test";
 import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { ContainerEnvelope, DeployerEnvelope, PolicyData, SelectorData, PolicyProvider, Channel, ChannelEvent, CodeHost, InstallationProvider, RouterRepoConfig } from "@achq/core";
+import type { ContainerEnvelope, DeployerEnvelope, PolicyData, SelectorData, PolicyProvider, ChannelProvider, ChannelEvent, CodeHostProvider, InstallationProvider, RouterRepoConfig } from "@achq/core";
 import { adminSecret, containerSecret } from "@achq/core/secrets";
 import { hmacHex, safeEqual, signedHeaders, verifySigned } from "@achq/core/signing";
 import { createRouter } from "../src/router.ts";
@@ -20,7 +20,7 @@ export const sourceSecret = (source: string) => hmacHex(key, `test-source:${sour
 export const SOURCES = ["app"];
 
 /** Deliveries are a ChannelEvent's fields as JSON, signed per source. */
-export const testChannel: Channel = {
+export const testChannel: ChannelProvider = {
   id: "test",
   async verify(headers, body) {
     const source = headers.get("x-test-source") ?? "";
@@ -60,7 +60,7 @@ export const testPolicyProvider: PolicyProvider = {
 };
 
 /** `push-token` can push to `repo`; `read-token` and anything else can't. */
-export const testHost: CodeHost = {
+export const testHost: CodeHostProvider = {
   repoName: /^[\w.-]+\/[\w.-]+$/,
   deployerPolicy: (source, forRepo) => ({ provider: "test", source, repo: forRepo }),
   repo() {
@@ -145,10 +145,10 @@ export type Boot = { dir?: string; deployer?: string; delays?: number[] };
 
 export const boot = async ({ dir = mkdtempSync(join(tmpdir(), "achq-router-")), deployer = "http://localhost:1", delays = [0, 0] }: Boot = {}) => {
   const router = createRouter({
-    channels: [testChannel],
+    channelProviders: [testChannel],
     installationProviders: [testInstallationProvider],
     policyProviders: [testPolicyProvider],
-    hosts: { test: testHost },
+    codeHostProviders: { test: testHost },
     key,
     dataDir: dir,
     deployerUrl: deployer,

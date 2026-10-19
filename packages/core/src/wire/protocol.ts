@@ -35,9 +35,9 @@
 import type { RepoManifest } from "../resources/repo-manifest.ts";
 import type { PolicyData, SelectorData } from "../resources/config.ts";
 import type { PolicyCredential } from "../contracts/policy-provider.ts";
-import type { ChannelCredential, ChannelEvent, ThreadRef } from "../contracts/channel.ts";
+import type { ChannelCredential, ChannelEvent, ThreadRef } from "../contracts/channel-provider.ts";
 
-/** What the router forwards to the deployer: install and config events, which name the `CodeHost` they're about. */
+/** What the router forwards to the deployer: install and config events, which name the `CodeHostProvider` they're about. */
 export type DeployerEnvelope = { event: Extract<ChannelEvent, { host: string }> };
 
 export type ContainerEnvelope = {
@@ -48,7 +48,7 @@ export type ContainerEnvelope = {
 
 /** What the deployer tells the router about a deployed repo. Plain data. */
 export type RouterRepoConfig = {
-  /** The `CodeHost` the repo is on. */
+  /** The `CodeHostProvider` the repo is on. */
   host: string;
   repo: string;
   /** The commit whose `.achq/` config this is. Forwarded with events so containers run the same config. */
@@ -73,7 +73,7 @@ export type ClaimRequest = { repo: string; container: string; workspace: string;
 export type MintRequest = { repo: string; policies: PolicyData[] };
 export type ValidateRequest = { repo: string; policies: PolicyData[] };
 
-/** A repo a channel's source is installed on, and the `CodeHost` the repo is on. */
+/** A repo a channel's source is installed on, and the `CodeHostProvider` the repo is on. */
 export type Installation = { channel: string; source: string; repo: string; host: string };
 
 /** What a source (e.g. a GitHub App) is set up to send and allow, for checks. */
@@ -86,7 +86,7 @@ export type DeployState = "deployed" | "failed" | "uninstalled";
 
 /** The deployer's record of a repo, as ACHQ_STATUS and `/admin/status` show it. */
 export type DeployRecord = {
-  /** The `CodeHost` the repo is on, and the source that installed it there. */
+  /** The `CodeHostProvider` the repo is on, and the source that installed it there. */
   host: string;
   repo: string;
   source: string;
@@ -94,7 +94,7 @@ export type DeployRecord = {
   at: string;
   error?: string;
   commit?: string;
-  /** Per container: where to find it, from `ContainerHost.locate`. */
+  /** Per container: where to find it, from `ContainerProvider.locate`. */
   containers?: { name: string; location: Record<string, string> }[];
   warnings?: string[];
 };

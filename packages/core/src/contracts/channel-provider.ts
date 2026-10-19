@@ -11,9 +11,9 @@ export const threadKey = (ref: ThreadRef) => `${ref.channel}:${ref.id}`;
 export type ChannelEvent = ChannelEventBase &
   (
     | { host?: undefined; installation?: undefined; configChanged?: undefined }
-    /** For the deployer: the repos the source was installed on (`added`) or removed from, on the `CodeHost` `host`. */
+    /** For the deployer: the repos the source was installed on (`added`) or removed from, on the `CodeHostProvider` `host`. */
     | { host: string; installation: { added: string[]; removed: string[] }; configChanged?: undefined }
-    /** For the deployer: whether the repo's `.achq/` may have changed on its default branch, on the `CodeHost` `host`. */
+    /** For the deployer: whether the repo's `.achq/` may have changed on its default branch, on the `CodeHostProvider` `host`. */
     | { host: string; configChanged: boolean; installation?: undefined }
   );
 
@@ -73,7 +73,7 @@ export type Credential = {
 export type ChannelCredential = Credential & { channel: string };
 
 /** Where threads live. Hears events, reads threads, posts replies, decides who's trusted. */
-export interface Channel {
+export interface ChannelProvider {
   readonly id: string;
 
   // ── Router side: trusted achq code, holding the channel's secrets ──

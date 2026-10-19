@@ -4,7 +4,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { railwayShell } from "../src/container-hosts/shell.ts";
 
-const location = { containerHost: "railway", project: "p1", environment: "e1", service: "notationlabs-yieldstar-dev" };
+const location = { containerProvider: "railway", project: "p1", environment: "e1", service: "notationlabs-yieldstar-dev" };
 
 // A `railway` CLI that prints its arguments, and fails when asked to. Bun
 // finds commands on the PATH it started with, so the shell runs in a child
@@ -31,5 +31,5 @@ test("ssh targets the container's project, environment and service", async () =>
 
 test("a location without a project, environment and service can't be reached", () => {
   expect(railwayShell.reachable(location)).toBe(true);
-  expect(railwayShell.reachable({ containerHost: "railway", project: "p1" })).toBe(false);
+  expect(railwayShell.reachable({ containerProvider: "railway", project: "p1" })).toBe(false);
 });

@@ -15,7 +15,7 @@ const mintClients = async (ctx: RouterContext, config: RouterRepoConfig, contain
   }
   return Promise.all(
     [...sources.values()].map(({ channel, source }) => {
-      const found = ctx.channels.find((c) => c.id === channel);
+      const found = ctx.channelProviders.find((c) => c.id === channel);
       if (!found) throw new Error(`No channel "${channel}"`);
       return found.mintClient(source, config.repo);
     }),

@@ -1,7 +1,7 @@
 export const RAILWAY_API = "https://backboard.railway.com/graphql/v2";
 
-/** The container host id: the router and deployer run on it, and the deployer puts containers on it. */
-export const CONTAINER_HOST = "railway";
+/** The container provider id: the router and deployer run on it, and the deployer puts containers on it. */
+export const CONTAINER_PROVIDER = "railway";
 
 /** Where the CLI and the deployer read their Railway settings from. */
 export const RAILWAY_ENV = {

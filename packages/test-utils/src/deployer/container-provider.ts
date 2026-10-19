@@ -1,7 +1,7 @@
-import type { ContainerHost, ContainerSpec } from "@achq/core";
+import type { ContainerProvider, ContainerSpec } from "@achq/core";
 
-/** Records what the deployer asks of the host. */
-export class MemoryContainerHost implements ContainerHost {
+/** Records what the deployer asks of the provider. */
+export class MemoryContainerProvider implements ContainerProvider {
   readonly services = new Map<string, { spec: ContainerSpec; builds: number }>();
   readonly calls: { op: "ensure" | "deploy" | "remove"; repo: string; name: string }[] = [];
 
@@ -36,6 +36,6 @@ export class MemoryContainerHost implements ContainerHost {
     this.services.delete(this.id(repo, name));
   }
   async locate(repo: string, name: string) {
-    return { containerHost: "memory", service: this.id(repo, name) };
+    return { containerProvider: "memory", service: this.id(repo, name) };
   }
 }

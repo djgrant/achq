@@ -1,5 +1,5 @@
 import type { PolicyData } from "../resources/config.ts";
-import type { Credential } from "./channel.ts";
+import type { Credential } from "./channel-provider.ts";
 
 /** For agents: minted by the policy provider it names. */
 export type PolicyCredential = Credential & { provider: string };

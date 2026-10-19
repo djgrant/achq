@@ -45,7 +45,7 @@ export const up = async ({ router, deployer, resources }: InfraResources, option
     [ENV.owners]: deployer.inputs.owners.join(","),
     [ENV.containerEnv]: JSON.stringify(deps.containerEnv),
     [ENV.ref]: ref,
-    [ENV.containerHost]: deployer.containerHost,
+    [ENV.containerProvider]: deployer.containerProvider,
   });
 
   const planned = await plan(resources, ctx);

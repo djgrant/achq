@@ -16,7 +16,7 @@ export const CONFIG_DIR = ".achq";
 /** Refresh when this little is left, so a failing refresh has half an hour of retries before anything breaks. */
 export const REFRESH_BEFORE_MS = 30 * 60_000;
 
-/** How often a working container fetches ENV.keepAwakeUrl, when its container host sets one. */
+/** How often a working container fetches ENV.keepAwakeUrl, when its container provider sets one. */
 export const KEEP_AWAKE_INTERVAL_MS = 3 * 60_000;
 
 /**

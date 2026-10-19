@@ -1,5 +1,5 @@
 // Pure: the router's state goes in, targets come out.
-import { type Channel, type ChannelEvent, type RouterRepoConfig, threadKey } from "@achq/core";
+import { type ChannelProvider, type ChannelEvent, type RouterRepoConfig, threadKey } from "@achq/core";
 
 export type Target =
   | { kind: "deployer" }
@@ -12,7 +12,7 @@ export type Target =
 /** Per thread key, per container: the workspace the container says claimed it. */
 export type Claims = Record<string, Record<string, string>>;
 
-export const targetsFor = (channel: Channel, event: ChannelEvent, config: RouterRepoConfig | undefined, claims: Claims): Target[] => {
+export const targetsFor = (channel: ChannelProvider, event: ChannelEvent, config: RouterRepoConfig | undefined, claims: Claims): Target[] => {
   // A repo isn't deployed until its install is handled, so installs always go through.
   if (event.installation) return [{ kind: "deployer" }];
   if (!config) return [];

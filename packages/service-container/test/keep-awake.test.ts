@@ -4,7 +4,7 @@ import { keepAwake } from "../src/keep-awake.ts";
 let server: ReturnType<typeof Bun.serve> | undefined;
 afterEach(() => server?.stop(true));
 
-test("pings ACHQ_KEEP_AWAKE_URL only when the container host sets it", async () => {
+test("pings ACHQ_KEEP_AWAKE_URL only when the container provider sets it", async () => {
   expect(keepAwake({})).toBeUndefined();
   expect(keepAwake({ ACHQ_KEEP_AWAKE_URL: "" })).toBeUndefined();
   const hits: string[] = [];

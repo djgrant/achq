@@ -8,11 +8,11 @@ import { signedFetch } from "@achq/core/signing";
 import { evaluateConfig } from "../src/config/index.ts";
 import { DOC_CONFIG, DOC_PLAN } from "@achq/test-utils/config";
 import { createDeployer } from "../src/deployer.ts";
-import { githubChannel } from "@achq/github/channel";
-import { githubCodeHost } from "@achq/github/code-host";
+import { githubChannelProvider } from "@achq/github/channel";
+import { githubCodeHostProvider } from "@achq/github/code-host";
 import { FakeGitHub } from "@achq/test-utils/deployer/github";
 import { FakeRouter } from "@achq/test-utils/deployer/router";
-import { MemoryContainerHost } from "@achq/test-utils/deployer/container-host";
+import { MemoryContainerProvider } from "@achq/test-utils/deployer/container-provider";
 import { routerClient } from "../src/clients/router.ts";
 import { deployerHandler } from "../src/server.ts";
 
@@ -40,12 +40,12 @@ const repoFiles = (overrides: Record<string, string | undefined> = {}) => {
 const DEPLOYER_PERMISSIONS = { contents: "read", metadata: "read", actions_variables: "write" };
 const githubDeps = () => {
   const env = { GITHUB_API_URL: github.url };
-  return { hosts: { github: githubCodeHost.create(env) } };
+  return { codeHostProviders: { github: githubCodeHostProvider.create(env) } };
 };
 
 let github: FakeGitHub;
 let router: FakeRouter;
-let host: MemoryContainerHost;
+let containerProvider: MemoryContainerProvider;
 let dataDir: string;
 let evaluations: number;
 let clock: number;
@@ -53,7 +53,7 @@ let logs: string[];
 
 const makeDeployer = (options: { owners?: string[] } = {}) =>
   createDeployer({
-    containerHost: host,
+    containerProvider,
     router: routerClient({ url: router.url, key: KEY }),
     owners: options.owners ?? ["NotationLabs", "djgrant"],
     dataDir,
@@ -79,7 +79,7 @@ const event = (type: string, repos: string[], source = APP): DeployerEnvelope =>
       : name === "installation"
         ? { action, installation, repositories: list }
         : { action, installation, [`repositories_${action}`]: list };
-  const parsed = githubChannel.create({}).parse(source, new Headers({ "x-github-event": name!, "x-github-delivery": `d-${++n}` }), JSON.stringify(payload));
+  const parsed = githubChannelProvider.create({}).parse(source, new Headers({ "x-github-event": name!, "x-github-delivery": `d-${++n}` }), JSON.stringify(payload));
   if (parsed?.host === undefined) throw new Error(`the GitHub channel ignored ${type}, or didn't name its host`);
   return { event: parsed };
 };
@@ -89,7 +89,7 @@ beforeEach(() => {
   router = new FakeRouter(KEY, github);
   router.sources = [{ channel: "github", source: APP, events: ["issue_comment", "issues", "push", "installation"], permissions: { contents: "write", actions_variables: "write" } }];
   router.installations = [{ channel: "github", source: APP, repo: REPO, host: "github" }];
-  host = new MemoryContainerHost();
+  containerProvider = new MemoryContainerProvider();
   dataDir = mkdtempSync(join(tmpdir(), "achq-deployer-"));
   evaluations = 0;
   clock = 0;
@@ -112,11 +112,11 @@ describe("install", () => {
     expect(router.mints).toEqual([{ repo: REPO, policies: [{ provider: "github", source: APP, repo: REPO, permissions: { ...DEPLOYER_PERMISSIONS } }] }]);
 
     // One container, built once, with its env.
-    expect(host.ops()).toEqual([
+    expect(containerProvider.ops()).toEqual([
       { op: "ensure", repo: REPO, name: "dev" },
       { op: "deploy", repo: REPO, name: "dev" },
     ]);
-    expect(host.services.get(`${REPO}/dev`)!.spec).toEqual({
+    expect(containerProvider.services.get(`${REPO}/dev`)!.spec).toEqual({
       host: "github",
       repo: REPO,
       name: "dev",
@@ -153,7 +153,7 @@ describe("install", () => {
       state: "deployed",
       at: "2026-10-17T10:00:00.000Z",
       commit,
-      containers: [{ name: "dev", location: { containerHost: "memory", service: `${REPO}/dev` } }],
+      containers: [{ name: "dev", location: { containerProvider: "memory", service: `${REPO}/dev` } }],
       router: "https://router.example",
     });
     // The infra's status is the same record.
@@ -178,7 +178,7 @@ describe("install", () => {
     expect(evaluations).toBe(0);
     expect(router.mints).toEqual([]);
     expect(github.requests).toEqual([]);
-    expect(host.ops()).toEqual([]);
+    expect(containerProvider.ops()).toEqual([]);
     expect(router.count("PUT", "/admin/repos")).toBe(0);
     expect(await deployer.status()).toEqual([{ host: "github", repo: "stranger/repo", source: APP, state: "failed", at: expect.any(String), error: "stranger isn't an owner this deployer serves" }]);
   });
@@ -192,7 +192,7 @@ describe("install", () => {
   test("a config that fails in the sandbox is reported in ACHQ_STATUS and deploys nothing", async () => {
     github.commit(REPO, repoFiles({ ".achq/config.ts": `import { Container } from "achq"; while (true) {}` }));
     const deployer = createDeployer({
-      containerHost: host,
+      containerProvider,
       router: routerClient({ url: router.url, key: KEY }),
       owners: ["notationlabs"],
       dataDir,
@@ -203,7 +203,7 @@ describe("install", () => {
     });
     expect((await deployer.deploy("github", REPO, APP)).outcome).toBe("failed");
     expect(github.variable(REPO, STATUS_VARIABLE)).toMatchObject({ state: "failed", error: ".achq/config.ts: The config ran for longer than 200ms and was stopped" });
-    expect(host.ops()).toEqual([]);
+    expect(containerProvider.ops()).toEqual([]);
     expect(router.repos.size).toBe(0);
 
     github.commit(REPO, repoFiles({ ".achq/config.ts": `import "node:fs";` }));
@@ -233,7 +233,7 @@ describe("checks", () => {
     router.problems = (policy) => (policy.permissions && (policy.permissions as Record<string, string>).pull_requests ? [`${APP} doesn't have pull_requests: write`] : []);
     github.commit(REPO, repoFiles());
     expect(await makeDeployer().deploy("github", REPO, APP)).toMatchObject({ outcome: "failed", error: `${APP} doesn't have pull_requests: write` });
-    expect(host.ops()).toEqual([]);
+    expect(containerProvider.ops()).toEqual([]);
     expect(router.count("PUT", "/admin/repos")).toBe(0);
     expect(github.variable(REPO, STATUS_VARIABLE)).toMatchObject({ state: "failed", error: `${APP} doesn't have pull_requests: write` });
   });
@@ -242,7 +242,7 @@ describe("checks", () => {
     router.sources[0]!.events = ["issues"];
     github.commit(REPO, repoFiles());
     expect((await makeDeployer().deploy("github", REPO, APP)).error).toBe(`trigger mention wants issue_comment, which ${APP} doesn't send`);
-    expect(host.ops()).toEqual([]);
+    expect(containerProvider.ops()).toEqual([]);
   });
 
   test("config that doesn't name the installed App, or names an unknown one, fails", async () => {
@@ -254,7 +254,7 @@ describe("checks", () => {
     const { error } = await makeDeployer().deploy("github", REPO, APP);
     expect(error).toContain("policy code names ghost, which the router doesn't know");
     expect(error).toContain("no policy or workspace names notation-achq");
-    expect(host.ops()).toEqual([]);
+    expect(containerProvider.ops()).toEqual([]);
   });
 
   test("a missing Dockerfile fails; a trigger no workspace covers is a warning", async () => {
@@ -273,12 +273,12 @@ describe("checks", () => {
 describe("config changes", () => {
   test("a repo on another host deploys again, even with the same .achq tree", async () => {
     github.commit(REPO, repoFiles());
-    const github2 = githubCodeHost.create({ GITHUB_API_URL: github.url });
+    const github2 = githubCodeHostProvider.create({ GITHUB_API_URL: github.url });
     const deployer = createDeployer({
-      containerHost: host,
+      containerProvider,
       router: routerClient({ url: router.url, key: KEY }),
       ...githubDeps(),
-      hosts: { ...githubDeps().hosts, mirror: github2 },
+      codeHostProviders: { ...githubDeps().codeHostProviders, mirror: github2 },
       owners: ["notationlabs"],
       dataDir,
       env: ENV,
@@ -287,17 +287,17 @@ describe("config changes", () => {
     expect((await deployer.deploy("github", REPO, APP)).outcome).toBe("deployed");
     expect((await deployer.deploy("github", REPO, APP)).outcome).toBe("unchanged");
     expect((await deployer.deploy("mirror", REPO, APP)).outcome).toBe("deployed");
-    expect(host.services.get(`${REPO}/dev`)!.spec.host).toBe("mirror");
+    expect(containerProvider.services.get(`${REPO}/dev`)!.spec.host).toBe("mirror");
     // Sync deploys each installed repo on the host its installation names.
     router.installations = [{ channel: "github", source: APP, repo: REPO, host: "github" }];
     expect((await deployer.sync()).deployed).toEqual([REPO]);
-    expect(host.services.get(`${REPO}/dev`)!.spec.host).toBe("github");
+    expect(containerProvider.services.get(`${REPO}/dev`)!.spec.host).toBe("github");
   });
 
   test("a host achq doesn't know fails without touching anything", async () => {
     expect(await makeDeployer().deploy("gitlab", REPO, APP)).toMatchObject({ outcome: "failed", error: `achq doesn't know the code host "gitlab"` });
     expect(router.mints).toEqual([]);
-    expect(host.ops()).toEqual([]);
+    expect(containerProvider.ops()).toEqual([]);
   });
 
   test("a push with the same .achq tree is a no-op", async () => {
@@ -305,13 +305,13 @@ describe("config changes", () => {
     const deployer = makeDeployer();
     await deployer.handle(event("installation.created", [REPO]));
     const status = github.variable(REPO, STATUS_VARIABLE);
-    const before = { ops: host.ops().length, puts: router.count("PUT", "/admin/repos"), evaluations, validations: router.validations.length };
+    const before = { ops: containerProvider.ops().length, puts: router.count("PUT", "/admin/repos"), evaluations, validations: router.validations.length };
 
     github.commit(REPO, repoFiles({ "README.md": "# changed outside .achq" }));
     expect(await deployer.deploy("github", REPO, APP)).toMatchObject({ outcome: "unchanged" });
     await deployer.handle(event("push", [REPO]));
 
-    expect({ ops: host.ops().length, puts: router.count("PUT", "/admin/repos"), evaluations, validations: router.validations.length }).toEqual(before);
+    expect({ ops: containerProvider.ops().length, puts: router.count("PUT", "/admin/repos"), evaluations, validations: router.validations.length }).toEqual(before);
     expect(github.variable(REPO, STATUS_VARIABLE)).toEqual(status);
     // Only reads of the tree happened: no blob downloads, no variable writes.
     const late = github.requests.slice(github.requests.findLastIndex((r) => r.path.includes("/actions/variables")) + 1);
@@ -325,8 +325,8 @@ describe("config changes", () => {
     const commit = github.commit(REPO, repoFiles({ ".achq/prompts/system.md": "You are a careful coder." }));
     expect((await deployer.deploy("github", REPO, APP)).outcome).toBe("deployed");
     expect(router.repos.get(REPO)!.commit).toBe(commit);
-    expect(host.ops("deploy")).toHaveLength(1);
-    expect(host.services.get(`${REPO}/dev`)!.builds).toBe(1);
+    expect(containerProvider.ops("deploy")).toHaveLength(1);
+    expect(containerProvider.services.get(`${REPO}/dev`)!.builds).toBe(1);
     expect(github.variable(REPO, STATUS_VARIABLE)).toMatchObject({ state: "deployed", commit });
   });
 
@@ -336,13 +336,13 @@ describe("config changes", () => {
     await deployer.deploy("github", REPO, APP);
     github.commit(REPO, repoFiles({ ".achq/Dockerfile": "FROM oven/bun:1.4\n" }));
     await deployer.deploy("github", REPO, APP);
-    expect(host.ops("deploy")).toHaveLength(2);
+    expect(containerProvider.ops("deploy")).toHaveLength(2);
 
     const moved = DOC_CONFIG["config.ts"].replace(`image: "./Dockerfile"`, `image: "./images/dev.Dockerfile"`);
     github.commit(REPO, repoFiles({ ".achq/config.ts": moved, ".achq/images/dev.Dockerfile": "FROM oven/bun:1.4\n" }));
     await deployer.deploy("github", REPO, APP);
-    expect(host.ops("deploy")).toHaveLength(3);
-    expect(host.services.get(`${REPO}/dev`)!.spec.dockerfile).toBe(".achq/images/dev.Dockerfile");
+    expect(containerProvider.ops("deploy")).toHaveLength(3);
+    expect(containerProvider.services.get(`${REPO}/dev`)!.spec.dockerfile).toBe(".achq/images/dev.Dockerfile");
   });
 
   test("a new container is built; a removed one is left alone", async () => {
@@ -352,12 +352,12 @@ describe("config changes", () => {
     const two = `${DOC_CONFIG["config.ts"]}\nnew Container("ci", { image: "./Dockerfile" });`;
     github.commit(REPO, repoFiles({ ".achq/config.ts": two }));
     await deployer.deploy("github", REPO, APP);
-    expect(host.ops("deploy").map((c) => c.name)).toEqual(["dev", "ci"]);
+    expect(containerProvider.ops("deploy").map((c) => c.name)).toEqual(["dev", "ci"]);
 
     github.commit(REPO, repoFiles());
     await deployer.deploy("github", REPO, APP);
-    expect(host.ops("remove")).toEqual([]);
-    expect(host.services.has(`${REPO}/ci`)).toBe(true);
+    expect(containerProvider.ops("remove")).toEqual([]);
+    expect(containerProvider.services.has(`${REPO}/ci`)).toBe(true);
     expect(router.repos.get(REPO)!.containers.map((c) => c.name)).toEqual(["dev"]);
   });
 
@@ -372,7 +372,7 @@ describe("config changes", () => {
     router.problems = () => [];
     expect((await deployer.deploy("github", REPO, APP)).outcome).toBe("deployed");
     expect(router.repos.get(REPO)!.commit).toBe(commit);
-    expect(host.ops("deploy")).toHaveLength(1);
+    expect(containerProvider.ops("deploy")).toHaveLength(1);
   });
 });
 
@@ -383,13 +383,13 @@ describe("uninstall", () => {
     await deployer.handle(event("installation.created", [REPO]));
     await deployer.handle(event("installation_repositories.removed", [REPO]));
     expect(router.repos.has(REPO)).toBe(false);
-    expect(host.ops("remove")).toEqual([]);
-    expect(host.services.has(`${REPO}/dev`)).toBe(true);
+    expect(containerProvider.ops("remove")).toEqual([]);
+    expect(containerProvider.services.has(`${REPO}/dev`)).toBe(true);
     expect((await deployer.status())[0]).toMatchObject({ repo: REPO, state: "uninstalled" });
 
     await deployer.handle(event("installation_repositories.added", [REPO]));
     expect(router.repos.get(REPO)).toBeDefined();
-    expect(host.ops("deploy")).toHaveLength(1);
+    expect(containerProvider.ops("deploy")).toHaveLength(1);
     expect((await deployer.status())[0]!.state).toBe("deployed");
   });
 
@@ -401,7 +401,7 @@ describe("uninstall", () => {
     expect(router.repos.size).toBe(2);
     await deployer.handle(event("installation.deleted", [REPO, "djgrant/notes"]));
     expect(router.repos.size).toBe(0);
-    expect(host.ops("remove")).toEqual([]);
+    expect(containerProvider.ops("remove")).toEqual([]);
   });
 });
 
@@ -415,7 +415,7 @@ describe("deliveries", () => {
     expect(await deployer.handle(envelope)).toBe(false);
     expect(await makeDeployer().handle(envelope)).toBe(false);
     expect(router.mints).toHaveLength(1);
-    expect(host.ops("ensure")).toHaveLength(1);
+    expect(containerProvider.ops("ensure")).toHaveLength(1);
   });
 
   test("deploys of one repo don't overlap", async () => {
@@ -423,7 +423,7 @@ describe("deliveries", () => {
     let active = 0;
     let most = 0;
     const deployer = createDeployer({
-      containerHost: host,
+      containerProvider,
       router: routerClient({ url: router.url, key: KEY }),
       owners: ["notationlabs"],
       dataDir,
@@ -444,7 +444,7 @@ describe("deliveries", () => {
     const outcomes = await Promise.all([deployer.deploy("github", REPO, APP), deployer.deploy("github", REPO.toUpperCase(), APP), deployer.deploy("github", REPO, APP)]);
     expect(most).toBe(1);
     expect(outcomes.map((o) => o.outcome)).toEqual(["deployed", "unchanged", "unchanged"]);
-    expect(host.ops("ensure")).toHaveLength(1);
+    expect(containerProvider.ops("ensure")).toHaveLength(1);
   });
 });
 
@@ -464,10 +464,10 @@ describe("sync", () => {
 
     // B is uninstalled. A keeps its plan but has a leftover container. notationlabs/gone was never recorded.
     router.installations = [{ channel: "github", source: APP, repo: A, host: "github" }];
-    host.seed(A, "old");
-    host.seed("notationlabs/gone", "dev");
+    containerProvider.seed(A, "old");
+    containerProvider.seed("notationlabs/gone", "dev");
     router.installations.push({ channel: "github", source: APP, repo: "notationlabs/fresh", host: "github" });
-    host.seed("notationlabs/fresh", "dev"); // installed but never deployed: no known plan, so kept
+    containerProvider.seed("notationlabs/fresh", "dev"); // installed but never deployed: no known plan, so kept
 
     const dry = await deployer.sync({ prune: true, dryRun: true });
     dry.pruned.sort();
@@ -478,14 +478,14 @@ describe("sync", () => {
       pruned: [`${A}/old`, `${B}/dev`, "notationlabs/gone/dev"],
       failed: [{ repo: "notationlabs/fresh", error: expect.stringContaining("Not Found") }],
     });
-    expect(host.ops("remove")).toEqual([]);
+    expect(containerProvider.ops("remove")).toEqual([]);
     expect(router.repos.has(B.toLowerCase())).toBe(true);
 
     const result = await deployer.sync({ prune: true });
     expect(result.pruned.sort()).toEqual(dry.pruned);
     expect(result.uninstalled).toEqual([B]);
-    expect(host.ops("remove").map((c) => `${c.repo}/${c.name}`).sort()).toEqual(dry.pruned);
-    expect([...host.services.keys()].sort()).toEqual([`${A}/dev`, "notationlabs/fresh/dev"]);
+    expect(containerProvider.ops("remove").map((c) => `${c.repo}/${c.name}`).sort()).toEqual(dry.pruned);
+    expect([...containerProvider.services.keys()].sort()).toEqual([`${A}/dev`, "notationlabs/fresh/dev"]);
     expect(router.repos.has(B.toLowerCase())).toBe(false);
 
     // Nothing left to do.
@@ -499,7 +499,7 @@ describe("sync", () => {
     await deployer.sync();
     router.installations = [];
     expect(await deployer.sync()).toMatchObject({ uninstalled: [A], pruned: [] });
-    expect(host.ops("remove")).toEqual([]);
+    expect(containerProvider.ops("remove")).toEqual([]);
   });
 
   test("a dry run changes nothing", async () => {
@@ -507,7 +507,7 @@ describe("sync", () => {
     router.installations = [{ channel: "github", source: APP, repo: A, host: "github" }];
     const deployer = makeDeployer();
     expect(await deployer.sync({ dryRun: true })).toMatchObject({ deployed: [A] });
-    expect(host.ops()).toEqual([]);
+    expect(containerProvider.ops()).toEqual([]);
     expect(router.repos.size).toBe(0);
     expect(github.variable(A, STATUS_VARIABLE)).toBeUndefined();
     expect(await deployer.status()).toEqual([]);

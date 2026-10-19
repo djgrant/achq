@@ -8,7 +8,7 @@ import { fakeClaude } from "@achq/test-utils/fake-claude";
 import { makeOrigin } from "@achq/test-utils/origin";
 import { testPolicyProvider } from "@achq/test-utils/test-policy-provider";
 import { tempDir } from "@achq/test-utils/temp-dir";
-import { TestChannel } from "@achq/test-utils/test-channel";
+import { TestChannelProvider } from "@achq/test-utils/test-channel-provider";
 import { createConfigLoader } from "../src/config/loader.ts";
 import { paths as layout } from "../src/paths.ts";
 import { fetchMirror } from "../src/repo.ts";
@@ -31,7 +31,7 @@ export const world = async (opts: { maxRuns?: number } = {}) => {
   const claude = fakeClaude(root);
   const router = fakeRouter(SECRET);
   cleanups.push(router.stop);
-  const channel = new TestChannel();
+  const channel = new TestChannelProvider();
   const dataDir = path.join(root, "data");
   const paths = layout(dataDir);
   const load = createConfigLoader({ mirror: paths.mirror, dir: paths.config, fetch: () => fetchMirror(paths.mirror, git.origin) });
@@ -46,7 +46,7 @@ export const world = async (opts: { maxRuns?: number } = {}) => {
   const runner = new Runner({
     repo: "acme/widgets",
     container: "dev",
-    channels: [channel],
+    channelProviders: [channel],
     policyProviders: [testPolicyProvider()],
     routerUrl: router.url,
     containerSecret: SECRET,

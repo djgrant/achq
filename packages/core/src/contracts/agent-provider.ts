@@ -1,5 +1,5 @@
 import type { Agent } from "../resources/config.ts";
-import type { ThreadRef } from "./channel.ts";
+import type { ThreadRef } from "./channel-provider.ts";
 
 export type RunContext = {
   thread: ThreadRef;

@@ -1,4 +1,4 @@
-import { type Channel, type ChannelEvent, type ClaimRequest, type RepoManifest, type Thread, threadKey } from "@achq/core";
+import { type ChannelProvider, type ChannelEvent, type ClaimRequest, type RepoManifest, type Thread, threadKey } from "@achq/core";
 import { signedFetch } from "@achq/core/signing";
 import type { Paths } from "./paths.ts";
 import { readState, type ThreadState, writeState } from "./state.ts";
@@ -18,7 +18,7 @@ export type ClaimOptions = {
  * The workspace that claimed the thread, or the first of this container's that
  * matches it now. A new claim is recorded on the volume and told to the router.
  */
-export const claimThread = (opts: ClaimOptions, channel: Channel, event: ChannelEvent, thread: Thread, workspaces: Workspace[]): ThreadState | undefined => {
+export const claimThread = (opts: ClaimOptions, channel: ChannelProvider, event: ChannelEvent, thread: Thread, workspaces: Workspace[]): ThreadState | undefined => {
   const file = opts.paths.thread(threadKey(thread.ref));
   const existing = readState(file);
   if (existing && workspaces.some((w) => w.name === existing.workspace)) return existing;

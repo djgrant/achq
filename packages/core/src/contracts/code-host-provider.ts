@@ -1,5 +1,5 @@
 import type { PolicyData } from "../resources/config.ts";
-import type { Credential } from "./channel.ts";
+import type { Credential } from "./channel-provider.ts";
 import type { Status } from "../wire/protocol.ts";
 
 /** A repo's default branch head, and the `.achq` tree in it. */
@@ -24,7 +24,7 @@ export interface RepoClient {
 }
 
 /** Where repos live. The deployer reads configs from it, the router checks `/wake` against it, containers clone from it. */
-export interface CodeHost {
+export interface CodeHostProvider {
   /** What a repo's name looks like here, e.g. `owner/name`. */
   readonly repoName: RegExp;
   /** The policy the deployer's own access to `repo` needs, through `source`: read `.achq/`, write the status. */

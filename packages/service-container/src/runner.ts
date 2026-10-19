@@ -1,5 +1,5 @@
 import * as fs from "node:fs";
-import { type Channel, type ChannelEvent, type ContainerEnvelope, type PolicyProvider, type RepoManifest, type RuntimeContext, type RuntimeFactory, threadKey } from "@achq/core";
+import { type ChannelProvider, type ChannelEvent, type ContainerEnvelope, type PolicyProvider, type RepoManifest, type RuntimeContext, type RuntimeFactory, threadKey } from "@achq/core";
 import { acquire } from "@achq/utils/flock";
 import { agentEnv, saveAgentEnv } from "./agent-env.ts";
 import { claimThread } from "./claim.ts";
@@ -27,7 +27,7 @@ export type RunnerOptions = {
   repo: string;
   /** This container's name in the repo's config. */
   container: string;
-  channels: Channel[];
+  channelProviders: ChannelProvider[];
   policyProviders: PolicyProvider[];
   routerUrl: string;
   containerSecret: string;
@@ -42,7 +42,7 @@ export type RunnerOptions = {
   /** The base env agents get, before credentials. Private variables are removed. */
   env?: Record<string, string | undefined>;
   now?: () => number;
-  /** Outbound traffic while runs are going, so the container host doesn't sleep the container. Defaults to fetching ENV.keepAwakeUrl, when it's set. */
+  /** Outbound traffic while runs are going, so the container provider doesn't sleep the container. Defaults to fetching ENV.keepAwakeUrl, when it's set. */
   keepAwake?: () => Promise<unknown>;
   log?: (line: string) => void;
 };
@@ -117,7 +117,7 @@ export class Runner {
   /** Handles one event; resolves once its runs (if any) are queued. */
   async handle({ event, commit }: ContainerEnvelope): Promise<void> {
     if (!firstDelivery(this.paths.deliveries, event.delivery)) return this.log(`[${event.delivery}] already handled`);
-    const channel = this.opts.channels.find((c) => c.id === event.channel);
+    const channel = this.opts.channelProviders.find((c) => c.id === event.channel);
     if (!channel || !event.thread) return;
     if (!event.actor?.trusted || event.actor.bot) return this.log(`[${event.delivery}] ignored: actor isn't a trusted person`);
 
@@ -144,7 +144,7 @@ export class Runner {
     this.track(next);
   }
 
-  private async client(channel: Channel, source: string) {
+  private async client(channel: ChannelProvider, source: string) {
     return channel.client(await this.credentials.channel(channel.id, source));
   }
 
@@ -152,7 +152,7 @@ export class Runner {
     const ref = event.thread!;
     const key = threadKey(ref);
     const log = (line: string) => this.log(`[${key}] ${line}`);
-    const channel = this.opts.channels.find((c) => c.id === event.channel)!;
+    const channel = this.opts.channelProviders.find((c) => c.id === event.channel)!;
     const client = await this.client(channel, event.source);
     const thread = await client.thread(ref);
     const { repo, container, routerUrl, containerSecret } = this.opts;
@@ -205,6 +205,6 @@ export class Runner {
 
   /** Marks runs a restart interrupted and says so on their threads. */
   reportInterrupted() {
-    return reportInterrupted({ threads: this.paths.threads, channels: this.opts.channels, client: (channel, source) => this.client(channel, source), log: this.log });
+    return reportInterrupted({ threads: this.paths.threads, channelProviders: this.opts.channelProviders, client: (channel, source) => this.client(channel, source), log: this.log });
   }
 }

@@ -1,7 +1,7 @@
 // The deployer reads `.achq/` and writes ACHQ_STATUS with the repo-scoped token
 // the router minted for it. The router checks `/wake` with the caller's token.
 // The CLI reads ACHQ_STATUS and commits as your gh login.
-import { type ConfigTree, type Credential, type FileLimits, type RepoClient, type CodeHost, STATUS_VARIABLE, type Status } from "@achq/core";
+import { type ConfigTree, type Credential, type FileLimits, type RepoClient, type CodeHostProvider, STATUS_VARIABLE, type Status } from "@achq/core";
 import { GitHubClient, type GitHubUrls } from "../lib/client.ts";
 import { POLICY_PROVIDER, REPO_NAME } from "../lib/constants.ts";
 import { DEPLOYER_PERMISSIONS } from "../lib/permissions.ts";
@@ -61,7 +61,7 @@ const repoClient = (repo: string, token: string, baseUrl: string): RepoClient =>
   };
 };
 
-export class GitHubCodeHost implements CodeHost {
+export class GitHubCodeHostProvider implements CodeHostProvider {
   readonly repoName = REPO_NAME;
   /** You, through your gh login: the CLI's side. */
   private gh: GitHubClient;

@@ -1,9 +1,9 @@
-import type { Channel, ChannelClient, ChannelCredential, ChannelEvent, Credential, Message, SelectorData, SourceSettings, Thread, ThreadRef } from "@achq/core";
+import type { ChannelProvider, ChannelClient, ChannelCredential, ChannelEvent, Credential, Message, SelectorData, SourceSettings, Thread, ThreadRef } from "@achq/core";
 
 type TestThread = { title: string; labels: string[]; messages: Message[] };
 
 /** A channel whose threads live in memory. It records replies, acknowledgements and the credentials its clients were given. */
-export class TestChannel implements Channel {
+export class TestChannelProvider implements ChannelProvider {
   readonly id = "test";
   threads = new Map<string, TestThread>();
   replies: { thread: string; body: string }[] = [];
