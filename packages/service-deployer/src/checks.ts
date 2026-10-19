@@ -14,7 +14,7 @@ export const checkPlan = (plan: RepoPlan, ctx: { source: string; tree: ConfigTre
     ...plan.triggers.map((t) => ({ what: `trigger ${t.name}`, channel: t.event.channel, source: t.event.source })),
   ];
   for (const n of named) {
-    if (!n.source) failures.push(`${n.what} names no source`);
+    if (typeof n.source !== "string" || !n.source) failures.push(`${n.what} names no source`);
     else if (!known(n.channel, n.source)) failures.push(`${n.what} names ${n.channel ? `${n.channel}:` : ""}${n.source}, which the router doesn't know`);
   }
   const usesInstalled = plan.policies.some((p) => p.policy.source === ctx.source) || plan.workspaces.some((w) => w.threads.source === ctx.source);
