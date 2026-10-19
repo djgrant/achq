@@ -42,14 +42,14 @@ export type ChannelAttrs = { slug: string; id: string; privateKey: string };
 export type ChannelChange = { kind: "create" } | { kind: "webhook" };
 
 /** What the live App lacks of what achq needs. */
-export const appProblems = (settings: { events: string[]; permissions: Record<string, string> }) => [
+const appProblems = (settings: { events: string[]; permissions: Record<string, string> }) => [
   ...APP_EVENTS.filter((e) => !settings.events.includes(e)).map((e) => `doesn't send ${e}`),
   ...Object.entries(APP_PERMISSIONS)
     .filter(([name, level]) => !covers(settings.permissions[name], level))
     .map(([name, level]) => `lacks ${name}: ${level}`),
 ];
 
-export const appSettingsUrl = (slug: string, org: string | undefined, web: string) =>
+const appSettingsUrl = (slug: string, org: string | undefined, web: string) =>
   org ? `${web}/organizations/${org}/settings/apps/${slug}/permissions` : `${web}/settings/apps/${slug}/permissions`;
 
 const hookConfig = (url: string, key: string, appId: string | number) => ({

@@ -19,7 +19,7 @@ export type ChannelEvent = ChannelEventBase &
 
 type ChannelEventBase = {
   channel: string;
-  /** Which configured sender it came through, e.g. the App's slug. Selectors name one. */
+  /** Which configured sender it came through, e.g. a GitHub App's slug. Selectors name one. */
   source: string;
   /** Unique per delivery; containers and the deployer ignore ones they've handled. */
   delivery: string;
@@ -53,7 +53,7 @@ export type Message = {
   id: string;
   author: string;
   trusted: boolean;
-  /** Written by this channel's own identity (the App), i.e. an earlier reply. */
+  /** Written by this channel's own identity, i.e. an earlier reply. */
   own: boolean;
   body: string;
   at: string;

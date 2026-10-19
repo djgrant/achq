@@ -47,7 +47,7 @@ const liveApp = async (gh: GitHubClient, slug: string): Promise<AppSettings | "p
 };
 
 /** What the live App lacks of what the config needs. */
-export const missing = (app: AppSettings, needs: AppSettings) => [
+const missing = (app: AppSettings, needs: AppSettings) => [
   ...needs.events.filter((e) => !app.events.includes(e)).map((e) => `the ${e} event`),
   ...Object.entries(needs.permissions)
     .filter(([name, level]) => !covers(app.permissions[name], level))
