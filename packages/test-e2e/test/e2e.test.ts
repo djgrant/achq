@@ -405,13 +405,13 @@ beforeAll(async () => {
 
   // The router: the side that holds the App's key.
   routerDir = path.join(root, "router");
-  const githubEnv = { ACHQ_GITHUB_APPS: JSON.stringify(github.keys()), GITHUB_API_URL: github.url };
-  const access = githubAccess.create(githubEnv, KEY);
+  const githubEnv = { ACHQ_GITHUB_APPS: JSON.stringify(github.keys()), GITHUB_API_URL: github.url, AGENT_WEBHOOK_KEY: KEY };
+  const access = githubAccess.create(githubEnv);
   const hosts = { github: githubRepoHost.create(githubEnv) };
   let deployerFetch: (req: Request) => Promise<Response> = async () => new Response("starting", { status: 503 });
   const deployerUrl = serve((req) => deployerFetch(req));
   router = createRouter({
-    channels: [githubChannel.create(githubEnv, KEY)],
+    channels: [githubChannel.create(githubEnv)],
     access: [access],
     key: KEY,
     dataDir: routerDir,

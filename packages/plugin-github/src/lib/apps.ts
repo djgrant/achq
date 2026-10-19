@@ -69,11 +69,13 @@ export class Apps {
   }
 }
 
-const shared = new WeakMap<Record<string, string | undefined>, Apps>();
+const shared = new Map<string, Apps>();
 
-/** The Apps `env` holds keys for, one per env object: the router's channel and access provider share one JWT cache. */
+/** The Apps `env` configures, one per configuration: the router's channel and access provider share one JWT cache. */
 export const appsFor = (env: Record<string, string | undefined>) => {
-  let apps = shared.get(env);
-  if (!apps) shared.set(env, (apps = new Apps(parseApps(env[GITHUB_ENV.apps]), githubUrls(env).api)));
+  const api = githubUrls(env).api;
+  const configured = `${api} ${env[GITHUB_ENV.apps] ?? ""}`;
+  let apps = shared.get(configured);
+  if (!apps) shared.set(configured, (apps = new Apps(parseApps(env[GITHUB_ENV.apps]), api)));
   return apps;
 };

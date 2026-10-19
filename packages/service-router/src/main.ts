@@ -13,8 +13,8 @@ export const main = async () => {
   const env = process.env;
   const key = need(ENV.key);
   const router = createRouter({
-    channels: CHANNELS.map((c) => c.create(env, key)),
-    access: ACCESS.map((a) => a.create(env, key)),
+    channels: CHANNELS.map((c) => c.create(env)),
+    access: ACCESS.map((a) => a.create(env)),
     hosts: Object.fromEntries(REPO_HOSTS.map((h) => [h.id, h.create(env)])),
     key,
     deployerUrl: need(ENV.deployerUrl),

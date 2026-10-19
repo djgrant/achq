@@ -38,10 +38,11 @@ test("a policy goes through its App", () => {
   expect(api.access.policySource({ access: "github" })).toBeUndefined();
 });
 
-test("the channel and access provider made from one env share its Apps, and so one JWT cache", () => {
+test("the channel and access provider made from one configuration share its Apps, and so one JWT cache", () => {
   const env = githubEnv(gh.keys(), gh.url);
-  expect(appsFor(env)).toBe(appsFor(env));
-  expect(appsFor({ ...env })).not.toBe(appsFor(env));
+  expect(appsFor({ ...env })).toBe(appsFor(env));
+  expect(appsFor(githubEnv(gh.keys()))).not.toBe(appsFor(env));
+  expect(appsFor(githubEnv({}, gh.url))).not.toBe(appsFor(env));
 });
 
 describe("validate", () => {

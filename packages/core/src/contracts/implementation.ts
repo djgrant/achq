@@ -4,8 +4,7 @@ type Env = Record<string, string | undefined>;
 
 export type Implementation<T> = {
   readonly id: string;
-  /** `key` is AGENT_WEBHOOK_KEY, where the side has it: the router. */
-  create(env: Env, key?: string): T;
+  create(env: Env): T;
   /** Variables only the router and deployer have. A container never hands them to an agent, in case they're set anyway. */
   readonly privateEnv: string[];
 };

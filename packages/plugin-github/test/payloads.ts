@@ -6,10 +6,11 @@ import type { AppKeys } from "../src/lib/app-keys.ts";
 
 export const KEY = "the-webhook-key";
 
-/** The env a side makes GitHub's parts from: the router's has App keys, and tests point the API at a fake. */
-export const githubEnv = (apps?: AppKeys, api?: string) => ({
+/** The env a side makes GitHub's parts from: the router's has App keys and AGENT_WEBHOOK_KEY, and tests point the API at a fake. */
+export const githubEnv = (apps?: AppKeys, api?: string, key?: string) => ({
   ...(apps && { ACHQ_GITHUB_APPS: JSON.stringify(apps) }),
   ...(api && { GITHUB_API_URL: api }),
+  ...(key && { AGENT_WEBHOOK_KEY: key }),
 });
 
 // ─── Payloads, shaped from https://docs.github.com/en/webhooks/webhook-events-and-payloads ───
@@ -64,7 +65,7 @@ export const headers = (event: string, body: string, over: Record<string, string
 export const appA = makeApp("notation-achq", "101", { issues: "write", contents: "write", metadata: "read" });
 export const appB = makeApp("djgrant-claude", "202", { issues: "write", contents: "read", metadata: "read" });
 export const keys = { [appA.slug]: { id: appA.id, privateKey: appA.privateKey }, [appB.slug]: { id: appB.id, privateKey: appB.privateKey } };
-export const channel = githubChannel.create(githubEnv(keys), KEY);
+export const channel = githubChannel.create(githubEnv(keys, undefined, KEY));
 export const parse = (event: string, payload: object) => {
   const body = JSON.stringify(payload);
   return channel.parse("notation-achq", headers(event, body), body);

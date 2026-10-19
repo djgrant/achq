@@ -11,7 +11,7 @@ import { installations, sources } from "./installations.ts";
 import { matchEvent, matchThread } from "./match.ts";
 import { verifyGitHubSignature } from "./signature.ts";
 
-/** Apps as channels: each App is a source. The router passes its key. */
+/** Apps as channels: each App is a source. Only the router has the key that verifies webhooks. */
 export class GitHubChannel implements Channel {
   readonly id = CHANNEL;
 

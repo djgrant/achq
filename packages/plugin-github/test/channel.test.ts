@@ -45,7 +45,7 @@ describe("against GitHub", () => {
 
   beforeAll(() => {
     gh.start();
-    api = { channel: githubChannel.create(githubEnv(gh.keys(), gh.url), KEY) as GitHubChannel };
+    api = { channel: githubChannel.create(githubEnv(gh.keys(), gh.url, KEY)) as GitHubChannel };
     gh.installations.push({ id: 77, app: appA.slug, account: "notationlabs", permissions: appA.permissions, repos: [repo, "notationlabs/shared"] });
     gh.users.set("notation-achq[bot]", { id: 555, login: "notation-achq[bot]" });
     gh.addIssue(repo, { number: 42, title: "Fix the login flow, please!", body: "It's broken", labels: [{ name: "docs" }] });
