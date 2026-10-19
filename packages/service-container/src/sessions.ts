@@ -3,12 +3,10 @@ import { allStates, type ThreadState } from "./state.ts";
 
 export type SessionInfo = { id: string; agent: string; workspace: string; lastRun: string };
 
-const threadNumber = (state: ThreadState) => state.number ?? state.thread.id.match(/#(\w+)$/)?.[1];
-
 /** A thread's sessions, most recently run first. */
 export const sessionsFor = (paths: Paths, number: string): (SessionInfo & { state: ThreadState; commit: string })[] =>
   allStates(paths.threads)
-    .filter(({ state }) => threadNumber(state) === number)
+    .filter(({ state }) => state.number === number)
     .flatMap(({ state }) =>
       Object.entries(state.sessions).map(([agent, s]) => ({ id: s.id, agent, workspace: state.workspace, lastRun: s.lastRun, state, commit: s.commit })),
     )

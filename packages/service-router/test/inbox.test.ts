@@ -14,8 +14,7 @@ describe("persisted events", () => {
     // The container hasn't answered, and the delivery is already persisted.
     const stored = readJson(file);
     expect(stored.event.delivery).toBe(event.delivery!);
-    expect(stored.commit).toBe("abc123");
-    expect(stored.targets.map((t: any) => t.container)).toEqual(["dev"]);
+    expect(stored.targets.map((t: any) => [t.container, t.commit])).toEqual([["dev", "abc123"]]);
     await gate.reached;
     gate.release();
     await r.router.settled();

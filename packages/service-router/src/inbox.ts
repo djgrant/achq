@@ -1,4 +1,4 @@
-import type { ChannelEvent, EventEnvelope } from "@achq/core";
+import type { ChannelEvent, ContainerEnvelope } from "@achq/core";
 import { adminSecret, containerSecret } from "@achq/core/secrets";
 import type { RouterContext } from "./context.ts";
 import { message } from "./errors.ts";
@@ -6,16 +6,16 @@ import { reach, signed } from "./reach.ts";
 import type { Target } from "./targets.ts";
 
 /** What's on the volume for each accepted delivery until every target has answered. */
-export type InboxEntry = { event: ChannelEvent; commit?: string; targets: Target[] };
+export type InboxEntry = { event: ChannelEvent; targets: Target[] };
 export type FailedEntry = InboxEntry & { targets: (Target & { error: string })[] };
 
 const send = (ctx: RouterContext, target: Target, entry: InboxEntry) => async (signal?: AbortSignal) => {
   if (target.kind === "deployer") {
-    const envelope: EventEnvelope = { event: entry.event };
+    const envelope = { event: entry.event };
     const url = `${ctx.deployerUrl}/events`;
     return ctx.fetch(url, signed(ctx, adminSecret(ctx.key), "POST", url, JSON.stringify(envelope), signal));
   }
-  const envelope: EventEnvelope = { event: entry.event, commit: entry.commit };
+  const envelope: ContainerEnvelope = { event: entry.event, commit: target.commit };
   const secret = containerSecret(ctx.key, target.repo, target.container);
   return ctx.fetch(`${target.url}/events`, signed(ctx, secret, "POST", `${target.url}/events`, JSON.stringify(envelope), signal));
 };

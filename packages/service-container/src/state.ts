@@ -22,7 +22,7 @@ export type ThreadState = {
   /** The channel source (e.g. the App's slug) the thread's events come through. */
   source: string;
   /** e.g. the issue number, for `sessions <n>` and `resume <n>`. */
-  number?: string;
+  number: string;
   /** The workspace that claimed the thread. It sticks. */
   workspace: string;
   sessions: Record<string, SessionState>;

@@ -26,7 +26,7 @@ export const webhook = async (ctx: RouterContext, req: Request) => {
   if (ctx.inFlight.has(event.delivery)) return text("duplicate", 202);
 
   // Persisted before answering, so a crash or restart doesn't lose it.
-  const entry: InboxEntry = { event, commit: config?.commit, targets };
+  const entry: InboxEntry = { event, targets };
   ctx.inFlight.set(event.delivery, Promise.resolve());
   try {
     await ctx.store.write("inbox", event.delivery, entry);

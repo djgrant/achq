@@ -1,4 +1,4 @@
-import { type ChannelCredential, type ClaimRequest, type CredentialsRequest, type RouterRepoConfig, threadKey } from "@achq/core";
+import { type ChannelCredential, type ClaimRequest, type CredentialsRequest, type CredentialsResponse, type RouterRepoConfig, threadKey } from "@achq/core";
 import { containerSecret } from "@achq/core/secrets";
 import { verifySigned } from "@achq/core/signing";
 import { mint } from "../access.ts";
@@ -40,8 +40,7 @@ export const credentials = async (ctx: RouterContext, req: Request) => {
   const { config, container } = found;
   const credentials = await mint(ctx, container.policies, config.repo);
   const channels = await mintClients(ctx, config, container.name);
-  // `provider` is what containers built before credentials named `access` and `channel` read. It can go once every container's image is rebuilt.
-  return json({ credentials: credentials.map((c) => ({ ...c, provider: c.access })), channels: channels.map((c) => ({ ...c, provider: c.channel })) });
+  return json({ credentials, channels } satisfies CredentialsResponse);
 };
 
 export const claim = async (ctx: RouterContext, req: Request) => {

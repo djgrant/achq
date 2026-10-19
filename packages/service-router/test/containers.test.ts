@@ -1,10 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
 import type { CredentialsResponse } from "@achq/core";
 import { containerSecret } from "@achq/core/secrets";
 import { signedHeaders } from "@achq/core/signing";
-import { key, repo, serve, fakeContainer, config, deployed, boot } from "./harness.ts";
+import { key, repo, serve, fakeContainer, config, deployed } from "./harness.ts";
 
 describe("credentials", () => {
   const ask = (container: string) => ({ repo, container });
@@ -18,21 +16,9 @@ describe("credentials", () => {
     expect(body.credentials.every((c) => c.scope.repo === repo)).toBe(true);
     // dev's two workspaces share a source: one client credential.
     expect(body.channels.map((c) => c.value)).toEqual([`client:app:${repo}`]);
-    // Containers built before `access` and `channel` read `provider`.
-    const old = body as unknown as { credentials: { access: string; provider: string }[]; channels: { channel: string; provider: string }[] };
-    expect(old.credentials.every((c) => c.provider === c.access) && old.channels.every((c) => c.provider === c.channel)).toBe(true);
 
     const docs = (await (await r.asContainer(repo, "docsbox", "/credentials", ask("docsbox"))).json()) as CredentialsResponse;
     expect(docs.credentials.map((c) => c.value)).toEqual(["token:docs-read"]);
-  });
-
-  test("a config on the volume whose policies name their access provider `provider` still mints", async () => {
-    const r = await deployed();
-    const file = join(r.dir, "repos", "acme__widgets.json");
-    writeFileSync(file, readFileSync(file, "utf8").replaceAll('"access":', '"provider":'));
-    const again = await boot({ dir: r.dir });
-    const body = (await (await again.asContainer(repo, "dev", "/credentials", ask("dev"))).json()) as CredentialsResponse;
-    expect(body.credentials.map((c) => c.value)).toEqual(["token:code", "token:shared"]);
   });
 
   test("a wrong secret, another repo's container, or an old timestamp is rejected", async () => {

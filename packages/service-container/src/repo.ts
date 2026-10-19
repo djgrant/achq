@@ -30,14 +30,6 @@ export const fetchMirror = (mirror: string, url: string, env: Env = process.env)
 export const hasCommit = async (mirror: string, commit: string) =>
   fs.existsSync(mirror) && (await $`git -C ${mirror} cat-file -e ${`${commit}^{commit}`}`.quiet().nothrow()).exitCode === 0;
 
-/** The remote's default branch head. */
-export const remoteHead = async (mirror: string, env: Env = process.env) => {
-  const out = (await $`git -C ${mirror} ls-remote origin HEAD`.env(env).quiet().text()).trim();
-  const sha = out.split(/\s+/)[0];
-  if (!sha) throw new Error("The remote has no HEAD");
-  return sha;
-};
-
 /** Extracts `dir` (e.g. `.achq`) at `commit` into `dest`. */
 export const extractTree = async (mirror: string, commit: string, dir: string, dest: string) => {
   fs.mkdirSync(dest, { recursive: true });

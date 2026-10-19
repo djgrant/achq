@@ -1,5 +1,5 @@
 import * as fs from "node:fs";
-import { type AccessProvider, type Channel, type ChannelEvent, type EventEnvelope, type RepoPlan, type RuntimeContext, type RuntimeFactory, threadKey } from "@achq/core";
+import { type AccessProvider, type Channel, type ChannelEvent, type ContainerEnvelope, type RepoPlan, type RuntimeContext, type RuntimeFactory, threadKey } from "@achq/core";
 import { acquire } from "@achq/flock";
 import { agentEnv, saveAgentEnv } from "./agent-env.ts";
 import { claimThread } from "./claim.ts";
@@ -34,7 +34,7 @@ export type RunnerOptions = {
   dataDir: string;
   /** The mirror's remote. */
   repoUrl: string;
-  loadConfig: (commit: string | undefined) => Promise<LoadedConfig>;
+  loadConfig: (commit: string) => Promise<LoadedConfig>;
   runtimes?: Record<string, RuntimeFactory>;
   /** How many runs may go at once, across all threads. */
   maxRuns?: number;
@@ -115,7 +115,7 @@ export class Runner {
   }
 
   /** Handles one event; resolves once its runs (if any) are queued. */
-  async handle({ event, commit }: EventEnvelope): Promise<void> {
+  async handle({ event, commit }: ContainerEnvelope): Promise<void> {
     if (!firstDelivery(this.paths.deliveries, event.delivery)) return this.log(`[${event.delivery}] already handled`);
     const channel = this.opts.channels.find((c) => c.id === event.channel);
     if (!channel || !event.thread) return;
@@ -129,7 +129,7 @@ export class Runner {
       const message = e instanceof Error ? e.message : String(e);
       this.log(`[${event.delivery}] couldn't load the config at ${commit}: ${message}`);
       const client = await this.client(channel, event.source);
-      return reply(client, event.thread, `⚠️ Couldn't load \`.achq/\` at ${commit?.slice(0, 7) ?? "the deployed commit"}: ${message}`, this.log);
+      return reply(client, event.thread, `⚠️ Couldn't load \`.achq/\` at ${commit.slice(0, 7)}: ${message}`, this.log);
     }
     const workspaces = config.plan.workspaces.filter((w) => w.container === this.opts.container && w.threads.channel === channel.id);
     const triggers = config.plan.triggers.filter((t) => t.event.channel === channel.id && channel.matchEvent(t.event, event));

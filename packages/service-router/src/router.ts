@@ -27,20 +27,11 @@ const guarded = (ctx: RouterContext, handle: Handle) => async (req: Request) => 
   }
 };
 
-/**
- * A config the deployer put before policies named their access provider `access` has it as `provider`.
- * An unchanged repo isn't put again, so this stays until every repo has redeployed.
- */
-const withAccess = (config: RouterRepoConfig): RouterRepoConfig => ({
-  ...config,
-  containers: config.containers.map((c) => ({ ...c, policies: c.policies.map(({ provider, ...p }) => ({ ...p, access: p.access ?? (provider as string) })) })),
-});
-
 /** Loads config and claims from the volume. */
 const load = async (ctx: RouterContext) => {
   for (const name of await ctx.store.list("repos")) {
     const config = await ctx.store.read<RouterRepoConfig>("repos", name);
-    if (config) ctx.repos.set(config.repo.toLowerCase(), withAccess(config));
+    if (config) ctx.repos.set(config.repo.toLowerCase(), config);
   }
   for (const name of await ctx.store.list("claims")) {
     const repoClaims = await ctx.store.read<Claims>("claims", name);

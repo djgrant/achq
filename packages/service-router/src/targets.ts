@@ -3,8 +3,11 @@ import { type Channel, type ChannelEvent, type RouterRepoConfig, threadKey } fro
 
 export type Target =
   | { kind: "deployer" }
-  /** `workspace` is the one that claimed the thread, or would claim it now. It's there for inspecting the inbox. */
-  | { kind: "container"; repo: string; container: string; url: string; workspace: string };
+  /**
+   * `workspace` is the one that claimed the thread, or would claim it now. It's there for inspecting the inbox.
+   * `commit` is the one whose config the router holds, so the container runs the same config.
+   */
+  | { kind: "container"; repo: string; container: string; url: string; workspace: string; commit: string };
 
 /** Per thread key, per container: the workspace the container says claimed it. */
 export type Claims = Record<string, Record<string, string>>;
@@ -27,6 +30,6 @@ export const targetsFor = (channel: Channel, event: ChannelEvent, config: Router
     const workspace =
       claimed[c.name] ??
       config.workspaces.find((w) => w.container === c.name && w.threads.channel === channel.id && channel.matchThread(w.threads, thread))?.name;
-    return workspace ? [{ kind: "container", repo: config.repo, container: c.name, url: c.url, workspace }] : [];
+    return workspace ? [{ kind: "container", repo: config.repo, container: c.name, url: c.url, workspace, commit: config.commit }] : [];
   });
 };

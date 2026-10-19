@@ -21,11 +21,6 @@ test("containers come from ACHQ_STATUS; only ones on a container host achq knows
   expect(containersOf(status).map((c) => c.name)).toEqual(["dev", "docs"]);
 });
 
-test("a status written before the rename names its host `platform`", () => {
-  const old = { ...status, containers: [{ name: "dev", location: { platform: "railway", project: "p1", environment: "e1", service: "notationlabs-yieldstar-dev" } }] };
-  expect(containersOf(old).map((c) => c.name)).toEqual(["dev"]);
-});
-
 test("one container is picked without asking; several need --container or a pick", () => {
   const all = containersOf(status);
   expect(pickContainer([all[0]])?.name).toBe("dev");

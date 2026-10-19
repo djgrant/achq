@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { STATUS_VARIABLE, type EventEnvelope } from "@achq/core";
+import { STATUS_VARIABLE, type DeployerEnvelope } from "@achq/core";
 import { adminSecret, containerSecret } from "@achq/core/secrets";
 import { signedFetch } from "@achq/core/signing";
 import { evaluateConfig } from "../src/config/index.ts";
@@ -71,7 +71,7 @@ const makeDeployer = (options: { owners?: string[] } = {}) =>
 
 let n = 0;
 /** An event as the real GitHub channel parses it from a webhook payload shaped like GitHub's. */
-const event = (type: string, repos: string[], source = APP): EventEnvelope => {
+const event = (type: string, repos: string[], source = APP): DeployerEnvelope => {
   const [name, action] = type.split(".");
   const installation = { id: 7, account: { login: repos[0]!.split("/")[0] } };
   const list = repos.map((full_name) => ({ full_name }));
@@ -82,8 +82,8 @@ const event = (type: string, repos: string[], source = APP): EventEnvelope => {
         ? { action, installation, repositories: list }
         : { action, installation, [`repositories_${action}`]: list };
   const parsed = githubChannel.create({}).parse(source, new Headers({ "x-github-event": name!, "x-github-delivery": `d-${++n}` }), JSON.stringify(payload));
-  if (!parsed) throw new Error(`the GitHub channel ignored ${type}`);
-  return { event: parsed };
+  if (!parsed?.host) throw new Error(`the GitHub channel ignored ${type}, or didn't name its host`);
+  return { event: { ...parsed, host: parsed.host } };
 };
 
 beforeEach(() => {
@@ -302,14 +302,6 @@ describe("config changes", () => {
     expect(await makeDeployer().deploy("gitlab", REPO, APP)).toMatchObject({ outcome: "failed", error: `achq doesn't know the repo host "gitlab"` });
     expect(router.mints).toEqual([]);
     expect(host.ops()).toEqual([]);
-  });
-
-  test("an event queued before events named their host deploys on the host its channel shares an id with", async () => {
-    github.commit(REPO, repoFiles());
-    const { event: parsed } = event("installation.created", [REPO]);
-    const { host: _host, ...queued } = parsed;
-    await makeDeployer().handle({ event: queued });
-    expect(host.services.get(`${REPO}/dev`)!.spec.host).toBe("github");
   });
 
   test("a push with the same .achq tree is a no-op", async () => {

@@ -1,5 +1,5 @@
 // Every route but health must be admin-signed (see core's protocol.ts).
-import type { EventEnvelope, SyncRequest } from "@achq/core";
+import type { DeployerEnvelope, SyncRequest } from "@achq/core";
 import { adminSecret } from "@achq/core/secrets";
 import { verifySigned } from "@achq/core/signing";
 import type { Deployer } from "./deployer.ts";
@@ -20,11 +20,12 @@ export const deployerHandler = (deployer: Deployer, key: string, log: (line: str
     };
     try {
       if (req.method === "POST" && url.pathname === "/events") {
-        const envelope = json() as EventEnvelope | undefined;
-        if (!envelope?.event || typeof envelope.event.delivery !== "string" || typeof envelope.event.type !== "string")
+        const envelope = json() as DeployerEnvelope | undefined;
+        const event = envelope?.event;
+        if (!event || typeof event.delivery !== "string" || typeof event.type !== "string" || typeof event.host !== "string")
           return new Response("bad event", { status: 400 });
         // Answered once handled, so the router keeps the delivery until it's done.
-        await deployer.handle(envelope);
+        await deployer.handle({ event });
         return new Response(null, { status: 202 });
       }
       if (req.method === "POST" && url.pathname === "/sync") {

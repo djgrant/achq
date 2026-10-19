@@ -52,7 +52,7 @@ export const world = async (opts: { maxRuns?: number } = {}) => {
     containerSecret: SECRET,
     dataDir,
     repoUrl: git.origin,
-    loadConfig: (commit) => load(commit ?? git.first),
+    loadConfig: load,
     env,
     maxRuns: opts.maxRuns,
     keepAwake: async () => {},

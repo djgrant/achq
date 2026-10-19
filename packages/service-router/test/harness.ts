@@ -4,7 +4,7 @@ import { afterEach, expect } from "bun:test";
 import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { EventEnvelope, PolicyData, SelectorData, AccessProvider, Channel, ChannelEvent, RepoHost, RouterRepoConfig } from "@achq/core";
+import type { ContainerEnvelope, DeployerEnvelope, PolicyData, SelectorData, AccessProvider, Channel, ChannelEvent, RepoHost, RouterRepoConfig } from "@achq/core";
 import { adminSecret, containerSecret } from "@achq/core/secrets";
 import { hmacHex, safeEqual, signedHeaders, verifySigned } from "@achq/core/signing";
 import { createRouter } from "../src/router.ts";
@@ -98,7 +98,7 @@ export const accepted = () => new Response("ok", { status: 202 });
 export const fakeContainer = (name: string, forRepo = repo) => {
   const fake = {
     name,
-    events: [] as EventEnvelope[],
+    events: [] as ContainerEnvelope[],
     /** Every attempt that reached it, signed or not. */
     attempts: 0,
     wakes: 0,
@@ -123,7 +123,7 @@ export const fakeContainer = (name: string, forRepo = repo) => {
 
 /** The deployer: admin-signed in, as the protocol says. */
 export const fakeDeployer = () => {
-  const fake = { events: [] as EventEnvelope[], syncs: 0, url: "" };
+  const fake = { events: [] as DeployerEnvelope[], syncs: 0, url: "" };
   fake.url = serve(async (req) => {
     const { pathname } = new URL(req.url);
     const body = await req.text();
@@ -216,7 +216,7 @@ export const deployed = async (options: Boot = {}) => {
   return { ...r, dev, docsbox };
 };
 
-export const deliveryIds = (c: { events: EventEnvelope[] }) => c.events.map((e) => e.event.delivery);
+export const deliveryIds = (c: { events: { event: ChannelEvent }[] }) => c.events.map((e) => e.event.delivery);
 export const readJson = (path: string) => JSON.parse(readFileSync(path, "utf8"));
 
 /** Makes a container hold its answer until released, and say when a request has arrived. */

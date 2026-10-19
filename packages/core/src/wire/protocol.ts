@@ -25,22 +25,25 @@
 //
 // Deployer (DEPLOYER_PORT, private):
 //   GET  /                         health
-//   POST /events                   EventEnvelope → 202                          admin   (installation and push events)
+//   POST /events                   DeployerEnvelope → 202                       admin   (installation and push events)
 //   POST /sync                     SyncRequest → SyncResult                     admin
 //   GET  /status                   → DeployRecord[]                             admin
 //
 // Container (CONTAINER_PORT, private):
 //   GET  /                         health
-//   POST /events                   EventEnvelope → 202                          container-signed
+//   POST /events                   ContainerEnvelope → 202                      container-signed
 import type { RepoPlan } from "../resources/repo-plan.ts";
 import type { PolicyData, SelectorData } from "../resources/config.ts";
 import type { AccessCredential } from "../contracts/access.ts";
 import type { ChannelCredential, ChannelEvent, ThreadRef } from "../contracts/channel.ts";
 
-export type EventEnvelope = {
+/** What the router forwards to the deployer: install and config events, which name the `RepoHost` they're about. */
+export type DeployerEnvelope = { event: ChannelEvent & { host: string } };
+
+export type ContainerEnvelope = {
   event: ChannelEvent;
-  /** For containers: the commit whose `.achq/` config the router was given, so the container runs the same one. */
-  commit?: string;
+  /** The commit whose `.achq/` config the router was given, so the container runs the same one. */
+  commit: string;
 };
 
 /** What the deployer tells the router about a deployed repo. Plain data. */
