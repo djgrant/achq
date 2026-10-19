@@ -1,10 +1,8 @@
-import type { Channel, ChannelClient, ChannelCredential, ChannelEvent, Credential, RepoManifest, SelectorData, ThreadRef } from "@achq/core";
+import type { Channel, ChannelClient, ChannelCredential, ChannelEvent, Credential, SelectorData, ThreadRef } from "@achq/core";
 import type { Apps } from "../lib/apps.ts";
 import { CHANNEL, REPO } from "../lib/constants.ts";
 import { appWebhookSecret } from "../lib/webhook-secret.ts";
-import { AppInstallation } from "../resources/app-installation.ts";
 import { GitHubChannelClient } from "./client.ts";
-import { configApp, configNeeds } from "./config-app.ts";
 import { CLIENT_PERMISSIONS } from "./constants.ts";
 import { parseEvent } from "./events.ts";
 import { installations, sources } from "./installations.ts";
@@ -63,11 +61,5 @@ export class GitHubChannel implements Channel {
 
   client(credential: Credential): ChannelClient {
     return new GitHubChannelClient(credential, this.apps.baseUrl);
-  }
-
-  /** The config's one App on the repo. */
-  installation(repo: string, manifest: RepoManifest, installed: boolean) {
-    const slug = configApp(manifest);
-    return [new AppInstallation({ slug, repo, installed, needs: configNeeds(manifest, slug) })];
   }
 }

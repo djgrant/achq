@@ -2,8 +2,9 @@
 // router, deployer and container only use core's contracts, and find the
 // implementation here by id.
 import { claudeAgent } from "@achq/claude/agents";
-import type { AccessProvider, AgentProvider, Channel, ContainerHost, ContainerShell, Implementation, RepoHost } from "@achq/core";
+import type { AccessProvider, AgentProvider, Channel, ContainerHost, ContainerShell, Implementation, Installer, RepoHost } from "@achq/core";
 import { githubChannel } from "@achq/github/channels";
+import { githubInstaller } from "@achq/github/installers";
 import { githubAccess } from "@achq/github/policies";
 import { githubRepoHost } from "@achq/github/repo-hosts";
 import { railwayContainerHost } from "@achq/railway/container-hosts";
@@ -12,6 +13,7 @@ import * as achq from "./index.ts";
 import * as railway from "./railway.ts";
 
 export const CHANNELS: Implementation<Channel>[] = [githubChannel];
+export const INSTALLERS: Installer[] = [githubInstaller];
 export const ACCESS: Implementation<AccessProvider>[] = [githubAccess];
 export const REPO_HOSTS: Implementation<RepoHost>[] = [githubRepoHost];
 export const CONTAINER_HOSTS: (Implementation<ContainerHost> & { shell: ContainerShell })[] = [railwayContainerHost];
@@ -26,6 +28,7 @@ const lookup =
   };
 
 export const channelNamed = lookup("channel", CHANNELS);
+export const installerNamed = lookup("installer", INSTALLERS);
 export const accessNamed = lookup("access provider", ACCESS);
 export const repoHostNamed = lookup("repo host", REPO_HOSTS);
 export const containerHostNamed = lookup("container host", CONTAINER_HOSTS);

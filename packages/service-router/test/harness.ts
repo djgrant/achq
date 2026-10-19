@@ -42,9 +42,6 @@ export const testChannel: Channel = {
   client() {
     throw new Error("not on the router");
   },
-  installation() {
-    throw new Error("not on the router");
-  },
 };
 
 export const testAccess: AccessProvider = {

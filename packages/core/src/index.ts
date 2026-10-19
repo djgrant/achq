@@ -8,6 +8,7 @@ export * from "./engine/values.ts";
 export * from "./engine/plan.ts";
 export * from "./contracts/implementation.ts";
 export * from "./contracts/channel.ts";
+export * from "./contracts/installer.ts";
 export * from "./contracts/access.ts";
 export * from "./contracts/repo-host.ts";
 export * from "./contracts/container-host.ts";
