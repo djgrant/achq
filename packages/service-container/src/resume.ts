@@ -36,7 +36,7 @@ export const resume = async (opts: ResumeOptions): Promise<number> => {
   const sessions = sessionsFor(opts.paths, opts.number);
   const session = sessions.find((s) => s.id === opts.session);
   if (!session) {
-    out([`No session ${opts.session} on thread ${opts.number}. Its sessions:`, ...sessions.map((s) => `  ${s.id}  ${s.agent}  ${s.lastRun}`)].join("\n"));
+    out(`No session ${opts.session} on thread ${opts.number}`);
     return 1;
   }
   const config = await opts.loadConfig(session.commit);

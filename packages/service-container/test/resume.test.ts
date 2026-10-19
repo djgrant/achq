@@ -19,10 +19,9 @@ describe("sessions and resume", () => {
     const out: string[] = [];
     const base = { paths: w.paths, number: "8", loadConfig: w.load, container: "dev", env: w.env, stdio: ["ignore", "ignore", "ignore"] as ["ignore", "ignore", "ignore"], out: (t: string) => out.push(t) };
     const triage = sessions.find((s) => s.agent === "triage")!;
-    // Only an exact id; otherwise it lists the thread's sessions.
+    // Only an exact id.
     expect(await resume({ ...base, session: "triage" })).toBe(1);
-    expect(out.join("\n")).toContain(`No session triage on thread 8`);
-    expect(out.join("\n")).toContain(triage.id);
+    expect(out).toEqual([`No session triage on thread 8`]);
 
     const before = w.claude.calls().length;
     expect(await resume({ ...base, session: triage.id })).toBe(0);
