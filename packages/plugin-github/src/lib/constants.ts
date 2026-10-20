@@ -1,7 +1,5 @@
 export const GITHUB_API = "https://api.github.com";
 export const GITHUB_WEB = "https://github.com";
-export const API_VERSION = "2022-11-28";
-export const USER_AGENT = "achq";
 
 /** The channel's id, in events, selectors and channel credentials. */
 export const CHANNEL = "github";

@@ -1,8 +1,10 @@
 // GitHub's App manifest flow. A local page posts the manifest to GitHub from
 // your browser. GitHub redirects back with a code, which converts into the
 // App's credentials. They stay in memory.
-import { randomBytes } from "node:crypto";
-import { GITHUB_API, GITHUB_WEB, USER_AGENT } from "./constants.ts";
+import { randomHex } from "@achq/utils/crypto";
+import type { CreatedApp } from "@achq/utils/gh";
+import { github } from "./client.ts";
+import { GITHUB_API, GITHUB_WEB } from "./constants.ts";
 import { APP_EVENTS, APP_PERMISSIONS } from "./permissions.ts";
 
 /** The homepage every App's manifest links to. */
@@ -15,7 +17,14 @@ export const appSlug = (name: string) =>
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "");
 
-export type CreatedApp = { id: number; slug: string; pem: string; html_url: string };
+export type { CreatedApp };
+
+/** Bytes of the `state` that ties GitHub's redirect back to this flow. */
+const STATE_BYTES = 16;
+/** What the process exits with on Ctrl-C: 128 + SIGINT. */
+const SIGINT_EXIT = 130;
+/** How long the server stays up after the flow ends, so the browser gets its last page. */
+const LINGER_MS = 100;
 
 export type ManifestRequest = { name: string; org?: string; hookUrl: string };
 
@@ -30,6 +39,17 @@ export const appManifest = (request: ManifestRequest, redirectUrl: string) => ({
   default_events: APP_EVENTS,
 });
 
+/** A page that posts `manifest` to `action` as soon as it loads. */
+const manifestPage = (action: string, manifest: object) => {
+  const value = JSON.stringify(manifest).replace(/'/g, "&#39;");
+  return `<form id="f" method="post" action="${action}"><input type="hidden" name="manifest" value='${value}'></form><script>f.submit()</script>`;
+};
+
+/** Where GitHub's new-App form is, for an org or your account. */
+const newAppUrl = (web: string, org: string | undefined, state: string) => `${web}${org ? `/organizations/${org}` : ""}/settings/apps/new?state=${state}`;
+
+const html = (page: string) => new Response(page, { headers: { "content-type": "text/html" } });
+
 /**
  * Creates an App through the manifest flow. `open` opens the local page in a
  * browser; `githubWeb` and `githubApi` point tests at a fake.
@@ -39,39 +59,36 @@ export const manifestFlow = async (
   options: { open: (url: string) => Promise<void> | void; githubWeb?: string; githubApi?: string },
 ): Promise<CreatedApp> => {
   const web = options.githubWeb ?? GITHUB_WEB;
-  const api = options.githubApi ?? GITHUB_API;
-  const state = randomBytes(16).toString("hex");
+  const gh = github("", options.githubApi ?? GITHUB_API);
+  const state = randomHex(STATE_BYTES);
   let settle!: { resolve: (app: CreatedApp) => void; reject: (e: Error) => void };
   const created = new Promise<CreatedApp>((resolve, reject) => (settle = { resolve, reject }));
+
+  /** Trades GitHub's code for the App, settling the flow either way. */
+  const convert = async (code: string) => {
+    try {
+      settle.resolve(await gh.convertManifest(code));
+      return new Response("App created. You can close this tab.");
+    } catch (error) {
+      settle.reject(error as Error);
+      return new Response("Failed, see the terminal.");
+    }
+  };
 
   const server = Bun.serve({
     port: 0,
     hostname: "localhost",
-    async fetch(req) {
+    async fetch(req): Promise<Response> {
       const url = new URL(req.url);
-      if (url.pathname === "/") {
-        const manifest = appManifest(request, `http://localhost:${server.port}/callback`);
-        const action = `${web}${request.org ? `/organizations/${request.org}` : ""}/settings/apps/new?state=${state}`;
-        const page = `<form id="f" method="post" action="${action}"><input type="hidden" name="manifest" value='${JSON.stringify(manifest).replace(/'/g, "&#39;")}'></form><script>f.submit()</script>`;
-        return new Response(page, { headers: { "content-type": "text/html" } });
-      }
+      if (url.pathname === "/") return html(manifestPage(newAppUrl(web, request.org, state), appManifest(request, `http://localhost:${server.port}/callback`)));
       const code = url.searchParams.get("code");
       if (url.pathname !== "/callback" || !code || url.searchParams.get("state") !== state) return new Response("not found", { status: 404 });
-      const res = await fetch(`${api}/app-manifests/${code}/conversions`, {
-        method: "POST",
-        headers: { accept: "application/vnd.github+json", "user-agent": USER_AGENT },
-      });
-      if (!res.ok) {
-        settle.reject(new Error(`GitHub: ${res.status} ${await res.text()}`));
-        return new Response("Failed, see the terminal.");
-      }
-      settle.resolve((await res.json()) as CreatedApp);
-      return new Response("App created. You can close this tab.");
+      return convert(code);
     },
   });
   const stop = () => {
     server.stop(true);
-    process.exit(130);
+    process.exit(SIGINT_EXIT);
   };
   process.once("SIGINT", stop);
   try {
@@ -79,6 +96,6 @@ export const manifestFlow = async (
     return await created;
   } finally {
     process.off("SIGINT", stop);
-    setTimeout(() => server.stop(), 100);
+    setTimeout(() => server.stop(), LINGER_MS);
   }
 };

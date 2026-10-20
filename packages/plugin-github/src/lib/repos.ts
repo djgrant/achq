@@ -1,17 +1,21 @@
 // A repo as the CLI reads it: the commit that last touched some paths, the
 // repo a remote names, and the ACHQ_STATUS variable the deployer writes.
 import { STATUS_VARIABLE, type Status } from "@achq/core";
-import type { GitHubClient } from "./client.ts";
+import type { CommitSummary, GitHub } from "@achq/utils/gh";
 
-/** The latest commit on `branch` that changed any of `paths`. */
-export const lastCommit = async (gh: GitHubClient, repo: string, branch: string, paths: string[]) => {
-  type Commit = { sha: string; commit: { committer: { date: string } } };
-  const latest = await Promise.all(
-    paths.map(async (p) => (await gh.request<Commit[]>("GET", `/repos/${repo}/commits?sha=${encodeURIComponent(branch)}&per_page=1&path=${p}`))[0]),
-  );
-  const found = latest.filter(Boolean).sort((a, b) => b.commit.committer.date.localeCompare(a.commit.committer.date))[0];
-  if (!found) throw new Error(`No commits on ${repo}`);
-  return found.sha;
+/** How much of a bad ACHQ_STATUS goes into the error. */
+const STATUS_EXCERPT_CHARS = 200;
+
+const committedAt = (commit: CommitSummary) => commit.commit.committer.date;
+const newestFirst = (a: CommitSummary, b: CommitSummary) => committedAt(b).localeCompare(committedAt(a));
+
+/** The SHA of the latest commit on `branch` that changed any of `paths`. */
+export const lastCommit = async (gh: GitHub, repo: string, branch: string, paths: string[]) => {
+  const api = gh.repo(repo);
+  const latestPerPath = await Promise.all(paths.map((path) => api.latestCommitTouching(branch, path)));
+  const [latest] = latestPerPath.filter((c): c is CommitSummary => c !== undefined).sort(newestFirst);
+  if (!latest) throw new Error(`No commits on ${repo}`);
+  return latest.sha;
 };
 
 /** The repo a GitHub remote URL (https or ssh) names. */
@@ -21,14 +25,12 @@ export const repoOf = (remote: string, web: string) => {
 };
 
 /** The repo's ACHQ_STATUS repository variable, or undefined if the deployer hasn't written one. */
-export const readStatus = async (gh: GitHubClient, repo: string): Promise<Status | undefined> => {
-  const res = await gh.raw("GET", `/repos/${repo}/actions/variables/${STATUS_VARIABLE}`);
-  if (res.status === 404) return undefined;
-  if (!res.ok) throw new Error(`Reading ${STATUS_VARIABLE} on ${repo}: ${res.status} ${await res.text()}`);
-  const { value } = (await res.json()) as { value: string };
+export const readStatus = async (gh: GitHub, repo: string): Promise<Status | undefined> => {
+  const value = await gh.repo(repo).variable(STATUS_VARIABLE);
+  if (value === undefined) return undefined;
   try {
     return JSON.parse(value) as Status;
   } catch {
-    throw new Error(`${repo}'s ${STATUS_VARIABLE} isn't JSON: ${value.slice(0, 200)}`);
+    throw new Error(`${repo}'s ${STATUS_VARIABLE} isn't JSON: ${value.slice(0, STATUS_EXCERPT_CHARS)}`);
   }
 };

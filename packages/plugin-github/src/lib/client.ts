@@ -1,5 +1,7 @@
-// The REST API: its client, where it and the website are, and who an App is on it.
-import { API_VERSION, GITHUB_API, GITHUB_ENV, GITHUB_WEB, USER_AGENT } from "./constants.ts";
+// Where GitHub's API and website are for achq, and who an App is on them. The
+// client itself is @achq/utils/gh.
+import { type Auth, GitHub } from "@achq/utils/gh";
+import { GITHUB_API, GITHUB_ENV, GITHUB_WEB } from "./constants.ts";
 
 type Env = Record<string, string | undefined>;
 
@@ -11,56 +13,8 @@ export const githubUrls = (env: Env): GitHubUrls => ({ api: env[GITHUB_ENV.api] 
 /** The bot user an App comments as. */
 export const botLogin = (slug: string) => `${slug}[bot]`;
 
-export class GitHubError extends Error {
-  constructor(
-    readonly status: number,
-    readonly method: string,
-    readonly route: string,
-    readonly body: string,
-  ) {
-    super(`GitHub ${method} ${route}: ${status} ${body.slice(0, 500)}`);
-  }
-}
+/** The API as an installation or user token. */
+export const asToken = (token: string, api: string) => GitHub.connect(`token ${token}`, { baseUrl: api });
 
-/**
- * `auth` is `token …` for an installation or user token, or `Bearer …` for an
- * App JWT. `baseUrl` points tests at a fake.
- */
-export class GitHubClient {
-  constructor(
-    private auth: string | (() => string | Promise<string>),
-    readonly baseUrl = GITHUB_API,
-  ) {}
-
-  async request<T>(method: string, route: string, body?: unknown): Promise<T> {
-    const res = await this.raw(method, route, body);
-    if (!res.ok) throw new GitHubError(res.status, method, route, await res.text());
-    return (res.status === 204 ? undefined : await res.json()) as T;
-  }
-
-  /** The response whatever its status, for callers that treat a 404 as an answer. */
-  async raw(method: string, route: string, body?: unknown): Promise<Response> {
-    const auth = typeof this.auth === "function" ? await this.auth() : this.auth;
-    return fetch(this.baseUrl + route, {
-      method,
-      headers: {
-        accept: "application/vnd.github+json",
-        "x-github-api-version": API_VERSION,
-        "user-agent": USER_AGENT,
-        ...(auth && { authorization: auth }),
-        ...(body !== undefined && { "content-type": "application/json" }),
-      },
-      body: body === undefined ? undefined : JSON.stringify(body),
-    });
-  }
-
-  async paginate<T>(route: string, pick: (page: any) => T[] = (page) => page): Promise<T[]> {
-    const items: T[] = [];
-    for (let page = 1; ; page++) {
-      const sep = route.includes("?") ? "&" : "?";
-      const batch = pick(await this.request<unknown>("GET", `${route}${sep}per_page=100&page=${page}`));
-      items.push(...batch);
-      if (batch.length < 100) return items;
-    }
-  }
-}
+/** The API as whatever `auth` gives. */
+export const github = (auth: Auth, api: string) => GitHub.connect(auth, { baseUrl: api });

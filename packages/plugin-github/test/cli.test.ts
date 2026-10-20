@@ -2,7 +2,7 @@ import { afterAll, beforeAll, beforeEach, expect, test } from "bun:test";
 import { Agent, type Change, collectManifest, Container, type Context, plan, resetDeclarations, Trigger, Workspace } from "@achq/core";
 import { configSource, configNeeds } from "../src/lib/config-needs.ts";
 import { Channel, Policy } from "../src/index.ts";
-import { GitHubClient } from "../src/lib/client.ts";
+import { GitHub } from "@achq/utils/gh";
 import { githubCodeHostProvider } from "../src/code-host/index.ts";
 import { readStatus, repoOf } from "../src/lib/repos.ts";
 
@@ -59,7 +59,7 @@ type Fake = {
 };
 let fake: Fake;
 let server: ReturnType<typeof Bun.serve>;
-let gh: GitHubClient;
+let gh: GitHub;
 
 beforeAll(() => {
   server = Bun.serve({
@@ -89,7 +89,7 @@ beforeAll(() => {
       return new Response(`no route ${route}`, { status: 500 });
     },
   });
-  gh = new GitHubClient("token t", `http://localhost:${server.port}`);
+  gh = GitHub.connect("token t", { baseUrl: `http://localhost:${server.port}` });
 });
 afterAll(() => server.stop(true));
 beforeEach(() => {

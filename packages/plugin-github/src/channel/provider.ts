@@ -1,6 +1,7 @@
 import type { ChannelProvider, ChannelClient, ChannelCredential, ChannelEvent, Credential, Message, SelectorData, SourceSettings, Thread, ThreadRef } from "@achq/core";
+import { type GitHub, type Issue, type IssueComment, type ReactionContent, type ReactionTarget, splitRepo, type User } from "@achq/utils/gh";
 import { type Apps, appWebhookSecret } from "../lib/apps.ts";
-import { botLogin, GitHubClient } from "../lib/client.ts";
+import { asToken, botLogin } from "../lib/client.ts";
 import { CHANNEL, GITHUB_API, REPO } from "../lib/constants.ts";
 import { CLIENT_PERMISSIONS } from "../lib/permissions.ts";
 import { matchEvent, matchThread } from "../lib/selectors.ts";
@@ -32,7 +33,7 @@ export class GitHubChannelProvider implements ChannelProvider {
     if (!REPO.test(repo)) throw new Error(`Not a repo: ${repo}`);
     const installation = await this.apps.installation(source, repo);
     if (!installation) throw new Error(`${source} isn't installed on ${repo}`);
-    const token = await this.apps.token(source, installation.id, { repositories: [repo.split("/")[1]!], permissions: CLIENT_PERMISSIONS });
+    const token = await this.apps.token(source, installation.id, { repositories: [splitRepo(repo).name], permissions: CLIENT_PERMISSIONS });
     return {
       channel: CHANNEL,
       value: token.token,
@@ -45,8 +46,8 @@ export class GitHubChannelProvider implements ChannelProvider {
   sources(): Promise<SourceSettings[]> {
     return Promise.all(
       this.apps.slugs().map(async (slug) => {
-        const app = await this.apps.asApp(slug).request<{ events?: string[]; permissions?: Record<string, string> }>("GET", "/app");
-        return { channel: CHANNEL, source: slug, events: app.events ?? [], permissions: app.permissions ?? {} };
+        const { events, permissions } = await this.apps.asApp(slug).app();
+        return { channel: CHANNEL, source: slug, events, permissions };
       }),
     );
   }
@@ -64,73 +65,83 @@ export class GitHubChannelProvider implements ChannelProvider {
   }
 }
 
+/** A user's GitHub-provided address, which commits can be attributed to without exposing a real one. */
+const noreplyEmail = (user: User) => `${user.id}+${user.login}@users.noreply.github.com`;
+
+/** Message IDs sort chronologically as strings. */
+const byId = (a: Message, b: Message) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+
 /** The runner's view of a repo's issues, with a channel credential from `mintClient`. */
 export class GitHubChannelClient implements ChannelClient {
-  private api: GitHubClient;
+  private gh: GitHub;
   private bot: string;
 
   constructor(credential: Credential, baseUrl = GITHUB_API) {
-    this.api = new GitHubClient(`token ${credential.value}`, baseUrl);
+    this.gh = asToken(credential.value, baseUrl);
     const source = credential.scope.source;
     if (typeof source !== "string") throw new Error("GitHub credential has no source in its scope");
     this.bot = botLogin(source);
   }
 
-  private issue(ref: ThreadRef) {
-    const t = parseThreadId(ref.id);
-    return { ...t, route: `/repos/${t.full}/issues/${t.number}` };
+  /** The thread's repo and issue number. */
+  private issueOf(ref: ThreadRef) {
+    const thread = parseThreadId(ref.id);
+    return { thread, repo: this.gh.repo(thread.full) };
   }
 
   async thread(ref: ThreadRef): Promise<Thread> {
-    const t = this.issue(ref);
-    const issue = await this.api.request<any>("GET", t.route);
+    const { thread, repo } = this.issueOf(ref);
+    const issue = await repo.issue(thread.number);
     return {
       ref,
       title: issue.title,
       url: issue.html_url,
       labels: labelNames(issue.labels),
-      vars: { number: String(issue.number), title: slugify(issue.title ?? ""), owner: t.owner, repo: t.repo },
+      vars: { number: String(issue.number), title: slugify(issue.title ?? ""), owner: thread.owner, repo: thread.repo },
+    };
+  }
+
+  /** An issue's opening post or a comment, as a message. */
+  private toMessage(id: string, post: Issue | IssueComment): Message {
+    return {
+      id,
+      author: post.user?.login ?? "",
+      trusted: TRUSTED.has(post.author_association),
+      own: post.user?.login === this.bot,
+      body: post.body ?? "",
+      at: post.created_at,
     };
   }
 
   async messages(ref: ThreadRef): Promise<Message[]> {
-    const t = this.issue(ref);
-    const [issue, comments] = await Promise.all([
-      this.api.request<any>("GET", t.route),
-      this.api.paginate<any>(`${t.route}/comments`),
-    ]);
-    const message = (id: string, c: any): Message => ({
-      id,
-      author: c.user?.login ?? "",
-      trusted: TRUSTED.has(c.author_association),
-      own: c.user?.login === this.bot,
-      body: c.body ?? "",
-      at: c.created_at,
-    });
+    const { thread, repo } = this.issueOf(ref);
+    const [issue, comments] = await Promise.all([repo.issue(thread.number), repo.issueComments(thread.number)]);
     // `edited` isn't set. REST doesn't say when an issue body last changed, and `updated_at` moves with every comment.
-    return [message(OPENING_POST_ID, issue), ...comments.map((c) => message(messageId(c.id), c))].sort((a, b) =>
-      a.id < b.id ? -1 : a.id > b.id ? 1 : 0,
-    );
+    const opening = this.toMessage(OPENING_POST_ID, issue);
+    return [opening, ...comments.map((comment) => this.toMessage(messageId(comment.id), comment))].sort(byId);
   }
 
   async reply(ref: ThreadRef, body: string) {
-    await this.api.request("POST", `${this.issue(ref).route}/comments`, { body });
+    const { thread, repo } = this.issueOf(ref);
+    await repo.comment(thread.number, body);
   }
 
+  /** Reacts 👀 to the comment, or else the issue, the event is about. */
   async acknowledge(event: ChannelEvent) {
     if (!event.repo) return;
-    const { comment, issue } = event.detail;
-    const route =
-      typeof comment === "number"
-        ? `/repos/${event.repo}/issues/comments/${comment}/reactions`
-        : typeof issue === "number"
-          ? `/repos/${event.repo}/issues/${issue}/reactions`
-          : undefined;
-    if (route) await this.api.request("POST", route, { content: "eyes" });
+    const target = reactionTarget(event);
+    if (target) await this.gh.repo(event.repo).react(target, ACKNOWLEDGEMENT);
   }
 
   async identity() {
-    const user = await this.api.request<{ id: number; login: string }>("GET", `/users/${encodeURIComponent(this.bot)}`);
-    return { name: user.login, email: `${user.id}+${user.login}@users.noreply.github.com` };
+    const user = await this.gh.user(this.bot);
+    return { name: user.login, email: noreplyEmail(user) };
   }
 }
+
+/** What acknowledging an event reacts with. */
+const ACKNOWLEDGEMENT: ReactionContent = "eyes";
+
+/** The comment an event is about, or else its issue. */
+const reactionTarget = ({ detail: { comment, issue } }: ChannelEvent): ReactionTarget | undefined =>
+  typeof comment === "number" ? { comment } : typeof issue === "number" ? { issue } : undefined;

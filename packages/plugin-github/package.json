@@ -11,7 +11,8 @@
     "./code-host": "./src/code-host/index.ts"
   },
   "dependencies": {
-    "@achq/core": "workspace:*"
+    "@achq/core": "workspace:*",
+    "@achq/utils": "workspace:*"
   },
   "devDependencies": {
     "@achq/test-utils": "workspace:*"

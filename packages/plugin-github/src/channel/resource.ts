@@ -3,8 +3,9 @@
 // gives a private key back, so an App achq can act as is one whose key the
 // router keeps: without one, it's created through the manifest flow.
 import { all, type Change, type Context, known, ManagedResource, type Planned, type Router, UNKNOWN } from "@achq/core";
-import { type AppKeys, appJwt, appsVariable, appWebhookSecret, parseApps } from "../lib/apps.ts";
-import { GitHubClient, githubUrls } from "../lib/client.ts";
+import type { AppSettings, HookConfig } from "@achq/utils/gh";
+import { type AppKeys, asAppOnce, appsVariable, appWebhookSecret, parseApps } from "../lib/apps.ts";
+import { githubUrls } from "../lib/client.ts";
 import { GITHUB_ENV } from "../lib/constants.ts";
 import { appSlug, manifestFlow } from "../lib/manifest.ts";
 import { APP_EVENTS, APP_PERMISSIONS, covers } from "../lib/permissions.ts";
@@ -31,10 +32,8 @@ export type ChannelProps = {
   stored?: AppKeys[string];
 };
 
-export type HookConfig = { url?: string; content_type?: string; insecure_ssl?: string };
-
 /** `settings` is where you change what achq can't. */
-export type ChannelState = { events: string[]; permissions: Record<string, string>; hook: HookConfig; settings: string };
+export type ChannelState = AppSettings & { hook: HookConfig; settings: string };
 
 /** The slug is GitHub's, which can differ from the one its name makes. */
 export type ChannelAttrs = { slug: string; id: string; privateKey: string };
@@ -42,7 +41,7 @@ export type ChannelAttrs = { slug: string; id: string; privateKey: string };
 export type ChannelChange = { kind: "create" } | { kind: "webhook" };
 
 /** What the live App lacks of what achq needs. */
-const appProblems = (settings: { events: string[]; permissions: Record<string, string> }) => [
+const appProblems = (settings: AppSettings) => [
   ...APP_EVENTS.filter((e) => !settings.events.includes(e)).map((e) => `doesn't send ${e}`),
   ...Object.entries(APP_PERMISSIONS)
     .filter(([name, level]) => !covers(settings.permissions[name], level))
@@ -52,18 +51,24 @@ const appProblems = (settings: { events: string[]; permissions: Record<string, s
 const appSettingsUrl = (slug: string, org: string | undefined, web: string) =>
   org ? `${web}/organizations/${org}/settings/apps/${slug}/permissions` : `${web}/settings/apps/${slug}/permissions`;
 
-const hookConfig = (url: string, key: string, appId: string | number) => ({
+/** The webhook as achq wants it: JSON, TLS checked, signed with the secret derived from the App's ID. */
+const WANTED_HOOK = { content_type: "json", insecure_ssl: "0" } as const;
+
+const hookConfig = (url: string, key: string, appId: string | number): HookConfig => ({
   url,
-  content_type: "json",
-  insecure_ssl: "0",
+  ...WANTED_HOOK,
   secret: appWebhookSecret(key, appId),
 });
 
 /** The webhook as wanted. The secret isn't compared: GitHub doesn't show it, so it's written with every change. */
 const hookDiffers = (hookUrl: string, hook: HookConfig) =>
-  !known(hookUrl) || hook.url !== hookUrl || hook.content_type !== "json" || hook.insecure_ssl !== "0";
+  !known(hookUrl) || hook.url !== hookUrl || hook.content_type !== WANTED_HOOK.content_type || hook.insecure_ssl !== WANTED_HOOK.insecure_ssl;
 
-const asApp = (api: string, id: string | number, privateKey: string) => new GitHubClient(`Bearer ${appJwt(id, privateKey)}`, api);
+/** The keys `env` already stores, with those of the Apps just created added (or replaced). */
+const mergeAppKeys = (env: Record<string, string | undefined>, created: ChannelAttrs[]): AppKeys => ({
+  ...parseApps(env[GITHUB_ENV.apps]),
+  ...Object.fromEntries(created.map(({ slug, id, privateKey }) => [slug, { id, privateKey }])),
+});
 
 /** Each router's channels, by slug. */
 const routerChannels = new WeakMap<Router, Map<string, Channel>>();
@@ -77,7 +82,7 @@ const routerChannels = new WeakMap<Router, Map<string, Channel>>();
 const declareKeys = (router: Router, channels: Map<string, Channel>) =>
   router.variables(() => ({
     [GITHUB_ENV.apps]: all([router.env, all([...channels.values()].map((channel) => channel.outputs()))]).map(([env, created]) =>
-      appsVariable({ ...parseApps(env[GITHUB_ENV.apps]), ...Object.fromEntries(created.map(({ slug, id, privateKey }) => [slug, { id, privateKey }])) }),
+      appsVariable(mergeAppKeys(env, created)),
     ),
   }));
 
@@ -117,11 +122,8 @@ export class Channel extends ManagedResource<ChannelProps, ChannelState, Channel
   async read({ slug, org, stored }: ChannelProps, ctx: Context): Promise<ChannelState | undefined> {
     if (!stored) return undefined;
     const { api, web } = githubUrls(ctx.env);
-    const client = asApp(api, stored.id, stored.privateKey);
-    const [settings, hook] = await Promise.all([
-      client.request<{ events: string[]; permissions: Record<string, string> }>("GET", "/app"),
-      client.request<HookConfig>("GET", "/app/hook/config"),
-    ]);
+    const app = asAppOnce(api, stored.id, stored.privateKey);
+    const [settings, hook] = await Promise.all([app.app(), app.hookConfig()]);
     return { events: settings.events, permissions: settings.permissions, hook, settings: appSettingsUrl(slug, org, web) };
   }
 
@@ -149,14 +151,14 @@ export class Channel extends ManagedResource<ChannelProps, ChannelState, Channel
   async apply({ slug, name, org, hookUrl, key, stored }: ChannelProps, _: ChannelState | undefined, changes: ChannelChange[], ctx: Context): Promise<ChannelAttrs> {
     const { api, web } = githubUrls(ctx.env);
     if (changes.some((c) => c.kind === "webhook")) {
-      await asApp(api, stored!.id, stored!.privateKey).request("PATCH", "/app/hook/config", hookConfig(hookUrl, key, stored!.id));
+      await asAppOnce(api, stored!.id, stored!.privateKey).setHookConfig(hookConfig(hookUrl, key, stored!.id));
       return { slug, ...stored! };
     }
     const open = ctx.open;
     if (!open) throw new Error(`Creating GitHub App ${name} opens your browser, which only \`achq up\` can do`);
     const created = await manifestFlow({ name, org, hookUrl }, { open: (url) => open(url, `create ${name} on GitHub`), githubApi: api, githubWeb: web });
     // The secret derives from the App ID, which GitHub only assigns on creation.
-    await asApp(api, created.id, created.pem).request("PATCH", "/app/hook/config", hookConfig(hookUrl, key, created.id));
+    await asAppOnce(api, created.id, created.pem).setHookConfig(hookConfig(hookUrl, key, created.id));
     if (created.slug !== slug) ctx.log(`  ! GitHub named it ${created.slug}: set the App's name to "${created.slug}" in the infra`);
     ctx.log(`  created ${created.html_url}`);
     return { slug: created.slug, id: String(created.id), privateKey: created.pem };

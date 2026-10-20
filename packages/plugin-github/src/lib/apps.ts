@@ -1,53 +1,45 @@
 // Acting as a GitHub App: its keys, the JWTs they sign, installation tokens,
 // and the webhook secret. Only the router and `achq up` have App keys; the
 // container never does.
-import { createSign } from "node:crypto";
 import { implementationSecret } from "@achq/core/secrets";
-import { GitHubClient, githubUrls } from "./client.ts";
+import { errorMessage } from "@achq/utils/errors";
+import { appJwt, type GitHub, type Installation, splitRepo, type TokenNarrowing } from "@achq/utils/gh";
+import { github, githubUrls } from "./client.ts";
 import { GITHUB_API, GITHUB_ENV } from "./constants.ts";
-import type { Permissions } from "./permissions.ts";
 
 /** App JWTs are valid for nine minutes and reused for five. */
 const JWT_REUSE_MS = 5 * 60_000;
 
+/** The least a token can ask for: enough to prove the installation reaches a repo. */
+const PROBE_PERMISSIONS = { metadata: "read" };
+
 /** `{ [slug]: { id, privateKey } }`, from ACHQ_GITHUB_APPS. */
 export type AppKeys = Record<string, { id: string; privateKey: string }>;
+
+const isAppKey = (app: any) => Boolean(app) && typeof app.privateKey === "string" && (typeof app.id === "string" || typeof app.id === "number");
 
 /** Reads ACHQ_GITHUB_APPS. */
 export const parseApps = (json: string | undefined): AppKeys => {
   if (!json) return {};
-  const parsed = JSON.parse(json);
-  for (const [slug, app] of Object.entries<any>(parsed)) {
-    if (!app || typeof app.privateKey !== "string" || (typeof app.id !== "string" && typeof app.id !== "number")) {
-      throw new Error(`GitHub App "${slug}" needs an id and a privateKey`);
-    }
-  }
-  return Object.fromEntries(Object.entries<any>(parsed).map(([slug, a]) => [slug, { id: String(a.id), privateKey: a.privateKey }]));
+  const parsed = Object.entries<any>(JSON.parse(json));
+  for (const [slug, app] of parsed) if (!isAppKey(app)) throw new Error(`GitHub App "${slug}" needs an id and a privateKey`);
+  return Object.fromEntries(parsed.map(([slug, app]) => [slug, { id: String(app.id), privateKey: app.privateKey }]));
 };
 
 /** ACHQ_GITHUB_APPS' JSON, stable, so the same Apps always make the same variable. */
 export const appsVariable = (apps: AppKeys) => JSON.stringify(Object.fromEntries(Object.entries(apps).sort(([a], [b]) => a.localeCompare(b))));
 
-/** A JWT that authenticates as the GitHub App itself, valid for nine minutes. */
-export const appJwt = (appId: string | number, privateKey: string, now = Date.now()): string => {
-  const iat = Math.floor(now / 1000) - 60;
-  const encode = (value: object) => Buffer.from(JSON.stringify(value)).toString("base64url");
-  const unsigned = `${encode({ alg: "RS256", typ: "JWT" })}.${encode({ iat, exp: iat + 600, iss: String(appId) })}`;
-  return `${unsigned}.${createSign("RSA-SHA256").update(unsigned).sign(privateKey, "base64url")}`;
-};
-
 /** An App's webhook secret, from its App ID (sent in X-GitHub-Hook-Installation-Target-ID). */
 export const appWebhookSecret = (key: string, appId: string | number) => implementationSecret(key, `github-app-webhook:${appId}`);
 
-/** `GET /repos/{r}/installation`, the fields achq uses. */
-export type InstallationInfo = {
-  id: number;
-  account: { login: string };
-  permissions: Permissions;
-  suspended_at?: string | null;
-};
+/** The API as the App with this ID and key, with a fresh JWT: for one-off calls, where caching buys nothing. */
+export const asAppOnce = (api: string, appId: string | number, privateKey: string) => github(`Bearer ${appJwt(appId, privateKey)}`, api);
 
-export type AccessToken = { token: string; expires_at: string; permissions?: Permissions };
+/** Whether an installation reaches a repo, and if not, what GitHub said. */
+export type Coverage = { covered: true } | { covered: false; reason: string };
+
+/** A configured App and its installation on a repo. */
+export type FoundInstallation = { slug: string; installation: Installation };
 
 export class Apps {
   private jwts = new Map<string, { value: string; until: number }>();
@@ -75,50 +67,55 @@ export class Apps {
     return this.keys[slug]!;
   }
 
-  /** The API as the App itself. JWTs are reused for five of their nine minutes. */
-  asApp(slug: string) {
+  /** A JWT for the App, reused for five of its nine minutes. */
+  private cachedJwt(slug: string) {
     const { id, privateKey } = this.key(slug);
-    return new GitHubClient(() => {
-      const now = Date.now();
-      const cached = this.jwts.get(slug);
-      if (cached && cached.until > now) return `Bearer ${cached.value}`;
-      const value = appJwt(id, privateKey, now);
-      this.jwts.set(slug, { value, until: now + JWT_REUSE_MS });
-      return `Bearer ${value}`;
-    }, this.baseUrl);
+    const now = Date.now();
+    const cached = this.jwts.get(slug);
+    if (cached && cached.until > now) return cached.value;
+    const value = appJwt(id, privateKey, now);
+    this.jwts.set(slug, { value, until: now + JWT_REUSE_MS });
+    return value;
   }
 
-  /** The App's installation that covers `repo`, or undefined if it isn't installed there. */
-  async installation(slug: string, repo: string): Promise<InstallationInfo | undefined> {
-    const res = await this.asApp(slug).raw("GET", `/repos/${repo}/installation`);
-    if (res.status === 404) return undefined;
-    if (!res.ok) throw new Error(`GitHub GET /repos/${repo}/installation: ${res.status} ${(await res.text()).slice(0, 300)}`);
-    return (await res.json()) as InstallationInfo;
+  /** The API as the App itself. */
+  asApp(slug: string): GitHub {
+    this.key(slug);
+    return github(() => `Bearer ${this.cachedJwt(slug)}`, this.baseUrl);
+  }
+
+  /** The App's installation on `repo`'s owner, or undefined if it isn't installed there. */
+  installation(slug: string, repo: string) {
+    return this.asApp(slug).repo(repo).installation();
   }
 
   /**
-   * The first configured App whose installation covers `repo`, skipping
-   * suspended ones. An installation is found by the repo's owner, and may cover
-   * only selected repos: minting a token narrowed to `repo` is the one
-   * definitive check that it covers this one.
+   * Whether the installation reaches `repo`. An installation is found by the
+   * repo's owner, and may cover only selected repos: minting a token narrowed
+   * to `repo` is the one definitive check.
    */
-  async installedOn(repo: string): Promise<{ slug: string; installation: InstallationInfo } | undefined> {
+  async covers(slug: string, installationId: number, repo: string): Promise<Coverage> {
+    try {
+      await this.token(slug, installationId, { repositories: [splitRepo(repo).name], permissions: PROBE_PERMISSIONS });
+      return { covered: true };
+    } catch (error) {
+      return { covered: false, reason: errorMessage(error) };
+    }
+  }
+
+  /** The first configured App whose installation covers `repo`, skipping suspended ones. */
+  async installedOn(repo: string): Promise<FoundInstallation | undefined> {
     for (const slug of this.slugs()) {
       const installation = await this.installation(slug, repo);
       if (!installation || installation.suspended_at) continue;
-      try {
-        await this.token(slug, installation.id, { repositories: [repo.split("/")[1]!], permissions: { metadata: "read" } });
-        return { slug, installation };
-      } catch {
-        // Not this App's: try the next.
-      }
+      if ((await this.covers(slug, installation.id, repo)).covered) return { slug, installation };
     }
     return undefined;
   }
 
   /** An installation token, narrowed to `repositories` (names, not owner/name) and `permissions` when given. */
-  token(slug: string, installation: number, narrow: { repositories?: string[]; permissions?: Permissions } = {}) {
-    return this.asApp(slug).request<AccessToken>("POST", `/app/installations/${installation}/access_tokens`, narrow);
+  token(slug: string, installationId: number, narrow: TokenNarrowing = {}) {
+    return this.asApp(slug).createInstallationToken(installationId, narrow);
   }
 }
 

@@ -3,11 +3,12 @@
 // repo's config, not declared, and read and changed as your gh login, not as
 // the App.
 import { type Change, type Context, ManagedResource } from "@achq/core";
-import { type GitHubClient, githubUrls } from "../lib/client.ts";
+import { type AppSettings, type GitHub, sameLogin, sameRepo, splitRepo, type UserInstallation } from "@achq/utils/gh";
+import { githubUrls } from "../lib/client.ts";
 import { covers } from "../lib/permissions.ts";
 import { userGitHub } from "../lib/user.ts";
 
-export type AppSettings = { events: string[]; permissions: Record<string, string> };
+export type { AppSettings };
 
 export type CodeHostProps = {
   slug: string;
@@ -31,20 +32,25 @@ export type CodeHostState = {
 /** "open": the App has no installation on the owner yet, so you install it on GitHub. */
 export type CodeHostChange = "add" | "open" | "remove";
 
-type InstallationRow = { id: number; app_slug: string; account: { login: string; type: string }; repository_selection: "all" | "selected" };
+const ownerOf = (repo: string) => splitRepo(repo).owner;
 
-const ownerOf = (repo: string) => repo.split("/")[0]!;
+/** Where you choose an installation's repos on GitHub. */
+const installationSettings = ({ id, account }: UserInstallation, web: string) =>
+  account.type === "Organization" ? `${web}/organizations/${account.login}/settings/installations/${id}` : `${web}/settings/installations/${id}`;
 
-const installationSettings = (i: InstallationRow, web: string) =>
-  i.account.type === "Organization" ? `${web}/organizations/${i.account.login}/settings/installations/${i.id}` : `${web}/settings/installations/${i.id}`;
-
-const liveApp = async (gh: GitHubClient, slug: string): Promise<AppSettings | "private"> => {
-  const res = await gh.raw("GET", `/apps/${slug}`);
-  if (res.status === 404) return "private";
-  if (!res.ok) throw new Error(`GET /apps/${slug}: ${res.status} ${await res.text()}`);
-  const { events, permissions } = (await res.json()) as AppSettings;
-  return { events, permissions };
+/** The App's settings as GitHub shows them, or "private" when it won't. */
+const liveApp = async (gh: GitHub, slug: string): Promise<AppSettings | "private"> => {
+  const app = await gh.publicApp(slug);
+  return app ? { events: app.events, permissions: app.permissions } : "private";
 };
+
+/** The App's installation on `owner`, among those your login can see. */
+const installationOn = async (gh: GitHub, slug: string, owner: string) =>
+  (await gh.userInstallations()).find((i) => i.app_slug === slug && sameLogin(i.account.login, owner));
+
+/** Whether a selected-repos installation includes `repo`. */
+const selects = async (gh: GitHub, installationId: number, repo: string) =>
+  (await gh.userInstallationRepos(installationId)).some((r) => sameRepo(r.full_name, repo));
 
 /** What the live App lacks of what the config needs. */
 const missing = (app: AppSettings, needs: AppSettings) => [
@@ -66,13 +72,11 @@ export class CodeHost extends ManagedResource<CodeHostProps, CodeHostState, {}, 
     const { api, web } = githubUrls(ctx.env);
     const gh = userGitHub(api, ctx.env);
     const app = installed ? await liveApp(gh, slug) : undefined;
-    const all = await gh.paginate<InstallationRow>("/user/installations", (page) => page.installations);
-    const row = all.find((i) => i.app_slug === slug && i.account.login.toLowerCase() === ownerOf(repo).toLowerCase());
-    if (!row) return { app, present: false };
-    const installation = { id: row.id, owner: row.account.login, all: row.repository_selection === "all", settings: installationSettings(row, web) };
+    const found = await installationOn(gh, slug, ownerOf(repo));
+    if (!found) return { app, present: false };
+    const installation = { id: found.id, owner: found.account.login, all: found.repository_selection === "all", settings: installationSettings(found, web) };
     if (installation.all) return { app, installation, present: true };
-    const repos = await gh.paginate<{ full_name: string }>(`/user/installations/${row.id}/repositories`, (page) => page.repositories);
-    return { app, installation, present: repos.some((r) => r.full_name.toLowerCase() === repo.toLowerCase()) };
+    return { app, installation, present: await selects(gh, found.id, repo) };
   }
 
   /** Throws for what can't be applied: an App lacking what the config needs, or removing one repo from an install on all of them. */
@@ -99,20 +103,9 @@ export class CodeHost extends ManagedResource<CodeHostProps, CodeHostState, {}, 
     return {};
   }
 
-  async apply({ slug, repo }: CodeHostProps, current: CodeHostState, [change]: CodeHostChange[], ctx: Context) {
-    const { api, web } = githubUrls(ctx.env);
-    if (change === "open") {
-      const url = `${web}/apps/${slug}/installations/new`;
-      if (!ctx.open) throw new Error(`Installing ${slug} on ${ownerOf(repo)} opens your browser, which only the CLI can do`);
-      ctx.log(`${slug} isn't installed on ${ownerOf(repo)} yet. Install it on ${repo} at ${url}`);
-      await ctx.open(url, `install ${slug} on ${ownerOf(repo)}`);
-      return {};
-    }
-    const gh = userGitHub(api, ctx.env);
-    const { id } = await gh.request<{ id: number }>("GET", `/repos/${repo}`);
-    // The same endpoint serves user and organisation installations; it needs admin on the repo.
-    await gh.request(change === "add" ? "PUT" : "DELETE", `/user/installations/${current.installation!.id}/repositories/${id}`);
-    if (change === "remove") ctx.log(`${repo}'s containers sleep, and are kept until \`achq up --prune\`.`);
+  async apply(props: CodeHostProps, current: CodeHostState, [change]: CodeHostChange[], ctx: Context) {
+    if (change === "open") await openInstallPage(props, ctx);
+    else await changeInstallationRepos(props, current.installation!.id, change!, ctx);
     return {};
   }
 
@@ -120,3 +113,20 @@ export class CodeHost extends ManagedResource<CodeHostProps, CodeHostState, {}, 
     return installed && current.app === "private" ? [`${slug} is private, so GitHub won't show its settings; skipping the App check`] : [];
   }
 }
+
+/** Opens GitHub's page for installing the App on the repo's owner: achq can't create an installation. */
+const openInstallPage = async ({ slug, repo }: CodeHostProps, ctx: Context) => {
+  const url = `${githubUrls(ctx.env).web}/apps/${slug}/installations/new`;
+  if (!ctx.open) throw new Error(`Installing ${slug} on ${ownerOf(repo)} opens your browser, which only the CLI can do`);
+  ctx.log(`${slug} isn't installed on ${ownerOf(repo)} yet. Install it on ${repo} at ${url}`);
+  await ctx.open(url, `install ${slug} on ${ownerOf(repo)}`);
+};
+
+/** Adds the repo to the installation, or removes it. Needs admin on the repo. */
+const changeInstallationRepos = async ({ repo }: CodeHostProps, installationId: number, change: "add" | "remove", ctx: Context) => {
+  const gh = userGitHub(githubUrls(ctx.env).api, ctx.env);
+  const { id: repoId } = await gh.repo(repo).info();
+  if (change === "add") return gh.addToInstallation(installationId, repoId);
+  await gh.removeFromInstallation(installationId, repoId);
+  ctx.log(`${repo}'s containers sleep, and are kept until \`achq up --prune\`.`);
+};
