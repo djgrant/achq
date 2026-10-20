@@ -11,6 +11,12 @@ import { formatSync } from "../lib/up/format.ts";
 import { up } from "../lib/up/up.ts";
 import { infraFile } from "../lib/workdir.ts";
 
+/** What every container gets: each agent runtime's variables, from your shell. */
+const containerEnvFromShell = () => Object.fromEntries(agentEnv().map(({ name, hint }) => [name, need(name, hint)]));
+
+/** Where the router and deployer's code comes from: achq's own repo, on its code host. */
+const achqSource = () => codeHostProviderNamed(ACHQ_SOURCE.host).create(process.env);
+
 export const command = defineCommand({
   label: "Bring the ACHQ infra in line with achq.infra.ts",
   examples: ["achq up --dry-run", "achq up", "achq up --prune"],
@@ -22,10 +28,10 @@ export const command = defineCommand({
     const file = infraFile();
     if (!file) throw new Error(`Run this in the ACHQ infra repo, which has ${INFRA_FILE} at its root`);
     const infra = await loadInfra(file);
-    const source = codeHostProviderNamed(ACHQ_SOURCE.host).create(process.env);
+    const source = achqSource();
     const result = await up(infra, { prune: context.prune, dryRun: context.dryRun }, {
       env: secretEnv(),
-      containerEnv: Object.fromEntries(agentEnv().map(({ name, hint }) => [name, need(name, hint)])),
+      containerEnv: containerEnvFromShell(),
       achqRef: () => source.lastCommit(ACHQ_SOURCE.repo, ACHQ_SOURCE.branch, ACHQ_CODE_PATHS),
       open: async (url, what) => {
         console.log(`  opening ${url} to ${what}…`);

@@ -1,4 +1,3 @@
-export const openInBrowser = async (url: string) => {
-  const opener = process.platform === "darwin" ? "open" : "xdg-open";
-  Bun.spawnSync([opener, url], { stdout: "ignore", stderr: "ignore" });
-};
+import { openUrl } from "@achq/utils/process";
+
+export const openInBrowser = async (url: string) => openUrl(url);

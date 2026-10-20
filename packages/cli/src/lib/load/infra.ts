@@ -1,5 +1,6 @@
 import * as path from "node:path";
 import { Deployer, type Infra, type Resource, Router } from "@achq/core";
+import { onlyItem } from "@achq/utils/collections";
 import { containerProviderNamed } from "achq/registry";
 import { registerModules } from "./modules.ts";
 
@@ -18,20 +19,39 @@ export const loadInfra = async (file: string): Promise<InfraResources> => {
   return checkInfra(mod.default() as Infra);
 };
 
-export const checkInfra = (infra: Infra): InfraResources => {
-  const routers = infra.resources.filter((r): r is Router => r instanceof Router);
-  const deployers = infra.resources.filter((r): r is Deployer => r instanceof Deployer);
-  if (routers.length !== 1 || deployers.length !== 1) throw new Error("The infra must declare one router and one deployer");
-  const [router, deployer] = [routers[0]!, deployers[0]!];
-  // The router, deployer and containers reach each other over their container provider's private network.
-  if (router.containerProvider !== deployer.containerProvider) throw new Error(`The router runs on ${router.containerProvider} and the deployer on ${deployer.containerProvider}; they must share a container provider`);
-  // The deployer puts containers on its own container provider.
-  containerProviderNamed(deployer.containerProvider);
+const ONE_EACH = "The infra must declare one router and one deployer";
+
+const ofClass = <T extends Resource>(resources: Resource[], type: abstract new (...args: any[]) => T) => resources.filter((r): r is T => r instanceof type);
+
+/** The router and deployer have to reach each other over their container provider's private network. */
+const assertShareContainerProvider = (router: Router, deployer: Deployer) => {
+  if (router.containerProvider === deployer.containerProvider) return;
+  throw new Error(`The router runs on ${router.containerProvider} and the deployer on ${deployer.containerProvider}; they must share a container provider`);
+};
+
+/** The deployer puts containers on its own container provider, so achq has to know it. Throws if not. */
+const assertKnownContainerProvider = (deployer: Deployer) => void containerProviderNamed(deployer.containerProvider);
+
+/** The router a resource's inputs name, if any. Resources only share `inputs` by convention, so this looks rather than assumes. */
+const routerInput = (r: Resource): unknown => (r as { inputs?: { router?: unknown } }).inputs?.router;
+
+/** The deployer, and every other resource that names a router, use the infra's. */
+const assertSharesRouter = (resources: Resource[], router: Router, deployer: Deployer) => {
   if (deployer.inputs.router !== router) throw new Error(`Deployer ${deployer.name} must use router ${router.name}`);
-  for (const r of infra.resources) {
-    const inputs = (r as { inputs?: { router?: unknown } }).inputs;
-    if (r === deployer || !inputs) continue;
-    if (inputs.router instanceof Router && inputs.router !== router) throw new Error(`${r.kind} ${r.name} must use router ${router.name}`);
+  for (const r of resources) {
+    if (r === deployer) continue;
+    const named = routerInput(r);
+    if (named instanceof Router && named !== router) throw new Error(`${r.kind} ${r.name} must use router ${router.name}`);
   }
-  return { router, deployer, resources: infra.resources };
+};
+
+/** The infra's router and deployer, checked against each other and everything else it declares. */
+export const checkInfra = ({ resources }: Infra): InfraResources => {
+  const router = onlyItem(ofClass(resources, Router));
+  const deployer = onlyItem(ofClass(resources, Deployer));
+  if (!router || !deployer) throw new Error(ONE_EACH);
+  assertShareContainerProvider(router, deployer);
+  assertKnownContainerProvider(deployer);
+  assertSharesRouter(resources, router, deployer);
+  return { router, deployer, resources };
 };

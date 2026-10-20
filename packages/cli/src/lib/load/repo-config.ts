@@ -2,22 +2,23 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import type { RepoManifest } from "@achq/core";
 import { evaluateConfig } from "@achq/deployer/config";
+import { readTree } from "@achq/utils/fs";
+
+/** Where a repo's config lives, and the file it starts from. */
+const CONFIG_DIR = ".achq";
+const CONFIG_ENTRY = "config.ts";
+/** Installed packages under `.achq/` are not part of the config. */
+const SKIPPED_DIRS = ["node_modules"];
+
+const assertHasConfig = (repoDir: string, dir: string) => {
+  if (!fs.existsSync(path.join(dir, CONFIG_ENTRY))) throw new Error(`No ${CONFIG_DIR}/${CONFIG_ENTRY} in ${repoDir}`);
+};
 
 /** Every file under `.achq/`, by path relative to it. */
 export const readConfigFiles = (repoDir: string) => {
-  const dir = path.join(repoDir, ".achq");
-  if (!fs.existsSync(path.join(dir, "config.ts"))) throw new Error(`No .achq/config.ts in ${repoDir}`);
-  const files: Record<string, string> = {};
-  const walk = (sub: string) => {
-    for (const entry of fs.readdirSync(path.join(dir, sub), { withFileTypes: true })) {
-      const rel = path.join(sub, entry.name);
-      if (entry.isDirectory()) {
-        if (entry.name !== "node_modules") walk(rel);
-      } else if (entry.isFile()) files[rel] = fs.readFileSync(path.join(dir, rel), "utf8");
-    }
-  };
-  walk("");
-  return files;
+  const dir = path.join(repoDir, CONFIG_DIR);
+  assertHasConfig(repoDir, dir);
+  return readTree(dir, { skip: SKIPPED_DIRS });
 };
 
 /** The repo's manifest, evaluated in the sandbox as the deployer does it. */

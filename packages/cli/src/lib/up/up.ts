@@ -5,7 +5,7 @@
 // The infra declares where the router and deployer run and what else they
 // serve (e.g. GitHub Apps, which declare their own variables on the router);
 // this declares the variables achq itself gives them.
-import { DEPLOYER_PORT, ENV, known, plan, ROUTER_PRIVATE_PORT, type SyncRequest, type SyncResult } from "@achq/core";
+import { type Deployer, DEPLOYER_PORT, ENV, known, plan, type Router, ROUTER_PRIVATE_PORT, type SyncRequest, type SyncResult } from "@achq/core";
 import { cliContext } from "../context.ts";
 import type { InfraResources } from "../load/infra.ts";
 import { adminRequest } from "../router.ts";
@@ -29,11 +29,8 @@ export type UpDeps = {
   sleep?: (ms: number) => Promise<void>;
 };
 
-export const up = async ({ router, deployer, resources }: InfraResources, options: UpOptions, deps: UpDeps): Promise<SyncResult | undefined> => {
-  const { log } = deps;
-  const ctx = cliContext({ env: deps.env, log, open: deps.open, ...(deps.newSecret && { newSecret: deps.newSecret }), ...(deps.sleep && { sleep: deps.sleep }) });
-  const ref = await deps.achqRef();
-
+/** The variables achq itself gives the router and deployer: how they reach each other, and what they run. */
+const declareAchqVariables = (router: Router, deployer: Deployer, ref: string, containerEnv: Record<string, string>) => {
   router.variables({
     [ENV.deployerUrl]: deployer.privateUrl(DEPLOYER_PORT),
     [ENV.ref]: ref,
@@ -43,10 +40,16 @@ export const up = async ({ router, deployer, resources }: InfraResources, option
     [ENV.routerUrl]: router.privateUrl(ROUTER_PRIVATE_PORT),
     [ENV.routerPublicUrl]: router.url,
     [ENV.owners]: deployer.inputs.owners.join(","),
-    [ENV.containerEnv]: JSON.stringify(deps.containerEnv),
+    [ENV.containerEnv]: JSON.stringify(containerEnv),
     [ENV.ref]: ref,
     [ENV.containerProvider]: deployer.containerProvider,
   });
+};
+
+export const up = async ({ router, deployer, resources }: InfraResources, options: UpOptions, deps: UpDeps): Promise<SyncResult | undefined> => {
+  const { log } = deps;
+  const ctx = cliContext({ env: deps.env, log, open: deps.open, newSecret: deps.newSecret, sleep: deps.sleep });
+  declareAchqVariables(router, deployer, await deps.achqRef(), deps.containerEnv);
 
   const planned = await plan(resources, ctx);
   if (!planned.changes.length) log("  up to date");
@@ -61,5 +64,6 @@ export const up = async ({ router, deployer, resources }: InfraResources, option
     return undefined;
   }
   const request: SyncRequest = { prune: options.prune, dryRun: options.dryRun };
-  return adminRequest<SyncResult>({ base: deps.routerUrl ? deps.routerUrl(url) : url, key }, "POST", "/admin/sync", request);
+  const base = deps.routerUrl ? deps.routerUrl(url) : url;
+  return adminRequest<SyncResult>({ base, key }, "POST", "/admin/sync", request);
 };

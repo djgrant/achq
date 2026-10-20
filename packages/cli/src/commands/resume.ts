@@ -1,9 +1,10 @@
 import { defineCommand } from "@pokit/core";
+import { chooseOne } from "../lib/choose.ts";
 import { clean } from "../lib/errors.ts";
 import { z } from "zod";
 import { reachContainer } from "../lib/remote/reach.ts";
 import { parseSessions, pickSession, sessionLabel, sessionTable } from "../lib/remote/sessions.ts";
-import { interactive, terminalEnv } from "../lib/terminal.ts";
+import { terminalEnv } from "../lib/terminal.ts";
 import { needRepo } from "../lib/workdir.ts";
 
 export const command = defineCommand({
@@ -18,18 +19,15 @@ export const command = defineCommand({
     const thread = String(context.thread);
     const container = await reachContainer(r.prompter, needRepo(), context.container);
     const sessions = parseSessions(await container.shell.run(container.location, ["achq-agent", "sessions", thread]));
-    let session = pickSession(sessions, context.session);
-    if (!session) {
-      if (!interactive()) {
-        console.log(sessionTable(sessions));
-        return;
-      }
-      const id = await r.prompter.select({
-        message: "Session",
-        options: sessions.map((s) => ({ value: s.id, label: sessionLabel(s), hint: s.lastRun })),
-      });
-      session = sessions.find((s) => s.id === id)!;
-    }
+    const session = await chooseOne(r.prompter, sessions, pickSession(sessions, context.session), {
+      message: "Session",
+      id: (s) => s.id,
+      label: sessionLabel,
+      hint: (s) => s.lastRun,
+      withoutTerminal: () => void console.log(sessionTable(sessions)),
+    });
+    // Without a terminal, the list is all there is to show.
+    if (!session) return;
     process.exitCode = await container.shell.open(container.location, ["env", ...terminalEnv(), "achq-agent", "resume", thread, session.id]);
   }),
 });

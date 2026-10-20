@@ -1,31 +1,64 @@
+// What `achq status` prints: from a repo, its ACHQ_STATUS; from the infra,
+// every repo the router has installed or deployed, as a table.
 import type { DeployRecord, InstalledRepo, Status } from "@achq/core";
+import { alignedTable } from "@achq/utils/text";
+
+/** How much of a commit's SHA identifies it to a reader. */
+const SHORT_SHA_LENGTH = 7;
+/** A table cell with nothing in it. */
+const NONE = "-";
+const INFRA_COLUMNS = ["REPO", "STATE", "AT", "CONTAINERS"];
+
+const shortSha = (commit: string) => commit.slice(0, SHORT_SHA_LENGTH);
+
+const containerNames = (containers: { name: string }[] | undefined) => (containers ?? []).map((c) => c.name);
+
+/** e.g. `deployed at 2026-10-17T10:00:00Z (abc1234)`, or `failed at …: why`. */
+const statusHeadline = (status: Status) => {
+  const commit = status.commit ? ` (${shortSha(status.commit)})` : "";
+  const error = status.error ? `: ${status.error}` : "";
+  return `${status.state} at ${status.at}${commit}${error}`;
+};
 
 export const formatStatus = (status: Status) => {
-  const lines = [`${status.state} at ${status.at}${status.commit ? ` (${status.commit.slice(0, 7)})` : ""}${status.error ? `: ${status.error}` : ""}`];
-  if (status.containers?.length) lines.push(`containers: ${status.containers.map((c) => c.name).join(", ")}`);
+  const lines = [statusHeadline(status)];
+  const containers = containerNames(status.containers);
+  if (containers.length) lines.push(`containers: ${containers.join(", ")}`);
   for (const w of status.warnings ?? []) lines.push(`! ${w}`);
   return lines;
 };
 
+/** A repo the router knows: installed on its code host, deployed, or both. */
+type RepoRow = { repo: string; installed: boolean; record?: DeployRecord };
+
+/** Repo names compare case-insensitively, as code hosts treat them. */
+const repoKey = (repo: string) => repo.toLowerCase();
+
+/** The installed repos and the deploy records, one row per repo, sorted by it. A record's spelling of the name wins. */
+const joinByRepo = (records: DeployRecord[], installed: InstalledRepo[]): RepoRow[] => {
+  const rows = new Map<string, RepoRow>();
+  for (const i of installed) rows.set(repoKey(i.repo), { repo: i.repo, installed: true });
+  for (const record of records) {
+    const key = repoKey(record.repo);
+    rows.set(key, { repo: record.repo, installed: rows.get(key)?.installed ?? false, record });
+  }
+  return [...rows].sort(([a], [b]) => a.localeCompare(b)).map(([, row]) => row);
+};
+
+/** The deploy's state, flagging a repo that's only half set up. */
+const repoState = ({ installed, record }: RepoRow) => {
+  if (!record) return "installed, not deployed";
+  if (!installed && record.state === "deployed") return "deployed, not installed";
+  return record.state;
+};
+
+const infraRow = (row: RepoRow) => [row.repo, repoState(row), row.record?.at ?? NONE, containerNames(row.record?.containers).join(",") || NONE];
+
 /** Every installed or deployed repo, one row each, with errors underneath. */
 export const infraStatusTable = (records: DeployRecord[], installed: InstalledRepo[]) => {
-  const repos = new Map<string, { installed: boolean; record?: DeployRecord }>();
-  for (const i of installed) repos.set(i.repo.toLowerCase(), { installed: true });
-  for (const r of records) {
-    const row = repos.get(r.repo.toLowerCase());
-    repos.set(r.repo.toLowerCase(), { installed: row?.installed ?? false, record: r });
-  }
-  if (!repos.size) return "No repo is installed";
-  const names = new Map([...installed.map((i) => [i.repo.toLowerCase(), i.repo] as const), ...records.map((r) => [r.repo.toLowerCase(), r.repo] as const)]);
-  const rows = [["REPO", "STATE", "AT", "CONTAINERS"]];
-  const errors: string[] = [];
-  for (const [key, { installed, record }] of [...repos].sort(([a], [b]) => a.localeCompare(b))) {
-    const repo = names.get(key)!;
-    const state = record ? (installed || record.state !== "deployed" ? record.state : "deployed, not installed") : "installed, not deployed";
-    rows.push([repo, state, record?.at ?? "-", record?.containers?.map((c) => c.name).join(",") || "-"]);
-    if (record?.error) errors.push(`${repo}: ${record.error}`);
-  }
-  const widths = rows[0].map((_, i) => Math.max(...rows.map((r) => r[i].length)));
-  const table = rows.map((r) => r.map((c, i) => c.padEnd(widths[i])).join("  ").trimEnd());
+  const rows = joinByRepo(records, installed);
+  if (!rows.length) return "No repo is installed";
+  const table = alignedTable([INFRA_COLUMNS, ...rows.map(infraRow)]);
+  const errors = rows.flatMap(({ repo, record }) => (record?.error ? [`${repo}: ${record.error}`] : []));
   return [...table, ...(errors.length ? ["", ...errors] : [])].join("\n");
 };

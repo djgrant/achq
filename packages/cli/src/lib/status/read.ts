@@ -1,19 +1,16 @@
 import type { Status } from "@achq/core";
+import { pollUntil } from "@achq/utils/async";
 import { STATUS_INTERVAL_MS, STATUS_TIMEOUT_MS } from "../../constants.ts";
 
+export type WaitOptions = { timeoutMs?: number; intervalMs?: number; sleep?: (ms: number) => Promise<void> };
+
+/** Whether `status` is a result written after `since`, rather than one left from before. */
+const isNewer = (since: Date) => (status: Status | undefined) => !!status && Date.parse(status.at) > since.getTime();
+
 /** Polls the repo's status until it shows a result newer than `since`, or times out. */
-export const waitForStatus = async (
+export const waitForStatus = (
   status: (repo: string) => Promise<Status | undefined>,
   repo: string,
   since: Date,
-  options: { timeoutMs?: number; intervalMs?: number; sleep?: (ms: number) => Promise<void>; now?: () => number } = {},
-): Promise<Status | undefined> => {
-  const { timeoutMs = STATUS_TIMEOUT_MS, intervalMs = STATUS_INTERVAL_MS, sleep = Bun.sleep, now = Date.now } = options;
-  const deadline = now() + timeoutMs;
-  for (;;) {
-    const current = await status(repo);
-    if (current && Date.parse(current.at) > since.getTime()) return current;
-    if (now() >= deadline) return undefined;
-    await sleep(intervalMs);
-  }
-};
+  { timeoutMs = STATUS_TIMEOUT_MS, intervalMs = STATUS_INTERVAL_MS, sleep = Bun.sleep }: WaitOptions = {},
+): Promise<Status | undefined> => pollUntil(() => status(repo), isNewer(since), { timeoutMs, intervalMs, sleep });

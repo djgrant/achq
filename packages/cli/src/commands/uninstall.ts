@@ -10,7 +10,7 @@ export const command = defineCommand({
     dryRun: { from: "flag", schema: z.boolean().default(false), description: "Show what would change, and change nothing" },
   },
   run: clean(async (_r, { context }) => {
-    const { apply } = await planInstall(false);
+    const { apply } = await planInstall("uninstall");
     if (!context.dryRun && apply) await apply();
   }),
 });

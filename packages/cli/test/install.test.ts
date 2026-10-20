@@ -57,7 +57,7 @@ test("polling the status stops at the first result newer than the install", asyn
     const at = results[Math.min(++polls, results.length - 1)];
     current = at ? status(at) : undefined;
   };
-  const found = await waitForStatus(read, "notationlabs/yieldstar", since, { sleep, now: () => 0 });
+  const found = await waitForStatus(read, "notationlabs/yieldstar", since, { sleep });
   expect(found?.at).toBe("2026-10-17T10:02:00Z");
   expect(polls).toBe(2); // slept after nothing and after the older result
   expect(reads).toBe(3);
@@ -68,7 +68,6 @@ test("polling gives up at the timeout", async () => {
   const found = await waitForStatus(async () => status("2026-10-17T09:00:00Z"), "notationlabs/yieldstar", new Date("2026-10-17T10:00:00Z"), {
     timeoutMs: 180_000,
     intervalMs: 5000,
-    now: () => clock,
     sleep: async (ms) => void (clock += ms),
   });
   expect(found).toBeUndefined();

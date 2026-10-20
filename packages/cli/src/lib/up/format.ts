@@ -1,4 +1,5 @@
 import type { SyncResult } from "@achq/core";
+import { plural } from "@achq/utils/text";
 
 export const formatSync = (result: SyncResult, dryRun: boolean) => {
   const lines: string[] = [];
@@ -7,6 +8,6 @@ export const formatSync = (result: SyncResult, dryRun: boolean) => {
   if (result.uninstalled.length) lines.push(`${verb("uninstalled", "would uninstall")}: ${result.uninstalled.join(", ")}`);
   if (result.pruned.length) lines.push(`${verb("pruned", "would prune")}: ${result.pruned.join(", ")}`);
   for (const f of result.failed) lines.push(`failed: ${f.repo}: ${f.error}`);
-  if (result.unchanged.length) lines.push(`unchanged: ${result.unchanged.length} repo${result.unchanged.length === 1 ? "" : "s"}`);
+  if (result.unchanged.length) lines.push(`unchanged: ${result.unchanged.length} ${plural(result.unchanged.length, "repo")}`);
   return lines.length ? lines : ["no repos installed"];
 };

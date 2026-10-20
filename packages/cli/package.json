@@ -7,6 +7,7 @@
   "dependencies": {
     "@achq/core": "workspace:*",
     "@achq/deployer": "workspace:*",
+    "@achq/utils": "workspace:*",
     "@pokit/core": "^0.6.0",
     "@pokit/terminal": "^0.6.0",
     "achq": "workspace:*",

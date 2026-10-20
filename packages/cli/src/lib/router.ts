@@ -1,6 +1,7 @@
 import { type Context, ENV, known, plan } from "@achq/core";
 import { adminSecret } from "@achq/core/secrets";
 import { signedFetch } from "@achq/core/signing";
+import { HttpError } from "@achq/utils/http";
 import type { InfraResources } from "./load/infra.ts";
 
 export type RouterAccess = { base: string; key: string };
@@ -16,10 +17,15 @@ export const routerAccess = async ({ router }: InfraResources, ctx: Context): Pr
   return { base: url, key };
 };
 
+const jsonBody = (body: unknown) => (body === undefined ? undefined : JSON.stringify(body));
+
+/** A response body as JSON; undefined when it's empty. */
+const parseJsonText = (text: string): unknown => (text ? JSON.parse(text) : undefined);
+
 /** An admin-signed request to the router. Throws on anything but 2xx. */
 export const adminRequest = async <T>(router: RouterAccess, method: string, path: string, body?: unknown): Promise<T> => {
-  const res = await signedFetch(adminSecret(router.key), router.base + path, { method, body: body === undefined ? undefined : JSON.stringify(body) });
+  const res = await signedFetch(adminSecret(router.key), router.base + path, { method, body: jsonBody(body) });
   const text = await res.text();
-  if (!res.ok) throw new Error(`Router ${method} ${path}: ${res.status} ${text.slice(0, 300)}`);
-  return (text ? JSON.parse(text) : undefined) as T;
+  if (!res.ok) throw new HttpError(res.status, method, path, text, "Router");
+  return parseJsonText(text) as T;
 };
