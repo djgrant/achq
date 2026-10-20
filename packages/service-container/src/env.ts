@@ -1,11 +1,17 @@
 import { ENV } from "@achq/core";
 import { PRIVATE_ENV } from "./constants.ts";
 
-/** `env` without achq's private variables, or the ones its ENV.privateEnv names. */
-export const withoutPrivate = (env: Record<string, string | undefined>): Record<string, string> => {
+type Env = Record<string, string | undefined>;
+
+/** achq's private variables, and the ones `env`'s ENV.privateEnv names (comma-separated). */
+const privateNames = (env: Env) => {
   const named = (env[ENV.privateEnv] ?? "").split(",").map((name) => name.trim());
-  const hidden = new Set([...PRIVATE_ENV, ...named.filter(Boolean)]);
-  const out: Record<string, string> = {};
-  for (const [k, v] of Object.entries(env)) if (v !== undefined && !hidden.has(k)) out[k] = v;
-  return out;
+  return new Set([...PRIVATE_ENV, ...named.filter(Boolean)]);
+};
+
+/** `env` without achq's private variables, or the ones its ENV.privateEnv names. */
+export const withoutPrivate = (env: Env): Record<string, string> => {
+  const hidden = privateNames(env);
+  const isShared = ([name, value]: [string, string | undefined]) => value !== undefined && !hidden.has(name);
+  return Object.fromEntries(Object.entries(env).filter(isShared)) as Record<string, string>;
 };

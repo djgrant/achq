@@ -1,11 +1,12 @@
 import { ENV } from "@achq/core";
+import { requireEnv } from "@achq/utils/env";
 import { CHANNEL_PROVIDERS, POLICY_PROVIDERS } from "achq/registry";
 import { createConfigLoader } from "./config/loader.ts";
-import { DEFAULT_MAX_RUNS, DEFAULT_RUN_TIMEOUT_MINUTES } from "./constants.ts";
+import { DEFAULT_MAX_RUNS, DEFAULT_RUN_TIMEOUT_MINUTES, MAX_RUNS_ENV, MINUTE_MS, RUN_TIMEOUT_MINUTES_ENV } from "./constants.ts";
 import { paths as layout } from "./paths.ts";
 import { fetchMirror } from "./repo.ts";
 import { Runner } from "./runner.ts";
-import { type Env, requiredIn, settings } from "./settings.ts";
+import { type Env, settings } from "./settings.ts";
 
 /** The serving runner, wired from the container's environment. */
 export const createAgent = (env: Env, options: { log?: (line: string) => void } = {}) => {
@@ -24,13 +25,13 @@ export const createAgent = (env: Env, options: { log?: (line: string) => void } 
     // Without the router's key or secrets: credentials come from the router.
     channelProviders: CHANNEL_PROVIDERS.map((c) => c.create(env)),
     policyProviders: POLICY_PROVIDERS.map((p) => p.create(env)),
-    routerUrl: requiredIn(env, ENV.routerUrl),
-    containerSecret: requiredIn(env, ENV.containerSecret),
+    routerUrl: requireEnv(env, ENV.routerUrl),
+    containerSecret: requireEnv(env, ENV.containerSecret),
     dataDir,
     repoUrl,
     env,
-    maxRuns: Number(env.ACHQ_MAX_RUNS ?? DEFAULT_MAX_RUNS),
-    runTimeoutMs: Number(env.ACHQ_RUN_TIMEOUT_MINUTES ?? DEFAULT_RUN_TIMEOUT_MINUTES) * 60_000,
+    maxRuns: Number(env[MAX_RUNS_ENV] ?? DEFAULT_MAX_RUNS),
+    runTimeoutMs: Number(env[RUN_TIMEOUT_MINUTES_ENV] ?? DEFAULT_RUN_TIMEOUT_MINUTES) * MINUTE_MS,
     log: options.log,
     loadConfig: load,
   });

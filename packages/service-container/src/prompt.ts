@@ -1,7 +1,8 @@
-import { createHash } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import type { Message, Thread } from "@achq/core";
+import { sha256Hex } from "@achq/utils/crypto";
+import { escapeRegExp } from "@achq/utils/text";
 import Mustache from "mustache";
 import { PROMPTS } from "./constants.ts";
 
@@ -36,7 +37,10 @@ export type Prompt = {
   opening: string;
 };
 
-export const hashBody = (body: string) => createHash("sha256").update(body).digest("hex");
+export const hashBody = (body: string) => sha256Hex(body);
+
+const EMPTY = "(empty)";
+const UNTRUSTED_OPENING = "(Left out: the opening post is by a user without write access.)";
 
 /**
  * Renders prompts/new.md or prompts/resume.md from trusted messages only.
@@ -45,41 +49,51 @@ export const hashBody = (body: string) => createHash("sha256").update(body).dige
  */
 export const buildPrompt = (input: PromptInput): Prompt => {
   const [first, ...replies] = input.messages;
+  const isNew = input.mode === "new";
   const openingTrusted = Boolean(first && (first.trusted || first.own));
   const opening = hashBody(first?.body ?? "");
-  const body = !first
-    ? "(empty)"
-    : openingTrusted
-      ? first.body.trim() || "(empty)"
-      : "(Left out: the opening post is by a user without write access.)";
 
-  let fresh = replies;
-  if (input.mode === "resume" && input.since) {
-    const at = replies.findIndex((m) => m.id === input.since);
-    // The opening post, or a message since deleted: everything after it is new.
-    if (at >= 0) fresh = replies.slice(at + 1);
-  }
-  const edited = input.mode === "resume" && input.edited ? replies.find((m) => m.id === input.edited) : undefined;
-  if (edited && !fresh.includes(edited)) fresh = [edited, ...fresh];
-  const shown = fresh.filter((m) => m.trusted || (input.mode === "new" && m.own));
-  const omitted = fresh.filter((m) => !m.trusted && !m.own).length + (input.mode === "new" && first && !openingTrusted ? 1 : 0);
-  const bodyChanged = input.mode === "resume" && openingTrusted && input.opening !== undefined && input.opening !== opening;
+  const unseen = unseenReplies(input, replies);
+  const shown = unseen.filter((m) => m.trusted || (isNew && m.own));
+  const omitted = unseen.filter((m) => !m.trusted && !m.own).length + (isNew && first && !openingTrusted ? 1 : 0);
+  const bodyChanged = !isNew && openingTrusted && input.opening !== undefined && input.opening !== opening;
 
-  const template = fs.readFileSync(path.join(PROMPTS, `${input.mode}.md`), "utf8");
-  const view = {
-    thread: { id: input.thread.ref.id, title: input.thread.title, url: input.thread.url, body },
+  const prompt = render(input.mode, {
+    thread: { id: input.thread.ref.id, title: input.thread.title, url: input.thread.url, body: openingBody(first, openingTrusted) },
     messages: shown.map((m) => ({ author: m.author, date: m.at, body: stripNew(m.body, input.mention).trim() })),
     omitted,
     bodyChanged,
     branch: input.branch,
     head: input.head,
     by: input.by,
-  };
-  // The prompt is markdown, not HTML: values go in as written.
-  const prompt = Mustache.render(template, view, {}, { escape: String });
+  });
   return { prompt, included: shown.length + (bodyChanged ? 1 : 0), omitted, lastMessage: input.messages.at(-1)?.id, opening };
 };
 
+/** The opening post as the prompt shows it. */
+const openingBody = (first: Message | undefined, trusted: boolean) => {
+  if (!first) return EMPTY;
+  return trusted ? first.body.trim() || EMPTY : UNTRUSTED_OPENING;
+};
+
+/** Every reply for a new session; for a resumed one, those after `since`, plus the edited one. */
+const unseenReplies = (input: PromptInput, replies: Message[]): Message[] => {
+  if (input.mode === "new") return replies;
+  const at = input.since ? replies.findIndex((m) => m.id === input.since) : -1;
+  // The opening post, or a message since deleted: everything after it is new.
+  const after = at >= 0 ? replies.slice(at + 1) : replies;
+  const edited = input.edited ? replies.find((m) => m.id === input.edited) : undefined;
+  return edited && !after.includes(edited) ? [edited, ...after] : after;
+};
+
+/** The prompt is markdown, not HTML: values go in as written. */
+const render = (mode: PromptInput["mode"], view: object) => {
+  const template = fs.readFileSync(path.join(PROMPTS, `${mode}.md`), "utf8");
+  return Mustache.render(template, view, {}, { escape: String });
+};
+
 /** `/new` is for the runner. The agent only needs what follows it. */
-const stripNew = (body: string, mention?: string) =>
-  mention ? body.replace(new RegExp(`(${mention.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})\\s+/new(?![\\w-])`, "g"), "$1") : body;
+const stripNew = (body: string, mention?: string) => (mention ? body.replace(newCommandAfter(mention), "$1") : body);
+
+/** `<mention> /new`, capturing the mention. */
+const newCommandAfter = (mention: string) => new RegExp(`(${escapeRegExp(mention)})\\s+/new(?![\\w-])`, "g");

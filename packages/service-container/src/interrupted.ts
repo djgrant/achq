@@ -1,29 +1,38 @@
 import { type ChannelProvider, type ChannelClient, threadKey } from "@achq/core";
-import { allStates, writeState } from "./state.ts";
+import { logFailure } from "./log-failure.ts";
+import { runInterrupted } from "./messages.ts";
+import { allStates, type ThreadState, writeState } from "./state.ts";
 
-/** Marks runs a restart interrupted and says so on their threads. */
-export const reportInterrupted = async (opts: {
+export type InterruptedOptions = {
   threads: string;
   channelProviders: ChannelProvider[];
   client: (channel: ChannelProvider, source: string) => Promise<ChannelClient>;
   log: (line: string) => void;
-}) => {
+};
+
+/** Marks runs a restart interrupted and says so on their threads. */
+export const reportInterrupted = async (opts: InterruptedOptions) => {
   for (const { file, state } of allStates(opts.threads)) {
-    const interrupted = Object.entries(state.sessions).filter(([, s]) => s.status === "running");
+    const interrupted = markInterrupted(state);
     if (!interrupted.length) continue;
-    for (const [, s] of interrupted) s.status = "interrupted";
     writeState(file, state);
-    const channel = opts.channelProviders.find((c) => c.id === state.thread.channel);
-    if (!channel) continue;
-    const list = interrupted.map(([agent, s]) => `${agent} \`${s.id}\``).join(", ");
-    try {
-      const client = await opts.client(channel, state.source);
-      await client.reply(
-        state.thread,
-        `⚠️ The agent restarted while a run was in progress. The work so far is in the worktree and the session is intact; the next message resumes it.\n\n<sub>${list}</sub>\n`,
-      );
-    } catch (e) {
-      opts.log(`[${threadKey(state.thread)}] couldn't report the interrupted run: ${e}`);
-    }
+    const label = `[${threadKey(state.thread)}] couldn't report the interrupted run`;
+    await logFailure(tellThread(opts, state, interrupted), opts.log, label);
   }
+};
+
+/** Marks the state's running sessions interrupted, and returns them as `agent \`id\``. */
+const markInterrupted = (state: ThreadState): string[] =>
+  Object.entries(state.sessions)
+    .filter(([, s]) => s.status === "running")
+    .map(([agent, s]) => {
+      s.status = "interrupted";
+      return `${agent} \`${s.id}\``;
+    });
+
+const tellThread = async (opts: InterruptedOptions, state: ThreadState, sessions: string[]) => {
+  const channel = opts.channelProviders.find((c) => c.id === state.thread.channel);
+  if (!channel) return;
+  const client = await opts.client(channel, state.source);
+  await client.reply(state.thread, runInterrupted(sessions.join(", ")));
 };

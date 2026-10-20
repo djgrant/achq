@@ -1,6 +1,8 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import type { Data } from "@achq/core";
+import { mapValues, sortKeys } from "@achq/utils/collections";
+import { writeFileEnsured } from "@achq/utils/fs";
 import { inRoot } from "./config/path.ts";
 
 /**
@@ -8,11 +10,8 @@ import { inRoot } from "./config/path.ts";
  * is written as JSON. Keys are the target paths, as declared.
  */
 export const resolveFiles = (files: Record<string, unknown> | undefined, root: string): Record<string, string> => {
-  const out: Record<string, string> = {};
-  for (const [target, value] of Object.entries(files ?? {}).sort(([a], [b]) => a.localeCompare(b))) {
-    out[target] = typeof value === "string" ? fs.readFileSync(inRoot(root, value), "utf8") : `${JSON.stringify(value as Data, null, 2)}\n`;
-  }
-  return out;
+  const contentOf = (value: unknown) => (typeof value === "string" ? fs.readFileSync(inRoot(root, value), "utf8") : `${JSON.stringify(value as Data, null, 2)}\n`);
+  return mapValues(sortKeys(files ?? {}), contentOf);
 };
 
 /** Where a startup file goes: `~/…` and relative paths under `home`, absolute paths as they are. */
@@ -21,10 +20,7 @@ export const targetPath = (key: string, home: string) => {
   return path.isAbsolute(key) ? key : path.join(home, key);
 };
 
+/** Writes startup files where `targetPath` puts them. */
 export const writeFiles = (resolved: Record<string, string>, home: string) => {
-  for (const [key, content] of Object.entries(resolved)) {
-    const file = targetPath(key, home);
-    fs.mkdirSync(path.dirname(file), { recursive: true });
-    fs.writeFileSync(file, content);
-  }
+  for (const [key, content] of Object.entries(resolved)) writeFileEnsured(targetPath(key, home), content);
 };

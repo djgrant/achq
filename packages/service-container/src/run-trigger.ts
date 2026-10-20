@@ -1,12 +1,24 @@
 import { randomUUID } from "node:crypto";
-import { type ChannelClient, type ChannelEvent, type RepoManifest, type RuntimeContext, type RuntimeFactory, type Thread, threadKey } from "@achq/core";
+import {
+  type Agent,
+  type AgentRuntime,
+  type ChannelClient,
+  type ChannelEvent,
+  type RepoManifest,
+  type RuntimeContext,
+  type RuntimeFactory,
+  type Thread,
+  threadKey,
+} from "@achq/core";
+import { errorDetail, errorMessage } from "@achq/utils/errors";
 import { parseCommand, type Command } from "./command.ts";
 import type { LoadedConfig } from "./config/loader.ts";
+import { failureReply, NOTHING_TO_COMPACT, runFailed, unrunnableAgent } from "./messages.ts";
 import type { Paths } from "./paths.ts";
 import { buildPrompt } from "./prompt.ts";
 import { reply } from "./reply.ts";
 import { describeHead } from "./repo.ts";
-import { type ThreadState, writeState } from "./state.ts";
+import { type SessionState, type ThreadState, writeState } from "./state.ts";
 
 type Trigger = RepoManifest["triggers"][number];
 
@@ -30,80 +42,117 @@ export type TriggerDeps = {
   now: () => number;
 };
 
-/** Runs the trigger's agent on the thread, in a new or resumed session, and posts its reply. */
-export const runTrigger = async (deps: TriggerDeps, r: TriggerRun) => {
-  const { trigger, event, config, client, thread, state, cwd, log } = r;
-  const agent = config.agents.find((a) => a.name === trigger.agent);
-  const factory = agent && deps.runtimes[agent.runtime];
-  if (!agent || !factory) return reply(client, thread.ref, `⚠️ Trigger \`${trigger.name}\` names agent \`${trigger.agent}\`, which this container can't run.`, log);
+/** Which session a run goes in: a fresh one with a new id, or the previous one resumed. */
+type SessionPlan = { fresh: boolean; id: string; key: string; previous?: SessionState };
 
-  const mention = typeof trigger.event.mention === "string" ? trigger.event.mention : undefined;
-  const command: Command = mention && event.text ? parseCommand(event.text, mention) : { mode: "resume", text: "" };
-  const stateFile = deps.paths.thread(threadKey(thread.ref));
-  const configDir = deps.paths.agent(agent.name);
-  const hint = mention ? `\n\nComment \`${mention} <prompt>\` to resume the session, or \`${mention} /new <prompt>\` to start over.` : "";
+/** What the session is given, and how far into the thread that takes it. */
+type PromptPlan = { prompt: string; lastMessage?: string; opening?: string };
+
+/** A command with nothing to say, for runs not started by a mention. */
+const RESUME: Command = { mode: "resume", text: "" };
+
+/** Runs the trigger's agent on the thread, in a new or resumed session, and posts its reply. */
+export const runTrigger = async (deps: TriggerDeps, run: TriggerRun) => {
+  const { trigger, client, thread, log } = run;
+  const resolved = resolveRuntime(deps, run.config, trigger);
+  if (!resolved) return reply(client, thread.ref, unrunnableAgent(trigger), log);
+  const { agent, factory } = resolved;
+  const mention = mentionOf(trigger);
+  const command = mention && run.event.text ? parseCommand(run.event.text, mention) : RESUME;
+  const agentLog = (line: string) => log(`${agent.name}: ${line}`);
 
   try {
-    const runtime = factory(agent, r.ctx);
-    const sessionKey = await runtime.sessionKey();
-    const previous = state.sessions[agent.name];
-    const fresh = command.mode === "new" || !previous || previous.key !== sessionKey;
-    if (command.mode === "compact" && fresh) throw new Error("There is no current session on this thread to compact.");
+    const runtime = factory(agent, run.ctx);
+    const plan = planSession(run.state, agent.name, command, await runtime.sessionKey());
+    const prompt = await promptFor(run, plan, command, mention);
+    // An earlier run already picked this up along with other messages.
+    if (!prompt) return agentLog("nothing new since the last run; skipping");
 
-    let prompt: string;
-    let lastMessage = previous?.lastMessage;
-    let opening = previous?.opening;
-    if (command.mode === "compact") {
-      prompt = `/compact ${command.text}`.trim();
-    } else {
-      const messages = await client.messages(thread.ref);
-      const built = buildPrompt({
-        mode: fresh ? "new" : "resume",
-        thread,
-        messages,
-        since: previous?.lastMessage,
-        opening: previous?.opening,
-        mention,
-        ...(event.previousText !== undefined && event.message && { edited: event.message }),
-        by: event.actor!.login,
-        ...(await describeHead(cwd)),
-      });
-      // An earlier run already picked this up along with other messages.
-      if (!fresh && built.included === 0) return log(`${agent.name}: nothing new since the last run; skipping`);
-      prompt = built.prompt;
-      lastMessage = built.lastMessage;
-      opening = built.opening;
-    }
-
-    const id = fresh ? randomUUID() : previous!.id;
-    state.sessions[agent.name] = { key: sessionKey, id, lastMessage, opening, status: "running", lastRun: new Date(deps.now()).toISOString(), commit: config.commit };
-    writeState(stateFile, state);
-    log(`${agent.name}: ${fresh ? "new" : "resumed"} session ${id} (trigger ${trigger.name})`);
-
-    await runtime.configure(configDir);
-    const result = await runtime.run({
-      thread: thread.ref,
-      cwd,
-      configDir,
-      env: r.env,
-      prompt,
-      session: fresh ? { new: id } : { resume: id },
-      signal: AbortSignal.timeout(deps.runTimeoutMs),
-      log: (line) => log(`${agent.name}: ${line}`),
-    });
-    state.sessions[agent.name]!.status = "idle";
-    writeState(stateFile, state);
-    const message = result.error
-      ? `⚠️ **The run failed.**\n\n<details><summary>Error output</summary>\n\n\`\`\`\n${result.error}\n\`\`\`\n\n</details>${hint}`
-      : result.reply;
-    await reply(client, thread.ref, message, log);
+    startSession(deps, run, agent.name, plan, prompt);
+    agentLog(`${plan.fresh ? "new" : "resumed"} session ${plan.id} (trigger ${trigger.name})`);
+    const result = await runAgent(deps, run, runtime, agent.name, plan, prompt.prompt, agentLog);
+    finishSession(deps, run, agent.name);
+    await reply(client, thread.ref, result.error ? runFailed(result.error, mention) : result.reply, log);
   } catch (e) {
-    log(`${agent.name}: ${e instanceof Error ? e.stack : e}`);
-    const session = state.sessions[agent.name];
-    if (session?.status === "running") {
-      session.status = "idle";
-      writeState(stateFile, state);
-    }
-    await reply(client, thread.ref, `⚠️ ${e instanceof Error ? e.message : String(e)}`, log);
+    agentLog(errorDetail(e));
+    finishSession(deps, run, agent.name);
+    await reply(client, thread.ref, failureReply(errorMessage(e)), log);
   }
+};
+
+/** The trigger's agent and the runtime that runs it, or undefined if this container can't. */
+const resolveRuntime = (deps: TriggerDeps, config: LoadedConfig, trigger: Trigger): { agent: Agent; factory: RuntimeFactory } | undefined => {
+  const agent = config.agents.find((a) => a.name === trigger.agent);
+  const factory = agent && deps.runtimes[agent.runtime];
+  return agent && factory ? { agent, factory } : undefined;
+};
+
+/** The mention that starts the trigger, e.g. `@claude`, if it's started by one. */
+const mentionOf = (trigger: Trigger) => (typeof trigger.event.mention === "string" ? trigger.event.mention : undefined);
+
+/** `/new`, no session yet, or a changed session key start afresh. Compacting needs a session to compact. */
+const planSession = (state: ThreadState, agent: string, command: Command, key: string): SessionPlan => {
+  const previous = state.sessions[agent];
+  const fresh = command.mode === "new" || !previous || previous.key !== key;
+  if (command.mode === "compact" && fresh) throw new Error(NOTHING_TO_COMPACT);
+  return { fresh, id: fresh ? randomUUID() : previous!.id, key, previous };
+};
+
+/** The prompt for this run, or undefined when a resumed session has nothing new to see. */
+const promptFor = async (run: TriggerRun, plan: SessionPlan, command: Command, mention: string | undefined): Promise<PromptPlan | undefined> => {
+  const { previous } = plan;
+  if (command.mode === "compact") return { prompt: `/compact ${command.text}`.trim(), lastMessage: previous?.lastMessage, opening: previous?.opening };
+  const { event, thread } = run;
+  const built = buildPrompt({
+    mode: plan.fresh ? "new" : "resume",
+    thread,
+    messages: await run.client.messages(thread.ref),
+    since: previous?.lastMessage,
+    opening: previous?.opening,
+    mention,
+    ...(event.previousText !== undefined && event.message && { edited: event.message }),
+    by: event.actor!.login,
+    ...(await describeHead(run.cwd)),
+  });
+  if (!plan.fresh && built.included === 0) return undefined;
+  return built;
+};
+
+const saveState = (deps: TriggerDeps, run: TriggerRun) => writeState(deps.paths.thread(threadKey(run.thread.ref)), run.state);
+
+/** Records the session as running, so a restart mid-run can say so. */
+const startSession = (deps: TriggerDeps, run: TriggerRun, agent: string, plan: SessionPlan, prompt: PromptPlan) => {
+  run.state.sessions[agent] = {
+    key: plan.key,
+    id: plan.id,
+    lastMessage: prompt.lastMessage,
+    opening: prompt.opening,
+    status: "running",
+    lastRun: new Date(deps.now()).toISOString(),
+    commit: run.config.commit,
+  };
+  saveState(deps, run);
+};
+
+/** Records a running session as idle again. */
+const finishSession = (deps: TriggerDeps, run: TriggerRun, agent: string) => {
+  const session = run.state.sessions[agent];
+  if (session?.status !== "running") return;
+  session.status = "idle";
+  saveState(deps, run);
+};
+
+const runAgent = async (deps: TriggerDeps, run: TriggerRun, runtime: AgentRuntime, agent: string, plan: SessionPlan, prompt: string, log: (line: string) => void) => {
+  const configDir = deps.paths.agent(agent);
+  await runtime.configure(configDir);
+  return runtime.run({
+    thread: run.thread.ref,
+    cwd: run.cwd,
+    configDir,
+    env: run.env,
+    prompt,
+    session: plan.fresh ? { new: plan.id } : { resume: plan.id },
+    signal: AbortSignal.timeout(deps.runTimeoutMs),
+    log,
+  });
 };

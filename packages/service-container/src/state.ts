@@ -1,6 +1,5 @@
-import * as fs from "node:fs";
-import * as path from "node:path";
 import type { ThreadRef } from "@achq/core";
+import { jsonFile, listJsonNamesSync, readJsonSync, writeJsonSync } from "@achq/utils/fs";
 
 export type SessionState = {
   /** The session key it was started with; a different key means a fresh session. */
@@ -28,20 +27,15 @@ export type ThreadState = {
   sessions: Record<string, SessionState>;
 };
 
-export const readState = (file: string): ThreadState | undefined =>
-  fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, "utf8")) : undefined;
+/** The thread's state, or undefined before it's claimed. */
+export const readState = (file: string): ThreadState | undefined => readJsonSync<ThreadState>(file);
 
-export const writeState = (file: string, state: ThreadState) => {
-  fs.mkdirSync(path.dirname(file), { recursive: true });
-  const tmp = `${file}.${process.pid}.tmp`;
-  fs.writeFileSync(tmp, `${JSON.stringify(state, null, 2)}\n`);
-  fs.renameSync(tmp, file);
-};
+/** Atomic, so a crash mid-write leaves the previous state. */
+export const writeState = (file: string, state: ThreadState) => writeJsonSync(file, state, { pretty: true });
 
+/** Every thread's state in `dir`, with the file it's in. */
 export const allStates = (dir: string): { file: string; state: ThreadState }[] =>
-  fs.existsSync(dir)
-    ? fs
-        .readdirSync(dir)
-        .filter((f) => f.endsWith(".json"))
-        .map((f) => ({ file: path.join(dir, f), state: readState(path.join(dir, f))! }))
-    : [];
+  listJsonNamesSync(dir).map((name) => {
+    const file = jsonFile(dir, name);
+    return { file, state: readState(file)! };
+  });

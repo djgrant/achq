@@ -8,6 +8,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import type { Agent, RepoManifest } from "@achq/core";
+import { memoAsync } from "@achq/utils/async";
 import { CONFIG_DIR } from "../constants.ts";
 import { extractTree, hasCommit } from "../repo.ts";
 import { bundleConfig } from "./bundle.ts";
@@ -30,30 +31,28 @@ export type ConfigLoaderOptions = {
   fetch: () => Promise<void>;
 };
 
-/** `loadConfig(commit)`, cached per commit. */
-export const createConfigLoader = (opts: ConfigLoaderOptions) => {
-  const cache = new Map<string, Promise<LoadedConfig>>();
+/** `loadConfig(commit)`, cached per commit. A failed load is tried again next time. */
+export const createConfigLoader = (opts: ConfigLoaderOptions): ((commit: string) => Promise<LoadedConfig>) => {
   let loads = 0;
 
-  const load = async (commit: string): Promise<LoadedConfig> => {
-    if (!(await hasCommit(opts.mirror, commit))) await opts.fetch();
+  /** Fetches only for a commit the mirror doesn't have, so a known commit loads offline. */
+  const ensureCommit = async (commit: string) => {
+    if (await hasCommit(opts.mirror, commit)) return;
+    await opts.fetch();
     if (!(await hasCommit(opts.mirror, commit))) throw new Error(`Commit ${commit} isn't in the repo`);
+  };
+
+  const load = async (commit: string): Promise<LoadedConfig> => {
+    await ensureCommit(commit);
     const dir = opts.dir(commit);
+    const tree = path.join(dir, "tree");
     fs.rmSync(dir, { recursive: true, force: true });
-    await extractTree(opts.mirror, commit, CONFIG_DIR, path.join(dir, "tree"));
-    const root = path.join(dir, "tree", CONFIG_DIR);
+    await extractTree(opts.mirror, commit, CONFIG_DIR, tree);
+    const root = path.join(tree, CONFIG_DIR);
     // A new directory per load, because a path imported before would come from the module cache.
     const bundle = await bundleConfig(root, path.join(dir, `bundle-${++loads}`));
     return { commit, root, ...(await evaluateBundle(bundle)) };
   };
 
-  return (commit: string): Promise<LoadedConfig> => {
-    let loaded = cache.get(commit);
-    if (!loaded) {
-      loaded = load(commit);
-      cache.set(commit, loaded);
-      loaded.catch(() => cache.delete(commit));
-    }
-    return loaded;
-  };
+  return memoAsync(load);
 };

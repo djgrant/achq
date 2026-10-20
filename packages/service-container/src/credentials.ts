@@ -1,9 +1,12 @@
 // Agents' credentials are installed on the volume by each policy provider. The
 // runner's channel credentials are kept in memory only.
-import * as fs from "node:fs";
 import type { ChannelCredential, CredentialsRequest, CredentialsResponse, PolicyProvider } from "@achq/core";
 import { signedFetch } from "@achq/core/signing";
+import { singleFlight } from "@achq/utils/async";
+import { ensureDir } from "@achq/utils/fs";
+import { expectOk } from "@achq/utils/http";
 import { REFRESH_BEFORE_MS } from "./constants.ts";
+import { logFailure } from "./log-failure.ts";
 import type { Paths } from "./paths.ts";
 
 export type CredentialsOptions = {
@@ -24,11 +27,12 @@ export type Current = CredentialsResponse & {
 
 export class Credentials {
   private current?: Current;
-  private refreshing?: Promise<Current>;
   private now: () => number;
+  private log: (line: string) => void;
 
   constructor(private opts: CredentialsOptions) {
     this.now = opts.now ?? Date.now;
+    this.log = opts.log ?? (() => {});
   }
 
   /**
@@ -37,10 +41,10 @@ export class Credentials {
    */
   async get(): Promise<Current> {
     const current = this.current;
-    const left = current ? expiry(current) - this.now() : -1;
-    if (!current || left <= 0) return this.refresh();
-    if (left < REFRESH_BEFORE_MS) this.refresh().catch((e) => this.opts.log?.(`credential refresh failed: ${e}`));
-    return current;
+    const state = freshness(current, this.now());
+    if (state === "expired") return this.refresh();
+    if (state === "expiring") void logFailure(this.refresh(), this.log, "credential refresh failed");
+    return current!;
   }
 
   /** The channel credential for a source, for the runner's ChannelClient. Never given to agents. */
@@ -51,36 +55,57 @@ export class Credentials {
     return found;
   }
 
-  private refresh(): Promise<Current> {
-    this.refreshing ??= this.fetch().finally(() => {
-      this.refreshing = undefined;
-    });
-    return this.refreshing;
-  }
+  /** New credentials, installed. Callers while one is in flight share it. */
+  private refresh = singleFlight(async (): Promise<Current> => {
+    const response = await this.requestCredentials();
+    this.current = { ...response, env: await this.installCredentials(response) };
+    return this.current;
+  });
 
-  private async fetch(): Promise<Current> {
-    const { routerUrl, containerSecret, repo, container, policyProviders, paths } = this.opts;
+  private async requestCredentials(): Promise<CredentialsResponse> {
+    const { routerUrl, containerSecret, repo, container } = this.opts;
     const request: CredentialsRequest = { repo, container };
     const res = await signedFetch(containerSecret, `${routerUrl}/credentials`, { method: "POST", body: JSON.stringify(request) });
-    if (!res.ok) throw new Error(`The router refused credentials: ${res.status} ${(await res.text()).slice(0, 300)}`);
-    const response = (await res.json()) as CredentialsResponse;
+    await expectOk(res, "The router refused credentials");
+    return (await res.json()) as CredentialsResponse;
+  }
 
+  /** Has each policy provider install its credentials on the volume, and returns the env agents need for them. */
+  private async installCredentials(response: CredentialsResponse): Promise<Record<string, string>> {
+    const { policyProviders, paths } = this.opts;
     const env: Record<string, string> = {};
     for (const p of policyProviders) {
       const mine = response.credentials.filter((c) => c.provider === p.id);
       if (!mine.length) continue;
       const dir = paths.policyProvider(p.id);
-      fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
+      ensureDir(dir, { mode: PRIVATE_DIR_MODE });
       Object.assign(env, (await p.install(mine, dir)).env);
     }
-    const unknown = response.credentials.filter((c) => !policyProviders.some((p) => p.id === c.provider));
-    if (unknown.length) this.opts.log?.(`no policy provider installs ${[...new Set(unknown.map((c) => c.provider))].join(", ")} credentials`);
-
-    this.current = { ...response, env };
-    return this.current;
+    const unknown = uninstallable(response, policyProviders);
+    if (unknown.length) this.log(`no policy provider installs ${unknown.join(", ")} credentials`);
+    return env;
   }
 }
+
+/** Only the container's user reads installed credentials. */
+const PRIVATE_DIR_MODE = 0o700;
+
+/** `expiring` credentials still work, but are refreshed ahead of time so a failing refresh has time to retry. */
+type Freshness = "expired" | "expiring" | "fresh";
+
+const freshness = (current: CredentialsResponse | undefined, now: number): Freshness => {
+  if (!current) return "expired";
+  const left = expiry(current) - now;
+  if (left <= 0) return "expired";
+  return left < REFRESH_BEFORE_MS ? "expiring" : "fresh";
+};
 
 /** When the first credential runs out. */
 const expiry = (c: CredentialsResponse) =>
   Math.min(...[...c.credentials, ...c.channels].map((x) => Date.parse(x.expiresAt)), Number.POSITIVE_INFINITY);
+
+/** The providers of credentials that none of `policyProviders` installs, each once. */
+const uninstallable = (response: CredentialsResponse, policyProviders: PolicyProvider[]) => {
+  const known = new Set(policyProviders.map((p) => p.id));
+  return [...new Set(response.credentials.map((c) => c.provider).filter((id) => !known.has(id)))];
+};
