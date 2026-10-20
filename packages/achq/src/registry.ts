@@ -4,10 +4,7 @@ import { githubChannelProvider } from "@achq/github/channel";
 import { githubPolicyProvider } from "@achq/github/policy";
 import { githubCodeHostProvider } from "@achq/github/code-host";
 import { railwayContainerProvider } from "@achq/railway/container";
-import * as claude from "./claude.ts";
-import * as github from "./github-infra.ts";
-import * as achq from "./index.ts";
-import * as railway from "./railway.ts";
+import * as infra from "./infra.ts";
 
 export const CHANNEL_PROVIDERS: Implementation<ChannelProvider>[] = [githubChannelProvider];
 export const POLICY_PROVIDERS: Implementation<PolicyProvider>[] = [githubPolicyProvider];
@@ -38,4 +35,4 @@ export const agentEnv = () => AGENT_PROVIDERS.flatMap((a) => a.containerEnv);
 /** The bare imports a repo's `.achq/` may use. */
 export const CONFIG_MODULES = ["achq", "achq/github", "achq/claude"];
 /** What the infra file's imports resolve to. */
-export const INFRA_MODULES: Record<string, object> = { achq, "achq/github": github, "achq/claude": claude, "achq/railway": railway };
+export const INFRA_MODULES: Record<string, object> = { "achq/infra": infra };

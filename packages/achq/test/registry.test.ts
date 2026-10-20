@@ -23,7 +23,8 @@ test("agentEnv asks for the Claude token", () => {
   expect(agentEnv().map((e) => e.name)).toContain("CLAUDE_CODE_OAUTH_TOKEN");
 });
 
-test("the infra's imports resolve to the infra sides", () => {
-  expect((INFRA_MODULES["achq/github"] as { Channel: unknown }).Channel).toBe(Channel);
-  expect((INFRA_MODULES["achq/railway"] as { Router: unknown }).Router).toBe(Router);
+test("the infra's import has the infra sides", () => {
+  const infra = INFRA_MODULES["achq/infra"] as { github: { Channel: unknown }; railway: { Router: unknown } };
+  expect(infra.github.Channel).toBe(Channel);
+  expect(infra.railway.Router).toBe(Router);
 });

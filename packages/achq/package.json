@@ -7,7 +7,7 @@
     ".": "./src/index.ts",
     "./claude": "./src/claude.ts",
     "./github": "./src/github.ts",
-    "./railway": "./src/railway.ts",
+    "./infra": "./src/infra.ts",
     "./registry": "./src/registry.ts"
   },
   "dependencies": {

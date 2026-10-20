@@ -83,9 +83,7 @@ test("the deployer and every resource that names a router use the infra's", () =
 test("an achq.infra.ts file, written as the design shows, loads with its imports resolved to achq", async () => {
   fs.writeFileSync(
     path.join(tmp, "achq.infra.ts"),
-    `import { achq } from "achq";
-import * as github from "achq/github";
-import * as railway from "achq/railway";
+    `import { achq, github, railway } from "achq/infra";
 
 export default achq(() => {
   const router = new railway.Router("router", { project: "achq" });

@@ -16,9 +16,7 @@ The design and the reasons behind it are in [docs/achq-design.md](docs/achq-desi
 
 ```ts
 // achq.infra.ts
-import { achq } from "achq";
-import * as github from "achq/github";
-import * as railway from "achq/railway";
+import { achq, github, railway } from "achq/infra";
 
 export default achq(() => {
   const router = new railway.Router("router", { project: "achq" });
@@ -28,6 +26,8 @@ export default achq(() => {
   new github.Channel("notation", { name: "notation-achq", org: "notationlabs", router });
 });
 ```
+
+For types, add the `achq` package to the infra repo.
 
 `achq infra up` needs `RAILWAY_API_TOKEN` and `CLAUDE_CODE_OAUTH_TOKEN` (from `claude setup-token`) in its environment; how they get there is up to you. An `achq.config.ts` beside the infra file can name a command achq runs itself under to get them: `export default { env: "op run --env-file=.env --" }`. It plans the Railway project, the router, the deployer and each channel as one graph, prints what would change, then makes it. An App that doesn't exist yet is created through GitHub's manifest flow in your browser. Its private key goes straight into the router's variables on Railway and never touches your machine. Then it syncs every installed repo. Re-running it changes only what differs; `--dry-run` shows what would change.
 
@@ -128,7 +128,7 @@ Each folder in `packages/` is a workspace package, prefixed with its kind. Packa
 | Plugin | `plugin-github`, `plugin-railway`, `plugin-claude` | Implementations of core's contracts for one vendor |
 | Service | `service-router`, `service-deployer`, `service-container` | What runs: `main.ts` reads its settings from the environment and wires it up from the registry |
 | Tool | `cli` | `commands/` (one per command), `lib/` |
-| Facade | `achq` | What configs and the infra import (`achq`, `achq/github`, `achq/claude`, `achq/railway`), and `achq/registry`: one list of implementations per contract |
+| Facade | `achq` | What configs import (`achq`, `achq/github`, `achq/claude`) and what the infra imports (`achq/infra`), and `achq/registry`: one list of implementations per contract |
 | Library | `utils` | Know nothing about achq: `utils/flock` (file locks), `utils/sandbox` (QuickJS) |
 | Testing | `test-utils`, `test-e2e` | Fakes shared across packages; the whole system end to end |
 

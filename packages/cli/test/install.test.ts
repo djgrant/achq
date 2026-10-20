@@ -4,7 +4,9 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { collectManifest, resetDeclarations, type Status } from "@achq/core";
 import { loadRepoManifest } from "../src/lib/load/repo-config.ts";
-import { registerModules } from "../src/lib/load/modules.ts";
+import * as achq from "achq";
+import * as claude from "achq/claude";
+import * as github from "achq/github";
 import { waitForStatus } from "../src/lib/status/read.ts";
 
 // A real .achq/ directory, as the design's example writes it, with a local import.
@@ -33,9 +35,18 @@ beforeAll(() => {
 });
 afterAll(() => fs.rmSync(repoDir, { recursive: true, force: true }));
 
+/** Lets Bun import a repo config from outside achq, as the sandbox does. */
+const registerConfigModules = () =>
+  Bun.plugin({
+    name: "achq-config",
+    setup(build) {
+      for (const [specifier, exports] of Object.entries({ achq, "achq/claude": claude, "achq/github": github })) build.module(specifier, () => ({ exports: { ...exports }, loader: "object" }));
+    },
+  });
+
 test("a real config evaluates the same in the sandbox as imported with Bun", async () => {
   const sandboxed = await loadRepoManifest(repoDir);
-  registerModules();
+  registerConfigModules();
   resetDeclarations();
   await import(path.join(repoDir, ".achq", "config.ts"));
   const imported = collectManifest();
