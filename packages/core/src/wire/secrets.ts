@@ -1,8 +1,8 @@
 // Every secret derives from AGENT_WEBHOOK_KEY. Each derivation has its own
 // label, so no two collide.
-import { createHmac } from "node:crypto";
+import { hmacHex } from "@achq/utils/crypto";
 
-const derive = (key: string, label: string) => createHmac("sha256", key).update(label).digest("hex");
+const derive = (key: string, label: string) => hmacHex(key, label);
 
 /** A secret for an implementation's own use, e.g. a channel's webhook secret. Its label must start with the implementation's id. */
 export const implementationSecret = (key: string, label: string) => derive(key, label);

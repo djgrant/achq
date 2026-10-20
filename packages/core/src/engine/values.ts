@@ -1,5 +1,6 @@
 // What resources take and give: plain values, or outputs of other resources,
 // which can be unknown until what they come from is created.
+import { deepEqual, isPlainObject } from "@achq/utils/json";
 import type { ManagedResource } from "../resources/resource.ts";
 
 /** A value not known until what it comes from is created, e.g. a new service's URL. */
@@ -11,8 +12,7 @@ export const GENERATED: unique symbol = Symbol("generated once");
 
 export const known = <T>(value: T | Unknown): value is T => value !== UNKNOWN;
 
-export const isPlain = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && (Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null);
+export const isPlain = isPlainObject;
 
 /** Whether `value` is, or holds, an unknown. */
 export const hasUnknown = (value: unknown): boolean =>
@@ -72,11 +72,4 @@ export const dependencies = (value: unknown): ManagedResource[] => {
 };
 
 /** Deep equality over what `resolve` makes: plain objects, arrays and other values by identity. */
-export const same = (a: unknown, b: unknown): boolean => {
-  if (Array.isArray(a) && Array.isArray(b)) return a.length === b.length && a.every((v, i) => same(v, b[i]));
-  if (isPlain(a) && isPlain(b)) {
-    const keys = Object.keys(a);
-    return keys.length === Object.keys(b).length && keys.every((k) => k in b && same(a[k], b[k]));
-  }
-  return a === b;
-};
+export const same = deepEqual;
