@@ -1,6 +1,9 @@
 // A fake of Railway's GraphQL API, with its state in memory. It matches on
-// operation name and returns whole objects, ignoring the query's fields. That
-// works because the client in api.ts only reads the fields it asked for.
+// the field an operation asks for and returns whole objects, ignoring the
+// query's fields. That works because `@achq/utils/railway` only reads the
+// fields it asked for. Its handlers are typed against that client's
+// operations, so one added there must be answered here.
+import { isMutation, type RailwayField, rootField } from "@achq/utils/railway";
 
 type FakeService = {
   id: string;
@@ -55,7 +58,7 @@ export const startFakeRailway = (seed: { workspaces?: string[] } = {}): FakeRail
     s.endpoint ??= { publicId: id("pne"), dnsName: s.name };
   };
 
-  const handlers: Record<string, (v: any) => unknown> = {
+  const handlers: Record<RailwayField, (v: any) => unknown> = {
     apiToken: () => ({ workspaces }),
     projects: () => ({ edges: projects.map((p) => ({ node: { id: p.id, name: p.name } })) }),
     projectCreate: ({ input }) => {
@@ -151,11 +154,10 @@ export const startFakeRailway = (seed: { workspaces?: string[] } = {}): FakeRail
     port: 0,
     async fetch(req) {
       const { query, variables } = (await req.json()) as { query: string; variables: Record<string, unknown> };
-      const kind = query.trimStart().startsWith("mutation") ? "mutation" : "query";
-      const field = query.slice(query.indexOf("{") + 1).match(/^\s*(\w+)/)?.[1] ?? "";
-      const handler = handlers[field];
+      const field = rootField(query);
+      const handler = handlers[field as RailwayField];
       if (!handler) return Response.json({ errors: [{ message: `Fake Railway doesn't know ${field}` }] });
-      (kind === "mutation" ? mutations : queries).push(field);
+      (isMutation(query) ? mutations : queries).push(field);
       try {
         return Response.json({ data: { [field]: handler(variables ?? {}) } });
       } catch (e) {
