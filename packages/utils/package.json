@@ -4,10 +4,26 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./async": "./src/async.ts",
+    "./collections": "./src/collections.ts",
+    "./crypto": "./src/crypto.ts",
+    "./env": "./src/env.ts",
+    "./errors": "./src/errors.ts",
     "./flock": "./src/flock.ts",
-    "./sandbox": "./src/sandbox.ts"
+    "./fs": "./src/fs/index.ts",
+    "./gh": "./src/gh/index.ts",
+    "./git": "./src/git.ts",
+    "./http": "./src/http.ts",
+    "./json": "./src/json.ts",
+    "./process": "./src/process.ts",
+    "./railway": "./src/railway/index.ts",
+    "./sandbox": "./src/sandbox.ts",
+    "./text": "./src/text.ts"
   },
   "dependencies": {
     "quickjs-emscripten": "^0.32.0"
+  },
+  "devDependencies": {
+    "zod": "^4.3.6"
   }
 }

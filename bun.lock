@@ -31,6 +31,7 @@
       "dependencies": {
         "@achq/core": "workspace:*",
         "@achq/deployer": "workspace:*",
+        "@achq/utils": "workspace:*",
         "@pokit/core": "^0.6.0",
         "@pokit/terminal": "^0.6.0",
         "achq": "workspace:*",
@@ -46,12 +47,16 @@
     "packages/core": {
       "name": "@achq/core",
       "version": "0.1.0",
+      "dependencies": {
+        "@achq/utils": "workspace:*",
+      },
     },
     "packages/plugin-claude": {
       "name": "@achq/claude",
       "version": "0.1.0",
       "dependencies": {
         "@achq/core": "workspace:*",
+        "@achq/utils": "workspace:*",
       },
       "devDependencies": {
         "@achq/test-utils": "workspace:*",
@@ -62,6 +67,7 @@
       "version": "0.1.0",
       "dependencies": {
         "@achq/core": "workspace:*",
+        "@achq/utils": "workspace:*",
       },
       "devDependencies": {
         "@achq/test-utils": "workspace:*",
@@ -72,6 +78,7 @@
       "version": "0.1.0",
       "dependencies": {
         "@achq/core": "workspace:*",
+        "@achq/utils": "workspace:*",
       },
       "devDependencies": {
         "@achq/test-utils": "workspace:*",
@@ -114,6 +121,7 @@
       "version": "0.1.0",
       "dependencies": {
         "@achq/core": "workspace:*",
+        "@achq/utils": "workspace:*",
         "achq": "workspace:*",
       },
       "devDependencies": {
@@ -140,6 +148,7 @@
       "version": "0.1.0",
       "dependencies": {
         "@achq/core": "workspace:*",
+        "@achq/utils": "workspace:*",
       },
     },
     "packages/utils": {
@@ -147,6 +156,9 @@
       "version": "0.1.0",
       "dependencies": {
         "quickjs-emscripten": "^0.32.0",
+      },
+      "devDependencies": {
+        "zod": "^4.3.6",
       },
     },
   },
