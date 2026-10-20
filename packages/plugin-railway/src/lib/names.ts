@@ -1,5 +1,5 @@
-import { createHash } from "node:crypto";
 import { CONTAINER_PORT } from "@achq/core";
+import { sha256Hex } from "@achq/utils/crypto";
 import { HOST_SERVICE_PREFIX, MAX_SERVICE_NAME, PRIVATE_DOMAIN } from "./constants.ts";
 
 /** A Railway service name (and private hostname): lowercase letters, digits and dashes, at most 63 characters. */
@@ -10,9 +10,16 @@ export const serviceName = (...parts: string[]) => {
     .replace(/[^a-z0-9-]+/g, "-")
     .replace(/-+/g, "-")
     .replace(/^-|-$/g, "");
-  if (name.length <= MAX_SERVICE_NAME) return name;
-  const hash = createHash("sha256").update(name).digest("hex").slice(0, 8);
-  return `${name.slice(0, MAX_SERVICE_NAME - 9).replace(/-$/, "")}-${hash}`;
+  return name.length <= MAX_SERVICE_NAME ? name : shortened(name);
+};
+
+/** How much of a too-long name's hash tells it apart from others cut to the same prefix. */
+const NAME_HASH_CHARS = 8;
+
+/** A name cut to fit, ending in a hash of the whole of it. */
+const shortened = (name: string) => {
+  const prefix = name.slice(0, MAX_SERVICE_NAME - NAME_HASH_CHARS - 1).replace(/-$/, "");
+  return `${prefix}-${sha256Hex(name, NAME_HASH_CHARS)}`;
 };
 
 /** The service a router or deployer resource runs as. */

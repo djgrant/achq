@@ -1,5 +1,5 @@
 import type { ContainerProvider, ContainerShell, Implementation } from "@achq/core";
-import { need } from "../lib/client.ts";
+import { optionalEnv, requireEnv } from "@achq/utils/env";
 import { CONTAINER_PROVIDER, PRIVATE_ENV, RAILWAY_ENV } from "../lib/constants.ts";
 import { RailwayContainerProvider, railwayShell } from "./provider.ts";
 
@@ -8,10 +8,10 @@ export const railwayContainerProvider: Implementation<ContainerProvider> & { she
   id: CONTAINER_PROVIDER,
   create: (env) =>
     new RailwayContainerProvider({
-      token: need(env, RAILWAY_ENV.token),
-      projectId: need(env, RAILWAY_ENV.projectId),
-      environmentId: need(env, RAILWAY_ENV.environmentId),
-      endpoint: env[RAILWAY_ENV.endpoint] || undefined,
+      token: requireEnv(env, RAILWAY_ENV.token),
+      projectId: requireEnv(env, RAILWAY_ENV.projectId),
+      environmentId: requireEnv(env, RAILWAY_ENV.environmentId),
+      endpoint: optionalEnv(env, RAILWAY_ENV.endpoint),
     }),
   privateEnv: PRIVATE_ENV,
   shell: railwayShell,

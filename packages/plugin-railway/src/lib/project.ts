@@ -1,22 +1,26 @@
 import { type Change, type Context, ManagedResource, type Planned, UNKNOWN } from "@achq/core";
-import { railwayClient } from "./client.ts";
+import { optionalEnv } from "@achq/utils/env";
+import type { ProjectAt, ProjectSnapshot } from "@achq/utils/railway";
 import { RAILWAY_ENV } from "./constants.ts";
+import { railwayFromEnv, workspaceId } from "./railway.ts";
 
 /** Where a service is. */
-export type At = { projectId: string; environmentId: string };
+export type At = ProjectAt;
 
 type Props = { name: string };
+
+/** Where a project puts its services: its default environment. */
+const placeOf = (project: ProjectSnapshot): At => ({ projectId: project.id, environmentId: project.environmentId });
 
 /** A Railway project, found by name in RAILWAY_WORKSPACE_ID, or the token's only workspace. */
 export class Project extends ManagedResource<Props, At, At, "create"> {
   readonly kind = "railway-project";
 
   async read({ name }: Props, ctx: Context) {
-    const railway = railwayClient(ctx.env);
-    const found = await railway.projectByName(name, ctx.env[RAILWAY_ENV.workspace]);
+    const railway = railwayFromEnv(ctx.env);
+    const found = await railway.projectByName(name, optionalEnv(ctx.env, RAILWAY_ENV.workspace));
     if (!found) return undefined;
-    const { id, environmentId } = await railway.project(found.id);
-    return { projectId: id, environmentId };
+    return placeOf(await railway.readProject(found.id));
   }
 
   diff(_: Props, current: At | undefined): "create"[] {
@@ -32,9 +36,10 @@ export class Project extends ManagedResource<Props, At, At, "create"> {
   }
 
   async apply({ name }: Props, _current: At | undefined, _changes: "create"[], ctx: Context) {
-    const railway = railwayClient(ctx.env);
-    const { id, environmentId } = await railway.project(await railway.createProject(name, await railway.workspaceId(ctx.env[RAILWAY_ENV.workspace])));
-    return { projectId: id, environmentId };
+    const railway = railwayFromEnv(ctx.env);
+    const workspace = await workspaceId(railway, ctx.env);
+    const projectId = await railway.createProject(name, workspace);
+    return placeOf(await railway.readProject(projectId));
   }
 
   /** Where it puts a service. */

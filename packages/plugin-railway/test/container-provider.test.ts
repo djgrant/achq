@@ -2,7 +2,7 @@ import { afterEach, beforeEach, expect, test } from "bun:test";
 import { type FakeRailway, startFakeRailway } from "@achq/test-utils/railway";
 import { railwayContainerProvider } from "../src/container/index.ts";
 import { RailwayContainerProvider } from "../src/container/provider.ts";
-import { RailwayClient } from "../src/lib/client.ts";
+import { Railway } from "@achq/utils/railway";
 
 let fake: FakeRailway;
 let host: RailwayContainerProvider;
@@ -24,9 +24,9 @@ const spec = {
 
 beforeEach(async () => {
   fake = startFakeRailway();
-  const railway = new RailwayClient("t", fake.url);
+  const railway = new Railway("t", fake.url);
   const projectId = await railway.createProject("achq", "ws");
-  const project = await railway.project(projectId);
+  const project = await railway.readProject(projectId);
   host = new RailwayContainerProvider({ token: "t", projectId, environmentId: project.environmentId, endpoint: fake.url });
   fake.mutations.length = 0;
 });

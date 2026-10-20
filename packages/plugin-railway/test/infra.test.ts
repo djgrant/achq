@@ -4,7 +4,7 @@ import * as core from "@achq/core";
 import { achq, type Context, type Output, plan, UNKNOWN } from "@achq/core";
 import { type FakeRailway, startFakeRailway } from "@achq/test-utils/railway";
 import { Deployer, Router } from "../src/infra.ts";
-import { RailwayClient } from "../src/lib/client.ts";
+import { Railway } from "@achq/utils/railway";
 import { fingerprint } from "../src/lib/deployment.ts";
 import { startCommand } from "../src/lib/service-parts.ts";
 
@@ -156,18 +156,18 @@ test("a service's deploy is over its settings and every group of its variables a
 
 test("a router deployed before variables came in groups doesn't redeploy: its fingerprint is over the groups' union", async () => {
   // A router as the single-map planner left it, with ACHQ_DEPLOYED hashed as it hashed it.
-  const railway = new RailwayClient("t", fake.url);
-  const { id: projectId, environmentId } = await railway.project(await railway.createProject("achq", "ws"));
-  const serviceId = await railway.createService(projectId, environmentId, "achq-router");
+  const railway = new Railway("t", fake.url);
+  const { id: projectId, environmentId } = await railway.readProject(await railway.createProject("achq", "ws"));
+  const service = await railway.project({ projectId, environmentId }).createService("achq-router");
   const settings = { source: { image: "oven/bun:1-slim" }, startCommand: startCommand("packages/service-router/src/main.ts"), healthcheckPath: "/", sleepApplication: false };
   const variables = { AGENT_WEBHOOK_KEY: "old-key", ACHQ_REF: "a", GITHUB_APP_ID: "7", DATA_DIR: "/data", PORT: "8080" };
   const sorted = Object.fromEntries(Object.entries(variables).sort(([a], [b]) => a.localeCompare(b)));
   const deployed = createHash("sha256").update(JSON.stringify({ settings, variables: sorted })).digest("hex").slice(0, 16);
-  await railway.updateInstance(environmentId, serviceId, settings);
-  await railway.createVolume(projectId, environmentId, serviceId, "/data");
-  await railway.createDomain(environmentId, serviceId, 8080);
-  await railway.deployImage(environmentId, serviceId);
-  await railway.setVariables(projectId, environmentId, serviceId, { ...variables, ACHQ_DEPLOYED: deployed });
+  await service.update(settings);
+  await service.addVolume("/data");
+  await service.addDomain(8080);
+  await service.deployImage();
+  await service.setVariables({ ...variables, ACHQ_DEPLOYED: deployed });
 
   expect((await plan([declare().router], ctx)).changes).toEqual([]);
 });
@@ -260,7 +260,7 @@ test("a router deploy that fails, or doesn't go live in five minutes, fails the 
     const slow = declare("b");
     const again = await plan(slow.resources, ctx);
     sleeps = 0;
-    await expect(again.apply()).rejects.toThrow("achq-router hasn't deployed after five minutes");
+    await expect(again.apply()).rejects.toThrow("achq-router hasn't deployed after 5 minutes");
     expect(sleeps).toBe(60);
   } finally {
     spy.mockRestore();

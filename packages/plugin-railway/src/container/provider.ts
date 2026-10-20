@@ -2,10 +2,11 @@
 // are turned off once a service is connected. `ensure` reconciles the service
 // and its variables; `deploy` builds, imperatively. The CLI reaches a
 // container through `railway ssh`.
-import { randomBytes } from "node:crypto";
 import { type Change, type Context, type ContainerProvider, type ContainerShell, type ContainerSpec, ENV, plan } from "@achq/core";
-import { type ProjectSnapshot, RailwayClient } from "../lib/client.ts";
-import { BRANCH, CONNECTED, CONTAINER_PROVIDER, RAILWAY_API, RAILWAY_ENV, SOURCE_HOST } from "../lib/constants.ts";
+import { randomHex } from "@achq/utils/crypto";
+import { requireBinary, spawnCollect } from "@achq/utils/process";
+import { type Instance, RAILWAY_API, Railway, type RailwayProject, type RailwayService } from "@achq/utils/railway";
+import { BRANCH, CONNECTED, CONTAINER_PROVIDER, RAILWAY_ENV, SOURCE_HOST } from "../lib/constants.ts";
 import { containerService } from "../lib/container-service.ts";
 import { containerServiceName, containerUrl } from "../lib/names.ts";
 
@@ -17,40 +18,29 @@ export type RailwayContainerProviderOptions = {
   endpoint?: string;
 };
 
+/** How many random bytes a generated variable has. */
+const SECRET_BYTES = 32;
+
 export class RailwayContainerProvider implements ContainerProvider {
-  readonly railway: RailwayClient;
+  /** The deployer's project, in the environment its containers run in. */
+  readonly project: RailwayProject;
   /** What its containers' resources are planned with. */
   private readonly ctx: Context;
 
   constructor(readonly options: RailwayContainerProviderOptions) {
     const endpoint = options.endpoint ?? RAILWAY_API;
-    this.railway = new RailwayClient(options.token, endpoint);
+    this.project = new Railway(options.token, endpoint).project({ projectId: options.projectId, environmentId: options.environmentId });
     this.ctx = {
       env: { [RAILWAY_ENV.token]: options.token, [RAILWAY_ENV.endpoint]: endpoint },
       log: () => {},
-      newSecret: () => randomBytes(32).toString("hex"),
+      newSecret: () => randomHex(SECRET_BYTES),
       sleep: (ms) => Bun.sleep(ms),
     };
   }
 
-  private target() {
-    return { projectId: this.options.projectId, environmentId: this.options.environmentId };
-  }
-
-  private async snapshot(): Promise<ProjectSnapshot> {
-    const project = await this.railway.project(this.options.projectId);
-    return { ...project, environmentId: this.options.environmentId };
-  }
-
-  private async service(repo: string, name: string) {
-    const service = containerServiceName(repo, name);
-    const project = await this.snapshot();
-    return { name: service, id: project.services.find((s) => s.name === service)?.id, project };
-  }
-
   /** The container's service and variables. Not its deploy: `deploy` starts builds. */
   private resources(container: ContainerSpec) {
-    return containerService(container, this.target());
+    return containerService(container, { projectId: this.project.id, environmentId: this.project.environmentId });
   }
 
   /** What `ensure` would change, without changing it. */
@@ -59,55 +49,75 @@ export class RailwayContainerProvider implements ContainerProvider {
   }
 
   async ensure(spec: ContainerSpec) {
-    if (spec.host !== SOURCE_HOST) throw new Error(`Railway builds containers from ${SOURCE_HOST} repos, not ${spec.host}`);
+    assertBuildable(spec);
     await (await plan(this.resources(spec), this.ctx)).apply();
     return { url: containerUrl(containerServiceName(spec.repo, spec.name)) };
   }
 
   async deploy(repo: string, name: string) {
-    const { id, name: service } = await this.service(repo, name);
-    if (!id) throw new Error(`No Railway service ${service}; ensure it first`);
-    const { projectId, environmentId } = this.target();
-    const [instance, variables] = await Promise.all([this.railway.instance(environmentId, id), this.railway.variables(projectId, environmentId, id)]);
+    const serviceName = containerServiceName(repo, name);
+    const found = await this.project.serviceByName(serviceName);
+    if (!found) throw new Error(`No Railway service ${serviceName}; ensure it first`);
+    const { service } = found;
+    const [instance, variables] = await Promise.all([service.instance(), service.variables()]);
     const branch = variables[BRANCH];
-    if (!branch) throw new Error(`${service} has no ${BRANCH}; ensure it first`);
-    const connection = `${repo}@${branch}`;
-    if (instance.source?.repo?.toLowerCase() === repo.toLowerCase() && variables[CONNECTED] === connection) {
-      await this.railway.deployLatestCommit(environmentId, id);
-      return;
-    }
-    // Connecting builds the branch's head. It also turns automatic deploys on, so they're turned off again.
-    const before = instance.latestDeployment?.id;
-    await this.railway.connect(id, repo, branch);
-    await this.railway.setAutoDeploy(projectId, environmentId, id, false);
-    await this.railway.setVariables(projectId, environmentId, id, { [CONNECTED]: connection });
-    if ((await this.railway.instance(environmentId, id)).latestDeployment?.id === before) await this.railway.deployLatestCommit(environmentId, id);
+    if (!branch) throw new Error(`${serviceName} has no ${BRANCH}; ensure it first`);
+    if (isConnected(instance, variables, repo, branch)) return service.deployLatestCommit();
+    await connectBranch(service, repo, branch);
+    await deployIfConnectStartedNothing(service, instance);
   }
 
   async list() {
-    const project = await this.snapshot();
-    const found = await Promise.all(
-      project.services.map(async (s) => {
-        const vars = await this.railway.variables(project.id, project.environmentId, s.id);
-        return vars[ENV.repo] && vars[ENV.container] ? [{ repo: vars[ENV.repo], name: vars[ENV.container] }] : [];
-      }),
-    );
-    return found.flat();
+    const { services } = await this.project.snapshot();
+    const containers = await Promise.all(services.map((s) => containerOf(this.project.service(s.id))));
+    return containers.filter((c) => c !== undefined);
   }
 
   async remove(repo: string, name: string) {
-    const { id, project } = await this.service(repo, name);
-    if (!id) return;
+    const found = await this.project.serviceByName(containerServiceName(repo, name));
+    if (!found) return;
+    await found.service.delete();
     // Deleting a service doesn't necessarily delete its volume.
-    const volumes = project.volumes.filter((v) => v.serviceId === id);
-    await this.railway.deleteService(id, this.options.environmentId);
-    for (const v of volumes) await this.railway.deleteVolume(v.id);
+    for (const volume of found.volumes) await this.project.deleteVolume(volume.id);
   }
 
   async locate(repo: string, name: string) {
     return { containerProvider: CONTAINER_PROVIDER, project: this.options.projectId, environment: this.options.environmentId, service: containerServiceName(repo, name) };
   }
 }
+
+/** Railway builds only from its source host. */
+const assertBuildable = (spec: ContainerSpec) => {
+  if (spec.host !== SOURCE_HOST) throw new Error(`Railway builds containers from ${SOURCE_HOST} repos, not ${spec.host}`);
+};
+
+/** A branch as CONNECTED records it: `owner/repo@branch`. */
+const connection = (repo: string, branch: string) => `${repo}@${branch}`;
+
+/** Whether the service already builds from `repo`'s `branch`: Railway has the repo (in any case), and CONNECTED the branch. */
+const isConnected = (instance: Instance, variables: Record<string, string>, repo: string, branch: string) =>
+  instance.source?.repo?.toLowerCase() === repo.toLowerCase() && variables[CONNECTED] === connection(repo, branch);
+
+/** Connects the service to the branch, which builds its head. Connecting turns automatic deploys on, so they're turned off again. */
+const connectBranch = async (service: RailwayService, repo: string, branch: string) => {
+  await service.connect(repo, branch);
+  await service.setAutoDeploy(false);
+  await service.setVariables({ [CONNECTED]: connection(repo, branch) });
+};
+
+/** Connecting usually starts a build. If the latest deploy is still the one from `before` connecting, it didn't, so one is started. */
+const deployIfConnectStartedNothing = async (service: RailwayService, before: Instance) => {
+  const after = await service.instance();
+  if (after.latestDeployment?.id === before.latestDeployment?.id) await service.deployLatestCommit();
+};
+
+/** The repo and container a service runs, from the variables the deployer set on it. Undefined for a service that isn't a container's. */
+const containerOf = async (service: RailwayService) => {
+  const variables = await service.variables();
+  const repo = variables[ENV.repo];
+  const name = variables[ENV.container];
+  return repo && name ? { repo, name } : undefined;
+};
 
 const sshArgs = (location: Record<string, string>, command: string[]) => [
   "ssh",
@@ -120,24 +130,21 @@ const sshArgs = (location: Record<string, string>, command: string[]) => [
   ...(command.length ? ["--", ...command] : []),
 ];
 
-const needRailway = () => {
-  if (!Bun.which("railway")) throw new Error("Needs the Railway CLI: brew install railway");
-};
+const requireRailwayCli = () => requireBinary("railway", "the Railway CLI", "brew install railway");
 
 /** A container through `railway ssh`. */
 export const railwayShell: ContainerShell = {
   reachable: (location) => Boolean(location.project && location.environment && location.service),
 
   async open(location, command) {
-    needRailway();
+    requireRailwayCli();
     return Bun.spawn(["railway", ...sshArgs(location, command)], { stdio: ["inherit", "inherit", "inherit"] }).exited;
   },
 
   async run(location, command) {
-    needRailway();
-    const proc = Bun.spawn(["railway", ...sshArgs(location, command)], { stdin: "ignore", stdout: "pipe", stderr: "pipe" });
-    const [out, err, code] = await Promise.all([new Response(proc.stdout).text(), new Response(proc.stderr).text(), proc.exited]);
-    if (code !== 0) throw new Error(`${command.join(" ")} failed in ${location.service}: ${err.trim() || out.trim()}`);
-    return out;
+    requireRailwayCli();
+    const { ok, stdout, stderr } = await spawnCollect(["railway", ...sshArgs(location, command)]);
+    if (!ok) throw new Error(`${command.join(" ")} failed in ${location.service}: ${stderr.trim() || stdout.trim()}`);
+    return stdout;
   },
 };

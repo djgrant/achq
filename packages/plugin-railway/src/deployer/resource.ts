@@ -1,6 +1,6 @@
 import * as core from "@achq/core";
 import type { Context, EnvValues, Output, Resource } from "@achq/core";
-import { need } from "../lib/client.ts";
+import { requireEnv } from "@achq/utils/env";
 import { CONTAINER_PROVIDER, RAILWAY_ENV } from "../lib/constants.ts";
 import { hostServiceName, privateUrl } from "../lib/names.ts";
 import type { Project } from "../lib/project.ts";
@@ -28,7 +28,7 @@ export class Deployer extends core.Deployer {
     this.project = router.project;
     this.parts = new ServiceParts(this, this.project.at(), {
       variables: (ctx) => ({
-        [RAILWAY_ENV.token]: need(ctx.env, RAILWAY_ENV.token),
+        [RAILWAY_ENV.token]: requireEnv(ctx.env, RAILWAY_ENV.token),
         [RAILWAY_ENV.projectId]: this.project.out("projectId"),
         [RAILWAY_ENV.environmentId]: this.project.out("environmentId"),
       }),

@@ -3,8 +3,10 @@
 // their own resource, so the service's URL is known before them. It can read
 // them, though, as they were before this run: its `env`.
 import { type Change, type Context, known, ManagedResource, type Planned, UNKNOWN } from "@achq/core";
-import { type Instance, type InstanceSettings, railwayClient } from "./client.ts";
+import { allOf } from "@achq/utils/async";
+import type { FoundService, Instance, InstanceSettings, PrivateEndpoint, RailwayService, ServiceDomain } from "@achq/utils/railway";
 import type { At } from "./project.ts";
+import { railwayFromEnv } from "./railway.ts";
 
 export type ServiceProps = {
   at: At;
@@ -23,9 +25,11 @@ export type ServiceProps = {
 export type ServiceState = {
   serviceId: string;
   instance: Instance;
+  /** Where its volumes are mounted. */
   volumes: string[];
-  endpoint?: { id: string; privateNetworkId: string; dnsName: string };
-  domains: { id: string; domain: string; targetPort: number | null }[];
+  endpoint?: PrivateEndpoint;
+  domains: ServiceDomain[];
+  /** Whether it deploys on push. Only read when it's to be off; otherwise taken as off. */
   autoDeploy: boolean;
   /** Its variables when read, if asked for. */
   env?: Record<string, string>;
@@ -58,48 +62,84 @@ export const settingsDiff = (want: InstanceSettings, have: InstanceSettings) =>
 
 const https = (domain: string | undefined) => (domain ? `https://${domain}` : undefined);
 
+/** Whether a domain is the public one: on the public port, when there is one. */
+const isPublic = (props: ServiceProps, domain: ServiceDomain) => Boolean(props.publicPort) && domain.targetPort === props.publicPort;
+
 /** The domain kept: the one on the public port. */
-const kept = (props: ServiceProps, current: ServiceState | undefined) =>
-  props.publicPort ? current?.domains.find((d) => d.targetPort === props.publicPort) : undefined;
+const kept = (props: ServiceProps, current: ServiceState | undefined) => current?.domains.find((d) => isPublic(props, d));
 
 /** Its variables as read, before applying changes them: known, if none, while planning a new one. */
 const env = (props: ServiceProps, current: ServiceState | undefined) => (props.env ? { env: current?.env ?? {} } : {});
+
+// ── Reading ──────────────────────────────────────────────────────────────────
+
+/** Whether it deploys on push. Railway can fail to say, for a service it can't deploy yet: that's taken as off. */
+const deploysOnPush = (service: RailwayService) => service.autoDeploy().catch(() => false);
+
+/** What's fixed to a service, read together. Only what `props` asks for is read beyond its instance, domains and endpoint. */
+const readInstanceState = async ({ service, volumes }: FoundService, props: ServiceProps): Promise<ServiceState> => {
+  const read = await allOf({
+    instance: service.instance(),
+    domains: service.domains(),
+    endpoint: service.privateEndpoint(),
+    autoDeploy: props.autoDeploy === false ? deploysOnPush(service) : false,
+    env: props.env ? service.variables() : undefined,
+  });
+  return {
+    serviceId: service.id,
+    instance: read.instance,
+    volumes: volumes.map((v) => v.mountPath),
+    endpoint: read.endpoint,
+    domains: read.domains,
+    autoDeploy: read.autoDeploy,
+    ...(read.env && { env: read.env }),
+  };
+};
+
+// ── Comparing ────────────────────────────────────────────────────────────────
+
+/** A service that doesn't exist yet gets made, with its volume and, if it's public, a domain. */
+const newServiceChanges = (props: ServiceProps): ServiceChange[] => [{ kind: "service" }, { kind: "volume" }, ...(props.publicPort ? [{ kind: "add-domain" } as const] : [])];
+
+const settingsChange = (props: ServiceProps, current: ServiceState): ServiceChange[] => {
+  const fields = settingsDiff(props.settings, current.instance);
+  return fields.length ? [{ kind: "settings", fields }] : [];
+};
+
+const volumeChange = (props: ServiceProps, current: ServiceState): ServiceChange[] => (current.volumes.includes(props.volume) ? [] : [{ kind: "volume" }]);
+
+/** Its private hostname is its name. A service that has never deployed has no endpoint yet, and gets one from its name. */
+const hostnameChange = (props: ServiceProps, current: ServiceState): ServiceChange[] =>
+  current.endpoint && current.endpoint.dnsName !== props.name ? [{ kind: "hostname", from: current.endpoint.dnsName }] : [];
+
+/** Every domain but those on the public port goes, and one is added there if it has none. */
+const domainChanges = (props: ServiceProps, current: ServiceState): ServiceChange[] => {
+  const drops = current.domains.filter((d) => !isPublic(props, d)).map((d): ServiceChange => ({ kind: "drop-domain", id: d.id, domain: d.domain }));
+  const add: ServiceChange[] = props.publicPort && !kept(props, current) ? [{ kind: "add-domain" }] : [];
+  return [...drops, ...add];
+};
+
+const autoDeployChange = (current: ServiceState): ServiceChange[] => (current.autoDeploy ? [{ kind: "auto-deploy" }] : []);
 
 /** A Railway service, found by name in its project. */
 export class Service extends ManagedResource<ServiceProps, ServiceState, ServiceOutputs, ServiceChange> {
   readonly kind = "railway-service";
 
-  async read({ at, name, autoDeploy, env }: ServiceProps, ctx: Context) {
-    if (!known(at.projectId)) return undefined;
-    const railway = railwayClient(ctx.env);
-    const { projectId, environmentId } = at;
-    const project = await railway.project(projectId);
-    const serviceId = project.services.find((s) => s.name === name)?.id;
-    if (!serviceId) return undefined;
-    const [instance, domains, endpoint, autoDeploys, variables] = await Promise.all([
-      railway.instance(environmentId, serviceId),
-      railway.domains(projectId, environmentId, serviceId),
-      railway.privateEndpoint(environmentId, serviceId),
-      autoDeploy === false ? railway.autoDeploy(projectId, environmentId, serviceId).catch(() => false) : false,
-      env ? railway.variables(projectId, environmentId, serviceId) : undefined,
-    ]);
-    const volumes = project.volumes.filter((v) => v.serviceId === serviceId).map((v) => v.mountPath);
-    return { serviceId, instance, volumes, endpoint, domains, autoDeploy: autoDeploys, ...(variables && { env: variables }) };
+  async read(props: ServiceProps, ctx: Context) {
+    if (!known(props.at.projectId)) return undefined;
+    const found = await railwayFromEnv(ctx.env).project(props.at).serviceByName(props.name);
+    return found && readInstanceState(found, props);
   }
 
   diff(props: ServiceProps, current: ServiceState | undefined): ServiceChange[] {
-    if (!current) return [{ kind: "service" }, { kind: "volume" }, ...(props.publicPort ? [{ kind: "add-domain" } as const] : [])];
-    const changes: ServiceChange[] = [];
-    const fields = settingsDiff(props.settings, current.instance);
-    if (fields.length) changes.push({ kind: "settings", fields });
-    if (!current.volumes.includes(props.volume)) changes.push({ kind: "volume" });
-    // A service that has never deployed has no endpoint yet, and gets one from its name.
-    if (current.endpoint && current.endpoint.dnsName !== props.name) changes.push({ kind: "hostname", from: current.endpoint.dnsName });
-    const keep = kept(props, current);
-    for (const d of current.domains) if (d !== keep && (!props.publicPort || d.targetPort !== props.publicPort)) changes.push({ kind: "drop-domain", id: d.id, domain: d.domain });
-    if (props.publicPort && !keep) changes.push({ kind: "add-domain" });
-    if (current.autoDeploy) changes.push({ kind: "auto-deploy" });
-    return changes;
+    if (!current) return newServiceChanges(props);
+    return [
+      ...settingsChange(props, current),
+      ...volumeChange(props, current),
+      ...hostnameChange(props, current),
+      ...domainChanges(props, current),
+      ...autoDeployChange(current),
+    ];
   }
 
   describe(change: ServiceChange, { name, volume, publicPort }: ServiceProps): Change {
@@ -130,36 +170,37 @@ export class Service extends ManagedResource<ServiceProps, ServiceState, Service
   }
 
   async apply(props: ServiceProps, current: ServiceState | undefined, changes: ServiceChange[], ctx: Context) {
-    const railway = railwayClient(ctx.env);
-    const { at: { projectId, environmentId }, name, settings, volume, publicPort } = props;
-    let serviceId = current?.serviceId as string;
+    const project = railwayFromEnv(ctx.env).project(props.at);
+    const { name, settings, volume, publicPort } = props;
+    // Made by the first change when it doesn't exist yet.
+    let service = current && project.service(current.serviceId);
     let domain = kept(props, current)?.domain;
     for (const change of changes) {
       switch (change.kind) {
         case "service":
-          serviceId = await railway.createService(projectId, environmentId, name);
-          await railway.updateInstance(environmentId, serviceId, settings);
+          service = await project.createService(name);
+          await service.update(settings);
           break;
         case "settings":
-          await railway.updateInstance(environmentId, serviceId, settings);
+          await service!.update(settings);
           break;
         case "volume":
-          await railway.createVolume(projectId, environmentId, serviceId, volume);
+          await service!.addVolume(volume);
           break;
         case "hostname":
-          await railway.renamePrivateEndpoint(current!.endpoint!.id, current!.endpoint!.privateNetworkId, name);
+          await service!.renamePrivateEndpoint(current!.endpoint!, name);
           break;
         case "drop-domain":
-          await railway.deleteDomain(change.id);
+          await service!.deleteDomain(change.id);
           break;
         case "add-domain":
-          domain = await railway.createDomain(environmentId, serviceId, publicPort!);
+          domain = await service!.addDomain(publicPort!);
           break;
         case "auto-deploy":
-          await railway.setAutoDeploy(projectId, environmentId, serviceId, false);
+          await service!.setAutoDeploy(false);
           break;
       }
     }
-    return { serviceId, url: https(domain), ...env(props, current) };
+    return { serviceId: service!.id, url: https(domain), ...env(props, current) };
   }
 }

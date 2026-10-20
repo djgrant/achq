@@ -1,12 +1,10 @@
-export const RAILWAY_API = "https://backboard.railway.com/graphql/v2";
-
 /** The container provider id: the router and deployer run on it, and the deployer puts containers on it. */
 export const CONTAINER_PROVIDER = "railway";
 
 /** Where the CLI and the deployer read their Railway settings from. */
 export const RAILWAY_ENV = {
   token: "RAILWAY_API_TOKEN",
-  /** Railway's GraphQL endpoint, if not RAILWAY_API: tests point it at a fake. */
+  /** Railway's GraphQL endpoint, if not the real one: tests point it at a fake. */
   endpoint: "RAILWAY_API_URL",
   workspace: "RAILWAY_WORKSPACE_ID",
   projectId: "ACHQ_RAILWAY_PROJECT_ID",
@@ -34,9 +32,9 @@ export const BUN_IMAGE = "oven/bun:1-slim";
 /** A variable holding a hash of the settings and variables a service was last deployed with. */
 export const DEPLOYED = "ACHQ_DEPLOYED";
 
-/** How often the router's deploy is checked while waiting for it to go live, and how many times: five minutes in all. */
+/** How often the router's deploy is checked while waiting for it to go live, and how long to wait in all. */
 export const DEPLOY_POLL_INTERVAL_MS = 5000;
-export const DEPLOY_POLL_ATTEMPTS = 60;
+export const DEPLOY_TIMEOUT_MS = 5 * 60_000;
 
 /** Railway builds a container's service from its repo through its GitHub integration. */
 export const SOURCE_HOST = "github";
