@@ -25,17 +25,9 @@ export class StreamStats {
   }
 }
 
-export const tokens = (n: number): string =>
-  n >= 1_000_000 ? `${Math.floor(n / 100_000) / 10}M` : n >= 1000 ? `${Math.floor(n / 1000)}k` : `${n}`;
-
-export const eachLine = async (stream: ReadableStream<Uint8Array>, fn: (line: string) => void) => {
-  const decoder = new TextDecoder();
-  let buffer = "";
-  for await (const chunk of stream) {
-    buffer += decoder.decode(chunk, { stream: true });
-    const lines = buffer.split("\n");
-    buffer = lines.pop()!;
-    for (const line of lines) if (line.trim()) fn(line);
-  }
-  if (buffer.trim()) fn(buffer);
+/** A token count to read at a glance: `1.2M`, `45k`, `900`. */
+export const tokens = (n: number): string => {
+  if (n >= 1_000_000) return `${Math.floor(n / 100_000) / 10}M`;
+  if (n >= 1000) return `${Math.floor(n / 1000)}k`;
+  return `${n}`;
 };
