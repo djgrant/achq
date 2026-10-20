@@ -1,11 +1,16 @@
 /** The ACHQ infra file, at the infra repo's root. */
 export const INFRA_FILE = "achq.infra.ts";
 
+/** The CLI's own config, at the root of the repo it's run in. */
+export const CONFIG_FILE = "achq.config.ts";
+
 export const CLI_ENV = {
   /** The directory `achq` was run in. `bin/achq` passes it on, since pok runs from achq's own directory. */
   callerCwd: "ACHQ_CALLER_CWD",
   /** Set to keep stacks on every error. */
   debug: "ACHQ_DEBUG",
+  /** Set once achq is running under its config's `env` command, so it doesn't again. */
+  underEnv: "ACHQ_UNDER_ENV",
 } as const;
 
 /** The paths in achq whose latest commit is the version the router and deployer run. */

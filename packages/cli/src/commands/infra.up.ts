@@ -5,7 +5,7 @@ import { ACHQ_SOURCE } from "@achq/core";
 import { agentEnv, codeHostProviderNamed } from "achq/registry";
 import { ACHQ_CODE_PATHS } from "../constants.ts";
 import { openInBrowser } from "../lib/browser.ts";
-import { need, secretEnv } from "../lib/env.ts";
+import { need } from "../lib/env.ts";
 import { loadInfra } from "../lib/load/infra.ts";
 import { formatSync } from "../lib/up/format.ts";
 import { up } from "../lib/up/up.ts";
@@ -29,7 +29,7 @@ export const command = defineCommand({
     const infra = await loadInfra(file);
     const source = achqSource();
     const result = await up(infra, { prune: context.prune, dryRun: context.dryRun }, {
-      env: secretEnv(),
+      env: process.env,
       containerEnv: containerEnvFromShell(),
       achqRef: () => source.lastCommit(ACHQ_SOURCE.repo, ACHQ_SOURCE.branch, ACHQ_CODE_PATHS),
       open: async (url, what) => {

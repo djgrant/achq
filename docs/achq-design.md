@@ -10,7 +10,7 @@ Decisions behind achq: one router, many Apps, repos that declare their own agent
 ## Layers
 
 - **ACHQ library**: The CLI, the router, the deployer, the agent, and the resource library. Nothing user-specific. npm-ready (correct `bin` and `exports`) but not published; `packages/cli/bin/achq` stays for putting on `PATH`.
-- **ACHQ infra**: Declares the router, deployer and Apps as resources. Reads secrets from its environment; how they get there (`op run`, direnv, CI, a `.env` file) is up to the user.
+- **ACHQ infra**: Declares the router, deployer and Apps as resources. Reads secrets from its environment; how they get there (`op run`, direnv, CI, a `.env` file) is up to the user. The CLI's own config, `achq.config.ts`, can name a command it runs itself under to get them.
 - **ACHQ repos**: `.achq/config.ts` and an image. Defines the conditions an agent works in, and the events on which it is dispatched.
 
 ## Resources

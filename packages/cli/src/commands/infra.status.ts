@@ -2,7 +2,6 @@ import { defineCommand } from "@pokit/core";
 import { clean } from "../lib/errors.ts";
 import type { DeployRecord, FailedDelivery, InstalledRepo } from "@achq/core";
 import { cliContext } from "../lib/context.ts";
-import { secretEnv } from "../lib/env.ts";
 import { failedSection } from "../lib/failed.ts";
 import { loadInfra } from "../lib/load/infra.ts";
 import { adminRequest, routerAccess } from "../lib/router.ts";
@@ -14,7 +13,7 @@ export const command = defineCommand({
   examples: ["achq infra status"],
   run: clean(async () => {
     const infra = await loadInfra(needInfra());
-    const router = await routerAccess(infra, cliContext({ env: secretEnv(), log: (line) => console.log(line) }));
+    const router = await routerAccess(infra, cliContext({ env: process.env, log: (line) => console.log(line) }));
     const [records, installed, failed] = await Promise.all([
       adminRequest<DeployRecord[]>(router, "GET", "/admin/status"),
       adminRequest<InstalledRepo[]>(router, "GET", "/admin/installed"),

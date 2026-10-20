@@ -29,7 +29,7 @@ export default achq(() => {
 });
 ```
 
-`achq infra up` needs `RAILWAY_API_TOKEN` and `CLAUDE_CODE_OAUTH_TOKEN` (from `claude setup-token`) in its environment; how they get there is up to you (`op run`, direnv, …). It plans the Railway project, the router, the deployer and each channel as one graph, prints what would change, then makes it. An App that doesn't exist yet is created through GitHub's manifest flow in your browser. Its private key goes straight into the router's variables on Railway and never touches your machine. Then it syncs every installed repo. Re-running it changes only what differs; `--dry-run` shows what would change.
+`achq infra up` needs `RAILWAY_API_TOKEN` and `CLAUDE_CODE_OAUTH_TOKEN` (from `claude setup-token`) in its environment; how they get there is up to you. An `achq.config.ts` beside the infra file can name a command achq runs itself under to get them: `export default { env: "op run --env-file=.env --" }`. It plans the Railway project, the router, the deployer and each channel as one graph, prints what would change, then makes it. An App that doesn't exist yet is created through GitHub's manifest flow in your browser. Its private key goes straight into the router's variables on Railway and never touches your machine. Then it syncs every installed repo. Re-running it changes only what differs; `--dry-run` shows what would change.
 
 | Service | Exposure | Does |
 |---|---|---|
