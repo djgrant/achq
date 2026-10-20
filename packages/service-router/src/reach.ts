@@ -1,30 +1,30 @@
-import { signedHeaders } from "@achq/core/signing";
+// Reaching a service that may be asleep: the router retries while it wakes.
+import { signedRequestInit } from "@achq/core/signing";
+import { type Attempt, retry } from "@achq/utils/async";
 import type { RouterContext } from "./context.ts";
-import { message } from "./errors.ts";
 
-/** A request signed for `url`'s path. Signed per attempt, since retries outlast the timestamp's window. */
-export const signed = (ctx: RouterContext, secret: string, method: string, url: string, body?: string, signal?: AbortSignal): RequestInit => {
-  const { pathname, search } = new URL(url);
-  return {
-    method,
-    body,
-    signal,
-    headers: { ...(body !== undefined && { "content-type": "application/json" }), ...signedHeaders(secret, method, pathname + search, body ?? "", ctx.now()) },
-  };
+/** A status from here up means the service isn't answering yet, so it's worth trying again. */
+const SERVER_ERROR = 500;
+
+export type Reached = { ok: true; res: Response } | { ok: false; error: string };
+
+/** One try at a service, with the signal that times it out. */
+export type Try = (signal?: AbortSignal) => Promise<Response>;
+
+/** `fetch` for a request to `url` signed with `secret`. Sign each attempt afresh: a retry can outlast the timestamp's window. */
+export const fetchSigned = (ctx: RouterContext, secret: string, method: string, url: string, body?: string, signal?: AbortSignal) =>
+  ctx.fetch(url, signedRequestInit(secret, method, url, body, { now: ctx.now(), signal }));
+
+/** A 5xx is a failed attempt; anything else is the service's answer. */
+const attemptOnce = async (tryOnce: Try, timeout?: number): Promise<Attempt<Response>> => {
+  const res = await tryOnce(timeout ? AbortSignal.timeout(timeout) : undefined);
+  if (res.status < SERVER_ERROR) return { ok: true, value: res };
+  return { ok: false, error: `${res.status} ${await res.text()}`.trim() };
 };
 
-/** Attempts until a service answers with anything but a 5xx. */
-export const reach = async (ctx: RouterContext, attempt: (signal?: AbortSignal) => Promise<Response>, timeout?: number) => {
-  let last = "";
-  for (const delay of [0, ...ctx.delays]) {
-    if (delay) await Bun.sleep(delay);
-    try {
-      const res = await attempt(timeout ? AbortSignal.timeout(timeout) : undefined);
-      if (res.status < 500) return { ok: true as const, res };
-      last = `${res.status} ${await res.text()}`.trim();
-    } catch (e) {
-      last = message(e);
-    }
-  }
-  return { ok: false as const, error: `gave up after ${ctx.delays.length + 1} attempts (${last})` };
+/** Attempts at once and after each of `delays` until a service answers with anything but a 5xx. */
+export const reach = async (delays: readonly number[], tryOnce: Try, timeout?: number): Promise<Reached> => {
+  const result = await retry(() => attemptOnce(tryOnce, timeout), delays);
+  if (result.ok) return { ok: true, res: result.value };
+  return { ok: false, error: `gave up after ${result.attempts} attempts (${result.error})` };
 };

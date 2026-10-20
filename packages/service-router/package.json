@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "@achq/core": "workspace:*",
+    "@achq/utils": "workspace:*",
     "achq": "workspace:*"
   },
   "devDependencies": {

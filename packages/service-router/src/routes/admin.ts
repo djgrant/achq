@@ -1,71 +1,88 @@
-import type { MintRequest, RouterRepoConfig, ValidateRequest } from "@achq/core";
+// Admin-signed requests from the deployer and the infra CLI: repo config, the
+// deployer's own access, what the router knows, and requests for the deployer.
+import type { MintRequest, ValidateRequest } from "@achq/core";
 import { adminSecret } from "@achq/core/secrets";
-import { verifySigned } from "@achq/core/signing";
-import { mint, validate } from "../policies.ts";
+import { verifyAdminRequest } from "@achq/core/signing";
+import { jsonResponse, noContent, parseBody, textResponse } from "@achq/utils/http";
+import { ADMIN_REPO_PREFIX, REPO } from "../constants.ts";
 import type { RouterContext } from "../context.ts";
-import { json, noContent, parse, text } from "../http.ts";
-import { reach, signed } from "../reach.ts";
-import { repoFile } from "../store.ts";
+import { mint, validate } from "../policies.ts";
+import { fetchSigned, reach } from "../reach.ts";
+import { policiesRequestSchema, repoConfigSchema } from "../requests.ts";
+import { repoFile, repoKey } from "../store.ts";
+
+type Route = (ctx: RouterContext, body: string) => Promise<Response>;
+type RepoRoute = (ctx: RouterContext, repo: string, body: string) => Promise<Response>;
+
+/** The deployer's answer, passed back as it is. JSON unless it says otherwise. */
+const relay = async (res: Response) =>
+  new Response(await res.text(), { status: res.status, headers: { "content-type": res.headers.get("content-type") ?? "application/json" } });
 
 /** Forwards to the deployer, waking it, and passes its answer back. */
 const toDeployer = async (ctx: RouterContext, method: string, path: string, body?: string) => {
   const url = `${ctx.deployerUrl}${path}`;
-  const result = await reach(ctx, (signal) => ctx.fetch(url, signed(ctx, adminSecret(ctx.key), method, url, body, signal)));
-  if (!result.ok) return text(result.error, 504);
-  return new Response(await result.res.text(), { status: result.res.status, headers: { "content-type": result.res.headers.get("content-type") ?? "application/json" } });
+  const result = await reach(ctx.delays, (signal) => fetchSigned(ctx, adminSecret(ctx.key), method, url, body, signal));
+  return result.ok ? relay(result.res) : textResponse(result.error, 504);
 };
 
-const putRepo = async (ctx: RouterContext, path: string, body: string) => {
-  const config = parse<RouterRepoConfig>(body);
-  const valid =
-    typeof config?.host === "string" &&
-    config.repo?.toLowerCase() === path.toLowerCase() &&
-    typeof config.commit === "string" &&
-    [config.containers, config.workspaces, config.triggers].every(Array.isArray);
-  if (!valid) return text("bad config", 400);
+const putRepo: RepoRoute = async (ctx, repo, body) => {
+  const config = parseBody(repoConfigSchema, body);
+  if (!config || repoKey(config.repo) !== repoKey(repo)) return textResponse("bad config", 400);
   // Written before it's live, so what's served is always what a restart would load.
-  await ctx.store.write("repos", repoFile(path), config);
-  ctx.repos.set(path.toLowerCase(), config as RouterRepoConfig);
+  await ctx.store.repos.write(repoFile(repo), config);
+  ctx.repos.set(repoKey(repo), config);
   return noContent();
 };
 
-const deleteRepo = async (ctx: RouterContext, path: string) => {
+const deleteRepo: RepoRoute = async (ctx, repo) => {
   // Claims are kept: reinstalling brings everything back as it was.
-  await ctx.store.remove("repos", repoFile(path));
-  ctx.repos.delete(path.toLowerCase());
+  await ctx.store.repos.remove(repoFile(repo));
+  ctx.repos.delete(repoKey(repo));
   return noContent();
 };
 
-/** Admin-signed requests from the deployer and the infra CLI. */
-export const admin = async (ctx: RouterContext, req: Request) => {
-  const url = new URL(req.url);
-  const body = await req.text();
-  if (!verifySigned(adminSecret(ctx.key), req.method, url.pathname + url.search, body, req.headers, ctx.now())) return text("bad signature", 401);
-  const repoPath = url.pathname.match(/^\/admin\/repos\/([\w.-]+\/[\w.-]+)$/)?.[1];
+const REPO_ROUTES = new Map<string, RepoRoute>([
+  ["PUT", putRepo],
+  ["DELETE", deleteRepo],
+]);
 
-  if (repoPath && req.method === "PUT") return putRepo(ctx, repoPath, body);
-  if (repoPath && req.method === "DELETE") return deleteRepo(ctx, repoPath);
-  switch (`${req.method} ${url.pathname}`) {
-    case "GET /admin/repos":
-      return json([...ctx.repos.values()]);
-    case "POST /admin/mint": {
-      const request = parse<MintRequest>(body);
-      if (typeof request?.repo !== "string" || !Array.isArray(request.policies)) return text("bad request", 400);
-      return json(await mint(ctx, request.policies, request.repo));
-    }
-    case "POST /admin/validate": {
-      const request = parse<ValidateRequest>(body);
-      if (typeof request?.repo !== "string" || !Array.isArray(request.policies)) return text("bad request", 400);
-      return json({ problems: await validate(ctx, request.policies, request.repo) });
-    }
-    case "GET /admin/installed":
-      return json((await Promise.all(Object.values(ctx.codeHostProviders).map((h) => h.installed()))).flat());
-    case "GET /admin/sources":
-      return json((await Promise.all(ctx.channelProviders.map((c) => c.sources()))).flat());
-    case "POST /admin/sync":
-      return toDeployer(ctx, "POST", "/sync", body);
-    case "GET /admin/status":
-      return toDeployer(ctx, "GET", "/status");
-  }
-  return text("not found", 404);
+/** What each code host has installed, together. */
+const allInstalled = async (ctx: RouterContext) => (await Promise.all(Object.values(ctx.codeHostProviders).map((h) => h.installed()))).flat();
+
+/** Every channel's sources, together. */
+const allSources = async (ctx: RouterContext) => (await Promise.all(ctx.channelProviders.map((c) => c.sources()))).flat();
+
+/** A route for a body naming a repo and its policies. */
+const withPolicies =
+  (answer: (ctx: RouterContext, request: MintRequest | ValidateRequest) => Promise<unknown>): Route =>
+  async (ctx, body) => {
+    const request = parseBody(policiesRequestSchema, body);
+    return request ? jsonResponse(await answer(ctx, request)) : textResponse("bad request", 400);
+  };
+
+/** By `<method> <path>`. */
+const ROUTES = new Map<string, Route>([
+  ["GET /admin/repos", async (ctx) => jsonResponse([...ctx.repos.values()])],
+  ["POST /admin/mint", withPolicies((ctx, r) => mint(ctx, r.policies, r.repo))],
+  ["POST /admin/validate", withPolicies(async (ctx, r) => ({ problems: await validate(ctx, r.policies, r.repo) }))],
+  ["GET /admin/installed", async (ctx) => jsonResponse(await allInstalled(ctx))],
+  ["GET /admin/sources", async (ctx) => jsonResponse(await allSources(ctx))],
+  ["POST /admin/sync", (ctx, body) => toDeployer(ctx, "POST", "/sync", body)],
+  ["GET /admin/status", (ctx) => toDeployer(ctx, "GET", "/status")],
+]);
+
+/** The `owner/repo` in `/admin/repos/<owner>/<repo>`, if the path is one. */
+const repoInPath = (pathname: string) => {
+  const rest = pathname.startsWith(ADMIN_REPO_PREFIX) ? pathname.slice(ADMIN_REPO_PREFIX.length) : undefined;
+  return rest !== undefined && REPO.test(rest) ? rest : undefined;
+};
+
+export const admin = async (ctx: RouterContext, req: Request) => {
+  const verified = await verifyAdminRequest(req, ctx.key, ctx.now());
+  if (!verified) return textResponse("bad signature", 401);
+  const { pathname } = new URL(req.url);
+  const repo = repoInPath(pathname);
+  const route = repo ? REPO_ROUTES.get(req.method) : undefined;
+  if (repo && route) return route(ctx, repo, verified.body);
+  return (await ROUTES.get(`${req.method} ${pathname}`)?.(ctx, verified.body)) ?? textResponse("not found", 404);
 };

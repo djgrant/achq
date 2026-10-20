@@ -1,9 +1,13 @@
 import type { PolicyData } from "@achq/core";
 import type { RouterContext } from "./context.ts";
 
+const noProvider = (id: string) => `No policy provider "${id}"`;
+
+const findProvider = (ctx: RouterContext, id: string) => ctx.policyProviders.find((p) => p.id === id);
+
 const providerFor = (ctx: RouterContext, id: string) => {
-  const found = ctx.policyProviders.find((p) => p.id === id);
-  if (!found) throw new Error(`No policy provider "${id}"`);
+  const found = findProvider(ctx, id);
+  if (!found) throw new Error(noProvider(id));
   return found;
 };
 
@@ -14,13 +18,8 @@ export const mint = async (ctx: RouterContext, policies: PolicyData[], repo: str
   return minted.flat();
 };
 
-/** Each policy's problems for `repo`, from the policy provider it names. */
+/** Each policy's problems for `repo`, from the policy provider it names. A provider nobody has is a problem too. */
 export const validate = async (ctx: RouterContext, policies: PolicyData[], repo: string) => {
-  const problems = await Promise.all(
-    policies.map((p) => {
-      const found = ctx.policyProviders.find((x) => x.id === p.provider);
-      return found ? found.validate(p, repo) : [`No policy provider "${p.provider}"`];
-    }),
-  );
+  const problems = await Promise.all(policies.map((p) => findProvider(ctx, p.provider)?.validate(p, repo) ?? [noProvider(p.provider)]));
   return problems.flat();
 };
