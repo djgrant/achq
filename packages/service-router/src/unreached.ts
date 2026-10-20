@@ -4,7 +4,7 @@ import type { RouterContext } from "./context.ts";
 import type { Target } from "./targets.ts";
 
 export const unreachedReply = (containers: string[]) =>
-  `⚠️ This didn't reach the agent: ${containers.map((c) => `\`${c}\``).join(" and ")} didn't answer. It's kept, and runs when someone replays it with \`achq replay\`.`;
+  `⚠️ This didn't reach the agent: ${containers.map((c) => `\`${c}\``).join(" and ")} didn't answer. It's kept, and runs when someone replays it with \`achq infra replay\`.`;
 
 /** Replies on the event's thread, as its channel's source, naming the containers among `failed`. Whether it did: a failure to is only logged. */
 export const tellUnreached = async (ctx: RouterContext, event: ChannelEvent, failed: Target[]) => {

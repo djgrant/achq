@@ -116,5 +116,5 @@ const changeInstallationRepos = async ({ repo }: CodeHostProps, installationId: 
   const { id: repoId } = await gh.repo(repo).info();
   if (change === "add") return gh.addToInstallation(installationId, repoId);
   await gh.removeFromInstallation(installationId, repoId);
-  ctx.log(`${repo}'s containers sleep, and are kept until \`achq up --prune\`.`);
+  ctx.log(`${repo}'s containers sleep, and are kept until \`achq infra up --prune\`.`);
 };

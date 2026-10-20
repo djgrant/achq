@@ -16,10 +16,10 @@ const inMinutes = (ms: number) => {
 };
 
 export const command = defineCommand({
-  label: "Set this repo up for achq on its code host, as its .achq/config.ts needs, and wait for the deploy",
-  examples: ["achq install --dry-run", "achq install"],
+  label: "Install achq",
+  examples: ["achq repo install --dry-run", "achq repo install"],
   context: {
-    dryRun: { from: "flag", schema: z.boolean().default(false), description: "Check the config against its code host and show what installing would change, and change nothing" },
+    dryRun: { from: "flag", schema: z.boolean().default(false), description: "Preview changes" },
   },
   run: clean(async (_r, { context }) => {
     const since = new Date();
@@ -30,7 +30,7 @@ export const command = defineCommand({
     console.log("Waiting for the deploy's result…");
     const status = await waitForStatus((r) => codeHost.status(r), repo, since);
     if (!status) {
-      console.log(`No result after ${inMinutes(STATUS_TIMEOUT_MS)}. Run \`achq up\` from the infra to sync installs, then \`achq status\`.`);
+      console.log(`No result after ${inMinutes(STATUS_TIMEOUT_MS)}. Run \`achq infra up\` to sync installs, then \`achq repo status\`.`);
       process.exitCode = 1;
       return;
     }

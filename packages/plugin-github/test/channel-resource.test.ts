@@ -171,7 +171,7 @@ test("a new channel plans as a create without calling GitHub, then is created wi
 test("creating a channel's App without a browser to open fails, saying so", async () => {
   const { channel } = infra({});
   const planned = await plan([channel], context([], false));
-  await expect(planned.apply()).rejects.toThrow("Creating GitHub App djgrant-claude opens your browser, which only `achq up` can do");
+  await expect(planned.apply()).rejects.toThrow("Creating GitHub App djgrant-claude opens your browser, which only `achq infra up` can do");
 });
 
 test("a known channel's drifted webhook plans as a change and is fixed", async () => {

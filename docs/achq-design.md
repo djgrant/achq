@@ -32,8 +32,8 @@ export default achq(() => {
 - **Router**: receives events and wakes the deployer and containers.
 - **Deployer**: creates and updates containers, in its router's Railway project.
 - **A GitHub channel** is a GitHub App, bound to the router. GitHub is both a channel and a policy provider (see Primitives). The App's webhook points at the router, and the router holds the App's key to check deliveries and mint tokens. The App's installations decide which repos the deployer serves.
-- **Contracts**: GitHub implements three of core's contracts, each registered on its own: a `ChannelProvider` (events, threads, replies; the router also gets its sources from it), a `PolicyProvider` (turns policies into credentials), and a `CodeHostProvider` (reads `.achq/`, writes the status, gives the clone URL; the router uses it to check `/wake` and to list the repos installed, the CLI for the repo commands, and to install and uninstall a repo). Installation isn't a contract of its own: it's a repo's lifecycle on its code host, set up for achq or not. For GitHub, a repo is installed when the config's App is installed on it. The router gets them with the key, the container without secrets. The infra's channels are resources `achq up` plans. Claude implements `AgentProvider` (`ClaudeAgentProvider`): the runtime, and the variables every container needs. Configs declare its agents as `claude.Agent`, from `achq/claude`. The services and CLI find each one by id in `achq/registry`.
-- **The container provider**: the router and deployer name the container provider they run on (`containerProvider`), and the deployer puts containers on the same one. A plugin provides the router and deployer as resources for `achq up`, and implements core's `ContainerProvider` for the deployer, with a shell into containers for `achq ssh` and `resume`. achq's services and CLI only use that contract, and pick an implementation by id. Only Railway is built for now. Putting the router, deployer and containers on different container providers needs bindings this design assumes away: reaching containers without a private network, and waking them through the container provider's API.
+- **Contracts**: GitHub implements three of core's contracts, each registered on its own: a `ChannelProvider` (events, threads, replies; the router also gets its sources from it), a `PolicyProvider` (turns policies into credentials), and a `CodeHostProvider` (reads `.achq/`, writes the status, gives the clone URL; the router uses it to check `/wake` and to list the repos installed, the CLI for the repo commands, and to install and uninstall a repo). Installation isn't a contract of its own: it's a repo's lifecycle on its code host, set up for achq or not. For GitHub, a repo is installed when the config's App is installed on it. The router gets them with the key, the container without secrets. The infra's channels are resources `achq infra up` plans. Claude implements `AgentProvider` (`ClaudeAgentProvider`): the runtime, and the variables every container needs. Configs declare its agents as `claude.Agent`, from `achq/claude`. The services and CLI find each one by id in `achq/registry`.
+- **The container provider**: the router and deployer name the container provider they run on (`containerProvider`), and the deployer puts containers on the same one. A plugin provides the router and deployer as resources for `achq infra up`, and implements core's `ContainerProvider` for the deployer, with a shell into containers for `achq container ssh` and `resume`. achq's services and CLI only use that contract, and pick an implementation by id. Only Railway is built for now. Putting the router, deployer and containers on different container providers needs bindings this design assumes away: reaching containers without a private network, and waking them through the container provider's API.
 - **`owners`**: the deployer only serves repos owned by these accounts. A public App can be installed by anyone, and without this a stranger's install would get a container on your Railway account running on your Claude token.
 
 ### A repo
@@ -185,7 +185,7 @@ The router writes every event it accepts to its volume before answering GitHub, 
 - Each accepted delivery is written to `inbox/<delivery-id>.json`, then forwarded. It's deleted once its target answers.
 - On startup the router replays everything left in `inbox/`.
 - A delivery that runs out of retries moves to `failed/`. If it was for a container, the router replies on its thread, as the channel's source, that it didn't reach the agent and can be replayed, so whoever asked isn't left waiting. A thread is told once per delivery, however often a replay fails.
-- `achq status` from the infra lists failed deliveries, with each target's error. `achq replay` puts them back in the inbox, aimed at each container's current URL with the config the router holds now; one whose repo or container is gone is dropped. Nothing replays on its own: a container that's down for good would otherwise be retried forever.
+- `achq infra status` lists failed deliveries, with each target's error. `achq infra replay` puts them back in the inbox, aimed at each container's current URL with the config the router holds now; one whose repo or container is gone is dropped. Nothing replays on its own: a container that's down for good would otherwise be retried forever.
 - A crash between forwarding and deleting means a delivery can arrive twice. Containers and the deployer ignore a delivery ID they've already handled.
 - This isn't a queue: there's no ordering, priority or backpressure. That stays deferred.
 
@@ -208,16 +208,16 @@ How GitHub's credentials work. Other channels and policy providers follow the sa
 
 ## Subscribing
 
-Installing a repo on its code host subscribes it; uninstalling unsubscribes it. On GitHub, that's installing one of the infra's Apps on it, with `achq install` or from GitHub's settings.
+Installing a repo on its code host subscribes it; uninstalling unsubscribes it. On GitHub, that's installing one of the infra's Apps on it, with `achq repo install` or from GitHub's settings.
 
 - **Install:** the deployer evaluates the repo's config and deploys its containers, if the repo's owner is in `owners`.
 - **Uninstall:** the repo is removed from the router config, so events stop reaching it. Its containers and volumes are kept, asleep, costing only storage. Reinstalling adds it back and everything is as it was.
-- **Deletion** is explicit: `achq up --prune` deletes the containers and volumes of repos no longer installed. Railway can't restore a deleted service, and a deleted volume only through an emailed link within 48 hours, so achq never deletes on an event.
+- **Deletion** is explicit: `achq infra up --prune` deletes the containers and volumes of repos no longer installed. Railway can't restore a deleted service, and a deleted volume only through an emailed link within 48 hours, so achq never deletes on an event.
 
 - The router forwards `installation` and `installation_repositories` events to the deployer whether or not the repo is deployed yet, since a repo isn't deployed until its install is handled.
 - Installing on many repos at once arrives as one event listing them all. The deployer handles them one by one, each with its own `ACHQ_STATUS`.
 
-- The deployer handles install and uninstall events as they arrive (`achq install` waits on the result), and `achq up` syncs too, to catch anything missed.
+- The deployer handles install and uninstall events as they arrive (`achq repo install` waits on the result), and `achq infra up` syncs too, to catch anything missed.
 
 ## Config changes
 
@@ -228,7 +228,7 @@ The App owns the whole lifecycle, including keeping a repo's deployment in line 
 - Otherwise it evaluates the config again and compares the resulting manifest with the deployed one. It redeploys only what changed: a container whose image or policies changed is rebuilt; router config is updated for triggers and workspaces.
 - The deployer starts builds itself; Railway's auto-deploy is turned off. A container is only rebuilt when it's new, or its image path or Dockerfile changed.
 - Everything else in the config reaches containers without a rebuild: the router forwards each event with the commit its config came from, and the container loads that commit's `.achq/` from its mirror (cached per commit).
-- Containers removed from the config are handled like uninstalls: kept asleep, deleted only by `achq up --prune`.
+- Containers removed from the config are handled like uninstalls: kept asleep, deleted only by `achq infra up --prune`.
 - The outcome goes to `ACHQ_STATUS`.
 
 ## Checks
@@ -237,7 +237,7 @@ The types can't know which events and permissions an App has enabled, so they're
 
 | When | Who | Checks against | On failure |
 |---|---|---|---|
-| `achq install --dry-run`, and `install` | CLI, with your `gh` login | `GET /apps/{slug}` | Refuses to install and lists what's missing |
+| `achq repo install --dry-run`, and `install` | CLI, with your `gh` login | `GET /apps/{slug}` | Refuses to install and lists what's missing |
 | Deploy | Deployer, through the router | The App's settings, read as the App | Doesn't deploy; writes why to `ACHQ_STATUS` |
 | Container start | Container, through the router | The App's settings | Logs triggers the App doesn't send |
 
@@ -246,29 +246,31 @@ The types can't know which events and permissions an App has enabled, so they're
 
 ## Deploy results
 
-Installing is done to a repo, from its settings or with `achq install`, not to a commit. So the deployer reports each deploy's outcome on the repo, in a repository variable, `ACHQ_STATUS`:
+Installing is done to a repo, from its settings or with `achq repo install`, not to a commit. So the deployer reports each deploy's outcome on the repo, in a repository variable, `ACHQ_STATUS`:
 
 ```json
 { "state": "failed", "at": "2026-10-17T10:02:00Z", "error": "container default wants issue_comment, which notation-achq doesn't send" }
 ```
 
-- `achq install` installs the App, then polls `ACHQ_STATUS` with your `gh` login until it shows a result newer than the install, or times out.
-- `achq status` from a repo reads the same variable, so it reports a failed install made from the repo's settings. From the infra, it reads the deployer's own records for every repo.
+- `achq repo install` installs the App, then polls `ACHQ_STATUS` with your `gh` login until it shows a result newer than the install, or times out.
+- `achq repo status` reads the same variable, so it reports a failed install made from the repo's settings. `achq infra status` reads the deployer's own records for every repo.
 - The App needs the "Variables: write" permission (`actions_variables`). Containers don't get it: their tokens only carry their own permissions.
 
 ## Commands
 
 | Command | Run from | Does |
 |---|---|---|
-| `achq up [--prune] [--dry-run]` | Infra | Brings the infra's resources in line with its code, and is safe to re-run: router and its config, deployer, each channel's App (creating any that are missing) and its webhook settings, then syncs installed repos |
-| `achq status` | Infra or repo | From the infra: every installed or deployed repo, its state, when it last deployed, and its containers, then any failed deliveries. From a repo: its `ACHQ_STATUS` |
-| `achq replay` | Infra | Sends failed deliveries again, to where their containers are now |
-| `achq install [--dry-run]` | Repo | Reads the repo's config, checks it, and installs the repo on its code host: on GitHub, the App its policies name, after checking it sends and allows what the config needs, then waits for the deploy's outcome in `ACHQ_STATUS`. Opens GitHub's install page if the App has no installation on the account yet. |
-| `achq uninstall` | Repo | Removes the repo from its App's installation; the uninstall flow above follows |
-| `achq ssh` | Repo | As now |
-| `achq resume <n> [session]` | Repo | Opens a thread's session. With one session it opens it; otherwise it lists them (ID, agent, last run) as a picker, or prints the list when not interactive. |
+| `achq infra up [--prune] [--dry-run]` | Infra | Brings the infra's resources in line with its code, and is safe to re-run: router and its config, deployer, each channel's App (creating any that are missing) and its webhook settings, then syncs installed repos |
+| `achq infra status` | Infra | Every installed or deployed repo, its state, when it last deployed, and its containers, then any failed deliveries |
+| `achq infra replay` | Infra | Sends failed deliveries again, to where their containers are now |
+| `achq infra down` | Infra | Not implemented yet |
+| `achq repo install [--dry-run]` | Repo | Reads the repo's config, checks it, and installs the repo on its code host: on GitHub, the App its policies name, after checking it sends and allows what the config needs, then waits for the deploy's outcome in `ACHQ_STATUS`. Opens GitHub's install page if the App has no installation on the account yet. |
+| `achq repo uninstall` | Repo | Removes the repo from its App's installation; the uninstall flow above follows |
+| `achq repo status [--repo]` | Repo | Its `ACHQ_STATUS` |
+| `achq container ssh [--repo]` | Repo | As now |
+| `achq container resume <n> [session] [--repo]` | Repo | Opens a thread's session. With one session it opens it; otherwise it lists them (ID, agent, last run) as a picker, or prints the list when not interactive. |
 
-These replace `app`, `deploy` and `destroy`.
+These replace `app`, `deploy` and `destroy`. `--repo` takes `owner/name` or a URL, and defaults to the repo `git remote get-url origin` names in the current directory.
 
 ## Not yet verified
 

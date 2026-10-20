@@ -90,8 +90,8 @@ describe("installing", () => {
     expect(w.dev().requests).toEqual([]);
   });
 
-  test("`achq ssh`'s wake reaches the container through the router, for someone who can push to the repo", async () => {
-    // What `achq ssh` sends before it connects.
+  test("`achq container ssh`'s wake reaches the container through the router, for someone who can push to the repo", async () => {
+    // What `achq container ssh` sends before it connects.
     const wake = (token: string) =>
       fetch(`${w.routerPublic}/wake`, {
         method: "POST",
@@ -382,10 +382,10 @@ describe("when runs go wrong", () => {
     w.containerProvider.sleep(REPO, "dev", 0);
     expect(calls()).toHaveLength(before);
     expect(w.replies(43).slice(replies).map((c) => c.body)).toEqual([
-      "⚠️ This didn't reach the agent: `dev` didn't answer. It's kept, and runs when someone replays it with `achq replay`.",
+      "⚠️ This didn't reach the agent: `dev` didn't answer. It's kept, and runs when someone replays it with `achq infra replay`.",
     ]);
 
-    // What `achq status` and `achq replay` ask the router, through its public port.
+    // What `achq infra status` and `achq infra replay` ask the router, through its public port.
     const failed = await w.infraCli<FailedDelivery[]>("GET", "/admin/failed");
     expect(failed).toEqual([
       {

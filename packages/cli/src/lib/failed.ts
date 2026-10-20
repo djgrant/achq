@@ -9,13 +9,13 @@ export const failedSection = (failed: FailedDelivery[]): string[] => {
     const about = f.thread ? threadKey(f.thread) : (f.repo ?? "-");
     return f.targets.map((t) => `  ${f.delivery}  ${f.type}  ${about} → ${t.target}: ${t.error}`);
   });
-  return ["", `${plural(failed.length, "delivery", "deliveries")} failed. Run \`achq replay\` to send ${failed.length === 1 ? "it" : "them"} again:`, ...lines];
+  return ["", `${plural(failed.length, "delivery", "deliveries")} failed. Run \`achq infra replay\` to send ${failed.length === 1 ? "it" : "them"} again:`, ...lines];
 };
 
 export const formatReplay = ({ replayed, dropped }: ReplayResult): string[] => {
   if (!replayed.length && !dropped.length) return ["No delivery has failed"];
   return [
-    ...(replayed.length ? [`Replaying ${plural(replayed.length, "delivery", "deliveries")}: ${replayed.join(", ")}. \`achq status\` shows any that fail again.`] : []),
+    ...(replayed.length ? [`Replaying ${plural(replayed.length, "delivery", "deliveries")}: ${replayed.join(", ")}. \`achq infra status\` shows any that fail again.`] : []),
     ...(dropped.length ? [`Dropped ${plural(dropped.length, "delivery", "deliveries")} whose repo or container is gone: ${dropped.join(", ")}`] : []),
   ];
 };

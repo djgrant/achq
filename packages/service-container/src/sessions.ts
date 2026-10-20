@@ -11,6 +11,6 @@ export const sessionsFor = (paths: Paths, number: string): (SessionSummary & { s
     )
     .sort((a, b) => b.lastRun.localeCompare(a.lastRun));
 
-/** A JSON array. The laptop's `achq resume` parses it (parseSessions in packages/cli/src/lib/remote/sessions.ts). */
+/** A JSON array. The laptop's `achq container resume` parses it (parseSessions in packages/cli/src/lib/remote/sessions.ts). */
 export const formatSessions = (sessions: SessionSummary[]) =>
   JSON.stringify(sessions.map(({ id, agent, workspace, lastRun }) => ({ id, agent, workspace, lastRun })));

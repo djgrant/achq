@@ -5,19 +5,20 @@ import { z } from "zod";
 import { reachContainer } from "../lib/remote/reach.ts";
 import { parseSessions, pickSession, sessionLabel, sessionTable } from "../lib/remote/sessions.ts";
 import { terminalEnv } from "../lib/terminal.ts";
-import { needRepo } from "../lib/workdir.ts";
+import { needRepo, repoFlag } from "../lib/workdir.ts";
 
 export const command = defineCommand({
   label: "Open a thread's agent session",
-  examples: ["achq resume 34", "achq resume 34 <session>"],
+  examples: ["achq container resume 34", "achq container resume 34 <session>", "achq container resume 34 --repo djgrant/foo"],
   context: {
     thread: { from: "arg", schema: z.coerce.number().int().positive(), description: "Issue number" },
-    session: { from: "arg", schema: z.string().optional(), description: "Session ID (or agent name)" },
-    container: { from: "flag", schema: z.string().optional(), description: "Which container, when the repo has several" },
+    session: { from: "arg", schema: z.string().optional(), description: "Session ID or agent name" },
+    repo: repoFlag,
+    container: { from: "flag", schema: z.string().optional(), description: "Container name" },
   },
   run: clean(async (r, { context }) => {
     const thread = String(context.thread);
-    const container = await reachContainer(r.prompter, needRepo(), context.container);
+    const container = await reachContainer(r.prompter, needRepo(context.repo), context.container);
     const sessions = parseSessions(await container.shell.run(container.location, ["achq-agent", "sessions", thread]));
     const session = await chooseOne(r.prompter, sessions, pickSession(sessions, context.session), {
       message: "Session",

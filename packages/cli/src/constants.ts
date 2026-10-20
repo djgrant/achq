@@ -11,7 +11,7 @@ export const CLI_ENV = {
 /** The paths in achq whose latest commit is the version the router and deployer run. */
 export const ACHQ_CODE_PATHS = ["packages", "package.json", "bun.lock"];
 
-/** How long `achq install` waits for the deploy's result, and how often it looks. */
+/** How long `achq repo install` waits for the deploy's result, and how often it looks. */
 export const STATUS_TIMEOUT_MS = 180_000;
 export const STATUS_INTERVAL_MS = 5000;
 

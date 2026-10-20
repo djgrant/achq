@@ -182,7 +182,7 @@ test("uninstall removes the repo from the installation, and never reads the App"
   await planned.apply();
   expect(writes()).toEqual(["DELETE /user/installations/2/repositories/777"]);
   expect(fake.installations[1].repos).toEqual(["notationlabs/other"]);
-  expect(log).toEqual(["notationlabs/yieldstar's containers sleep, and are kept until `achq up --prune`."]);
+  expect(log).toEqual(["notationlabs/yieldstar's containers sleep, and are kept until `achq infra up --prune`."]);
   expect(fake.calls.some((c) => c.startsWith("GET /apps/"))).toBe(false);
 
   // Not installed, or no installation at all: nothing to change.

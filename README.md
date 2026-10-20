@@ -9,7 +9,7 @@ The design and the reasons behind it are in [docs/achq-design.md](docs/achq-desi
 ## Layers
 
 - **achq** (this repo): the CLI, the router, the deployer, the container runtime, and the resource library repos and the infra import.
-- **ACHQ infra**: a repo with `achq.infra.ts`, declaring the router, the deployer and the GitHub Apps. `achq up` runs it.
+- **ACHQ infra**: a repo with `achq.infra.ts`, declaring the router, the deployer and the GitHub Apps. `achq infra up` runs it.
 - **ACHQ repos**: any repo with `.achq/config.ts` and a Dockerfile. Installing one of the infra's Apps on it deploys it.
 
 ## The infra
@@ -29,7 +29,7 @@ export default achq(() => {
 });
 ```
 
-`achq up` needs `RAILWAY_API_TOKEN` and `CLAUDE_CODE_OAUTH_TOKEN` (from `claude setup-token`) in its environment; how they get there is up to you (`op run`, direnv, …). It plans the Railway project, the router, the deployer and each channel as one graph, prints what would change, then makes it. An App that doesn't exist yet is created through GitHub's manifest flow in your browser. Its private key goes straight into the router's variables on Railway and never touches your machine. Then it syncs every installed repo. Re-running it changes only what differs; `--dry-run` shows what would change.
+`achq infra up` needs `RAILWAY_API_TOKEN` and `CLAUDE_CODE_OAUTH_TOKEN` (from `claude setup-token`) in its environment; how they get there is up to you (`op run`, direnv, …). It plans the Railway project, the router, the deployer and each channel as one graph, prints what would change, then makes it. An App that doesn't exist yet is created through GitHub's manifest flow in your browser. Its private key goes straight into the router's variables on Railway and never touches your machine. Then it syncs every installed repo. Re-running it changes only what differs; `--dry-run` shows what would change.
 
 | Service | Exposure | Does |
 |---|---|---|
@@ -92,14 +92,17 @@ The runner posts the agent's final message as a comment. Only messages from user
 
 | Command | Run from | Does |
 |---|---|---|
-| `achq up [--prune] [--dry-run]` | Infra | Brings the infra in line with `achq.infra.ts`, then syncs installed repos. `--prune` deletes containers of repos no longer installed |
-| `achq status` | Infra or repo | From the infra: every repo's last deploy. From a repo: its `ACHQ_STATUS` |
-| `achq install [--dry-run]` | Repo | Checks the config, installs its App on the repo, and waits for the deploy |
-| `achq uninstall` | Repo | Removes the repo from its App's installation. Its containers are kept, asleep |
-| `achq ssh [-- cmd]` | Repo | A shell in the repo's container |
-| `achq resume <n> [session]` | Repo | Opens issue `n`'s session in its worktree |
+| `achq infra up [--prune] [--dry-run]` | Infra | Brings the infra in line with `achq.infra.ts`, then syncs installed repos. `--prune` deletes containers of repos no longer installed |
+| `achq infra status` | Infra | Every repo's last deploy, and failed deliveries |
+| `achq infra replay` | Infra | Sends failed deliveries again |
+| `achq infra down` | Infra | Not implemented yet |
+| `achq repo status [--repo]` | Repo | Its `ACHQ_STATUS` |
+| `achq repo install [--dry-run]` | Repo | Checks the config, installs its App on the repo, and waits for the deploy |
+| `achq repo uninstall` | Repo | Removes the repo from its App's installation. Its containers are kept, asleep |
+| `achq container ssh [--repo] [-- cmd]` | Repo | A shell in the repo's container |
+| `achq container resume <n> [session] [--repo]` | Repo | Opens issue `n`'s session in its worktree |
 
-`ssh` and `resume` need the Railway CLI and `gh`. They wake the container through the router first.
+`--repo` takes `owner/name` or a URL; without it, the repo is the one `git remote get-url origin` names in the current directory. `ssh` and `resume` need the Railway CLI and `gh`. They wake the container through the router first.
 
 ## The container
 
@@ -131,7 +134,7 @@ Each folder in `packages/` is a workspace package, prefixed with its kind. Packa
 
 **Core** is in four parts: `resources/` (the `Resource` class, what configs and the infra declare), `engine/` (outputs, `plan` and `apply`), `contracts/` (one file per contract), `wire/` (the HTTP protocol, its constants, signing and secrets).
 
-**A resource is one class**: what it's declared with, and, if achq keeps it in shape, how it's read, compared and changed (`ManagedResource`: `read`, `diff`, `describe`, `planned`, `apply`, `check`). A resource made of others returns them from `children`. `achq up` plans the infra's resources; nothing else knows how they're made.
+**A resource is one class**: what it's declared with, and, if achq keeps it in shape, how it's read, compared and changed (`ManagedResource`: `read`, `diff`, `describe`, `planned`, `apply`, `check`). A resource made of others returns them from `children`. `achq infra up` plans the infra's resources; nothing else knows how they're made.
 
 **A concept has one name on both sides, and one folder in its plugin**: what a config or the infra declares (its resource) takes the concept's name, and the implementation of core's contract that achq's services and CLI call (its provider) is named `<Concept>Provider`, after the contract. A concept without a resource is named after the concept. They live side by side, and a concept folder holds only those:
 
@@ -142,7 +145,7 @@ Each folder in `packages/` is a workspace package, prefixed with its kind. Packa
 | `provider.ts` | The provider, e.g. `GitHubPolicyProvider` |
 | `index.ts` | Exports the provider alone, as the registry lists it |
 
-GitHub's are `channel/` (`github.Channel` and `GitHubChannelProvider`), `policy/` (`github.Policy` and `GitHubPolicyProvider`) and `code-host/` (`github.CodeHost`, the config's App installed on a repo, which `achq install` and `uninstall` plan, and `GitHubCodeHostProvider`). Everything else is in the package's one `src/lib/`, a file per topic: the vendor's API client, its auth, selectors and so on. Railway's are `container/` (`RailwayContainerProvider`, with its shell, `railway ssh`; the resource is core's `Container`), `router/` (`railway.Router`) and `deployer/` (`railway.Deployer`), which hold only a resource; its `lib/` has Railway's own objects as resources (`Project`, `Service`, `Deployment`, `Variables`) and the GraphQL client. Claude's is `agent/` (`claude.Agent` and `ClaudeAgentProvider`).
+GitHub's are `channel/` (`github.Channel` and `GitHubChannelProvider`), `policy/` (`github.Policy` and `GitHubPolicyProvider`) and `code-host/` (`github.CodeHost`, the config's App installed on a repo, which `achq repo install` and `uninstall` plan, and `GitHubCodeHostProvider`). Everything else is in the package's one `src/lib/`, a file per topic: the vendor's API client, its auth, selectors and so on. Railway's are `container/` (`RailwayContainerProvider`, with its shell, `railway ssh`; the resource is core's `Container`), `router/` (`railway.Router`) and `deployer/` (`railway.Deployer`), which hold only a resource; its `lib/` has Railway's own objects as resources (`Project`, `Service`, `Deployment`, `Variables`) and the GraphQL client. Claude's is `agent/` (`claude.Agent` and `ClaudeAgentProvider`).
 
 `src/index.ts` is what repo configs import: it runs in the deployer's sandbox, so it and everything it imports is typechecked without Bun or Node types (`tsconfig.sandbox.json`). `src/infra.ts` is what the infra file imports.
 

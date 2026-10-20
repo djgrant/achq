@@ -80,7 +80,7 @@ describe("persisted events", () => {
     await r.webhook(comment(15));
     await r.router.settled();
     expect(channelReplies.slice(before)).toEqual([
-      { thread: `${repo}#15`, as: "app", body: "⚠️ This didn't reach the agent: `dev` didn't answer. It's kept, and runs when someone replays it with `achq replay`." },
+      { thread: `${repo}#15`, as: "app", body: "⚠️ This didn't reach the agent: `dev` didn't answer. It's kept, and runs when someone replays it with `achq infra replay`." },
     ]);
   });
 

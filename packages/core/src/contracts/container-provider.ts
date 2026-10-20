@@ -19,13 +19,13 @@ export interface ContainerProvider {
   /** Builds and deploys the container from the head of its branch. */
   deploy(repo: string, name: string): Promise<void>;
   list(): Promise<{ repo: string; name: string }[]>;
-  /** Deletes the service and its volume. Only `achq up --prune` calls this. */
+  /** Deletes the service and its volume. Only `achq infra up --prune` calls this. */
   remove(repo: string, name: string): Promise<void>;
   /** Where to find it, for the repo CLI (`ssh`, `resume`). Not secret. */
   locate(repo: string, name: string): Promise<Record<string, string>>;
 }
 
-/** A container at a location its provider's `locate` gave, for `achq ssh` and `achq resume`. */
+/** A container at a location its provider's `locate` gave, for `achq container ssh` and `achq container resume`. */
 export interface ContainerShell {
   /** Whether the location has what `open` and `run` need. */
   reachable(location: Record<string, string>): boolean;

@@ -8,7 +8,7 @@ export const configSource = (manifest: RepoManifest) => {
   const selectors = [...manifest.workspaces.map((w) => w.threads), ...manifest.triggers.map((t) => t.event)];
   for (const s of selectors) if (s.channel === CHANNEL) slugs.add(s.source);
   if (slugs.size !== 1) {
-    throw new Error(slugs.size ? `The config names several Apps (${[...slugs].join(", ")}); achq install needs exactly one` : "The config names no GitHub App");
+    throw new Error(slugs.size ? `The config names several Apps (${[...slugs].join(", ")}); achq repo install needs exactly one` : "The config names no GitHub App");
   }
   return [...slugs][0];
 };

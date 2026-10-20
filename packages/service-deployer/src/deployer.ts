@@ -19,7 +19,7 @@ export const createDeployer = (deps: DeployerDeps) => {
     uninstall: (host: string, repo: string, { dryRun = false }: ActionOptions = {}) => perRepo(repoKey(repo), () => uninstall(ctx, host, repo, dryRun)),
   };
 
-  /** Every repo's record: what `achq status` shows from the infra. */
+  /** Every repo's record: what `achq infra status` shows from the infra. */
   const status = async (): Promise<DeployRecord[]> => (await ctx.store.all()).map(wireRecord);
 
   return {

@@ -129,7 +129,7 @@ const deps = (log: string[] = []): UpDeps => ({
   },
 });
 
-/** What `achq up` plans for an infra that doesn't exist yet. */
+/** What `achq infra up` plans for an infra that doesn't exist yet. */
 const FRESH = [
   "  + railway project achq",
   "  + service achq-router",
@@ -243,9 +243,9 @@ test("a changed achq ref shows as variables and a deploy, and a dry run applies 
   expect(fake.mutations).toEqual([]);
 });
 
-test("`achq status` finds the router's URL and key by planning it, and changes nothing", async () => {
+test("`achq infra status` finds the router's URL and key by planning it, and changes nothing", async () => {
   const ctx = () => cliContext({ env: deps().env, log: () => {} });
-  await expect(routerAccess(infra(), ctx())).rejects.toThrow("There's no router router. Run `achq up`.");
+  await expect(routerAccess(infra(), ctx())).rejects.toThrow("There's no router router. Run `achq infra up`.");
   await up(infra(), { prune: false, dryRun: false }, deps());
   fake.mutations.length = 0;
   expect(await routerAccess(infra(), ctx())).toEqual({ base: ROUTER_URL, key: fake.service("achq-router")!.variables.AGENT_WEBHOOK_KEY });

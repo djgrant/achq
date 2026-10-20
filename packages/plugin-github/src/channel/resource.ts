@@ -144,7 +144,7 @@ export class Channel extends ManagedResource<ChannelProps, ChannelState, Channel
       return { slug, ...stored! };
     }
     const open = ctx.open;
-    if (!open) throw new Error(`Creating GitHub App ${name} opens your browser, which only \`achq up\` can do`);
+    if (!open) throw new Error(`Creating GitHub App ${name} opens your browser, which only \`achq infra up\` can do`);
     const created = await manifestFlow({ name, org, hookUrl }, { open: (url) => open(url, `create ${name} on GitHub`), githubApi: api, githubWeb: web });
     // The secret derives from the App ID, which GitHub only assigns on creation.
     await asAppOnce(api, created.id, created.pem).setHookConfig(hookConfig(hookUrl, key, created.id));

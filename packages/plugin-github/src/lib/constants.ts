@@ -10,7 +10,7 @@ export const REPO = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
 export const REPO_NAME = /^[A-Za-z0-9-]{1,39}\/[A-Za-z0-9._-]{1,100}$/;
 
 export const GITHUB_ENV = {
-  /** Router only: `achq up` sets it. */
+  /** Router only: `achq infra up` sets it. */
   apps: "ACHQ_GITHUB_APPS",
   /** Points the API client at a fake. */
   api: "GITHUB_API_URL",

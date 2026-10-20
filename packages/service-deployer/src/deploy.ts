@@ -165,7 +165,7 @@ const routerConfigFor = ({ hostId, repo }: Run, tree: ConfigTree, manifest: Repo
   triggers: manifest.triggers.map((t) => ({ name: t.name, event: t.event })),
 });
 
-/** Where each container is, for `achq ssh` and `achq resume`. */
+/** Where each container is, for `achq container ssh` and `achq container resume`. */
 const locateContainers = async (ctx: DeployerContext, repo: string, manifest: RepoManifest) => {
   const located: NonNullable<DeployRecord["containers"]> = [];
   for (const c of manifest.containers) located.push({ name: c.name, location: await ctx.containerProvider.locate(repo, c.name) });

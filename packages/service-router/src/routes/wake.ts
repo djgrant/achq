@@ -12,7 +12,7 @@ const deployedContainer = (ctx: RouterContext, request: WakeRequest) => {
   return config?.host === request.host ? config.containers.find((c) => c.name === request.container) : undefined;
 };
 
-/** For `achq ssh`: wakes a container for someone who can push to its repo, on the host it's deployed from. */
+/** For `achq container ssh`: wakes a container for someone who can push to its repo, on the host it's deployed from. */
 export const wake = async (ctx: RouterContext, req: Request) => {
   const token = bearerToken(req);
   if (!token) return textResponse("missing token", 401);

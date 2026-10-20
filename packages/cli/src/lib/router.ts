@@ -11,9 +11,9 @@ export const routerAccess = async ({ router }: InfraResources, ctx: Context): Pr
   const planned = await plan([router], ctx);
   const env = planned.value(router.env);
   const url = planned.value(router.url);
-  if (!known(env) || !Object.keys(env).length) throw new Error(`There's no router ${router.name}. Run \`achq up\`.`);
+  if (!known(env) || !Object.keys(env).length) throw new Error(`There's no router ${router.name}. Run \`achq infra up\`.`);
   const key = env[ENV.key];
-  if (!key || !known(url)) throw new Error(`Router ${router.name} isn't set up. Run \`achq up\`.`);
+  if (!key || !known(url)) throw new Error(`Router ${router.name} isn't set up. Run \`achq infra up\`.`);
   return { base: url, key };
 };
 

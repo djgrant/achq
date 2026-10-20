@@ -17,6 +17,6 @@ export const pickContainer = (containers: Located[], wanted?: string) => {
     if (!found) throw new Error(`No container ${wanted}; there's ${containers.map((c) => c.name).join(", ") || "none"}`);
     return found;
   }
-  if (!containers.length) throw new Error("ACHQ_STATUS lists no containers. Has the repo deployed? (achq status)");
+  if (!containers.length) throw new Error("ACHQ_STATUS lists no containers. Has the repo deployed? (achq repo status)");
   return containers.length === 1 ? containers[0] : undefined;
 };

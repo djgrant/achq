@@ -24,7 +24,7 @@ export interface AgentRuntime {
   sessionKey(): Promise<string>;
   configure(configDir: string): Promise<void>;
   run(context: RunContext): Promise<RunResult>;
-  /** The command that opens a session interactively, for `achq resume`. */
+  /** The command that opens a session interactively, for `achq container resume`. */
   resumeCommand(session: string, configDir: string): { argv: string[]; env: Record<string, string> };
 }
 
@@ -49,7 +49,7 @@ export type RuntimeFactory = (agent: Agent, ctx: RuntimeContext) => AgentRuntime
 /** An agent runtime package, e.g. Claude. Its id is its agents' `runtime`. */
 export interface AgentProvider {
   readonly id: string;
-  /** What every container needs for it. `achq up` reads these from your environment. */
+  /** What every container needs for it. `achq infra up` reads these from your environment. */
   readonly containerEnv: { name: string; hint?: string }[];
   runtime: RuntimeFactory;
 }
