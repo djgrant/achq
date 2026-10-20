@@ -1,14 +1,14 @@
 import type { Prompter } from "@pokit/core";
 import type { Status } from "@achq/core";
 import { chooseOne } from "../choose.ts";
-import type { RepoHere } from "../workdir.ts";
+import { notSetUp, type RepoHere } from "../workdir.ts";
 import { containersOf, type Located, pickContainer } from "./containers.ts";
 import { wake } from "./wake.ts";
 
 /** The repo's ACHQ_STATUS, which says where its containers are. */
 const deployedStatus = async ({ repo, codeHost }: RepoHere): Promise<Status> => {
   const status = await codeHost.status(repo);
-  if (!status) throw new Error(`${repo} has no ACHQ_STATUS: it hasn't been deployed`);
+  if (!status) throw new Error(notSetUp(repo));
   return status;
 };
 
@@ -17,7 +17,7 @@ export const reachContainer = async (prompter: Prompter, here: RepoHere, wanted?
   const { host, repo, codeHost } = here;
   const status = await deployedStatus(here);
   const containers = containersOf(status);
-  const container = await chooseOne(prompter, containers, pickContainer(containers, wanted), {
+  const container = await chooseOne(prompter, containers, pickContainer(containers, wanted, repo), {
     message: "Container",
     id: (c) => c.name,
     label: (c) => c.name,

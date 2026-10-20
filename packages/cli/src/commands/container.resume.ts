@@ -8,19 +8,19 @@ import { terminalEnv } from "../lib/terminal.ts";
 import { needRepo, repoFlag } from "../lib/workdir.ts";
 
 export const command = defineCommand({
-  label: "Open a thread's agent session",
-  examples: ["achq container resume 34", "achq container resume 34 <session>", "achq container resume 34 --repo djgrant/foo"],
+  label: "Open an agent session",
+  examples: ["achq container resume", "achq container resume 34", "achq container resume 34 <session>", "achq container resume --repo djgrant/foo"],
   context: {
-    thread: { from: "arg", schema: z.coerce.number().int().positive(), description: "Issue number" },
+    thread: { from: "arg", schema: z.coerce.number().int().positive().optional(), description: "Issue number (default: pick from all sessions)" },
     session: { from: "arg", schema: z.string().optional(), description: "Session ID or agent name" },
     repo: repoFlag,
     container: { from: "flag", schema: z.string().optional(), description: "Container name" },
   },
   run: clean(async (r, { context }) => {
-    const thread = String(context.thread);
+    const thread = context.thread === undefined ? undefined : String(context.thread);
     const container = await reachContainer(r.prompter, needRepo(context.repo), context.container);
-    const sessions = parseSessions(await container.shell.run(container.location, ["achq-agent", "sessions", thread]));
-    const session = await chooseOne(r.prompter, sessions, pickSession(sessions, context.session), {
+    const sessions = parseSessions(await container.shell.run(container.location, ["achq-agent", "sessions", ...(thread ? [thread] : [])]));
+    const session = await chooseOne(r.prompter, sessions, pickSession(sessions, context.session, thread), {
       message: "Session",
       id: (s) => s.id,
       label: sessionLabel,
@@ -29,6 +29,6 @@ export const command = defineCommand({
     });
     // Without a terminal, the list is all there is to show.
     if (!session) return;
-    process.exitCode = await container.shell.open(container.location, ["env", ...terminalEnv(), "achq-agent", "resume", thread, session.id]);
+    process.exitCode = await container.shell.open(container.location, ["env", ...terminalEnv(), "achq-agent", "resume", session.thread, session.id]);
   }),
 });

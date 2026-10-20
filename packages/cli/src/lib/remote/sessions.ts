@@ -3,10 +3,10 @@ import { alignedTable } from "@achq/utils/text";
 
 /** How much of unexpected output goes into the error: enough to see what answered. */
 const UNEXPECTED_OUTPUT_CHARS = 200;
-const SESSION_COLUMNS = ["ID", "AGENT", "LAST RUN"];
+const SESSION_COLUMNS = ["ID", "THREAD", "AGENT", "LAST RUN"];
 
 /**
- * `achq-agent sessions <n>`'s output: a JSON array of sessions, most recently
+ * `achq-agent sessions [n]`'s output: a JSON array of sessions, most recently
  * run first. Anything before the JSON (an SSH banner) is skipped.
  */
 export const parseSessions = (out: string): SessionSummary[] => {
@@ -18,18 +18,18 @@ export const parseSessions = (out: string): SessionSummary[] => {
 };
 
 /** The session to open: the one asked for, the only one, or `undefined` to ask. */
-export const pickSession = (sessions: SessionSummary[], wanted?: string) => {
+export const pickSession = (sessions: SessionSummary[], wanted?: string, thread?: string) => {
   if (wanted) {
     const found = sessions.find((s) => s.id === wanted || s.id.startsWith(wanted) || s.agent === wanted);
     if (!found) throw new Error(`No session ${wanted}`);
     return found;
   }
-  if (!sessions.length) throw new Error("The thread has no sessions");
+  if (!sessions.length) throw new Error(thread ? `Thread ${thread} has no sessions` : "There are no sessions yet: mention an agent on an issue to start one");
   return sessions.length === 1 ? sessions[0] : undefined;
 };
 
-export const sessionLabel = (s: SessionSummary) => `${s.agent} (${s.workspace})`;
+export const sessionLabel = (s: SessionSummary) => `#${s.thread} ${s.agent} (${s.workspace})`;
 
 /** The minimal list, for when there's no terminal to pick in. */
 export const sessionTable = (sessions: SessionSummary[]) =>
-  alignedTable([SESSION_COLUMNS, ...sessions.map((s) => [s.id, sessionLabel(s), s.lastRun])]).join("\n");
+  alignedTable([SESSION_COLUMNS, ...sessions.map((s) => [s.id, `#${s.thread}`, `${s.agent} (${s.workspace})`, s.lastRun])]).join("\n");

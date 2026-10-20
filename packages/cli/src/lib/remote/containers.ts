@@ -11,12 +11,12 @@ export const containersOf = (status: Status): Located[] =>
   });
 
 /** The one container, the one `wanted` names, or `undefined` when the caller has to ask. */
-export const pickContainer = (containers: Located[], wanted?: string) => {
+export const pickContainer = (containers: Located[], wanted?: string, repo = "The repo") => {
   if (wanted) {
     const found = containers.find((c) => c.name === wanted);
     if (!found) throw new Error(`No container ${wanted}; there's ${containers.map((c) => c.name).join(", ") || "none"}`);
     return found;
   }
-  if (!containers.length) throw new Error("ACHQ_STATUS lists no containers. Has the repo deployed? (achq repo status)");
+  if (!containers.length) throw new Error(`${repo} has no containers yet. \`achq repo status\` shows how its last deploy went.`);
   return containers.length === 1 ? containers[0] : undefined;
 };

@@ -14,14 +14,14 @@ const main = async () => {
   const [command, ...args] = process.argv.slice(2);
   const required = (arg: string | undefined) => {
     if (!arg) {
-      console.error(`Usage: achq-agent ${command} <thread-number>${command === "resume" ? " <session-id>" : ""}`);
+      console.error(`Usage: achq-agent resume <thread-number> <session-id>`);
       process.exit(2);
     }
     return arg;
   };
 
   if (command === "sessions") {
-    const sessions = sessionsFor(paths, required(args[0]));
+    const sessions = sessionsFor(paths, args[0]);
     console.log(formatSessions(sessions));
   } else if (command === "resume") {
     // Offline when the commit's already in the mirror; otherwise fetch with the last run's credentials.

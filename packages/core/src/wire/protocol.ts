@@ -68,8 +68,8 @@ export type DeployRecord = {
   warnings?: string[];
 };
 
-/** One of a thread's sessions, as `achq-agent sessions <n>` prints them (a JSON array, most recently run first) for `achq container resume`. */
-export type SessionSummary = { id: string; agent: string; workspace: string; lastRun: string };
+/** A thread's session, as `achq-agent sessions [n]` prints them (a JSON array, most recently run first) for `achq container resume`. `thread` is e.g. the issue number. */
+export type SessionSummary = { id: string; thread: string; agent: string; workspace: string; lastRun: string };
 
 /** The ACHQ_STATUS repository variable's JSON. */
 export type Status = DeployRecord & { router: string };

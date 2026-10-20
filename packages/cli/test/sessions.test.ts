@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { parseSessions, pickSession, sessionTable } from "../src/lib/remote/sessions.ts";
 
-const OUT = `Connecting…\n[{"id":"bbb222","agent":"triage","workspace":"issues","lastRun":"2026-10-17T09:00:00Z"},{"id":"aaa111","agent":"coder","workspace":"issues","lastRun":"2026-10-16T09:00:00Z"}]\n`;
+const OUT = `Connecting…\n[{"id":"bbb222","thread":"34","agent":"triage","workspace":"issues","lastRun":"2026-10-17T09:00:00Z"},{"id":"aaa111","thread":"12","agent":"coder","workspace":"issues","lastRun":"2026-10-16T09:00:00Z"}]\n`;
 
 test("sessions parse past a banner; one opens without asking", () => {
   const sessions = parseSessions(OUT);
@@ -10,22 +10,23 @@ test("sessions parse past a banner; one opens without asking", () => {
   expect(pickSession([sessions[0]])?.id).toBe("bbb222");
   expect(pickSession(sessions, "aaa")?.id).toBe("aaa111");
   expect(pickSession(sessions, "coder")?.id).toBe("aaa111");
-  expect(() => pickSession([])).toThrow("no sessions");
+  expect(() => pickSession([], undefined, "34")).toThrow("Thread 34 has no sessions");
+  expect(() => pickSession([])).toThrow("mention an agent");
   expect(() => parseSessions("bash: achq-agent: not found")).toThrow("Unexpected output");
 });
 
 test("without a terminal, sessions print as a minimal list", () => {
   expect(sessionTable(parseSessions(OUT))).toBe(
-    ["ID      AGENT            LAST RUN", "bbb222  triage (issues)  2026-10-17T09:00:00Z", "aaa111  coder (issues)   2026-10-16T09:00:00Z"].join("\n"),
+    ["ID      THREAD  AGENT            LAST RUN", "bbb222  #34     triage (issues)  2026-10-17T09:00:00Z", "aaa111  #12     coder (issues)   2026-10-16T09:00:00Z"].join("\n"),
   );
 });
 
 test("reads what the container's `achq-agent sessions` prints", async () => {
   const { formatSessions } = await import("@achq/container");
   const printed = formatSessions([
-    { id: "s2", agent: "triage", workspace: "issues", lastRun: "2026-10-17T09:00:00Z" },
-    { id: "s1", agent: "coder", workspace: "issues", lastRun: "2026-10-16T09:00:00Z" },
+    { id: "s2", thread: "34", agent: "triage", workspace: "issues", lastRun: "2026-10-17T09:00:00Z" },
+    { id: "s1", thread: "12", agent: "coder", workspace: "issues", lastRun: "2026-10-16T09:00:00Z" },
   ]);
-  expect(parseSessions(`Connecting…\n${printed}\n`).map((s) => [s.id, s.agent])).toEqual([["s2", "triage"], ["s1", "coder"]]);
+  expect(parseSessions(`Connecting…\n${printed}\n`).map((s) => [s.id, s.thread, s.agent])).toEqual([["s2", "34", "triage"], ["s1", "12", "coder"]]);
   expect(parseSessions(formatSessions([]))).toEqual([]);
 });

@@ -100,7 +100,7 @@ The runner posts the agent's final message as a comment. Only messages from user
 | `achq repo install [--dry-run]` | Repo | Checks the config, installs its App on the repo, and waits for the deploy |
 | `achq repo uninstall` | Repo | Removes the repo from its App's installation. Its containers are kept, asleep |
 | `achq container ssh [--repo] [-- cmd]` | Repo | A shell in the repo's container |
-| `achq container resume <n> [session] [--repo]` | Repo | Opens issue `n`'s session in its worktree |
+| `achq container resume [n] [session] [--repo]` | Repo | Opens an agent session in its worktree, picked from all of them or issue `n`'s |
 
 `--repo` takes `owner/name` or a URL; without it, the repo is the one `git remote get-url origin` names in the current directory. `ssh` and `resume` need the Railway CLI and `gh`. They wake the container through the router first.
 

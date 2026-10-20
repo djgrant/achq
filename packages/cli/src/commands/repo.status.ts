@@ -1,7 +1,7 @@
 import { defineCommand } from "@pokit/core";
 import { clean } from "../lib/errors.ts";
 import { formatStatus } from "../lib/status/format.ts";
-import { needRepo, repoFlag } from "../lib/workdir.ts";
+import { needRepo, notSetUp, repoFlag } from "../lib/workdir.ts";
 
 export const command = defineCommand({
   label: "Show deploy status",
@@ -13,7 +13,7 @@ export const command = defineCommand({
     const { repo, codeHost } = needRepo(context.repo);
     const status = await codeHost.status(repo);
     if (!status) {
-      console.log(`${repo} has no ACHQ_STATUS: it hasn't been deployed`);
+      console.log(notSetUp(repo));
       return;
     }
     for (const line of formatStatus(status)) console.log(line);

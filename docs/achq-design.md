@@ -268,7 +268,7 @@ Installing is done to a repo, from its settings or with `achq repo install`, not
 | `achq repo uninstall` | Repo | Removes the repo from its App's installation; the uninstall flow above follows |
 | `achq repo status [--repo]` | Repo | Its `ACHQ_STATUS` |
 | `achq container ssh [--repo]` | Repo | As now |
-| `achq container resume <n> [session] [--repo]` | Repo | Opens a thread's session. With one session it opens it; otherwise it lists them (ID, agent, last run) as a picker, or prints the list when not interactive. |
+| `achq container resume [n] [session] [--repo]` | Repo | Opens a session: issue `n`'s, or without `n` any thread's. With one session it opens it; otherwise it lists them (ID, thread, agent, last run) as a picker, or prints the list when not interactive. |
 
 These replace `app`, `deploy` and `destroy`. `--repo` takes `owner/name` or a URL, and defaults to the repo `git remote get-url origin` names in the current directory.
 

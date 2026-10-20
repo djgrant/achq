@@ -6,15 +6,16 @@ import { formatSessions, sessionsFor } from "../src/sessions.ts";
 import { world } from "./world.ts";
 
 describe("sessions and resume", () => {
-  test("sessions lists a thread's sessions; resume opens the one picked, holding the lock", async () => {
+  test("sessions lists a thread's sessions, or every thread's; resume opens the one picked, holding the lock", async () => {
     const w = await world();
     w.channel.open(8);
     await w.send(w.channel.event(8, "opened", "go"));
     const sessions = sessionsFor(w.paths, "8");
     expect(sessions.map((s) => s.agent).sort()).toEqual(["coder", "triage"]);
     const lines = JSON.parse(formatSessions(sessions));
-    expect(Object.keys(lines[0]).sort()).toEqual(["agent", "id", "lastRun", "workspace"]);
+    expect(Object.keys(lines[0]).sort()).toEqual(["agent", "id", "lastRun", "thread", "workspace"]);
     expect(sessionsFor(w.paths, "9")).toEqual([]);
+    expect(sessionsFor(w.paths).map((s) => s.thread)).toEqual(["8", "8"]);
 
     const out: string[] = [];
     const base = { paths: w.paths, number: "8", loadConfig: w.load, container: "dev", env: w.env, stdio: ["ignore", "ignore", "ignore"] as ["ignore", "ignore", "ignore"], out: (t: string) => out.push(t) };
