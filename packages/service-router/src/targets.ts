@@ -1,4 +1,3 @@
-// Pure: the router's state goes in, targets come out.
 import { type ChannelProvider, type ChannelEvent, type RouterRepoConfig, threadKey } from "@achq/core";
 
 export type Target =

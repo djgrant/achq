@@ -1,5 +1,3 @@
-// Plain data: what crosses the wire and the sandbox boundary. The generic
-// parts are @achq/utils/json; these are its names in core.
 import { type Json, sameJson, stableStringify, toJsonValue } from "@achq/utils/json";
 
 export type Data = Json;

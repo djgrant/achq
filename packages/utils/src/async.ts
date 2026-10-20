@@ -1,4 +1,3 @@
-// Across processes, see flock.ts.
 import { errorMessage } from "./errors.ts";
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));

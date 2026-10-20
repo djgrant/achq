@@ -1,4 +1,3 @@
-// The design doc's repo config, split across files the way a repo would.
 export const DOC_CONFIG = {
   "config.ts": `
 import { Container, Workspace, Trigger } from "achq";

@@ -1,5 +1,3 @@
-// JSON files as state: a missing file reads as a fallback rather than an
-// error, and writes are atomic (see write.ts) into a directory made on demand.
 import * as fs from "node:fs";
 import * as fsp from "node:fs/promises";
 import * as path from "node:path";

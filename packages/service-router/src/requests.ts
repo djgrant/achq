@@ -1,5 +1,3 @@
-// The request bodies the router accepts. It stays small and has no zod, so
-// each shape is a plain check, wrapped as the Schema that parseBody takes.
 import type { ClaimRequest, CredentialsRequest, MintRequest, RouterRepoConfig, ValidateRequest, WakeRequest } from "@achq/core";
 import type { Schema } from "@achq/utils/http";
 import { isPlainObject } from "@achq/utils/json";
@@ -7,6 +5,7 @@ import { REPO } from "./constants.ts";
 
 type Fields = Record<string, unknown>;
 
+// The router holds every App's key, so it stays small: plain checks, no zod.
 const objectSchema = <T>(fits: (value: Fields) => boolean): Schema<T> => ({
   safeParse: (value) => (isPlainObject(value) && fits(value) ? { success: true, data: value as T } : { success: false }),
 });

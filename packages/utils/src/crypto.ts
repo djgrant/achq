@@ -1,5 +1,3 @@
-// All as lowercase hex so they fit in env
-// variables, file names and headers.
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 
 export const hmacHex = (secret: string, data: string): string => createHmac("sha256", secret).update(data).digest("hex");

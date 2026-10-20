@@ -1,5 +1,3 @@
-// GitHub's REST API as raw requests: auth, headers, errors and pages. What the
-// routes mean is in github.ts.
 import { HttpError } from "../http.ts";
 
 export const GITHUB_API = "https://api.github.com";

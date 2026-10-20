@@ -1,5 +1,3 @@
-// What `achq status` prints: from a repo, its ACHQ_STATUS; from the infra,
-// every repo the router has installed or deployed, as a table.
 import type { DeployRecord, InstalledRepo, Status } from "@achq/core";
 import { alignedTable } from "@achq/utils/text";
 

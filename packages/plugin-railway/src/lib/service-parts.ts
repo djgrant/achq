@@ -1,8 +1,3 @@
-// The router or the deployer on Railway: an image service on the stock Bun
-// image, its groups of variables, and its deploy, over its settings and every
-// group's variables together, so it hashes as one map did before groups. Its
-// start command downloads achq at ACHQ_REF, installs its dependencies once,
-// and runs the service's entry point.
 import { ACHQ_SOURCE, all, type Context, ENV, type EnvValues, type Input, type ManagedResource, type Output, type Service as AchqService } from "@achq/core";
 import { duplicates } from "@achq/utils/collections";
 import type { InstanceSettings } from "@achq/utils/railway";

@@ -1,7 +1,3 @@
-// GitHub's side of the e2e: who's on GitHub, and the webhook deliveries it
-// sends, shaped as GitHub sends them and signed with the App's webhook secret.
-// Each comment or issue is put on the fake GitHub before it's delivered, as
-// it's on GitHub before the webhook goes out.
 import { randomUUID } from "node:crypto";
 import { implementationSecret } from "@achq/core/secrets";
 import { hmacHex } from "@achq/core/signing";

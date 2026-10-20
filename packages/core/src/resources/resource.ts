@@ -1,6 +1,3 @@
-// Every resource is one class: what it's declared with, and, if achq keeps it
-// in shape, how to read, compare and change it. A resource can be made of
-// others, its children, which are planned with it.
 import type { Change } from "../engine/plan.ts";
 import { hasUnknown, type Inputs, Output, type Planned, UNKNOWN, type Unknown } from "../engine/values.ts";
 import { declare } from "./declarations.ts";

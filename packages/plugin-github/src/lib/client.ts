@@ -1,5 +1,3 @@
-// Where GitHub's API and website are for achq, and who an App is on them. The
-// client itself is @achq/utils/gh.
 import { type Auth, GitHub } from "@achq/utils/gh";
 import { GITHUB_API, GITHUB_ENV, GITHUB_WEB } from "./constants.ts";
 

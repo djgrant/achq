@@ -1,14 +1,3 @@
-// A sketch of achq's primitives. Types only; nothing here runs.
-//
-// Two kinds of thing:
-//   - Extension points (interfaces): what a platform or service implements.
-//     Channel, AccessProvider, Agent, RouterHost, ContainerHost. One class can
-//     implement several: github.App is a Channel, an AccessProvider and a Deployable.
-//   - Framework resources (classes): what users declare; achq implements them.
-//     Container, Workspace, Trigger, Policy, Router, Deployer.
-
-// ─── Resources ───────────────────────────────────────────────────────────────
-
 /** Anything declared in a config. Constructing one registers it in the graph. */
 export abstract class Resource<Inputs> {
   constructor(

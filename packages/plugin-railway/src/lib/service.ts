@@ -1,7 +1,3 @@
-// A service and what's fixed to it: its settings, volume, private hostname,
-// public domain and whether it deploys on push. Not its variables: they're
-// their own resource, so the service's URL is known before them. It can read
-// them, though, as they were before this run: its `env`.
 import { type Change, type Context, known, ManagedResource, type Planned, UNKNOWN } from "@achq/core";
 import { allOf } from "@achq/utils/async";
 import type { FoundService, Instance, InstanceSettings, PrivateEndpoint, RailwayService, ServiceDomain } from "@achq/utils/railway";

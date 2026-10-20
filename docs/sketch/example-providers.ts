@@ -1,6 +1,3 @@
-// What GitHub, Railway and Claude would look like against the primitives.
-// Declarations only: the shapes the example configs use.
-
 import {
   type AccessProvider, type Agent, type Channel, type ContainerHost, type Data, type Deployable,
   type EventSelector, Policy, Resource, type RouterHost, type ThreadSelector, type Deployer, type Router,

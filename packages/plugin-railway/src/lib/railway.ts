@@ -1,5 +1,3 @@
-// The Railway account achq works in: its token, and maybe its workspace and a
-// fake API to point at, from the environment.
 import { type Env, optionalEnv, requireEnv } from "@achq/utils/env";
 import { RAILWAY_API, Railway, RailwayError, type RailwayService, type ServiceAt } from "@achq/utils/railway";
 import { RAILWAY_ENV } from "./constants.ts";

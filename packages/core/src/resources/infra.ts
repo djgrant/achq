@@ -1,5 +1,3 @@
-// What the ACHQ infra declares. A plugin (railway) subclasses the router and
-// deployer with where they run, as resources made of its own.
 import { GENERATED, type Input, type Output } from "../engine/values.ts";
 import { DEPLOYER_PORT, ROUTER_PUBLIC_PORT } from "../wire/constants.ts";
 import { declared, resetDeclarations } from "./declarations.ts";

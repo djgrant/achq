@@ -1,5 +1,3 @@
-// The checks in "Checks" (docs/achq-design.md) that need nothing but the
-// manifest, the tree and the router's sources.
 import type { ConfigTree, RepoManifest, SourceSettings } from "@achq/core";
 import { normaliseRepoPath } from "./config/index.ts";
 import { CONFIG_DIR } from "./constants.ts";

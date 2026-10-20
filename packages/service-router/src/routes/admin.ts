@@ -1,6 +1,3 @@
-// Admin-signed requests from the deployer and the infra CLI: repo config, the
-// deployer's own access, what the router knows, failed deliveries, and
-// requests for the deployer.
 import type { MintRequest, ValidateRequest } from "@achq/core";
 import { adminSecret } from "@achq/core/secrets";
 import { verifyAdminRequest } from "@achq/core/signing";

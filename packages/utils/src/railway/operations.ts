@@ -1,6 +1,3 @@
-// Every query and mutation made of Railway's GraphQL API, keyed by the field
-// each one asks for. The fake Railway in `@achq/test-utils` answers each by
-// that key and is typed against this table, so the two stay in step.
 import type { Instance, InstanceAt, InstanceSettings, ProjectSummary, ServiceAt, ServiceDomain, Workspace } from "./types.ts";
 
 export type Data = Record<string, any>;

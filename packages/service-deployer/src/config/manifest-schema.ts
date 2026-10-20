@@ -1,6 +1,3 @@
-// The manifest is untrusted. A config can monkeypatch anything inside the sandbox,
-// including collectManifest, so the manifest's shape and references are checked again
-// here, strictly.
 import { z } from "zod";
 import { type Data, RESOURCE_NAME, type RepoManifest } from "@achq/core";
 import { duplicates } from "@achq/utils/collections";
@@ -61,6 +58,7 @@ const assertRefs = <T extends Named>(items: T[], label: string, refsOf: (item: T
     for (const ref of refsOf(item)) if (!known.has(ref)) throw new Error(`${label} ${item.name} refers to ${kind} "${ref}", which isn't in the manifest`);
 };
 
+/** Strict, because the config can monkeypatch anything in the sandbox, collectManifest included, and forge what comes back. */
 export const parseManifest = (json: string): RepoManifest => {
   const parsed = manifestSchema.safeParse(parseJson(json));
   if (!parsed.success) {

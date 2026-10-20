@@ -1,5 +1,3 @@
-// An empty variable counts as unset, as it does for a shell's `${X:-default}`.
-
 export type Env = Record<string, string | undefined>;
 
 export const optionalEnv = (env: Env, name: string): string | undefined => env[name] || undefined;

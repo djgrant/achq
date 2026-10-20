@@ -1,6 +1,3 @@
-// The fields of GitHub's responses that callers read. GitHub sends more; these
-// name only what's relied on.
-
 /** Permission name to level: `{ contents: "write" }`. */
 export type Permissions = Record<string, string>;
 

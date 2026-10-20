@@ -1,5 +1,3 @@
-// An agent's own config directory: its startup files, `settings.json` and
-// `.claude.json`, and its session transcripts.
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { updateJsonSync, writeFileEnsured } from "@achq/utils/fs";

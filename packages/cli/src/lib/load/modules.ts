@@ -1,6 +1,3 @@
-// The infra file's `achq`, `achq/github`, `achq/claude` and `achq/railway` imports resolve to
-// this checkout's modules. That way the resources it declares are the same
-// classes the CLI's `instanceof` checks use.
 import { INFRA_MODULES } from "achq/registry";
 
 let registered = false;

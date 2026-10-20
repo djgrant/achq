@@ -1,7 +1,3 @@
-// The framework's three flows, written only against the interfaces in
-// primitives.ts. No GitHub, Railway or Claude here: those are plugged in.
-// Helpers that are plain plumbing are declared, not written.
-
 import type {
   AccessProvider, Agent, Channel, ChannelEvent, ContainerHost, Credential, Data, Message, Plan, Thread, ThreadRef,
 } from "./primitives.ts";

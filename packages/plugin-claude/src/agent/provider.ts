@@ -1,5 +1,3 @@
-// Claude Code as an agent runtime: each agent gets its own config directory,
-// and each run is a headless `claude -p` in the thread's worktree.
 import * as path from "node:path";
 import { type Agent as CoreAgent, type AgentProvider, type AgentRuntime, type RunContext, type RunResult, type RuntimeContext, stableStringify, toData } from "@achq/core";
 import { sha256Hex } from "@achq/utils/crypto";

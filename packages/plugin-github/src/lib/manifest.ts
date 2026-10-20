@@ -1,6 +1,3 @@
-// GitHub's App manifest flow. A local page posts the manifest to GitHub from
-// your browser. GitHub redirects back with a code, which converts into the
-// App's credentials. They stay in memory.
 import { randomHex } from "@achq/utils/crypto";
 import type { CreatedApp } from "@achq/utils/gh";
 import { github } from "./client.ts";

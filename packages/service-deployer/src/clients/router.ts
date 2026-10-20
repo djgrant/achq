@@ -1,5 +1,3 @@
-// The router's admin endpoints, for the deployer. Every request is signed with
-// adminSecret(AGENT_WEBHOOK_KEY).
 import type { InstalledRepo, PolicyCredential, MintRequest, SourceSettings, ValidateRequest, RouterRepoConfig } from "@achq/core";
 import { adminSecret } from "@achq/core/secrets";
 import { signedFetch } from "@achq/core/signing";

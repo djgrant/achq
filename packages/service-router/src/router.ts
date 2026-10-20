@@ -1,7 +1,3 @@
-/**
- * The router holds every App's key, so it stays small. It only parses JSON and
- * checks signatures. Everything else lives behind the interfaces it's handed.
- */
 import { withHealthAndErrors } from "@achq/utils/http";
 import { ADMIN_PREFIX } from "./constants.ts";
 import { createContext, type RouterContext, type RouterDeps } from "./context.ts";

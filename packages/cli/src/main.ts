@@ -1,4 +1,3 @@
-// Runs pok's runner directly, so `bin/achq` and an npm-installed `achq` need no global `pok`.
 import { runCli } from "@pokit/core";
 import { createTerminalUI } from "@pokit/terminal";
 import * as path from "node:path";

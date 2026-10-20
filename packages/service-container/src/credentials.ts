@@ -1,5 +1,3 @@
-// Agents' credentials are installed on the volume by each policy provider. The
-// runner's channel credentials are kept in memory only.
 import type { ChannelCredential, CredentialsRequest, CredentialsResponse, PolicyProvider } from "@achq/core";
 import { signedFetch } from "@achq/core/signing";
 import { singleFlight } from "@achq/utils/async";

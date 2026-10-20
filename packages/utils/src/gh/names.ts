@@ -1,5 +1,3 @@
-// GitHub compares repo names case-insensitively.
-
 export const splitRepo = (fullName: string): { owner: string; name: string } => {
   const [owner = "", name = ""] = fullName.split("/");
   return { owner, name };

@@ -1,5 +1,3 @@
-// An account's workspaces and projects, and a project's services. Each level
-// holds where it is, so callers name a project, environment and service once.
 import { OPERATIONS, nodes, type RawProject } from "./operations.ts";
 import { RailwayService } from "./service.ts";
 import { RAILWAY_API, RailwayError, RailwayTransport } from "./transport.ts";

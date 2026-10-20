@@ -1,6 +1,3 @@
-// achq-agent                          serve (the container's CMD)
-// achq-agent sessions <n>             print thread <n>'s sessions as a JSON array
-// achq-agent resume <n> <session-id>  open a session interactively, holding the thread's lock
 import { CONTAINER_PORT } from "@achq/core";
 import { createAgent } from "./agent.ts";
 import { savedAgentEnv } from "./agent-env.ts";

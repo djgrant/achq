@@ -1,8 +1,3 @@
-// A fake GitHub API that checks what real GitHub would. App JWTs are verified
-// against the App's public key. Installation tokens only reach the repos and
-// permissions they were minted for, and can't be minted beyond the
-// installation's grant. `addRepo` serves git data from a real repository on
-// disk, so git fetches return the commits the API describes.
 import { createVerify, generateKeyPairSync } from "node:crypto";
 
 export type FakeApp = { slug: string; id: string; privateKey: string; publicKey: string; events: string[]; permissions: Record<string, string> };

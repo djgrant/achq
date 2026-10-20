@@ -1,7 +1,3 @@
-// A repo set up for achq on GitHub: the config's App installed on it. What
-// `achq install` and `uninstall` plan. Made by the code host provider from a
-// repo's config, not declared, and read and changed as your gh login, not as
-// the App.
 import { type Change, type Context, ManagedResource } from "@achq/core";
 import { type AppSettings, type GitHub, sameLogin, sameRepo, splitRepo, type UserInstallation } from "@achq/utils/gh";
 import { githubUrls } from "../lib/client.ts";

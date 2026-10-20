@@ -1,6 +1,3 @@
-// A directory of JSON files, one per name: a small store that survives
-// restarts. Writes to one name run in order, so an older value can't land
-// after a newer one, and each is atomic, so a crash leaves the old value.
 import * as fsp from "node:fs/promises";
 import { keyedQueue } from "../async.ts";
 import { type JsonWriteOptions, jsonFile, listJsonNames, readJson, writeJson } from "./json.ts";

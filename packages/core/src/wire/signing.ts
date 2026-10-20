@@ -1,5 +1,3 @@
-// Requests between achq's services are signed over the method, path, timestamp
-// and body, so a captured request can't be replayed elsewhere or later.
 import { hmacHex, safeEqual } from "@achq/utils/crypto";
 import { adminSecret } from "./secrets.ts";
 

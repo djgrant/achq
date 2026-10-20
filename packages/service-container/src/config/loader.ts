@@ -1,10 +1,3 @@
-// The container runs its repo's config natively, at the commit the router
-// forwarded, for the parts that are code (agent settings).
-//
-// `.achq/` comes from the bare mirror rather than the code host's API. The
-// mirror is already there for worktrees and is fetched with the agents'
-// credentials, so no extra permission or API client is needed. A commit
-// already fetched also loads offline, which `resume` needs.
 import * as fs from "node:fs";
 import * as path from "node:path";
 import type { Agent, RepoManifest } from "@achq/core";
@@ -46,6 +39,7 @@ export const createConfigLoader = (opts: ConfigLoaderOptions): ((commit: string)
     const dir = opts.dir(commit);
     const tree = path.join(dir, "tree");
     fs.rmSync(dir, { recursive: true, force: true });
+    // From the mirror, not the code host's API: it's already fetched with the agents' credentials, and works offline.
     await extractTree(opts.mirror, commit, CONFIG_DIR, tree);
     const root = path.join(tree, CONFIG_DIR);
     // A new directory per load, because a path imported before would come from the module cache.

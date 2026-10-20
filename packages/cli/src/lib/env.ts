@@ -1,5 +1,3 @@
-// The CLI's environment, where a value can be a 1Password reference, e.g.
-// op://vault/item/field, read with `op` when it's used.
 import { type Env, requireEnv } from "@achq/utils/env";
 import { run } from "@achq/utils/process";
 

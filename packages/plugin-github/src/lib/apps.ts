@@ -1,6 +1,3 @@
-// Acting as a GitHub App: its keys, the JWTs they sign, installation tokens,
-// and the webhook secret. Only the router and `achq up` have App keys; the
-// container never does.
 import { implementationSecret } from "@achq/core/secrets";
 import { errorMessage } from "@achq/utils/errors";
 import { appJwt, type GitHub, type Installation, splitRepo, type TokenNarrowing } from "@achq/utils/gh";

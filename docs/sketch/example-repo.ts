@@ -1,5 +1,3 @@
-// A subscriber repo's .achq/config.ts: one container, two workspaces, two agents.
-
 import { Container, Trigger, Workspace } from "./primitives.ts";
 import { Claude, GitHubApp, RepoPolicy } from "./example-providers.ts";
 

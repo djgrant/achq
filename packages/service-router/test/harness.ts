@@ -1,5 +1,3 @@
-// The router over real HTTP. The fake containers, deployer and GitHub API are
-// real servers that check the signatures they receive. A temp dir is its volume.
 import { afterEach, expect } from "bun:test";
 import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";

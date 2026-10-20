@@ -1,6 +1,3 @@
-// Railway can't say what a deploy was made from, so achq keeps a hash of an
-// image service's settings and variables in DEPLOYED, and deploys whenever
-// they hash differently.
 import { type Change, type Context, known, ManagedResource, type Planned } from "@achq/core";
 import { pollUntil } from "@achq/utils/async";
 import { sortKeys } from "@achq/utils/collections";
@@ -21,7 +18,7 @@ type Outputs = { fingerprint: string };
 
 const FINGERPRINT_CHARS = 16;
 
-/** What a deploy was made from, kept in DEPLOYED. Variables are sorted, so their order doesn't count. */
+/** Railway can't say what a deploy was made from, so its hash is kept in DEPLOYED. Variables are sorted, so their order doesn't count. */
 export const fingerprint = (spec: { settings: InstanceSettings; variables: Record<string, string> }) =>
   sha256Hex(JSON.stringify({ settings: spec.settings, variables: sortKeys(spec.variables) }), FINGERPRINT_CHARS);
 

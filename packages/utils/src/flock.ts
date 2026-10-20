@@ -1,12 +1,10 @@
-// File locks through flock(2), run by perl, which Debian always has
-// (perl-base is essential) and macOS ships, unlike util-linux's flock(1). The
-// kernel drops a lock when its holder dies, so a crash never leaves one behind.
 import * as fs from "node:fs";
 import * as path from "node:path";
 
 /** Exit status when the lock is already held. */
 export const BUSY = 75;
 
+// perl rather than flock(1): Debian always has perl-base and macOS ships perl, but not util-linux.
 const HOLD = `use Fcntl ":flock"; open(my $f, ">>", $ARGV[0]) or die "$ARGV[0]: $!"; flock($f, LOCK_EX) or die "flock: $!"; $| = 1; print "locked\\n"; 1 while <STDIN>;`;
 
 /**

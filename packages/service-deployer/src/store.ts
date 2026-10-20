@@ -1,5 +1,3 @@
-// The deployer's volume: one record per repo, and the deliveries it has
-// handled. Every file is written atomically and readable only by the deployer.
 import { join } from "node:path";
 import type { DeployRecord, RepoManifest } from "@achq/core";
 import { createJsonDirStore, readJson, safeFileName, writeJson } from "@achq/utils/fs";

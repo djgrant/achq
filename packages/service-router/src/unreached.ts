@@ -1,5 +1,3 @@
-// What the router says on a thread when no container answered its delivery,
-// so whoever asked isn't left waiting.
 import { type ChannelEvent, threadKey } from "@achq/core";
 import { errorMessage } from "@achq/utils/errors";
 import type { RouterContext } from "./context.ts";

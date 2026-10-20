@@ -1,4 +1,3 @@
-// Reaching a service that may be asleep: the router retries while it wakes.
 import { signedRequestInit } from "@achq/core/signing";
 import { type Attempt, retry } from "@achq/utils/async";
 import type { RouterContext } from "./context.ts";

@@ -1,5 +1,3 @@
-// Railway's objects as achq reads them: only the fields it asks for.
-
 export type ProjectAt = { projectId: string; environmentId: string };
 export type ServiceAt = ProjectAt & { serviceId: string };
 export type InstanceAt = { environmentId: string; serviceId: string };

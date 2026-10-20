@@ -1,5 +1,3 @@
-// Deliveries some target never answered, kept in `failed/`: listed for
-// `achq status`, and put back in the inbox by `achq replay`.
 import type { FailedDelivery, ReplayResult } from "@achq/core";
 import { configOf, type RouterContext } from "./context.ts";
 import { acceptDelivery, type FailedEntry, targetLabel } from "./inbox.ts";

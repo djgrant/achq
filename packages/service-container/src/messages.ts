@@ -1,6 +1,3 @@
-// What the runner says on threads, and to whoever runs `resume`. Kept apart
-// from the code that decides to say it.
-
 const WARNING = "⚠️";
 const SHORT_COMMIT = 7;
 

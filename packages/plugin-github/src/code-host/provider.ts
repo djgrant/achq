@@ -1,7 +1,3 @@
-// The deployer reads `.achq/` and writes ACHQ_STATUS with the repo-scoped token
-// the router minted for it. The router checks `/wake` with the caller's token,
-// and lists installed repos with the App keys. The CLI reads ACHQ_STATUS,
-// commits, and installs the config's App as your gh login.
 import { type CodeHostProvider, type ConfigTree, type Credential, type FileLimits, type InstalledRepo, type RepoClient, type RepoManifest, STATUS_VARIABLE, type Status } from "@achq/core";
 import { type GitHub, ghToken, repoKey, type RepoApi, type TreeEntry } from "@achq/utils/gh";
 import type { Apps } from "../lib/apps.ts";

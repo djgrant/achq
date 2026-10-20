@@ -1,5 +1,3 @@
-// What `achq status` says about deliveries the router couldn't make, and what
-// `achq replay` did with them.
 import { type FailedDelivery, type ReplayResult, threadKey } from "@achq/core";
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;

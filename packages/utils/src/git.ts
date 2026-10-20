@@ -1,5 +1,3 @@
-// Git, run as the git CLI so it uses the same config and credential helpers a
-// person's git would. `env` carries those credentials.
 import { $ } from "bun";
 import * as fs from "node:fs";
 import { tryRun } from "./process.ts";

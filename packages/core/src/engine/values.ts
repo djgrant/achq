@@ -1,5 +1,3 @@
-// What resources take and give: plain values, or outputs of other resources,
-// which can be unknown until what they come from is created.
 import { deepEqual, isPlainObject } from "@achq/utils/json";
 import type { ManagedResource } from "../resources/resource.ts";
 

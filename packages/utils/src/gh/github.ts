@@ -1,7 +1,3 @@
-// GitHub's REST API as what callers mean: each route and its response type is
-// written once here, so call sites read as intent (`repo.headOf(branch)`), not
-// as URLs. Which token a call needs is the caller's business: App JWT for the
-// App's own routes, installation or user token for the rest.
 import { type Auth, type ClientOptions, GitHubClient, GitHubError } from "./client.ts";
 import type {
   AccessToken,

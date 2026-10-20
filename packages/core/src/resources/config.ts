@@ -1,4 +1,3 @@
-// What a repo's config declares.
 import { type Data, toData } from "./data.ts";
 import { Resource } from "./resource.ts";
 

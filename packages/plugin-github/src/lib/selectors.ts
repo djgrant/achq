@@ -1,6 +1,3 @@
-// Selectors: which events start a run and which threads a workspace claims,
-// as plain data, and how they match. The config side imports this, so it
-// imports no Node code.
 import { type ChannelEvent, EventSelector, type SelectorData, type ThreadRef, ThreadSelector } from "@achq/core";
 import { escapeRegExp } from "@achq/utils/text";
 import { CHANNEL } from "./constants.ts";

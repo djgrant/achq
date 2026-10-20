@@ -1,6 +1,3 @@
-// Pure, with no Node or Bun imports, because core uses it inside the config
-// sandbox.
-
 export type Json = string | number | boolean | null | Json[] | { [key: string]: Json };
 
 /** An object literal or `Object.create(null)`: not an array, a class instance or a function. */

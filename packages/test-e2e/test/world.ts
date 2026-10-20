@@ -1,5 +1,3 @@
-// The e2e's world: a repo with an `.achq/`, a fake GitHub holding it, and the
-// real router, deployer and containers wired together over real HTTP.
 import { expect } from "bun:test";
 import { $ } from "bun";
 import * as fs from "node:fs";

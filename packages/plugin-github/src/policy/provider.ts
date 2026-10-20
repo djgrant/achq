@@ -1,5 +1,3 @@
-// Policies as App installation tokens: the router validates and mints them,
-// and the container installs them where git and gh look.
 import * as fs from "node:fs";
 import * as path from "node:path";
 import type { PolicyCredential, PolicyData, PolicyProvider } from "@achq/core";

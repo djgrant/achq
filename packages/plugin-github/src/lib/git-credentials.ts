@@ -1,5 +1,3 @@
-// The files that make agents' tokens usable by git and gh, as
-// `GitHubPolicyProvider.install` writes them in its directory.
 import * as fs from "node:fs";
 import * as path from "node:path";
 import type { PolicyCredential } from "@achq/core";

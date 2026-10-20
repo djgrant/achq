@@ -1,6 +1,3 @@
-// Pure, with no Node or Bun imports, so core's planner can use it inside the
-// config sandbox.
-
 /**
  * `roots` and everything reachable from them through `next`, each once, in
  * depth-first order: a node, then what it leads to. `next` is asked once per node.

@@ -1,5 +1,3 @@
-// Containers asking for credentials and claiming threads. Each request names
-// its container in the body, and is signed with that container's secret.
 import {
   type ChannelCredential,
   type ClaimRequest,

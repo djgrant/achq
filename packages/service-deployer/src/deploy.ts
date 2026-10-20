@@ -1,5 +1,3 @@
-// See "Subscribing", "Config changes", "Checks" and "Deploy results" in
-// docs/achq-design.md.
 import {
   type CodeHostProvider,
   type ConfigTree,

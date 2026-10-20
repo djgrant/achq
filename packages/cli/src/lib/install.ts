@@ -1,6 +1,3 @@
-// `achq install` and `uninstall`: what the repo's code host makes to set it up
-// for achq, or tear it down, from its config, planned and printed. It acts as
-// you.
 import type { CodeHostProvider, RepoManifest, Resource } from "@achq/core";
 import { plan } from "@achq/core";
 import { plural } from "@achq/utils/text";

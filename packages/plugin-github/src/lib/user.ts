@@ -1,4 +1,3 @@
-// GitHub as your `gh` login: `achq install`, `uninstall` and the repo commands act as you, not as the App.
 import { ghToken } from "@achq/utils/gh";
 import { github } from "./client.ts";
 

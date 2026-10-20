@@ -1,5 +1,3 @@
-// Paths built from names and relative paths that come from outside: a thread
-// id, a delivery id, a path written in a repo's config.
 import * as path from "node:path";
 
 /** Names that are safe as one path segment: no separators, and not `.` or `..`. */

@@ -1,5 +1,3 @@
-// Deliveries the router has accepted. Each is on the volume until every target
-// has answered, so a crash or restart replays it rather than losing it.
 import type { ChannelEvent, ContainerEnvelope, DeployerEnvelope } from "@achq/core";
 import { adminSecret, containerSecret } from "@achq/core/secrets";
 import { errorMessage } from "@achq/utils/errors";

@@ -1,7 +1,3 @@
-// The deployer starts containers' builds itself, so automatic deploys on push
-// are turned off once a service is connected. `ensure` reconciles the service
-// and its variables; `deploy` builds, imperatively. The CLI reaches a
-// container through `railway ssh`.
 import { type Change, type Context, type ContainerProvider, type ContainerShell, type ContainerSpec, ENV, plan } from "@achq/core";
 import { randomHex } from "@achq/utils/crypto";
 import { requireBinary, spawnCollect } from "@achq/utils/process";

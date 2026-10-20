@@ -1,5 +1,3 @@
-// The GitHub API the deployer reads `.achq/` and writes ACHQ_STATUS through, as a
-// real HTTP server. Tokens only reach the repo they were minted for.
 import { createHash } from "node:crypto";
 
 type Obj = { type: "blob"; content: Buffer } | { type: "tree"; entries: { path: string; mode: string; type: "blob" | "tree"; sha: string }[] } | { type: "commit"; tree: string };

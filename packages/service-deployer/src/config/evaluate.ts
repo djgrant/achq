@@ -1,7 +1,3 @@
-// Evaluates a repo's `.achq/` without trusting it. Each file is transpiled on
-// its own with macros off, so none of its code runs here. It runs in the
-// sandbox, where a prebuilt achq is the only thing to import. The manifest that
-// comes back is checked strictly, since the config could have forged it.
 import { posix } from "node:path";
 import { type Limits, run } from "@achq/utils/sandbox";
 import type { RepoManifest } from "@achq/core";

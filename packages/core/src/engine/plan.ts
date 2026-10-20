@@ -1,6 +1,3 @@
-// `plan` reads and compares every managed resource in dependency order and
-// changes nothing. `apply` applies what differs, reading and comparing a
-// resource again first if its inputs changed since.
 import { type Context, ManagedResource, type Resource } from "../resources/resource.ts";
 import { reachable, topoSort } from "@achq/utils/collections";
 import { dependencies, hasUnknown, type Input, type Outputs, resolve, same, type Unknown } from "./values.ts";

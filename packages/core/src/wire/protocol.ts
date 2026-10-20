@@ -1,39 +1,3 @@
-// The HTTP contract between the router, the deployer, containers and the CLI.
-//
-// Signing (see secrets.ts `signedHeaders` / `verifySigned`):
-//   admin      adminSecret(AGENT_WEBHOOK_KEY)                 router ⇄ deployer, infra CLI → router
-//   container  containerSecret(AGENT_WEBHOOK_KEY, repo, name) router ⇄ container
-//
-// Router, public port (ROUTER_PUBLIC_PORT):
-//   GET  /                         health
-//   POST /webhook                  channel deliveries (each channel verifies its own)
-//   POST /wake                     WakeRequest, `authorization: Bearer <token>` from someone who can push to the repo, on its host
-//   *    /admin/...                as on the private port, admin-signed, for the infra CLI
-//
-// Router, private port (ROUTER_PRIVATE_PORT):
-//   POST /credentials              CredentialsRequest → CredentialsResponse     container-signed
-//   POST /claims                   ClaimRequest → 204                           container-signed
-//   PUT  /admin/repos/<owner>/<repo>   RouterRepoConfig → 204                   admin
-//   DELETE /admin/repos/<owner>/<repo> → 204                                    admin
-//   GET  /admin/repos              → RouterRepoConfig[]                         admin
-//   POST /admin/mint               MintRequest → PolicyCredential[]             admin (the deployer's own access)
-//   POST /admin/validate           ValidateRequest → { problems: string[] }     admin
-//   GET  /admin/installed          → InstalledRepo[]                            admin
-//   GET  /admin/sources            → SourceSettings[]                           admin
-//   POST /admin/sync               SyncRequest → SyncResult                     admin, forwarded to the deployer (wakes it)
-//   GET  /admin/status             → DeployRecord[]                             admin, forwarded to the deployer
-//   GET  /admin/failed             → FailedDelivery[]                           admin
-//   POST /admin/failed/replay      → ReplayResult                               admin
-//
-// Deployer (DEPLOYER_PORT, private):
-//   GET  /                         health
-//   POST /events                   DeployerEnvelope → 202                       admin   (installation and push events)
-//   POST /sync                     SyncRequest → SyncResult                     admin
-//   GET  /status                   → DeployRecord[]                             admin
-//
-// Container (CONTAINER_PORT, private):
-//   GET  /                         health
-//   POST /events                   ContainerEnvelope → 202                      container-signed
 import type { RepoManifest } from "../resources/repo-manifest.ts";
 import type { PolicyData, SelectorData } from "../resources/config.ts";
 import type { PolicyCredential } from "../contracts/policy-provider.ts";

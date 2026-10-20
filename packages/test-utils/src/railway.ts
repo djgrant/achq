@@ -1,8 +1,3 @@
-// A fake of Railway's GraphQL API, with its state in memory. It matches on
-// the field an operation asks for and returns whole objects, ignoring the
-// query's fields. That works because `@achq/utils/railway` only reads the
-// fields it asked for. Its handlers are typed against that client's
-// operations, so one added there must be answered here.
 import { isMutation, type RailwayField, rootField } from "@achq/utils/railway";
 
 type FakeService = {
@@ -57,6 +52,7 @@ export const startFakeRailway = (seed: { workspaces?: string[] } = {}): FakeRail
     s.endpoint ??= { publicId: id("pne"), dnsName: s.name };
   };
 
+  // Each returns whole objects whatever fields the query names: @achq/utils/railway only reads the fields it asks for.
   const handlers: Record<RailwayField, (v: any) => unknown> = {
     apiToken: () => ({ workspaces }),
     projects: () => ({ edges: projects.map((p) => ({ node: { id: p.id, name: p.name } })) }),

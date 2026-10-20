@@ -1,6 +1,3 @@
-// A bare mirror of the repo with one worktree per thread. Remote branches are
-// fetched as remote-tracking refs, so fetching never moves a branch that a
-// thread's worktree has checked out. `env` carries the credentials git uses.
 import { $ } from "bun";
 import * as fs from "node:fs";
 import * as path from "node:path";

@@ -1,7 +1,3 @@
-// A channel, declared in the ACHQ infra: a GitHub App and its webhook. Its
-// webhooks go to the router, and the router mints its tokens. GitHub never
-// gives a private key back, so an App achq can act as is one whose key the
-// router keeps: without one, it's created through the manifest flow.
 import { all, type Change, type Context, known, ManagedResource, type Planned, type Router, UNKNOWN } from "@achq/core";
 import type { AppSettings, HookConfig } from "@achq/utils/gh";
 import { type AppKeys, asAppOnce, appsVariable, appWebhookSecret, parseApps } from "../lib/apps.ts";

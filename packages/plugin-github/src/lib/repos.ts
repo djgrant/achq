@@ -1,5 +1,3 @@
-// A repo as the CLI reads it: the commit that last touched some paths, the
-// repo a remote names, and the ACHQ_STATUS variable the deployer writes.
 import { STATUS_VARIABLE, type Status } from "@achq/core";
 import type { CommitSummary, GitHub } from "@achq/utils/gh";
 

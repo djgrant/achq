@@ -1,5 +1,3 @@
-// Every secret derives from AGENT_WEBHOOK_KEY. Each derivation has its own
-// label, so no two collide.
 import { hmacHex } from "@achq/utils/crypto";
 
 const derive = (key: string, label: string) => hmacHex(key, label);

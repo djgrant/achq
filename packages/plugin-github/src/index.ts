@@ -1,5 +1,3 @@
-// What a repo's config imports. Runs in the deployer's sandbox, so it imports
-// no Node code: the Channel resource, which does, is in infra.ts.
 import { ChannelRef } from "./channel/config.ts";
 
 export { ChannelRef } from "./channel/config.ts";

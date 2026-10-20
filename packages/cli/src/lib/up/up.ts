@@ -1,10 +1,3 @@
-// The infra's resources as one plan: it reads everything and prints what would
-// change, applying makes it (the router's deploy waits until it's live), then
-// the router syncs the deployer's repos.
-//
-// The infra declares where the router and deployer run and what else they
-// serve (e.g. GitHub Apps, which declare their own variables on the router);
-// this declares the variables achq itself gives them.
 import { type Deployer, DEPLOYER_PORT, ENV, known, plan, type Router, ROUTER_PRIVATE_PORT, type SyncRequest, type SyncResult } from "@achq/core";
 import { cliContext } from "../context.ts";
 import type { InfraResources } from "../load/infra.ts";

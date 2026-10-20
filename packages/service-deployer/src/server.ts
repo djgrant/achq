@@ -1,4 +1,3 @@
-// Every route but health must be admin-signed (see core's protocol.ts).
 import type { DeployerEnvelope } from "@achq/core";
 import { verifyAdminRequest } from "@achq/core/signing";
 import { jsonResponse, parseBody, textResponse, withHealthAndErrors } from "@achq/utils/http";

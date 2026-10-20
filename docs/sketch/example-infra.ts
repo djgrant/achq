@@ -1,5 +1,3 @@
-// An infra repo's config: one router and deployer on Railway, two GitHub Apps.
-
 import { Deployer, Router } from "./primitives.ts";
 import { GitHubApp, RailwayContainerHost, RailwayRouterHost } from "./example-providers.ts";
 

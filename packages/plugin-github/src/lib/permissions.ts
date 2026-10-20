@@ -1,6 +1,3 @@
-// What achq asks of GitHub Apps: the events and permissions each part needs,
-// and how permission levels compare.
-
 export type Permissions = Record<string, string>;
 
 const PERMISSION_RANK: Record<string, number> = { read: 1, write: 2, admin: 3 };

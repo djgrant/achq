@@ -1,6 +1,3 @@
-// Writing files so that a reader, or a restart after a crash, sees the old
-// content or the new, never half of either: write a temp file, then rename it
-// over the target, which is atomic on one filesystem.
 import * as fs from "node:fs";
 import * as fsp from "node:fs/promises";
 import * as path from "node:path";

@@ -1,6 +1,3 @@
-// Choosing one of several things a command acts on, e.g. a container or a
-// session: the one already picked, or one you choose at the terminal. Without
-// a terminal, the caller says what happens instead.
 import type { Prompter } from "@pokit/core";
 import { interactive } from "./terminal.ts";
 

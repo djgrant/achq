@@ -1,7 +1,3 @@
-// Runs ES modules in QuickJS compiled to WebAssembly. The guest gets the
-// language's intrinsics and the modules it's given: no host functions, so no
-// filesystem, network, environment, timers or `process`. `console` is guest
-// JavaScript, so code that logs doesn't crash; its lines come back as data.
 import { getQuickJS, type QuickJSContext, type QuickJSHandle } from "quickjs-emscripten";
 
 export type Limits = {

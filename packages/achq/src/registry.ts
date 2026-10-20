@@ -1,6 +1,3 @@
-// The implementations achq is built with, one list per contract. The CLI,
-// router, deployer and container only use core's contracts, and find the
-// implementation here by id.
 import { claudeAgentProvider } from "@achq/claude/agent";
 import type { AgentProvider, ChannelProvider, ContainerProvider, ContainerShell, Implementation, CodeHostProvider, PolicyProvider } from "@achq/core";
 import { githubChannelProvider } from "@achq/github/channel";

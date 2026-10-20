@@ -1,5 +1,3 @@
-// The router's volume: a directory of JSON files for each kind of state, so it
-// survives a restart. createJsonDirStore keeps a crash from leaving half a file.
 import { join } from "node:path";
 import type { RouterRepoConfig } from "@achq/core";
 import { createJsonDirStore } from "@achq/utils/fs";
