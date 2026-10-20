@@ -1,8 +1,10 @@
-import { mkdir, readdir } from "node:fs/promises";
+// The deployer's volume: one record per repo, and the deliveries it has
+// handled. Every file is written atomically and readable only by the deployer.
 import { join } from "node:path";
 import type { DeployRecord, RepoManifest } from "@achq/core";
-import { atomicWrite } from "./atomic-write.ts";
-import { MAX_DELIVERIES } from "./constants.ts";
+import { createJsonDirStore, readJson, safeFileName, writeJson } from "@achq/utils/fs";
+import { serial } from "@achq/utils/async";
+import { MAX_DELIVERIES, PRIVATE_FILE_MODE } from "./constants.ts";
 
 /** What a container was last deployed from: a change to either means a rebuild. */
 export type ImageRecord = { dockerfile: string; blob: string };
@@ -15,46 +17,44 @@ export type StoredRecord = DeployRecord & { deployed?: DeployedSnapshot };
 /** The record without what only the deployer reads. */
 export const wireRecord = ({ deployed: _deployed, ...record }: StoredRecord): DeployRecord => record;
 
-export const recordFile = (repo: string) => `${repo.toLowerCase().replace("/", "__").replace(/[^a-z0-9_.-]/g, "_")}.json`;
+/** Repo names are case-insensitive, so anything kept per repo is kept by the lowercased name. */
+export const repoKey = (repo: string) => repo.toLowerCase();
+
+/** A file name can't start with `.` or be empty. */
+const UNSAFE_START = /^\.|^$/;
+
+/**
+ * The name `repo`'s record is stored under: `owner__name`, with what a file
+ * name can't hold replaced by `_`. A failed deploy of a name that's no repo's
+ * is recorded too, so this takes any string.
+ */
+export const recordName = (repo: string) => safeFileName(repoKey(repo).replace("/", "__")).replace(UNSAFE_START, "_");
+
+/** Forgets the oldest of `list` beyond `MAX_DELIVERIES`. */
+const dropOldest = (list: string[]) => {
+  if (list.length > MAX_DELIVERIES) list.splice(0, list.length - MAX_DELIVERIES);
+};
 
 export const createStore = (dataDir: string) => {
-  const recordsDir = join(dataDir, "records");
+  const records = createJsonDirStore<StoredRecord>(join(dataDir, "records"), { pretty: true, mode: PRIVATE_FILE_MODE });
   const deliveriesFile = join(dataDir, "deliveries.json");
   let deliveries: string[] | undefined;
-  const ready = mkdir(recordsDir, { recursive: true });
-
-  const loadDeliveries = async () => {
-    if (deliveries) return deliveries;
-    const file = Bun.file(deliveriesFile);
-    deliveries = (await file.exists()) ? ((await file.json()) as string[]) : [];
-    return deliveries;
-  };
+  const loadDeliveries = async () => (deliveries ??= await readJson<string[]>(deliveriesFile, []));
+  // One list, shared by every caller, so writes go in order: an older list can't land after a newer one.
+  const inOrder = serial();
 
   return {
-    async get(repo: string): Promise<StoredRecord | undefined> {
-      await ready;
-      const file = Bun.file(join(recordsDir, recordFile(repo)));
-      return (await file.exists()) ? ((await file.json()) as StoredRecord) : undefined;
-    },
-    async put(record: StoredRecord) {
-      await ready;
-      await atomicWrite(join(recordsDir, recordFile(record.repo)), JSON.stringify(record, null, 2));
-    },
-    async all(): Promise<StoredRecord[]> {
-      await ready;
-      const names = (await readdir(recordsDir)).filter((n) => n.endsWith(".json")).sort();
-      return Promise.all(names.map(async (n) => (await Bun.file(join(recordsDir, n)).json()) as StoredRecord));
-    },
-    async handled(delivery: string) {
-      return (await loadDeliveries()).includes(delivery);
-    },
+    get: (repo: string) => records.read(recordName(repo)),
+    put: (record: StoredRecord) => records.write(recordName(record.repo), record),
+    /** Every record, in name order. */
+    all: () => records.all(),
+    handled: async (delivery: string) => (await loadDeliveries()).includes(delivery),
     async markHandled(delivery: string) {
-      await ready;
       const list = await loadDeliveries();
       if (list.includes(delivery)) return;
       list.push(delivery);
-      if (list.length > MAX_DELIVERIES) list.splice(0, list.length - MAX_DELIVERIES);
-      await atomicWrite(deliveriesFile, JSON.stringify(list));
+      dropOldest(list);
+      await inOrder(() => writeJson(deliveriesFile, list, { mode: PRIVATE_FILE_MODE }));
     },
   };
 };

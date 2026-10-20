@@ -8,6 +8,13 @@ export const MAX_DELIVERIES = 5000;
 
 export const DEFAULT_DATA_DIR = "/data";
 
+/** The deployer's files are its own: they hold every repo's deploy state. */
+export const PRIVATE_FILE_MODE = 0o600;
+
+/** A repo's achq config: the directory, and the module evaluation starts from. */
+export const CONFIG_DIR = ".achq";
+export const CONFIG_ENTRY = "config.ts";
+
 /** The loader for each file extension evaluation reads. */
 export const LOADERS = { ts: "ts", mts: "ts", tsx: "tsx", js: "js", mjs: "js", json: "json" } as const;
 

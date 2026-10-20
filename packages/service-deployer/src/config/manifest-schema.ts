@@ -3,6 +3,7 @@
 // here, strictly.
 import { z } from "zod";
 import { type Data, RESOURCE_NAME, type RepoManifest } from "@achq/core";
+import { duplicates } from "@achq/utils/collections";
 
 const name = z.string().regex(RESOURCE_NAME, "must be lowercase letters, digits and dashes, starting with a letter");
 const text = z.string().max(10_000);
@@ -10,12 +11,20 @@ const text = z.string().max(10_000);
 const data: z.ZodType<Data> = z.lazy(() =>
   z.union([z.string().max(100_000), z.number().refine(Number.isFinite), z.boolean(), z.null(), z.array(data).max(10_000), z.record(z.string(), data)]),
 );
-const tagged = <K extends string>(key: K) =>
-  z
-    .record(z.string(), data)
-    .refine((r) => typeof r[key] === "string" && (r[key] as string).length > 0 && (r[key] as string).length <= 100, `needs "${key}"`) as unknown as z.ZodType<
-    { [P in K]: string } & { [key: string]: Data }
-  >;
+
+/** Data with a non-empty string under `key`: a selector's `channel`, a policy's `provider`. */
+type Tagged<K extends string> = { [P in K]: string } & { [key: string]: Data };
+
+const MAX_TAG_LENGTH = 100;
+
+const hasTag = (record: Record<string, Data>, key: string) => {
+  const tag = record[key];
+  return typeof tag === "string" && tag.length > 0 && tag.length <= MAX_TAG_LENGTH;
+};
+
+/** zod can't express "this key is a string, the rest any data", so the refinement's guarantee is asserted in the type. */
+const tagged = <K extends string>(key: K) => z.record(z.string(), data).refine((r) => hasTag(r, key), `needs "${key}"`) as unknown as z.ZodType<Tagged<K>>;
+
 const selector = tagged("channel");
 const policyData = tagged("provider");
 
@@ -27,28 +36,43 @@ const manifestSchema = z.strictObject({
   triggers: z.array(z.strictObject({ name, event: selector, agent: name })).max(100),
 });
 
-export const parseManifest = (json: string): RepoManifest => {
-  let value: unknown;
+type Named = { name: string };
+
+const KINDS = ["policies", "containers", "workspaces", "agents", "triggers"] as const;
+
+const parseJson = (json: string): unknown => {
   try {
-    value = JSON.parse(json);
+    return JSON.parse(json);
   } catch {
     throw new Error("The config's manifest isn't valid JSON");
   }
-  const parsed = manifestSchema.safeParse(value);
+};
+
+/** Throws for the first name two of a kind share. */
+const assertNamesUnique = (manifest: RepoManifest) => {
+  for (const kind of KINDS) {
+    const [repeated] = duplicates(manifest[kind].map((r) => r.name));
+    if (repeated !== undefined) throw new Error(`The config's manifest has two ${kind} named "${repeated}"`);
+  }
+};
+
+/** Throws for the first name `refsOf` gives for one of `items` (each a `label`) that no `kind` in `targets` has. */
+const assertRefs = <T extends Named>(items: T[], label: string, refsOf: (item: T) => string[], targets: Named[], kind: string) => {
+  const known = new Set(targets.map((t) => t.name));
+  for (const item of items)
+    for (const ref of refsOf(item)) if (!known.has(ref)) throw new Error(`${label} ${item.name} refers to ${kind} "${ref}", which isn't in the manifest`);
+};
+
+export const parseManifest = (json: string): RepoManifest => {
+  const parsed = manifestSchema.safeParse(parseJson(json));
   if (!parsed.success) {
     const issue = parsed.error.issues[0]!;
     throw new Error(`The config's manifest is invalid at ${issue.path.join(".") || "the top level"}: ${issue.message}`);
   }
   const manifest = parsed.data as RepoManifest;
-  for (const kind of ["policies", "containers", "workspaces", "agents", "triggers"] as const) {
-    const names = manifest[kind].map((r) => r.name);
-    const dup = names.find((n, i) => names.indexOf(n) !== i);
-    if (dup) throw new Error(`The config's manifest has two ${kind} named "${dup}"`);
-  }
-  const has = (list: { name: string }[], n: string) => list.some((r) => r.name === n);
-  for (const c of manifest.containers)
-    for (const p of c.policies) if (!has(manifest.policies, p)) throw new Error(`Container ${c.name} refers to policy "${p}", which isn't in the manifest`);
-  for (const w of manifest.workspaces) if (!has(manifest.containers, w.container)) throw new Error(`Workspace ${w.name} refers to container "${w.container}", which isn't in the manifest`);
-  for (const t of manifest.triggers) if (!has(manifest.agents, t.agent)) throw new Error(`Trigger ${t.name} refers to agent "${t.agent}", which isn't in the manifest`);
+  assertNamesUnique(manifest);
+  assertRefs(manifest.containers, "Container", (c) => c.policies, manifest.policies, "policy");
+  assertRefs(manifest.workspaces, "Workspace", (w) => [w.container], manifest.containers, "container");
+  assertRefs(manifest.triggers, "Trigger", (t) => [t.agent], manifest.agents, "agent");
   return manifest;
 };

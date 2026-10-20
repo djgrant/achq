@@ -6,7 +6,10 @@ export type Ext = keyof typeof LOADERS;
 export const extOf = (path: string) => /\.([a-z]+)$/.exec(path)?.[1] as Ext | undefined;
 
 /** The files evaluation reads; others under `.achq/` (the Dockerfile, prompts) aren't needed. */
-export const isSourceFile = (path: string) => Boolean(extOf(path) && extOf(path)! in LOADERS);
+export const isSourceFile = (path: string) => {
+  const ext = extOf(path);
+  return ext !== undefined && ext in LOADERS;
+};
 
 /** A repo-relative path, if it's plain: no absolute paths, `..`, backslashes or NULs. */
 export const normaliseRepoPath = (path: string): string | undefined => {
