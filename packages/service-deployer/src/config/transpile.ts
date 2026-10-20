@@ -3,7 +3,7 @@ import { extOf } from "./paths.ts";
 
 const transpilers = new Map<string, Bun.Transpiler>();
 
-/** One `.achq/` file as an ES module. JSON becomes a default export. */
+/** JSON becomes a default export. */
 export const transpile = (path: string, contents: string): string => {
   const ext = extOf(path);
   if (ext === "json") return `export default ${JSON.stringify(JSON.parse(contents))};`;

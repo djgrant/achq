@@ -18,13 +18,11 @@ export type RailwayContainerProviderOptions = {
   endpoint?: string;
 };
 
-/** How many random bytes a generated variable has. */
 const SECRET_BYTES = 32;
 
 export class RailwayContainerProvider implements ContainerProvider {
   /** The deployer's project, in the environment its containers run in. */
   readonly project: RailwayProject;
-  /** What its containers' resources are planned with. */
   private readonly ctx: Context;
 
   constructor(readonly options: RailwayContainerProviderOptions) {
@@ -38,12 +36,11 @@ export class RailwayContainerProvider implements ContainerProvider {
     };
   }
 
-  /** The container's service and variables. Not its deploy: `deploy` starts builds. */
+  /** Not its deploy: `deploy` starts builds. */
   private resources(container: ContainerSpec) {
     return containerService(container, { projectId: this.project.id, environmentId: this.project.environmentId });
   }
 
-  /** What `ensure` would change, without changing it. */
   async plan(spec: ContainerSpec): Promise<Change[]> {
     return (await plan(this.resources(spec), this.ctx)).changes;
   }
@@ -132,7 +129,6 @@ const sshArgs = (location: Record<string, string>, command: string[]) => [
 
 const requireRailwayCli = () => requireBinary("railway", "the Railway CLI", "brew install railway");
 
-/** A container through `railway ssh`. */
 export const railwayShell: ContainerShell = {
   reachable: (location) => Boolean(location.project && location.environment && location.service),
 

@@ -16,10 +16,9 @@ import { evaluateBundle } from "./evaluate.ts";
 
 export type LoadedConfig = {
   commit: string;
-  /** The extracted `.achq/` directory: paths in the config are relative to it. */
+  /** Paths in the config are relative to it. */
   root: string;
   manifest: RepoManifest;
-  /** The live Agent objects, with their config as code evaluated. */
   agents: Agent[];
 };
 
@@ -27,11 +26,10 @@ export type ConfigLoaderOptions = {
   mirror: string;
   /** `paths.config(commit)`: where each commit's `.achq/` and bundle go. */
   dir: (commit: string) => string;
-  /** Fetches the mirror, for a commit it doesn't have yet. */
   fetch: () => Promise<void>;
 };
 
-/** `loadConfig(commit)`, cached per commit. A failed load is tried again next time. */
+/** Cached per commit. A failed load is tried again next time. */
 export const createConfigLoader = (opts: ConfigLoaderOptions): ((commit: string) => Promise<LoadedConfig>) => {
   let loads = 0;
 

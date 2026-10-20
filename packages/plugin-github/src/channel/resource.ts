@@ -12,19 +12,17 @@ import { APP_EVENTS, APP_PERMISSIONS, covers } from "../lib/permissions.ts";
 import { ChannelRef } from "./config.ts";
 
 export type ChannelInputs = {
-  /** The App's name on GitHub, which its slug comes from. */
   name: string;
-  /** The organisation that owns it. Without one it's owned by your account and public, so others can install it. */
+  /** Without one it's owned by your account and public, so others can install it. */
   org?: string;
   router: Router;
 };
 
 export type ChannelProps = {
-  /** What its name makes it, and what the router knows it by. */
   slug: string;
   name: string;
   org?: string;
-  /** Where its webhook goes: the router's. Unknown while the router has no public URL. */
+  /** Unknown while the router has no public URL. */
   hookUrl: string;
   /** AGENT_WEBHOOK_KEY, which its webhook secret derives from. */
   key: string;
@@ -40,7 +38,6 @@ export type ChannelAttrs = { slug: string; id: string; privateKey: string };
 
 export type ChannelChange = { kind: "create" } | { kind: "webhook" };
 
-/** What the live App lacks of what achq needs. */
 const appProblems = (settings: AppSettings) => [
   ...APP_EVENTS.filter((e) => !settings.events.includes(e)).map((e) => `doesn't send ${e}`),
   ...Object.entries(APP_PERMISSIONS)
@@ -51,7 +48,6 @@ const appProblems = (settings: AppSettings) => [
 const appSettingsUrl = (slug: string, org: string | undefined, web: string) =>
   org ? `${web}/organizations/${org}/settings/apps/${slug}/permissions` : `${web}/settings/apps/${slug}/permissions`;
 
-/** The webhook as achq wants it: JSON, TLS checked, signed with the secret derived from the App's ID. */
 const WANTED_HOOK = { content_type: "json", insecure_ssl: "0" } as const;
 
 const hookConfig = (url: string, key: string, appId: string | number): HookConfig => ({
@@ -60,17 +56,15 @@ const hookConfig = (url: string, key: string, appId: string | number): HookConfi
   secret: appWebhookSecret(key, appId),
 });
 
-/** The webhook as wanted. The secret isn't compared: GitHub doesn't show it, so it's written with every change. */
+/** The secret isn't compared: GitHub doesn't show it, so it's written with every change. */
 const hookDiffers = (hookUrl: string, hook: HookConfig) =>
   !known(hookUrl) || hook.url !== hookUrl || hook.content_type !== WANTED_HOOK.content_type || hook.insecure_ssl !== WANTED_HOOK.insecure_ssl;
 
-/** The keys `env` already stores, with those of the Apps just created added (or replaced). */
 const mergeAppKeys = (env: Record<string, string | undefined>, created: ChannelAttrs[]): AppKeys => ({
   ...parseApps(env[GITHUB_ENV.apps]),
   ...Object.fromEntries(created.map(({ slug, id, privateKey }) => [slug, { id, privateKey }])),
 });
 
-/** Each router's channels, by slug. */
 const routerChannels = new WeakMap<Router, Map<string, Channel>>();
 
 /**
@@ -114,7 +108,6 @@ export class Channel extends ManagedResource<ChannelProps, ChannelState, Channel
     channels.set(slug, this);
   }
 
-  /** Adopts a channel declared in the ACHQ infra, by its App's slug. */
   static get(slug: string) {
     return new ChannelRef(slug);
   }

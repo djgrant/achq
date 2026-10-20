@@ -18,7 +18,6 @@ export const infraFile = (dir = callerCwd()) => {
   return fs.existsSync(file) ? file : undefined;
 };
 
-/** `dir`'s `origin` URL, if it has one. */
 export const originUrl = (dir = callerCwd()): string | undefined => git.remoteUrl(dir, "origin");
 
 export type RepoHere = { host: string; repo: string; codeHost: CodeHostProvider };

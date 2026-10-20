@@ -5,7 +5,6 @@ import type { Change } from "../engine/plan.ts";
 import { hasUnknown, type Inputs, Output, type Planned, UNKNOWN, type Unknown } from "../engine/values.ts";
 import { declare } from "./declarations.ts";
 
-/** Resource names: lowercase letters, digits and dashes, starting with a letter. */
 export const RESOURCE_NAME = /^[a-z][a-z0-9-]{0,30}$/;
 
 /** What planning and applying give a resource. */
@@ -16,12 +15,10 @@ export type Context = {
   open?(url: string, what: string): Promise<void>;
   /** Makes a GENERATED value. */
   newSecret(): string;
-  /** Waits, e.g. between checks of a deploy. */
   sleep(ms: number): Promise<void>;
 };
 
 export type ResourceOptions = {
-  /** The resource it's part of. */
   parent?: Resource;
   /** False for a resource achq makes rather than a config declares, e.g. a container's service: it isn't declared, and its name is its host's. */
   declared?: boolean;

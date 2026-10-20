@@ -3,9 +3,7 @@
 import type { DeployRecord, InstalledRepo, Status } from "@achq/core";
 import { alignedTable } from "@achq/utils/text";
 
-/** How much of a commit's SHA identifies it to a reader. */
 const SHORT_SHA_LENGTH = 7;
-/** A table cell with nothing in it. */
 const NONE = "-";
 const INFRA_COLUMNS = ["REPO", "STATE", "AT", "CONTAINERS"];
 
@@ -34,7 +32,7 @@ type RepoRow = { repo: string; installed: boolean; record?: DeployRecord };
 /** Repo names compare case-insensitively, as code hosts treat them. */
 const repoKey = (repo: string) => repo.toLowerCase();
 
-/** The installed repos and the deploy records, one row per repo, sorted by it. A record's spelling of the name wins. */
+/** A record's spelling of the name wins. */
 const joinByRepo = (records: DeployRecord[], installed: InstalledRepo[]): RepoRow[] => {
   const rows = new Map<string, RepoRow>();
   for (const i of installed) rows.set(repoKey(i.repo), { repo: i.repo, installed: true });

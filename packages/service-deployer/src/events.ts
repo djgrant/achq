@@ -6,7 +6,7 @@ type Actions = {
   uninstall: (host: string, repo: string) => Promise<unknown>;
 };
 
-/** Handles events the router forwarded. Each returns false for a delivery it had already handled. */
+/** Each returns false for a delivery it had already handled. */
 export const createEventHandler = (store: Store, actions: Actions) => {
   const inflight = new Set<string>();
 

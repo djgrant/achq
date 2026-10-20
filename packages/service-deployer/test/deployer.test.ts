@@ -108,10 +108,8 @@ describe("install", () => {
     const deployer = makeDeployer();
     expect(await deployer.handle(event("installation.created", [REPO]))).toBe(true);
 
-    // The deployer's own token, minted through the router for exactly this repo.
     expect(router.mints).toEqual([{ repo: REPO, policies: [{ provider: "github", repo: REPO, permissions: { ...DEPLOYER_PERMISSIONS } }] }]);
 
-    // One container, built once, with its env.
     expect(containerProvider.ops()).toEqual([
       { op: "ensure", repo: REPO, name: "dev" },
       { op: "deploy", repo: REPO, name: "dev" },
@@ -134,7 +132,6 @@ describe("install", () => {
       },
     });
 
-    // Policies validated as declared, for this repo; router config pushed.
     const declared = DOC_PLAN.policies[0]!.policy;
     expect(router.validations).toEqual([{ repo: REPO, policies: [declared] }]);
     expect(router.repos.get(REPO)).toEqual({
@@ -155,7 +152,6 @@ describe("install", () => {
       containers: [{ name: "dev", location: { containerProvider: "memory", service: `${REPO}/dev` } }],
       router: "https://router.example",
     });
-    // The infra's status is the same record.
     const { router: _router, ...record } = github.variable(REPO, STATUS_VARIABLE);
     expect(await deployer.status()).toEqual([record]);
   });
@@ -283,7 +279,6 @@ describe("config changes", () => {
     expect((await deployer.deploy("github", REPO)).outcome).toBe("unchanged");
     expect((await deployer.deploy("mirror", REPO)).outcome).toBe("deployed");
     expect(containerProvider.services.get(`${REPO}/dev`)!.spec.host).toBe("mirror");
-    // Sync deploys each installed repo on the host its installation names.
     router.installed = [{ host: "github", repo: REPO }];
     expect((await deployer.sync()).deployed).toEqual([REPO]);
     expect(containerProvider.services.get(`${REPO}/dev`)!.spec.host).toBe("github");
@@ -483,7 +478,6 @@ describe("sync", () => {
     expect([...containerProvider.services.keys()].sort()).toEqual([`${A}/dev`, "notationlabs/fresh/dev"]);
     expect(router.repos.has(B.toLowerCase())).toBe(false);
 
-    // Nothing left to do.
     expect(await deployer.sync({ prune: true })).toMatchObject({ deployed: [], unchanged: [A], uninstalled: [], pruned: [] });
   });
 

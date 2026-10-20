@@ -19,7 +19,6 @@ export type EventSelectorData = {
 export type IssueAction = "opened" | "edited" | "reopened" | "labeled";
 export type CommentAction = "created" | "edited";
 
-/** A selector for an App's `event` webhooks with these actions. */
 export const eventSelector = (source: string, event: EventSelectorData["event"], actions: string[], options: { mention?: string; labels?: string[] }) => {
   const data: EventSelectorData = {
     channel: CHANNEL,

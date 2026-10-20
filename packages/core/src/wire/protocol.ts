@@ -46,7 +46,6 @@ export type ContainerEnvelope = {
   commit: string;
 };
 
-/** What the deployer tells the router about a deployed repo. Plain data. */
 export type RouterRepoConfig = {
   /** The `CodeHostProvider` the repo is on. */
   host: string;
@@ -73,7 +72,6 @@ export type ClaimRequest = { repo: string; container: string; workspace: string;
 export type MintRequest = { repo: string; policies: PolicyData[] };
 export type ValidateRequest = { repo: string; policies: PolicyData[] };
 
-/** A repo set up for achq, and the `CodeHostProvider` it's on: what the deployer serves. */
 export type InstalledRepo = { host: string; repo: string };
 
 /** What a source (e.g. a GitHub App) is set up to send and allow, for checks. */

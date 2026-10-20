@@ -29,7 +29,6 @@ type FakeProject = {
 export type FakeRailway = {
   url: string;
   projects: FakeProject[];
-  /** Every mutation received, by name, in order. */
   mutations: string[];
   queries: string[];
   project(name: string): FakeProject | undefined;

@@ -1,5 +1,3 @@
-// HTTP on both sides: responses a handler gives, request bodies it checks, and
-// the errors a client raises for responses it didn't want.
 import { errorDetail } from "./errors.ts";
 
 /** How much of an error response's body goes into an error message: enough to read, not a whole HTML page. */
@@ -24,7 +22,6 @@ export class HttpError extends Error {
 export const responseError = async (res: Response, what: string): Promise<Error> =>
   new Error(`${what}: ${res.status} ${excerpt(await res.text())}`.trimEnd());
 
-/** `res`, or the `responseError` for it if it isn't 2xx. */
 export const expectOk = async (res: Response, what: string): Promise<Response> => {
   if (!res.ok) throw await responseError(res, what);
   return res;
@@ -34,7 +31,6 @@ export const textResponse = (body: string, status = 200) => new Response(body, {
 export const jsonResponse = (value: unknown, status = 200) => Response.json(value, { status });
 export const noContent = () => new Response(null, { status: 204 });
 
-/** The token in an `Authorization: Bearer …` header. */
 export const bearerToken = (req: Request): string | undefined => req.headers.get("authorization")?.match(/^Bearer (\S+)$/)?.[1];
 
 /** A request body as an object, or undefined if it isn't JSON or isn't an object. Its fields still need checking. */

@@ -1,4 +1,3 @@
-// Authenticating as a GitHub App: a JWT its private key signs.
 import { createSign } from "node:crypto";
 
 /** GitHub accepts App JWTs for at most ten minutes; nine leaves room for clock drift. */

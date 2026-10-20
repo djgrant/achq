@@ -5,10 +5,8 @@ import { RailwayService } from "./service.ts";
 import { RAILWAY_API, RailwayError, RailwayTransport } from "./transport.ts";
 import type { AttachedVolume, ProjectAt, ProjectSnapshot, ProjectSummary, Workspace } from "./types.ts";
 
-/** The environment a project deploys to unless told otherwise. */
 const PRODUCTION = "production";
 
-/** Production, or else the project's first environment. */
 const defaultEnvironment = (project: RawProject) => {
   const environments = nodes(project.environments);
   const environment = environments.find((e) => e.name === PRODUCTION) ?? environments[0];
@@ -30,10 +28,8 @@ const snapshotOf = (project: RawProject): ProjectSnapshot => ({
   volumes: attachedVolumes(project),
 });
 
-/** A service found by name, with the volumes mounted on it, read together. */
 export type FoundService = { service: RailwayService; volumes: AttachedVolume[] };
 
-/** One Railway account, through its API token. */
 export class Railway {
   private readonly transport: RailwayTransport;
 
@@ -57,7 +53,6 @@ export class Railway {
     return found[0];
   }
 
-  /** A new project's id. */
   createProject(name: string, workspaceId: string): Promise<string> {
     return this.transport.call(OPERATIONS.projectCreate, { input: { name, workspaceId } });
   }
@@ -72,7 +67,6 @@ export class Railway {
   }
 }
 
-/** A project in one environment. */
 export class RailwayProject {
   readonly id: string;
   readonly environmentId: string;
@@ -90,12 +84,11 @@ export class RailwayProject {
     return snapshotOf(await this.transport.call(OPERATIONS.project, { id: this.id }));
   }
 
-  /** A service by id. Reads nothing. */
+  /** Reads nothing. */
   service(serviceId: string): RailwayService {
     return new RailwayService(this.transport, { projectId: this.id, environmentId: this.environmentId, serviceId });
   }
 
-  /** The service named `name` and its volumes, if it exists. */
   async serviceByName(name: string): Promise<FoundService | undefined> {
     const { services, volumes } = await this.snapshot();
     const found = services.find((s) => s.name === name);

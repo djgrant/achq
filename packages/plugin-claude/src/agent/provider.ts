@@ -17,10 +17,8 @@ const DEFAULT_BIN = "claude";
 /** A run's flags that an interactive `resume` leaves out: print mode, streaming JSON, no permission prompts. */
 const HEADLESS_FLAGS = ["-p", "--output-format=stream-json", "--verbose", "--dangerously-skip-permissions"];
 const COMPACT_COMMAND = "/compact";
-/** How much of a tool call's input, and of the agent's text, goes in the log. */
 const TOOL_INPUT_LOG_CHARS = 200;
 const TEXT_LOG_CHARS = 500;
-/** How much of claude's stderr goes in a failed run's error. */
 const STDERR_TAIL_LINES = 40;
 const NO_REPLY = "Claude finished without a reply.";
 const TIMED_OUT = "The run timed out and was stopped.";
@@ -97,7 +95,6 @@ const agentRuntime = (agent: Agent, ctx: RuntimeContext): AgentRuntime => {
 
 const promptFile = (configDir: string) => path.join(configDir, SYSTEM_PROMPT_FILE);
 
-/** `claude`'s argv for a session: headless for a run, interactive for `resume`. */
 const claudeArgv = (claude: string, configDir: string, session: Session, config: AgentConfig, headless: boolean) => [
   claude,
   ...(headless ? HEADLESS_FLAGS : []),
@@ -124,7 +121,7 @@ const trustWorktree = (configDir: string, cwd: string) =>
     c.projects[cwd] = { ...c.projects[cwd], hasTrustDialogAccepted: true };
   });
 
-/** One line of stream-json: counted, and logged readably. A line that isn't JSON is logged as it is. */
+/** A line that isn't JSON is logged as it is. */
 const readStreamLine = (line: string, stats: StreamStats, log: Log) => {
   let event: any;
   try {
@@ -136,7 +133,6 @@ const readStreamLine = (line: string, stats: StreamStats, log: Log) => {
   logEvent(event, log);
 };
 
-/** The assistant's tool calls and text, shortened. */
 const logEvent = (event: any, log: Log) => {
   if (event.type !== "assistant") return;
   for (const block of event.message?.content ?? []) {
@@ -160,5 +156,4 @@ const replyFor = (stats: StreamStats, prompt: string) => {
   return stats.result?.result?.trim() || NO_REPLY;
 };
 
-/** The last `n` non-blank lines of `text`. */
 const tailLines = (text: string, n: number) => text.split("\n").filter(Boolean).slice(-n);

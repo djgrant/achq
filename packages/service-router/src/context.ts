@@ -11,18 +11,15 @@ export type RouterDeps = {
   codeHostProviders: Record<string, CodeHostProvider>;
   /** AGENT_WEBHOOK_KEY. */
   key: string;
-  /** The router's volume. */
   dataDir: string;
   deployerUrl: string;
   fetch?: typeof fetch;
   delays?: number[];
-  /** How long one attempt to deliver an event or wake a service may take. */
   attemptTimeout?: number;
   now?: () => number;
   log?: (line: string) => void;
 };
 
-/** The router's settings, with defaults filled in, and its state. */
 export type RouterContext = Required<Omit<RouterDeps, "dataDir">> & {
   store: Store;
   /** Router config and claims, by lowercased repo. Loaded on start, written through to the volume. */
@@ -47,5 +44,5 @@ export const createContext = (deps: RouterDeps): RouterContext => ({
 
 export const configOf = (ctx: RouterContext, repo: string | undefined) => (repo ? ctx.repos.get(repoKey(repo)) : undefined);
 
-/** The repo's claims; none for an event that names no repo. */
+/** None for an event that names no repo. */
 export const claimsOf = (ctx: RouterContext, repo: string | undefined): Claims => (repo ? ctx.claims.get(repoKey(repo)) : undefined) ?? {};

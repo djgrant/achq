@@ -1,4 +1,3 @@
-// Your own GitHub login, through the gh CLI.
 import { run } from "../process.ts";
 
 type Env = Record<string, string | undefined>;

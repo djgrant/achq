@@ -3,17 +3,14 @@
 
 export type Permissions = Record<string, string>;
 
-/** read < write < admin. */
 const PERMISSION_RANK: Record<string, number> = { read: 1, write: 2, admin: 3 };
 
-/** Whether `granted` covers `wanted` (read < write < admin). */
 export const covers = (granted: string | undefined, wanted: string) =>
   granted !== undefined && (PERMISSION_RANK[granted] ?? 0) >= (PERMISSION_RANK[wanted] ?? Infinity);
 
 export const maxLevel = (a: string | undefined, b: string) =>
   a !== undefined && (PERMISSION_RANK[a] ?? 0) >= (PERMISSION_RANK[b] ?? 0) ? a : b;
 
-/** The levels a Policy may ask for. */
 export const POLICY_LEVELS = new Set(["read", "write"]);
 
 /** What every channel's App sends and is allowed. Installation events are always sent. */

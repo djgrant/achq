@@ -10,9 +10,7 @@ export const GH_HOSTS_FILE = "hosts.yml";
 export const GIT_CONFIG_FILE = "gitconfig";
 export const TOKEN_SUFFIX = ".token";
 
-/** A double-quoted git config value. */
 const gitQuote = (s: string) => `"${s.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
-/** A single-quoted shell word. */
 const shQuote = (s: string) => `'${s.replace(/'/g, `'\\''`)}'`;
 
 /**
@@ -46,10 +44,8 @@ const SECRET_MODE = 0o600;
 /** Writes a file only its owner can read, so a reader sees the old content or the new, never half of either. */
 export const writeSecretFile = (file: string, content: string) => writeFileAtomicSync(file, content, { mode: SECRET_MODE });
 
-/** gh's `hosts.yml`, logging it in to github.com with `token` as `user`. */
 export const ghHostsYml = (token: string, user: string) => `github.com:\n    oauth_token: ${token}\n    user: ${user}\n    git_protocol: https\n`;
 
-/** Removes the token files in `dir` that aren't among `keep`. */
 export const removeStaleTokens = (dir: string, keep: Set<string>) => {
   for (const name of fs.readdirSync(dir)) if (name.endsWith(TOKEN_SUFFIX) && !keep.has(name)) fs.rmSync(path.join(dir, name), { force: true });
 };

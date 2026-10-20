@@ -4,7 +4,6 @@ import type { BunPlugin } from "bun";
 import { isWithin } from "@achq/utils/fs";
 import { CONFIG_MODULES } from "achq/registry";
 
-/** What a config's bare imports resolve to. */
 const MODULES: Record<string, string> = Object.fromEntries(CONFIG_MODULES.map((specifier) => [specifier, Bun.resolveSync(specifier, import.meta.dir)]));
 const ALLOWED = `${CONFIG_MODULES.join(", ")} and its own files`;
 const BARE_IMPORT = /^[^./]/;
@@ -23,7 +22,6 @@ export const bundleConfig = async (root: string, outdir: string) => {
   return bundle;
 };
 
-/** Resolves CONFIG_MODULES and files under `realRoot`, and fails the build on any other import. */
 const onlyAllowedImports = (realRoot: string): BunPlugin => ({
   name: "achq-config",
   setup(build) {
@@ -42,7 +40,6 @@ const onlyAllowedImports = (realRoot: string): BunPlugin => ({
   },
 });
 
-/** What the bundle at `file` imports other than CONFIG_MODULES. */
 const refusedImports = (file: string): string[] => {
   const allowed = new Set(Object.values(MODULES));
   const imports = new Bun.Transpiler({ loader: "js" }).scanImports(fs.readFileSync(file, "utf8"));

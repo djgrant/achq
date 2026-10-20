@@ -14,7 +14,6 @@ export const known = <T>(value: T | Unknown): value is T => value !== UNKNOWN;
 
 export const isPlain = isPlainObject;
 
-/** Whether `value` is, or holds, an unknown. */
 export const hasUnknown = (value: unknown): boolean =>
   value === UNKNOWN || (Array.isArray(value) ? value.some(hasUnknown) : isPlain(value) && Object.values(value).some(hasUnknown));
 
@@ -55,7 +54,6 @@ export const all = <T extends unknown[]>(inputs: { [K in keyof T]: Input<T[K]> }
     },
   );
 
-/** `value` with every output in it replaced by its value in `outputs`. */
 export const resolve = (value: unknown, outputs: Outputs): any => {
   if (value instanceof Output) return value.get(outputs);
   if (Array.isArray(value)) return value.map((v) => resolve(v, outputs));
@@ -63,7 +61,6 @@ export const resolve = (value: unknown, outputs: Outputs): any => {
   return value;
 };
 
-/** The resources `value`'s outputs come from. */
 export const dependencies = (value: unknown): ManagedResource[] => {
   if (value instanceof Output) return value.from;
   if (Array.isArray(value)) return value.flatMap(dependencies);

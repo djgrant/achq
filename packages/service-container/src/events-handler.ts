@@ -3,10 +3,9 @@ import { verifySignedRequest } from "@achq/core/signing";
 import { parseObject, textResponse } from "@achq/utils/http";
 
 export type EventsHandlerOptions = {
-  /** The container secret the router signs with. */
   secret: string;
   now: () => number;
-  /** Gets each accepted event. Mustn't block: the router waits for the response. */
+  /** Mustn't block: the router waits for the response. */
   accept: (envelope: ContainerEnvelope) => void;
 };
 
@@ -23,7 +22,6 @@ export const eventsHandler = (opts: EventsHandlerOptions) => async (req: Request
   return textResponse("accepted", 202);
 };
 
-/** The envelope in a request body, or undefined if it has no delivery or commit. */
 const parseEnvelope = (body: string): ContainerEnvelope | undefined => {
   const envelope = parseObject<ContainerEnvelope>(body);
   if (!envelope?.event?.delivery || typeof envelope.commit !== "string") return undefined;

@@ -14,13 +14,11 @@ type Props = {
   at: At & { serviceId: string };
   service: string;
   fingerprint: string;
-  /** Whether applying waits for the deploy to go live. */
   wait: boolean;
 };
 type State = { deployed?: string; hasDeployed: boolean };
 type Outputs = { fingerprint: string };
 
-/** How much of the hash DEPLOYED keeps. */
 const FINGERPRINT_CHARS = 16;
 
 /** What a deploy was made from, kept in DEPLOYED. Variables are sorted, so their order doesn't count. */
@@ -29,7 +27,6 @@ export const fingerprint = (spec: { settings: InstanceSettings; variables: Recor
 
 const minutes = (ms: number) => `${ms / 60_000} minutes`;
 
-/** An image service's deploy. */
 export class Deployment extends ManagedResource<Props, State, Outputs, "deploy"> {
   readonly kind = "railway-deployment";
 

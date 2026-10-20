@@ -8,37 +8,33 @@ import { randomHex } from "../crypto.ts";
 
 export type WriteOptions = { mode?: number };
 
-/** Whether `e` is the error for a missing file or directory. */
 export const isNotFound = (e: unknown): boolean => (e as NodeJS.ErrnoException | undefined)?.code === "ENOENT";
 
 /** Unique per process and write, so concurrent writers never share a temp file. */
 const tempFor = (file: string) => `${file}.${process.pid}.${randomHex(4)}.tmp`;
 
-/** Replaces `file` with `data` in one step. Its directory must exist. */
+/** Its directory must exist. */
 export const writeFileAtomic = async (file: string, data: string, { mode }: WriteOptions = {}) => {
   const tmp = tempFor(file);
   await fsp.writeFile(tmp, data, { mode });
   await fsp.rename(tmp, file);
 };
 
-/** `writeFileAtomic`, synchronously. */
 export const writeFileAtomicSync = (file: string, data: string, { mode }: WriteOptions = {}) => {
   const tmp = tempFor(file);
   fs.writeFileSync(tmp, data, { mode });
   fs.renameSync(tmp, file);
 };
 
-/** Creates `dir` and its parents if they're missing. */
 export const ensureDir = (dir: string, { mode }: WriteOptions = {}) => {
   fs.mkdirSync(dir, { recursive: true, mode });
 };
 
-/** Creates each of `dirs` and their parents if they're missing. */
 export const ensureDirs = (...dirs: string[]) => {
   for (const dir of dirs) ensureDir(dir);
 };
 
-/** Writes `file`, creating its directory first. `dirMode` applies to directories it creates. */
+/** `dirMode` applies to directories it creates. */
 export const writeFileEnsured = (file: string, data: string, { mode, dirMode }: WriteOptions & { dirMode?: number } = {}) => {
   ensureDir(path.dirname(file), { mode: dirMode });
   fs.writeFileSync(file, data, { mode });

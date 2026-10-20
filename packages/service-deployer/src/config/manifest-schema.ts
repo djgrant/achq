@@ -48,7 +48,6 @@ const parseJson = (json: string): unknown => {
   }
 };
 
-/** Throws for the first name two of a kind share. */
 const assertNamesUnique = (manifest: RepoManifest) => {
   for (const kind of KINDS) {
     const [repeated] = duplicates(manifest[kind].map((r) => r.name));
@@ -56,7 +55,6 @@ const assertNamesUnique = (manifest: RepoManifest) => {
   }
 };
 
-/** Throws for the first name `refsOf` gives for one of `items` (each a `label`) that no `kind` in `targets` has. */
 const assertRefs = <T extends Named>(items: T[], label: string, refsOf: (item: T) => string[], targets: Named[], kind: string) => {
   const known = new Set(targets.map((t) => t.name));
   for (const item of items)

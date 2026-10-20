@@ -32,7 +32,6 @@ const enc = encodeURIComponent;
 export class GitHub {
   constructor(readonly client: GitHubClient) {}
 
-  /** A GitHub over a new client. */
   static connect(auth: Auth, options: ClientOptions = {}) {
     return new GitHub(new GitHubClient(auth, options));
   }
@@ -109,7 +108,6 @@ export class GitHub {
   }
 }
 
-/** One repo's routes. */
 export class RepoApi {
   private route: string;
 
@@ -119,8 +117,6 @@ export class RepoApi {
   ) {
     this.route = `/repos/${fullName}`;
   }
-
-  // ── The repo ──
 
   info() {
     return this.client.request<RepoInfo>("GET", this.route);
@@ -134,7 +130,6 @@ export class RepoApi {
     return permissions?.push === true;
   }
 
-  /** The latest commit on `branch` that changed `path`, if any did. */
   async latestCommitTouching(branch: string, path: string): Promise<CommitSummary | undefined> {
     const [latest] = await this.client.request<CommitSummary[]>("GET", `${this.route}/commits?sha=${enc(branch)}&per_page=1&path=${enc(path)}`);
     return latest;
@@ -145,15 +140,11 @@ export class RepoApi {
     return this.client.find<Installation>("GET", `${this.route}/installation`);
   }
 
-  // ── Git data ──
-
-  /** The SHA of the commit at the tip of `branch`. */
   async headOf(branch: string) {
     const { object } = await this.client.request<GitRef>("GET", `${this.route}/git/ref/heads/${enc(branch)}`);
     return object.sha;
   }
 
-  /** The SHA of a commit's root tree. */
   async rootTreeOf(commitSha: string) {
     const { tree } = await this.client.request<GitCommit>("GET", `${this.route}/git/commits/${commitSha}`);
     return tree.sha;
@@ -182,28 +173,21 @@ export class RepoApi {
     return treeSha;
   }
 
-  /** A blob's bytes. */
   async blob(blobSha: string): Promise<Buffer> {
     const { content, encoding } = await this.client.request<GitBlob>("GET", `${this.route}/git/blobs/${blobSha}`);
     return Buffer.from(content, encoding === "base64" ? "base64" : "utf8");
   }
 
-  // ── Actions variables ──
-
-  /** A repository variable's value, or undefined if it isn't set. */
   async variable(name: string): Promise<string | undefined> {
     return (await this.client.find<Variable>("GET", `${this.route}/actions/variables/${enc(name)}`))?.value;
   }
 
-  /** Sets a repository variable: updates it, or creates it if it isn't there. */
   async upsertVariable(name: string, value: string) {
     const route = `${this.route}/actions/variables/${enc(name)}`;
     const updated = await this.client.raw("PATCH", route, { name, value });
     if (updated.status === 404) await this.client.request("POST", `${this.route}/actions/variables`, { name, value });
     else if (!updated.ok) throw new GitHubError(updated.status, "PATCH", route, await updated.text());
   }
-
-  // ── Issues ──
 
   issue(number: number) {
     return this.client.request<Issue>("GET", `${this.route}/issues/${number}`);

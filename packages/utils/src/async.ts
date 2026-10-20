@@ -1,5 +1,4 @@
-// Ordering, sharing and repeating async work within one process. Across
-// processes, see flock.ts.
+// Across processes, see flock.ts.
 import { errorMessage } from "./errors.ts";
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
@@ -21,7 +20,7 @@ export const keyedQueue = () => {
   };
 };
 
-/** A mutex: runs work one at a time, in the order it was asked for. A failure doesn't stop the work queued after it. */
+/** A failure doesn't stop the work queued after it. */
 export const serial = () => {
   const queue = keyedQueue();
   return <T>(work: () => Promise<T>): Promise<T> => queue("", work);
@@ -36,7 +35,7 @@ export const singleFlight = <T>(fn: () => Promise<T>): (() => Promise<T>) => {
     }));
 };
 
-/** `fn`'s result per key, computed once. A rejection is forgotten, so the next ask tries again. */
+/** A rejection is forgotten, so the next ask tries again. */
 export const memoAsync = <K, V>(fn: (key: K) => Promise<V>): ((key: K) => Promise<V>) => {
   const cache = new Map<K, Promise<V>>();
   return (key) => {
@@ -50,7 +49,7 @@ export const memoAsync = <K, V>(fn: (key: K) => Promise<V>): ((key: K) => Promis
   };
 };
 
-/** `fn`'s result per key, computed once. A throw isn't cached. */
+/** A throw isn't cached. */
 export const memo = <K, V>(fn: (key: K) => V): ((key: K) => V) => {
   const cache = new Map<K, V>();
   return (key) => {
@@ -66,7 +65,6 @@ export const allOf = async <T extends Record<string, unknown>>(promises: T): Pro
   return Object.fromEntries(keys.map((key, i) => [key, values[i]])) as { [K in keyof T]: Awaited<T[K]> };
 };
 
-/** Calls `fn` every `ms` until the returned function is called. */
 export const every = (ms: number, fn: () => void): (() => void) => {
   const timer = setInterval(fn, ms);
   return () => clearInterval(timer);
@@ -79,11 +77,7 @@ export type PollOptions = {
   sleep?: (ms: number) => Promise<void>;
 };
 
-/**
- * Probes until `done` accepts what `probe` gives, sleeping `intervalMs`
- * between probes. Undefined once `timeoutMs` has been slept without success.
- * A throw from `probe` stops polling.
- */
+/** Undefined once `timeoutMs` has been slept without success. A throw from `probe` stops polling. */
 export const pollUntil = async <T>(probe: () => Promise<T>, done: (value: T) => boolean, options: PollOptions): Promise<T | undefined> => {
   const { intervalMs, timeoutMs, sleep: wait = sleep } = options;
   for (let slept = 0; ; slept += intervalMs) {
@@ -94,7 +88,6 @@ export const pollUntil = async <T>(probe: () => Promise<T>, done: (value: T) => 
   }
 };
 
-/** One attempt's outcome: a value, or why it failed. */
 export type Attempt<T> = { ok: true; value: T } | { ok: false; error: string };
 
 export type Retried<T> = { ok: true; value: T } | { ok: false; error: string; attempts: number };

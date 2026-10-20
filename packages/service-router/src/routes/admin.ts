@@ -14,11 +14,10 @@ import { repoFile, repoKey } from "../store.ts";
 type Route = (ctx: RouterContext, body: string) => Promise<Response>;
 type RepoRoute = (ctx: RouterContext, repo: string, body: string) => Promise<Response>;
 
-/** The deployer's answer, passed back as it is. JSON unless it says otherwise. */
+/** JSON unless it says otherwise. */
 const relay = async (res: Response) =>
   new Response(await res.text(), { status: res.status, headers: { "content-type": res.headers.get("content-type") ?? "application/json" } });
 
-/** Forwards to the deployer, waking it, and passes its answer back. */
 const toDeployer = async (ctx: RouterContext, method: string, path: string, body?: string) => {
   const url = `${ctx.deployerUrl}${path}`;
   const result = await reach(ctx.delays, (signal) => fetchSigned(ctx, adminSecret(ctx.key), method, url, body, signal));
@@ -46,13 +45,10 @@ const REPO_ROUTES = new Map<string, RepoRoute>([
   ["DELETE", deleteRepo],
 ]);
 
-/** What each code host has installed, together. */
 const allInstalled = async (ctx: RouterContext) => (await Promise.all(Object.values(ctx.codeHostProviders).map((h) => h.installed()))).flat();
 
-/** Every channel's sources, together. */
 const allSources = async (ctx: RouterContext) => (await Promise.all(ctx.channelProviders.map((c) => c.sources()))).flat();
 
-/** A route for a body naming a repo and its policies. */
 const withPolicies =
   (answer: (ctx: RouterContext, request: MintRequest | ValidateRequest) => Promise<unknown>): Route =>
   async (ctx, body) => {
@@ -71,7 +67,6 @@ const ROUTES = new Map<string, Route>([
   ["GET /admin/status", (ctx) => toDeployer(ctx, "GET", "/status")],
 ]);
 
-/** The `owner/repo` in `/admin/repos/<owner>/<repo>`, if the path is one. */
 const repoInPath = (pathname: string) => {
   const rest = pathname.startsWith(ADMIN_REPO_PREFIX) ? pathname.slice(ADMIN_REPO_PREFIX.length) : undefined;
   return rest !== undefined && REPO.test(rest) ? rest : undefined;

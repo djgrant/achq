@@ -15,7 +15,6 @@ import { githubEnv } from "./payloads.ts";
 const appA = makeApp("notation-achq", "101", { issues: "write", contents: "write", pull_requests: "read", metadata: "read" }, ["issues", "issue_comment", "push"]);
 const appB = makeApp("djgrant-claude", "202", { issues: "write", contents: "read", metadata: "read" }, ["issue_comment"]);
 const gh = new FakeGitHub([appA, appB]);
-/** The router's parts, from one env. */
 let api: { provider: PolicyProvider; channel: ChannelProvider; codeHost: CodeHostProvider };
 
 const policy = (permissions: Record<string, "read" | "write">, repo: string | null = null, source = "notation-achq"): GitHubPolicyData => ({ provider: "github", source, repo, permissions });

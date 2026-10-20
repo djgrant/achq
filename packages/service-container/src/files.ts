@@ -20,7 +20,6 @@ export const targetPath = (key: string, home: string) => {
   return path.isAbsolute(key) ? key : path.join(home, key);
 };
 
-/** Writes startup files where `targetPath` puts them. */
 export const writeFiles = (resolved: Record<string, string>, home: string) => {
   for (const [key, content] of Object.entries(resolved)) writeFileEnsured(targetPath(key, home), content);
 };

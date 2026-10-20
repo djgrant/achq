@@ -12,7 +12,6 @@ export type ServiceProps = {
   at: At;
   name: string;
   settings: InstanceSettings;
-  /** Where its volume is mounted. */
   volume: string;
   /** The port its public domain targets. Without one, any public domain is removed. */
   publicPort?: number;
@@ -25,13 +24,11 @@ export type ServiceProps = {
 export type ServiceState = {
   serviceId: string;
   instance: Instance;
-  /** Where its volumes are mounted. */
   volumes: string[];
   endpoint?: PrivateEndpoint;
   domains: ServiceDomain[];
   /** Whether it deploys on push. Only read when it's to be off; otherwise taken as off. */
   autoDeploy: boolean;
-  /** Its variables when read, if asked for. */
   env?: Record<string, string>;
 };
 
@@ -62,16 +59,12 @@ export const settingsDiff = (want: InstanceSettings, have: InstanceSettings) =>
 
 const https = (domain: string | undefined) => (domain ? `https://${domain}` : undefined);
 
-/** Whether a domain is the public one: on the public port, when there is one. */
 const isPublic = (props: ServiceProps, domain: ServiceDomain) => Boolean(props.publicPort) && domain.targetPort === props.publicPort;
 
-/** The domain kept: the one on the public port. */
 const kept = (props: ServiceProps, current: ServiceState | undefined) => current?.domains.find((d) => isPublic(props, d));
 
 /** Its variables as read, before applying changes them: known, if none, while planning a new one. */
 const env = (props: ServiceProps, current: ServiceState | undefined) => (props.env ? { env: current?.env ?? {} } : {});
-
-// ── Reading ──────────────────────────────────────────────────────────────────
 
 /** Whether it deploys on push. Railway can fail to say, for a service it can't deploy yet: that's taken as off. */
 const deploysOnPush = (service: RailwayService) => service.autoDeploy().catch(() => false);
@@ -96,9 +89,6 @@ const readInstanceState = async ({ service, volumes }: FoundService, props: Serv
   };
 };
 
-// ── Comparing ────────────────────────────────────────────────────────────────
-
-/** A service that doesn't exist yet gets made, with its volume and, if it's public, a domain. */
 const newServiceChanges = (props: ServiceProps): ServiceChange[] => [{ kind: "service" }, { kind: "volume" }, ...(props.publicPort ? [{ kind: "add-domain" } as const] : [])];
 
 const settingsChange = (props: ServiceProps, current: ServiceState): ServiceChange[] => {
@@ -121,7 +111,6 @@ const domainChanges = (props: ServiceProps, current: ServiceState): ServiceChang
 
 const autoDeployChange = (current: ServiceState): ServiceChange[] => (current.autoDeploy ? [{ kind: "auto-deploy" }] : []);
 
-/** A Railway service, found by name in its project. */
 export class Service extends ManagedResource<ServiceProps, ServiceState, ServiceOutputs, ServiceChange> {
   readonly kind = "railway-service";
 

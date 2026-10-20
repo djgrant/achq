@@ -105,7 +105,6 @@ const deps = (log: string[] = []): UpDeps => ({
     RAILWAY_API_TOKEN: "railway-token",
     RAILWAY_API_URL: fake.url,
     RAILWAY_WORKSPACE_ID: "ws",
-    // GitHub's API and web both point at the fake.
     GITHUB_API_URL: `http://localhost:${gh.port}`,
     GITHUB_WEB_URL: `http://localhost:${gh.port}`,
   },

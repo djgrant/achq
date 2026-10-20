@@ -12,7 +12,6 @@ const SIGNATURE_HEADER = "x-achq-signature";
 const signature = (secret: string, method: string, path: string, timestamp: string, body: string) =>
   hmacHex(secret, `${method.toUpperCase()}\n${path}\n${timestamp}\n${body}`);
 
-/** What a signature covers of a URL: its path and query. */
 const signedPath = (url: string) => {
   const { pathname, search } = new URL(url);
   return pathname + search;
@@ -30,13 +29,9 @@ export const verifySigned = (secret: string, method: string, path: string, body:
   return safeEqual(signed, signature(secret, method, path, timestamp, body));
 };
 
-/** Bodies between achq's services are JSON. */
 const bodyHeaders = (body: string | undefined): Record<string, string> => (body === undefined ? {} : { "content-type": "application/json" });
 
-/**
- * A signed request for `url`, as `fetch` takes it. Sign each attempt afresh:
- * a retry can outlast the timestamp's window.
- */
+/** Sign each attempt afresh: a retry can outlast the timestamp's window. */
 export const signedRequestInit = (
   secret: string,
   method: string,
@@ -50,11 +45,11 @@ export const signedRequestInit = (
   headers: { ...headers, ...bodyHeaders(body), ...signedHeaders(secret, method, signedPath(url), body ?? "", now) },
 });
 
-/** `fetch` with a signed request. The signature covers `url`'s path and query. */
+/** The signature covers `url`'s path and query. */
 export const signedFetch = (secret: string, url: string, init: { method: string; body?: string; headers?: Record<string, string> }) =>
   fetch(url, signedRequestInit(secret, init.method, url, init.body, { headers: init.headers }));
 
-/** The request's body if `secret` signed it, over its method, path and query; undefined if not. Reads the body. */
+/** Reads the body. */
 export const verifySignedRequest = async (req: Request, secret: string, now = Date.now()): Promise<{ body: string } | undefined> => {
   const body = await req.text();
   return verifySigned(secret, req.method, signedPath(req.url), body, req.headers, now) ? { body } : undefined;

@@ -4,7 +4,6 @@ import { all, type Input, type Inputs, known, type Planned, UNKNOWN } from "../s
 import { declared, resetDeclarations } from "../src/resources/declarations.ts";
 import { type Context, ManagedResource, Resource, type ResourceOptions } from "../src/resources/resource.ts";
 
-/** An in-memory store: what exists, and every read and write made of it. */
 type Db = { rows: Map<string, Row>; reads: string[]; writes: string[] };
 type Row = { id: string; value: string };
 
@@ -92,7 +91,6 @@ test("what a resource depends on is planned even if it wasn't given", async () =
 });
 
 test("what a resource depends on brings its children, asked for once however many depend on it", async () => {
-  /** A store with a part of its own. */
   class Parent extends Store {
     asked = 0;
     readonly part = new Store("part", "v", { parent: this });
@@ -129,7 +127,6 @@ test("a new resource's outputs are unknown when planned, and so is anything made
   expect(planned.value(all([old.out("id"), "x"]))).toEqual(["id-old", "x"]);
 });
 
-// Fails: `all` resolves to `[UNKNOWN, "x"]`, which `known` calls known, though its doc says it's unknown while any input is.
 test("`all` is unknown while any of its inputs is", async () => {
   const fresh = new Store("fresh", "v");
   const value = (await plan([fresh], ctx)).value(all([fresh.out("id"), "x"]));

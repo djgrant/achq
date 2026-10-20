@@ -5,7 +5,6 @@ export type SessionState = {
   /** The session key it was started with; a different key means a fresh session. */
   key: string;
   id: string;
-  /** The newest message already given to the session. */
   lastMessage?: string;
   /** A hash of the opening post as last given to the session, to notice edits. */
   opening?: string;
@@ -33,7 +32,6 @@ export const readState = (file: string): ThreadState | undefined => readJsonSync
 /** Atomic, so a crash mid-write leaves the previous state. */
 export const writeState = (file: string, state: ThreadState) => writeJsonSync(file, state, { pretty: true });
 
-/** Every thread's state in `dir`, with the file it's in. */
 export const allStates = (dir: string): { file: string; state: ThreadState }[] =>
   listJsonNamesSync(dir).map((name) => {
     const file = jsonFile(dir, name);

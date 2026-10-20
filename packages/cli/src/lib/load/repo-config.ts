@@ -4,7 +4,6 @@ import type { RepoManifest } from "@achq/core";
 import { evaluateConfig } from "@achq/deployer/config";
 import { readTree } from "@achq/utils/fs";
 
-/** Where a repo's config lives, and the file it starts from. */
 const CONFIG_DIR = ".achq";
 const CONFIG_ENTRY = "config.ts";
 /** Installed packages under `.achq/` are not part of the config. */

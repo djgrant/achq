@@ -4,7 +4,6 @@ import type { ProjectAt, ProjectSnapshot } from "@achq/utils/railway";
 import { RAILWAY_ENV } from "./constants.ts";
 import { railwayFromEnv, workspaceId } from "./railway.ts";
 
-/** Where a service is. */
 export type At = ProjectAt;
 
 type Props = { name: string };
@@ -42,7 +41,6 @@ export class Project extends ManagedResource<Props, At, At, "create"> {
     return placeOf(await railway.readProject(projectId));
   }
 
-  /** Where it puts a service. */
   at() {
     return { projectId: this.out("projectId"), environmentId: this.out("environmentId") };
   }

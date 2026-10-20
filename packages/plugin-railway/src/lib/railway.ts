@@ -10,7 +10,7 @@ const TOKEN_HINT = "Create a token at https://railway.com/account/tokens.";
 export const railwayFromEnv = (env: Env) =>
   new Railway(requireEnv(env, RAILWAY_ENV.token, TOKEN_HINT), optionalEnv(env, RAILWAY_ENV.endpoint) ?? RAILWAY_API);
 
-/** A service where `at` says, in the account in `env`. Reads nothing. */
+/** Reads nothing. */
 export const serviceAt = (env: Env, at: ServiceAt): RailwayService => railwayFromEnv(env).project(at).service(at.serviceId);
 
 /** The workspace new projects go in: RAILWAY_WORKSPACE_ID, or else the token's only workspace. */

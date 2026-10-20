@@ -24,7 +24,6 @@ export async function readJson<T>(file: string, fallback?: T): Promise<T | undef
   }
 }
 
-/** `readJson`, synchronously. */
 export function readJsonSync<T>(file: string): T | undefined;
 export function readJsonSync<T>(file: string, fallback: T): T;
 export function readJsonSync<T>(file: string, fallback?: T): T | undefined {
@@ -36,13 +35,11 @@ export function readJsonSync<T>(file: string, fallback?: T): T | undefined {
   }
 }
 
-/** Writes `value` as JSON, atomically, creating the file's directory. */
 export const writeJson = async (file: string, value: unknown, { pretty, mode }: JsonWriteOptions = {}) => {
   await fsp.mkdir(path.dirname(file), { recursive: true });
   await writeFileAtomic(file, serialise(value, pretty), { mode });
 };
 
-/** `writeJson`, synchronously. */
 export const writeJsonSync = (file: string, value: unknown, { pretty, mode }: JsonWriteOptions = {}) => {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   writeFileAtomicSync(file, serialise(value, pretty), { mode });
@@ -72,7 +69,6 @@ export const listJsonNames = async (dir: string): Promise<string[]> => {
   }
 };
 
-/** `listJsonNames`, synchronously. */
 export const listJsonNamesSync = (dir: string): string[] => {
   try {
     return namesOf(fs.readdirSync(dir));
@@ -82,5 +78,4 @@ export const listJsonNamesSync = (dir: string): string[] => {
   }
 };
 
-/** The file for `name` in a directory of JSON files. */
 export const jsonFile = (dir: string, name: string) => path.join(dir, `${name}${JSON_EXT}`);

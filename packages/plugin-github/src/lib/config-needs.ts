@@ -4,7 +4,6 @@ import type { RepoManifest } from "@achq/core";
 import { CHANNEL, POLICY_PROVIDER } from "./constants.ts";
 import { CONFIG_EVENTS, CONFIG_PERMISSIONS, maxLevel } from "./permissions.ts";
 
-/** The one source (its App's slug) the config's policies and selectors name. */
 export const configSource = (manifest: RepoManifest) => {
   const slugs = new Set<string>();
   for (const { policy } of manifest.policies) if (policy.provider === POLICY_PROVIDER && policy.source) slugs.add(policy.source);
@@ -16,7 +15,6 @@ export const configSource = (manifest: RepoManifest) => {
   return [...slugs][0];
 };
 
-/** The events and permissions the config needs from its App. */
 export const configNeeds = (manifest: RepoManifest, slug: string) => {
   const events = new Set<string>(CONFIG_EVENTS);
   for (const t of manifest.triggers) if (t.event.channel === CHANNEL && typeof t.event.event === "string") events.add(t.event.event);

@@ -13,7 +13,6 @@ export type ContainerSpec = {
   env: Record<string, string>;
 };
 
-/** Where containers run. */
 export interface ContainerProvider {
   /** Creates or updates the container's service and volume. Doesn't build. Returns the URL the router reaches it on. */
   ensure(spec: ContainerSpec): Promise<{ url: string }>;
@@ -32,6 +31,5 @@ export interface ContainerShell {
   reachable(location: Record<string, string>): boolean;
   /** A shell in the container, interactive or running `command`. Returns the exit code. */
   open(location: Record<string, string>, command: string[]): Promise<number>;
-  /** Runs `command` in the container and returns its stdout. */
   run(location: Record<string, string>, command: string[]): Promise<string>;
 }

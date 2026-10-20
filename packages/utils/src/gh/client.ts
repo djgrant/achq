@@ -9,7 +9,6 @@ export const USER_AGENT = "achq";
 /** GitHub's largest page: fewer requests for long lists. */
 export const PAGE_SIZE = 100;
 
-/** A response GitHub gave that the caller didn't want. */
 export class GitHubError extends HttpError {
   constructor(status: number, method: string, route: string, body: string) {
     super(status, method, route, body, "GitHub");
@@ -59,7 +58,6 @@ export class GitHubClient {
     return (res.status === 204 ? undefined : await res.json()) as T;
   }
 
-  /** The response whatever its status. */
   async raw(method: string, route: string, body?: unknown): Promise<Response> {
     const auth = typeof this.auth === "function" ? await this.auth() : this.auth;
     return fetch(this.baseUrl + route, {
@@ -75,7 +73,7 @@ export class GitHubClient {
     });
   }
 
-  /** Every item of a listing, page by page. `pick` finds the items in a page that wraps them. */
+  /** `pick` finds the items in a page that wraps them. */
   async paginate<T>(route: string, pick: (page: any) => T[] = (page) => page): Promise<T[]> {
     const items: T[] = [];
     const sep = route.includes("?") ? "&" : "?";

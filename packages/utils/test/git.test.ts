@@ -15,7 +15,6 @@ const tmpDir = () => {
   return dir;
 };
 
-/** A repo with one commit on `main`, holding `.achq/config.ts`. */
 const origin = async () => {
   const dir = tmpDir();
   await $`git init -q -b main ${dir}`.quiet();

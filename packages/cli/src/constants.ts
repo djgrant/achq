@@ -1,7 +1,6 @@
 /** The ACHQ infra file, at the infra repo's root. */
 export const INFRA_FILE = "achq.infra.ts";
 
-/** The environment variables the CLI reads. */
 export const CLI_ENV = {
   /** The directory `achq` was run in. `bin/achq` passes it on, since pok runs from achq's own directory. */
   callerCwd: "ACHQ_CALLER_CWD",

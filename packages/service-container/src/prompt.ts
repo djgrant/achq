@@ -22,7 +22,6 @@ export type PromptInput = {
   edited?: string;
   /** The trigger's mention, e.g. `@claude`, so `/new` can be stripped after it. */
   mention?: string;
-  /** Who started the run. */
   by: string;
   branch: string;
   head: string;
@@ -70,7 +69,6 @@ export const buildPrompt = (input: PromptInput): Prompt => {
   return { prompt, included: shown.length + (bodyChanged ? 1 : 0), omitted, lastMessage: input.messages.at(-1)?.id, opening };
 };
 
-/** The opening post as the prompt shows it. */
 const openingBody = (first: Message | undefined, trusted: boolean) => {
   if (!first) return EMPTY;
   return trusted ? first.body.trim() || EMPTY : UNTRUSTED_OPENING;
@@ -95,5 +93,4 @@ const render = (mode: PromptInput["mode"], view: object) => {
 /** `/new` is for the runner. The agent only needs what follows it. */
 const stripNew = (body: string, mention?: string) => (mention ? body.replace(newCommandAfter(mention), "$1") : body);
 
-/** `<mention> /new`, capturing the mention. */
 const newCommandAfter = (mention: string) => new RegExp(`(${escapeRegExp(mention)})\\s+/new(?![\\w-])`, "g");

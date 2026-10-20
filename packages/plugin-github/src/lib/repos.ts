@@ -3,13 +3,11 @@
 import { STATUS_VARIABLE, type Status } from "@achq/core";
 import type { CommitSummary, GitHub } from "@achq/utils/gh";
 
-/** How much of a bad ACHQ_STATUS goes into the error. */
 const STATUS_EXCERPT_CHARS = 200;
 
 const committedAt = (commit: CommitSummary) => commit.commit.committer.date;
 const newestFirst = (a: CommitSummary, b: CommitSummary) => committedAt(b).localeCompare(committedAt(a));
 
-/** The SHA of the latest commit on `branch` that changed any of `paths`. */
 export const lastCommit = async (gh: GitHub, repo: string, branch: string, paths: string[]) => {
   const api = gh.repo(repo);
   const latestPerPath = await Promise.all(paths.map((path) => api.latestCommitTouching(branch, path)));
@@ -24,7 +22,6 @@ export const repoOf = (remote: string, web: string) => {
   return remote.trim().match(new RegExp(`${host}[:/]([\\w.-]+/[\\w.-]+?)(?:\\.git)?$`))?.[1];
 };
 
-/** The repo's ACHQ_STATUS repository variable, or undefined if the deployer hasn't written one. */
 export const readStatus = async (gh: GitHub, repo: string): Promise<Status | undefined> => {
   const value = await gh.repo(repo).variable(STATUS_VARIABLE);
   if (value === undefined) return undefined;

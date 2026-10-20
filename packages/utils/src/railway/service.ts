@@ -1,5 +1,3 @@
-// One service in one environment: its instance's settings and deploys, its
-// variables, volume and networking.
 import { OPERATIONS } from "./operations.ts";
 import type { RailwayTransport } from "./transport.ts";
 import type { Instance, InstanceAt, InstanceSettings, PrivateEndpoint, ServiceAt, ServiceDomain } from "./types.ts";
@@ -14,7 +12,6 @@ export class RailwayService {
     this.id = at.serviceId;
   }
 
-  /** The service in its environment, for the operations that don't need its project. */
   private get instanceAt(): InstanceAt {
     return { environmentId: this.at.environmentId, serviceId: this.at.serviceId };
   }
@@ -22,8 +19,6 @@ export class RailwayService {
   async delete() {
     await this.transport.call(OPERATIONS.serviceDelete, { id: this.id, environmentId: this.at.environmentId });
   }
-
-  // ── Settings and deploys ───────────────────────────────────────────────────
 
   instance(): Promise<Instance> {
     return this.transport.call(OPERATIONS.serviceInstance, this.instanceAt);
@@ -38,7 +33,6 @@ export class RailwayService {
     await this.transport.call(OPERATIONS.serviceConnect, { id: this.id, input: { repo, branch } });
   }
 
-  /** Whether Railway deploys on every push to the connected branch. */
   autoDeploy(): Promise<boolean> {
     return this.transport.call(OPERATIONS.serviceInstanceAutoDeployStatus, this.at);
   }
@@ -47,7 +41,6 @@ export class RailwayService {
     await this.transport.call(OPERATIONS.serviceInstanceAutoDeployUpdate, { input: { ...this.at, enabled } });
   }
 
-  /** Builds and deploys the head of the connected branch. */
   async deployLatestCommit() {
     await this.transport.call(OPERATIONS.serviceInstanceDeploy, this.instanceAt);
   }
@@ -56,8 +49,6 @@ export class RailwayService {
   async deployImage() {
     await this.transport.call(OPERATIONS.serviceInstanceDeployV2, this.instanceAt);
   }
-
-  // ── Variables and volumes ──────────────────────────────────────────────────
 
   variables(): Promise<Record<string, string>> {
     return this.transport.call(OPERATIONS.variables, this.at);
@@ -71,8 +62,6 @@ export class RailwayService {
   async addVolume(mountPath: string) {
     await this.transport.call(OPERATIONS.volumeCreate, { input: { ...this.at, mountPath } });
   }
-
-  // ── Networking ─────────────────────────────────────────────────────────────
 
   /** Its public `*.up.railway.app` domains. */
   domains(): Promise<ServiceDomain[]> {

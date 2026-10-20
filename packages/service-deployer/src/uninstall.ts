@@ -3,7 +3,7 @@ import type { DeployerContext } from "./context.ts";
 
 const NOT_FOUND = 404;
 
-/** Takes `repo` out of the router; one the router doesn't have is already out. */
+/** One the router doesn't have is already out. */
 const removeFromRouter = async (ctx: DeployerContext, repo: string) => {
   try {
     await ctx.router.deleteRepo(repo);
@@ -12,7 +12,7 @@ const removeFromRouter = async (ctx: DeployerContext, repo: string) => {
   }
 };
 
-/** Takes `repo` out of the router. Run one per repo at a time. */
+/** Run one per repo at a time. */
 export const uninstall = async (ctx: DeployerContext, host: string, repo: string, dryRun: boolean) => {
   if (dryRun) return;
   const previous = await ctx.store.get(repo);

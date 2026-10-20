@@ -16,10 +16,7 @@ export type ClaimOptions = {
   log: (line: string) => void;
 };
 
-/**
- * The workspace that claimed the thread, or the first of this container's that
- * matches it now. A new claim is recorded on the volume and told to the router.
- */
+/** The workspace that claimed the thread, or the first of this container's that matches it now. */
 export const claimThread = (opts: ClaimOptions, channel: ChannelProvider, event: ChannelEvent, thread: Thread, workspaces: Workspace[]): ThreadState | undefined => {
   const file = opts.paths.thread(threadKey(thread.ref));
   const existing = readState(file);

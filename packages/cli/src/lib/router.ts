@@ -19,10 +19,9 @@ export const routerAccess = async ({ router }: InfraResources, ctx: Context): Pr
 
 const jsonBody = (body: unknown) => (body === undefined ? undefined : JSON.stringify(body));
 
-/** A response body as JSON; undefined when it's empty. */
 const parseJsonText = (text: string): unknown => (text ? JSON.parse(text) : undefined);
 
-/** An admin-signed request to the router. Throws on anything but 2xx. */
+/** Throws on anything but 2xx. */
 export const adminRequest = async <T>(router: RouterAccess, method: string, path: string, body?: unknown): Promise<T> => {
   const res = await signedFetch(adminSecret(router.key), router.base + path, { method, body: jsonBody(body) });
   const text = await res.text();

@@ -7,11 +7,9 @@ import type { RouterContext } from "./context.ts";
 import { fetchSigned, reach, type Try } from "./reach.ts";
 import type { Target } from "./targets.ts";
 
-/** What's on the volume for each accepted delivery until every target has answered. */
 export type InboxEntry = { event: ChannelEvent; targets: Target[] };
 export type FailedEntry = InboxEntry & { targets: (Target & { error: string })[] };
 
-/** Where a target takes its events, signed with what, and the envelope it gets. */
 type Endpoint = { url: string; secret: string; body: string };
 
 const targetEndpoint = (ctx: RouterContext, target: Target, { event }: InboxEntry): Endpoint => {
@@ -24,7 +22,7 @@ const targetEndpoint = (ctx: RouterContext, target: Target, { event }: InboxEntr
   return { url: `${target.url}/events`, secret: containerSecret(ctx.key, target.repo, target.container), body: JSON.stringify(envelope) };
 };
 
-/** Sends the delivery to `target`. A bad target throws inside the attempt, so it fails like one that never answers. */
+/** A bad target throws inside the attempt, so it fails like one that never answers. */
 const sendTo =
   (ctx: RouterContext, target: Target, entry: InboxEntry): Try =>
   (signal) => {
@@ -34,7 +32,6 @@ const sendTo =
 
 const describe = (t: Target) => (t.kind === "deployer" ? "deployer" : `${t.repo}/${t.container}`);
 
-/** Forwards to one target, logging its answer: the error if it never answered. */
 const deliverTo = async (ctx: RouterContext, target: Target, entry: InboxEntry) => {
   const result = await reach(ctx.delays, sendTo(ctx, target, entry), ctx.attemptTimeout);
   if (result.ok) await result.res.body?.cancel();
@@ -42,7 +39,7 @@ const deliverTo = async (ctx: RouterContext, target: Target, entry: InboxEntry) 
   return { target, error: result.ok ? undefined : result.error };
 };
 
-/** Forwards to every target, then clears the inbox. Targets that never answer go to `failed/`. */
+/** Targets that never answer go to `failed/`. */
 const deliver = async (ctx: RouterContext, entry: InboxEntry) => {
   const { delivery } = entry.event;
   const results = await Promise.all(entry.targets.map((target) => deliverTo(ctx, target, entry)));
@@ -51,7 +48,6 @@ const deliver = async (ctx: RouterContext, entry: InboxEntry) => {
   await ctx.store.inbox.remove(delivery);
 };
 
-/** Forwards in the background, keeping the delivery in `inFlight` until it's done. */
 const track = (ctx: RouterContext, entry: InboxEntry) => {
   const { delivery } = entry.event;
   const done = deliver(ctx, entry)
@@ -88,7 +84,6 @@ export const replay = async (ctx: RouterContext) => {
   }
 };
 
-/** Resolves once every delivery being forwarded has finished. */
 export const settled = async (ctx: RouterContext) => {
   while (ctx.inFlight.size) await Promise.all(ctx.inFlight.values());
 };

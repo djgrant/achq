@@ -15,7 +15,6 @@ export type ChooseOptions<T, F> = {
   withoutTerminal: () => F;
 };
 
-/** `picked` if there is one, otherwise one of `items` chosen at the terminal. */
 export const chooseOne = async <T, F>(prompter: Prompter, items: T[], picked: T | undefined, options: ChooseOptions<T, F>): Promise<T | F> => {
   if (picked) return picked;
   if (!interactive()) return options.withoutTerminal();

@@ -7,7 +7,6 @@ import { github } from "./client.ts";
 import { GITHUB_API, GITHUB_WEB } from "./constants.ts";
 import { APP_EVENTS, APP_PERMISSIONS } from "./permissions.ts";
 
-/** The homepage every App's manifest links to. */
 const ACHQ_HOMEPAGE = "https://github.com/djgrant/achq";
 
 /** The slug GitHub gives an App with this name. */
@@ -39,20 +38,17 @@ export const appManifest = (request: ManifestRequest, redirectUrl: string) => ({
   default_events: APP_EVENTS,
 });
 
-/** A page that posts `manifest` to `action` as soon as it loads. */
 const manifestPage = (action: string, manifest: object) => {
   const value = JSON.stringify(manifest).replace(/'/g, "&#39;");
   return `<form id="f" method="post" action="${action}"><input type="hidden" name="manifest" value='${value}'></form><script>f.submit()</script>`;
 };
 
-/** Where GitHub's new-App form is, for an org or your account. */
 const newAppUrl = (web: string, org: string | undefined, state: string) => `${web}${org ? `/organizations/${org}` : ""}/settings/apps/new?state=${state}`;
 
 const html = (page: string) => new Response(page, { headers: { "content-type": "text/html" } });
 
 /**
- * Creates an App through the manifest flow. `open` opens the local page in a
- * browser; `githubWeb` and `githubApi` point tests at a fake.
+ * `open` opens the local page in a browser; `githubWeb` and `githubApi` point tests at a fake.
  */
 export const manifestFlow = async (
   request: ManifestRequest,
@@ -64,7 +60,6 @@ export const manifestFlow = async (
   let settle!: { resolve: (app: CreatedApp) => void; reject: (e: Error) => void };
   const created = new Promise<CreatedApp>((resolve, reject) => (settle = { resolve, reject }));
 
-  /** Trades GitHub's code for the App, settling the flow either way. */
   const convert = async (code: string) => {
     try {
       settle.resolve(await gh.convertManifest(code));

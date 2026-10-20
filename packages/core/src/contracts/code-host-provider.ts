@@ -31,7 +31,6 @@ export interface RepoClient {
  * achq or not: installing and uninstalling are its lifecycle.
  */
 export interface CodeHostProvider {
-  /** What a repo's name looks like here, e.g. `owner/name`. */
   readonly repoName: RegExp;
   /** The policy the deployer's own access to `repo` needs: read `.achq/`, write the status. */
   deployerPolicy(repo: string): PolicyData;
@@ -52,7 +51,6 @@ export interface CodeHostProvider {
   /** The latest commit on `branch` that touched any of `paths`. */
   lastCommit(repo: string, branch: string, paths: string[]): Promise<string>;
 
-  // ── Lifecycle ──
   /** CLI, as you: what sets `repo` up for achq, planned and applied like any resource. */
   install(repo: string, manifest: RepoManifest): ManagedResource[];
   /** CLI, as you: what tears it down. */

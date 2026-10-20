@@ -7,7 +7,6 @@ import { REPO } from "./constants.ts";
 
 type Fields = Record<string, unknown>;
 
-/** A Schema for objects that pass `fits`. */
 const objectSchema = <T>(fits: (value: Fields) => boolean): Schema<T> => ({
   safeParse: (value) => (isPlainObject(value) && fits(value) ? { success: true, data: value as T } : { success: false }),
 });

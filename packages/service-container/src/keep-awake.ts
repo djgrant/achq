@@ -8,5 +8,4 @@ export const keepAwake = (env: Record<string, string | undefined>) => {
   return url ? () => fetch(url) : undefined;
 };
 
-/** Calls `tick` every few minutes until the returned function is called. */
 export const stayAwake = (tick: () => void) => every(KEEP_AWAKE_INTERVAL_MS, tick);

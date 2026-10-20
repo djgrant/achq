@@ -21,7 +21,6 @@ export type CredentialsOptions = {
 };
 
 export type Current = CredentialsResponse & {
-  /** The env agents need for the installed credentials. */
   env: Record<string, string>;
 };
 
@@ -47,7 +46,7 @@ export class Credentials {
     return current!;
   }
 
-  /** The channel credential for a source, for the runner's ChannelClient. Never given to agents. */
+  /** Never given to agents. */
   async channel(channel: string, source: string): Promise<ChannelCredential> {
     const { channels } = await this.get();
     const found = channels.find((c) => c.channel === channel && c.scope.source === source);
@@ -55,7 +54,6 @@ export class Credentials {
     return found;
   }
 
-  /** New credentials, installed. Callers while one is in flight share it. */
   private refresh = singleFlight(async (): Promise<Current> => {
     const response = await this.requestCredentials();
     this.current = { ...response, env: await this.installCredentials(response) };
@@ -70,7 +68,6 @@ export class Credentials {
     return (await res.json()) as CredentialsResponse;
   }
 
-  /** Has each policy provider install its credentials on the volume, and returns the env agents need for them. */
   private async installCredentials(response: CredentialsResponse): Promise<Record<string, string>> {
     const { policyProviders, paths } = this.opts;
     const env: Record<string, string> = {};
@@ -100,11 +97,9 @@ const freshness = (current: CredentialsResponse | undefined, now: number): Fresh
   return left < REFRESH_BEFORE_MS ? "expiring" : "fresh";
 };
 
-/** When the first credential runs out. */
 const expiry = (c: CredentialsResponse) =>
   Math.min(...[...c.credentials, ...c.channels].map((x) => Date.parse(x.expiresAt)), Number.POSITIVE_INFINITY);
 
-/** The providers of credentials that none of `policyProviders` installs, each once. */
 const uninstallable = (response: CredentialsResponse, policyProviders: PolicyProvider[]) => {
   const known = new Set(policyProviders.map((p) => p.id));
   return [...new Set(response.credentials.map((c) => c.provider).filter((id) => !known.has(id)))];

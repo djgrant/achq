@@ -1,6 +1,5 @@
-// JSON values as data: comparing them, serialising them the same way every
-// time, and checking that a value is one. Pure, with no Node or Bun imports,
-// because core uses it inside the config sandbox.
+// Pure, with no Node or Bun imports, because core uses it inside the config
+// sandbox.
 
 export type Json = string | number | boolean | null | Json[] | { [key: string]: Json };
 
@@ -11,7 +10,6 @@ export const isPlainObject = (value: unknown): value is Record<string, unknown> 
   return proto === Object.prototype || proto === null;
 };
 
-/** JSON with object keys sorted, so equal data always serialises the same way. */
 export const stableStringify = (value: Json): string => {
   if (Array.isArray(value)) return `[${value.map(stableStringify).join(",")}]`;
   if (value && typeof value === "object") {
@@ -21,7 +19,6 @@ export const stableStringify = (value: Json): string => {
   return JSON.stringify(value);
 };
 
-/** Whether two JSON values are equal, whatever their keys' order. */
 export const sameJson = (a: Json, b: Json): boolean => stableStringify(a) === stableStringify(b);
 
 /** Deep equality over plain objects and arrays. Anything else is compared by identity. */

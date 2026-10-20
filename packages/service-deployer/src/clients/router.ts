@@ -22,7 +22,7 @@ const withoutTrailingSlashes = (url: string) => url.replace(/\/+$/, "");
 /** A JSON body, or undefined for an empty one, as a 204 has. */
 const parseJsonBody = <T>(text: string) => (text ? JSON.parse(text) : undefined) as T;
 
-/** Calls to `base` with JSON bodies, signed with `secret`. A response that isn't 2xx throws an HttpError. */
+/** A response that isn't 2xx throws an HttpError. */
 const signedJsonClient =
   (secret: string, base: string) =>
   async <T>(method: string, path: string, body?: unknown): Promise<T> => {
@@ -31,13 +31,11 @@ const signedJsonClient =
     return parseJsonBody<T>(await res.text());
   };
 
-/** `owner/name`'s two parts, or undefined if it isn't that. */
 const parseRepo = (repo: string) => {
   const [owner, name, ...rest] = repo.split("/");
   return owner && name && !rest.length ? { owner, name } : undefined;
 };
 
-/** `/admin/repos/<owner>/<name>`, which the router serves a repo's config at. */
 const repoPath = (repo: string) => {
   const parts = parseRepo(repo);
   if (!parts) throw new Error(`"${repo}" isn't owner/name`);

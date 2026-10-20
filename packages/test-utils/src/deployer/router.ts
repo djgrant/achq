@@ -7,7 +7,6 @@ import type { FakeGitHub } from "./github.ts";
 export class FakeRouter {
   installed: InstalledRepo[] = [];
   sources: SourceSettings[] = [];
-  /** Problems `/admin/validate` reports for a policy. */
   problems: (policy: PolicyData, repo: string) => string[] = () => [];
   readonly repos = new Map<string, RouterRepoConfig>();
   readonly calls: { method: string; path: string; body?: unknown }[] = [];

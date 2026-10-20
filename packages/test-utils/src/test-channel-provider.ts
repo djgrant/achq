@@ -47,7 +47,6 @@ export class TestChannelProvider implements ChannelProvider {
     };
   }
 
-  /** Posts a comment and returns its event. */
   comment(n: number, body: string, opts: { trusted?: boolean; delivery?: string } = {}) {
     this.post(n, body, { trusted: opts.trusted });
     return this.event(n, "comment", body, opts);

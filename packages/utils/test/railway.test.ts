@@ -5,7 +5,6 @@ import { nodes } from "../src/railway/operations.ts";
 let server: ReturnType<typeof Bun.serve> | undefined;
 afterEach(() => server?.stop(true));
 
-/** A Railway that answers every request with `body`. */
 const answering = (body: string) => {
   server = Bun.serve({ port: 0, fetch: () => new Response(body, { status: 502 }) });
   return new Railway("t", `http://localhost:${server.port}/graphql/v2`);

@@ -25,23 +25,19 @@ import { defaultRuntimes } from "./runtimes.ts";
 import { RunSlots } from "./slots.ts";
 
 export type RunnerOptions = {
-  /** `owner/name`. */
   repo: string;
-  /** This container's name in the repo's config. */
   container: string;
   channelProviders: ChannelProvider[];
   policyProviders: PolicyProvider[];
   routerUrl: string;
   containerSecret: string;
   dataDir: string;
-  /** The mirror's remote. */
   repoUrl: string;
   loadConfig: (commit: string) => Promise<LoadedConfig>;
   runtimes?: Record<string, RuntimeFactory>;
-  /** How many runs may go at once, across all threads. */
   maxRuns?: number;
   runTimeoutMs?: number;
-  /** The base env agents get, before credentials. Private variables are removed. */
+  /** Private variables are removed. */
   env?: Record<string, string | undefined>;
   now?: () => number;
   /** Outbound traffic while runs are going, so the container provider doesn't sleep the container. Defaults to fetching ENV.keepAwakeUrl, when it's set. */
@@ -53,13 +49,11 @@ type Workspace = RepoManifest["workspaces"][number];
 type Trigger = RepoManifest["triggers"][number];
 type Env = Record<string, string | undefined>;
 
-/** This container's workspaces for the event's channel, and the triggers the event matches. */
 type Matched = { workspaces: Workspace[]; triggers: Trigger[] };
 
 export class Runner {
   readonly paths: Paths;
   readonly credentials: Credentials;
-  /** The HTTP handler: `GET /` health, `POST /events` signed by the router. */
   readonly fetch: (req: Request) => Promise<Response>;
   /** One thread's runs go one after another. */
   private enqueue = keyedQueue();
@@ -133,7 +127,6 @@ export class Runner {
     });
   }
 
-  /** Handles one event; resolves once its runs (if any) are queued. */
   async handle({ event, commit }: ContainerEnvelope): Promise<void> {
     const tag = `[${event.delivery}]`;
     if (!firstDelivery(this.paths.deliveries, event.delivery)) return this.log(`${tag} already handled`);
@@ -208,7 +201,6 @@ export class Runner {
     return claimThread({ paths: this.paths, repo, container, routerUrl, containerSecret, log: this.log }, channel, event, thread, workspaces);
   }
 
-  /** The thread's worktree, after fetching the mirror. `gitEnv` carries git's credentials. */
   private async prepareWorktree(workspace: Workspace, key: string, thread: Thread, gitEnv: Env): Promise<string> {
     const cwd = this.paths.worktree(workspace.name, key);
     await fetchMirror(this.paths.mirror, this.opts.repoUrl, gitEnv);
@@ -232,7 +224,6 @@ export class Runner {
     return ctx;
   });
 
-  /** Marks runs a restart interrupted and says so on their threads. */
   reportInterrupted() {
     return reportInterrupted({ threads: this.paths.threads, channelProviders: this.opts.channelProviders, client: (channel, source) => this.client(channel, source), log: this.log });
   }
@@ -244,7 +235,6 @@ const refusal = (event: ChannelEvent): string | undefined => {
   return undefined;
 };
 
-/** What in the config the event is for here, or undefined if nothing is. */
 const matching = (config: LoadedConfig, container: string, channel: ChannelProvider, event: ChannelEvent): Matched | undefined => {
   const workspaces = config.manifest.workspaces.filter((w) => w.container === container && w.threads.channel === channel.id);
   const triggers = config.manifest.triggers.filter((t) => t.event.channel === channel.id && channel.matchEvent(t.event, event));

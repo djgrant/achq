@@ -4,8 +4,6 @@
 /** Permission name to level: `{ contents: "write" }`. */
 export type Permissions = Record<string, string>;
 
-// ── Repos ──
-
 /** `GET /repos/{r}`. `permissions` is the caller's, and only there for a user token. */
 export type RepoInfo = { id: number; full_name: string; default_branch: string; permissions?: { push?: boolean } };
 
@@ -15,21 +13,14 @@ export type CommitSummary = { sha: string; commit: { committer: { date: string }
 /** An item of a repo listing. */
 export type RepoName = { full_name: string };
 
-// ── Git data ──
-
 export type GitRef = { ref?: string; object: { sha: string } };
 export type GitCommit = { sha: string; tree: { sha: string } };
 export type TreeEntry = { path: string; mode: string; type: "blob" | "tree" | "commit"; sha: string; size?: number };
 export type GitTree = { sha: string; tree: TreeEntry[]; truncated?: boolean };
 export type GitBlob = { content: string; encoding: "base64" | "utf-8" | string };
 
-// ── Actions variables ──
-
 export type Variable = { name: string; value: string };
 
-// ── Apps ──
-
-/** What an App is sent and allowed. */
 export type AppSettings = { events: string[]; permissions: Permissions };
 
 /** `GET /app`, and `GET /apps/{slug}` for a public one. */
@@ -49,8 +40,6 @@ export type AccessToken = { token: string; expires_at: string; permissions?: Per
 /** `POST /app-manifests/{code}/conversions`: the App the manifest flow created, with its private key. */
 export type CreatedApp = { id: number; slug: string; pem: string; html_url: string };
 
-// ── Users ──
-
 /** An installation your login can see: `GET /user/installations`. */
 export type UserInstallation = {
   id: number;
@@ -61,9 +50,6 @@ export type UserInstallation = {
 
 export type User = { id: number; login: string };
 
-// ── Issues ──
-
-/** Who wrote an issue or comment, and how they relate to the repo. */
 type Authored = { user?: { login: string; type?: string } | null; author_association: string; body?: string | null; created_at: string };
 
 export type Issue = Authored & { number: number; title: string; html_url: string; labels: (string | { name?: string })[] };

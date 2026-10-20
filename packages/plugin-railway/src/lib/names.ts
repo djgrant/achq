@@ -22,7 +22,6 @@ const shortened = (name: string) => {
   return `${prefix}-${sha256Hex(name, NAME_HASH_CHARS)}`;
 };
 
-/** The service a router or deployer resource runs as. */
 export const hostServiceName = (resource: string) => serviceName(HOST_SERVICE_PREFIX, resource);
 
 export const containerServiceName = (repo: string, name: string) => serviceName(repo.replace("/", "-"), name);

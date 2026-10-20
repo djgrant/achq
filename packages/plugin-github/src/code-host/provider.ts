@@ -14,21 +14,18 @@ import { userGitHub } from "../lib/user.ts";
 import type { GitHubPolicyData } from "../policy/resource.ts";
 import { CodeHost } from "./resource.ts";
 
-/** The repo's config directory. */
 const CONFIG_DIR = ".achq";
 /** A git tree entry's mode for a symlink, whose blob is only the path it points to. */
 const SYMLINK_MODE = "120000";
-/** What listing an installation's repos needs. */
 const LIST_PERMISSIONS = { metadata: "read" };
 
 /** A file with content: not a directory, a submodule (`commit`) or a symlink. */
 const isRegularFile = (entry: TreeEntry) => entry.type === "blob" && entry.mode !== SYMLINK_MODE;
 
-/** The config's files, by path under `.achq/`. Symlinks and submodules aren't followed. */
+/** Symlinks and submodules aren't followed. */
 const configBlobs = (entries: TreeEntry[]): ConfigTree["blobs"] =>
   new Map(entries.filter(isRegularFile).map((entry) => [entry.path, { sha: entry.sha, size: entry.size ?? 0 }]));
 
-/** Refuses a download the listing already says is too big, before fetching any of it. */
 const assertWithinLimits = (paths: string[], tree: ConfigTree, limits: FileLimits) => {
   if (paths.length > limits.maxFiles) throw new Error(`${CONFIG_DIR}/ has ${paths.length} source files; the limit is ${limits.maxFiles}`);
   const listed = paths.reduce((sum, path) => sum + (tree.blobs.get(path)?.size ?? 0), 0);
@@ -62,13 +59,12 @@ const repoClient = (repo: RepoApi): RepoClient => ({
     return files;
   },
 
-  /** ACHQ_STATUS is a repository variable. */
   writeStatus(status: Status) {
     return repo.upsertVariable(STATUS_VARIABLE, JSON.stringify(status));
   },
 });
 
-/** Repos on GitHub. A repo is set up for achq when the config's one App is installed on it. Only the router has the App keys that list where. */
+/** A repo is set up for achq when the config's one App is installed on it. Only the router has the App keys that list where. */
 export class GitHubCodeHostProvider implements CodeHostProvider {
   readonly repoName = REPO_NAME;
   /** You, through your gh login: the CLI's side. */
@@ -127,7 +123,6 @@ export class GitHubCodeHostProvider implements CodeHostProvider {
     return new CodeHost({ slug, repo, installed, needs: configNeeds(manifest, slug) });
   }
 
-  /** Every repo an App is installed on, once. */
   async installed(): Promise<InstalledRepo[]> {
     const perApp = await Promise.all(this.apps.slugs().map((slug) => this.appInstalledRepos(slug)));
     return dedupe(perApp.flat()).map((repo) => ({ host: CODE_HOST, repo }));

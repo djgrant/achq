@@ -36,8 +36,6 @@ describe("verify", () => {
   });
 });
 
-// ─── Against a fake GitHub API ───
-
 describe("against GitHub", () => {
   const gh = new FakeGitHub([appA, appB]);
   let api: { channel: GitHubChannelProvider };

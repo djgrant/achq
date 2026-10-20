@@ -16,7 +16,6 @@ export type UpOptions = { prune: boolean; dryRun: boolean };
 export type UpDeps = {
   /** What the resources read their settings and credentials from. */
   env: Record<string, string | undefined>;
-  /** What every container gets: the agent runtimes' variables. */
   containerEnv: Record<string, string>;
   /** The achq commit the router and deployer run. */
   achqRef: () => Promise<string>;

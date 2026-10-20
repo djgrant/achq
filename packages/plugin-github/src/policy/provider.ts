@@ -23,7 +23,6 @@ import type { GitHubPolicyData } from "./resource.ts";
 
 /** gh's config directory is only the agent's. */
 const GH_DIR_MODE = 0o700;
-/** gh's user when the credential doesn't say which App it's from. */
 const ANONYMOUS_GH_USER = "x-access-token";
 
 /** One token's worth of policies: one App installation, one repo, the highest level asked for of each permission. */
@@ -32,13 +31,10 @@ type TokenGroup = { source: string; installation: number; repos: string[]; permi
 const notInstalled = (source: string | undefined, repo: string) =>
   source ? `${source} isn't installed on ${repo}` : `No GitHub App on the router is installed on ${repo}`;
 
-/** Sorts the token for the config's own repo first. */
 const ownRepoFirst = (repo: string) => {
   const rank = (group: TokenGroup) => (sameRepo(group.repos[0]!, repo) ? 0 : 1);
   return (a: TokenGroup, b: TokenGroup) => rank(a) - rank(b);
 };
-
-// ── Validation: each check says what's wrong, or nothing ──
 
 const badLevels = (permissions: Record<string, string>) =>
   Object.entries(permissions)
@@ -61,7 +57,6 @@ export class GitHubPolicyProvider implements PolicyProvider {
 
   constructor(private apps: Apps) {}
 
-  /** The policy's App and its installation on `repo`: the one it names, or else whichever is installed there. */
   private async installation(source: string | undefined, repo: string): Promise<FoundInstallation | undefined> {
     if (!source) return this.apps.installedOn(repo);
     const installation = await this.apps.installation(source, repo);
@@ -104,7 +99,6 @@ export class GitHubPolicyProvider implements PolicyProvider {
     return Promise.all(groups.sort(ownRepoFirst(repo)).map((group) => this.mintGroup(group)));
   }
 
-  /** The policies' token groups, finding each App installation once. */
   private async groupByTokenScope(policies: PolicyData[], repo: string): Promise<TokenGroup[]> {
     const lookups = new Map<string, Promise<FoundInstallation | undefined>>();
     const findInstallationOnce = (source: string | undefined, target: string) => {
@@ -185,7 +179,6 @@ export class GitHubPolicyProvider implements PolicyProvider {
   }
 }
 
-/** The owner/name repos a credential's scope lists. */
 const credentialRepos = (credential: PolicyCredential): string[] => {
   const repos = Array.isArray(credential.scope.repos) ? credential.scope.repos : [];
   return repos.filter((repo): repo is string => typeof repo === "string" && REPO.test(repo));

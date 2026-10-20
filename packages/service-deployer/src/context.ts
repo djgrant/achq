@@ -5,7 +5,6 @@ import { DEFAULT_FILE_LIMITS } from "./constants.ts";
 import { createStore, type Store } from "./store.ts";
 
 export type DeployerEnv = {
-  /** What every container gets: the agent runtimes' variables. */
   containerEnv: Record<string, string>;
   /** Variables a container never hands to an agent: every implementation's. */
   privateEnv: string[];
@@ -20,7 +19,6 @@ export type DeployerEnv = {
 export type DeployerDeps = {
   containerProvider: ContainerProvider;
   router: RouterClient;
-  /** The code hosts, by id. */
   codeHostProviders: Record<string, CodeHostProvider>;
   owners: string[];
   dataDir: string;
@@ -31,7 +29,6 @@ export type DeployerDeps = {
   log?: (line: string) => void;
 };
 
-/** What deploys, uninstalls and syncs share: the deps with their defaults filled in, and the store. */
 export type DeployerContext = Required<Omit<DeployerDeps, "owners">> & {
   /** Lowercased. */
   owners: Set<string>;

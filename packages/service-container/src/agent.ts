@@ -8,7 +8,6 @@ import { fetchMirror } from "./repo.ts";
 import { Runner } from "./runner.ts";
 import { type Env, settings } from "./settings.ts";
 
-/** The serving runner, wired from the container's environment. */
 export const createAgent = (env: Env, options: { log?: (line: string) => void } = {}) => {
   const { repo, container, dataDir, repoUrl } = settings(env);
   const paths = layout(dataDir);

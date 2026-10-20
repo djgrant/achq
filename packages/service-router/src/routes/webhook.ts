@@ -5,7 +5,6 @@ import { claimsOf, configOf, type RouterContext } from "../context.ts";
 import { acceptDelivery } from "../inbox.ts";
 import { targetsFor } from "../targets.ts";
 
-/** The channel whose signature the webhook carries, and the source it names. */
 const verifiedChannel = async (ctx: RouterContext, headers: Headers, body: string): Promise<{ channel: ChannelProvider; source: string } | undefined> => {
   for (const channel of ctx.channelProviders) {
     const source = await channel.verify(headers, body);

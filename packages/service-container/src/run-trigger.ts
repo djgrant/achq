@@ -42,16 +42,13 @@ export type TriggerDeps = {
   now: () => number;
 };
 
-/** Which session a run goes in: a fresh one with a new id, or the previous one resumed. */
 type SessionPlan = { fresh: boolean; id: string; key: string; previous?: SessionState };
 
-/** What the session is given, and how far into the thread that takes it. */
 type PromptPlan = { prompt: string; lastMessage?: string; opening?: string };
 
 /** A command with nothing to say, for runs not started by a mention. */
 const RESUME: Command = { mode: "resume", text: "" };
 
-/** Runs the trigger's agent on the thread, in a new or resumed session, and posts its reply. */
 export const runTrigger = async (deps: TriggerDeps, run: TriggerRun) => {
   const { trigger, client, thread, log } = run;
   const resolved = resolveRuntime(deps, run.config, trigger);
@@ -80,14 +77,12 @@ export const runTrigger = async (deps: TriggerDeps, run: TriggerRun) => {
   }
 };
 
-/** The trigger's agent and the runtime that runs it, or undefined if this container can't. */
 const resolveRuntime = (deps: TriggerDeps, config: LoadedConfig, trigger: Trigger): { agent: Agent; factory: RuntimeFactory } | undefined => {
   const agent = config.agents.find((a) => a.name === trigger.agent);
   const factory = agent && deps.runtimes[agent.runtime];
   return agent && factory ? { agent, factory } : undefined;
 };
 
-/** The mention that starts the trigger, e.g. `@claude`, if it's started by one. */
 const mentionOf = (trigger: Trigger) => (typeof trigger.event.mention === "string" ? trigger.event.mention : undefined);
 
 /** `/new`, no session yet, or a changed session key start afresh. Compacting needs a session to compact. */
@@ -120,7 +115,7 @@ const promptFor = async (run: TriggerRun, plan: SessionPlan, command: Command, m
 
 const saveState = (deps: TriggerDeps, run: TriggerRun) => writeState(deps.paths.thread(threadKey(run.thread.ref)), run.state);
 
-/** Records the session as running, so a restart mid-run can say so. */
+/** So a restart mid-run can say so. */
 const startSession = (deps: TriggerDeps, run: TriggerRun, agent: string, plan: SessionPlan, prompt: PromptPlan) => {
   run.state.sessions[agent] = {
     key: plan.key,
@@ -134,7 +129,6 @@ const startSession = (deps: TriggerDeps, run: TriggerRun, agent: string, plan: S
   saveState(deps, run);
 };
 
-/** Records a running session as idle again. */
 const finishSession = (deps: TriggerDeps, run: TriggerRun, agent: string) => {
   const session = run.state.sessions[agent];
   if (session?.status !== "running") return;

@@ -55,12 +55,10 @@ export class FakeGitHub {
   repos = new Map<string, Repo>();
   users = new Map<string, { id: number; login: string }>();
   tokens = new Map<string, Token>();
-  /** Every access-token request: which installation, and the body. */
   minted: { installation: number; body: any }[] = [];
   requests: { method: string; path: string; auth: string }[] = [];
   /** User (OAuth) tokens: who they are, and the repos they can push to. */
   userTokens = new Map<string, { login: string; push: string[] }>();
-  /** When minted installation tokens expire. */
   expiresAt: () => string = () => "2026-10-18T13:00:00Z";
   private server?: ReturnType<typeof Bun.serve>;
   private next = 1;
@@ -110,7 +108,7 @@ export class FakeGitHub {
     });
   }
 
-  /** Adds a comment and returns it. Without an `id`, it gets one higher than any so far, as GitHub's ids grow. */
+  /** Without an `id`, it gets one higher than any so far, as GitHub's ids grow. */
   addComment(repo: string, number: number, comment: Partial<Comment> & { id?: number }) {
     const id = comment.id ?? this.nextComment;
     this.nextComment = Math.max(this.nextComment, id + 1);
@@ -126,7 +124,6 @@ export class FakeGitHub {
     return added;
   }
 
-  /** Every comment on an issue. */
   comments(repo: string, number: number) {
     return this.issues.get(`${repo}#${number}`)?.comments ?? [];
   }

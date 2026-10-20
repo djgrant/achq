@@ -15,7 +15,6 @@ export const resolveStartupPath = (key: string, home: string, configDir: string)
   return path.isAbsolute(key) ? key : path.join(home, key);
 };
 
-/** Writes startup files where `resolveStartupPath` puts them. */
 export const writeFiles = (resolved: Record<string, string>, home: string, configDir: string) => {
   for (const [key, content] of Object.entries(resolved)) writeFileEnsured(resolveStartupPath(key, home, configDir), content);
 };

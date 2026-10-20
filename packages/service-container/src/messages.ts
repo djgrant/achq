@@ -2,10 +2,8 @@
 // from the code that decides to say it.
 
 const WARNING = "⚠️";
-/** How much of a commit a message shows. */
 const SHORT_COMMIT = 7;
 
-/** A failure, as the thread sees it. */
 export const failureReply = (message: string) => `${WARNING} ${message}`;
 
 export const unrunnableAgent = (trigger: { name: string; agent: string }) =>
@@ -13,11 +11,9 @@ export const unrunnableAgent = (trigger: { name: string; agent: string }) =>
 
 export const NOTHING_TO_COMPACT = "There is no current session on this thread to compact.";
 
-/** How to carry on after a failed run, for triggers started by a mention. */
 export const resumeHint = (mention: string | undefined) =>
   mention ? `\n\nComment \`${mention} <prompt>\` to resume the session, or \`${mention} /new <prompt>\` to start over.` : "";
 
-/** A run the agent reported as failed, with its error output folded away. */
 export const runFailed = (error: string, mention: string | undefined) =>
   `${WARNING} **The run failed.**\n\n<details><summary>Error output</summary>\n\n\`\`\`\n${error}\n\`\`\`\n\n</details>${resumeHint(mention)}`;
 

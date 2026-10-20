@@ -15,7 +15,7 @@ export abstract class Service extends Resource {
   abstract readonly containerProvider: string;
   /** The file in achq it runs, e.g. `packages/service-router/src/main.ts`. */
   abstract readonly entry: string;
-  /** The port it listens on. A public service gets a public URL for this port. */
+  /** A public service gets a public URL for this port. */
   abstract readonly port: number;
   abstract readonly public: boolean;
   /** Sleeps when idle, and wakes on a request. */

@@ -7,7 +7,6 @@ export type WaitOptions = { timeoutMs?: number; intervalMs?: number; sleep?: (ms
 /** Whether `status` is a result written after `since`, rather than one left from before. */
 const isNewer = (since: Date) => (status: Status | undefined) => !!status && Date.parse(status.at) > since.getTime();
 
-/** Polls the repo's status until it shows a result newer than `since`, or times out. */
 export const waitForStatus = (
   status: (repo: string) => Promise<Status | undefined>,
   repo: string,

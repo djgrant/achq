@@ -7,12 +7,10 @@ export class ChannelRef {
     this.issues = new Issues(slug);
   }
 
-  /** Events on an issue itself. */
   issue(options: { actions?: IssueAction[]; mention?: string; labels?: string[] } = {}) {
     return eventSelector(this.slug, "issues", options.actions ?? ["opened"], options);
   }
 
-  /** New or edited comments on an issue. */
   issueComment(options: { actions?: CommentAction[]; mention?: string; labels?: string[] } = {}) {
     return eventSelector(this.slug, "issue_comment", options.actions ?? ["created"], options);
   }

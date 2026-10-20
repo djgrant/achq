@@ -13,8 +13,6 @@ export const key = "test-key";
 export const repo = "acme/widgets";
 export const hour = () => new Date(Date.now() + 3_600_000).toISOString();
 
-// ─── A channel, a code host and a policy provider of our own ─────────────────
-
 /** Each source's webhook secret, derived from the key the way the GitHub channel does. */
 export const sourceSecret = (source: string) => hmacHex(key, `test-source:${source}`);
 export const SOURCES = ["app"];
@@ -81,8 +79,6 @@ export const testHost: CodeHostProvider = {
   installed: async () => [{ host: "test", repo }],
 };
 
-// ─── Fake services ───────────────────────────────────────────────────────────
-
 export const servers: { stop: (force?: boolean) => unknown }[] = [];
 afterEach(() => {
   for (const s of servers.splice(0)) s.stop(true);
@@ -137,8 +133,6 @@ export const fakeDeployer = () => {
   });
   return fake;
 };
-
-// ─── The router ──────────────────────────────────────────────────────────────
 
 export type Boot = { dir?: string; deployer?: string; delays?: number[] };
 

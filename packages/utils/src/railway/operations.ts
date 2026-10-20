@@ -3,10 +3,8 @@
 // that key and is typed against this table, so the two stay in step.
 import type { Instance, InstanceAt, InstanceSettings, ProjectSummary, ServiceAt, ServiceDomain, Workspace } from "./types.ts";
 
-/** A response's `data`, untyped until an operation's `pick` takes its result from it. */
 export type Data = Record<string, any>;
 
-/** A query or mutation: its document, and how to take its result out of the response's data. */
 export type Operation<Vars, Result> = {
   document: string;
   pick: (data: Data) => Result;
@@ -16,13 +14,10 @@ export type Operation<Vars, Result> = {
 
 export const op = <Vars, Result>(document: string, pick: (data: Data) => Result): Operation<Vars, Result> => ({ document, pick });
 
-/** A list as a GraphQL connection gives it. */
 export type Edges<T> = { edges: { node: T }[] };
 
-/** A connection's items. */
 export const nodes = <T>(connection: Edges<T>): T[] => connection.edges.map((e) => e.node);
 
-/** For a mutation whose result nobody reads. */
 const nothing = (): void => undefined;
 
 export type RawProject = {
@@ -34,8 +29,6 @@ export type RawProject = {
 };
 
 export const OPERATIONS = {
-  // ── Workspaces and projects ────────────────────────────────────────────────
-  /** The token's workspaces. */
   apiToken: op<Record<string, never>, Workspace[]>(`query { apiToken { workspaces { id name } } }`, (d) => d.apiToken.workspaces),
   projects: op<{ workspaceId?: string }, ProjectSummary[]>(
     `query ($workspaceId: String) { projects(workspaceId: $workspaceId) { edges { node { id name } } } }`,
@@ -57,7 +50,6 @@ export const OPERATIONS = {
     (d) => d.projectCreate.id,
   ),
 
-  // ── Services ───────────────────────────────────────────────────────────────
   serviceCreate: op<{ input: { projectId: string; environmentId: string; name: string } }, string>(
     `mutation ($input: ServiceCreateInput!) { serviceCreate(input: $input) { id } }`,
     (d) => d.serviceCreate.id,
@@ -108,7 +100,6 @@ export const OPERATIONS = {
     nothing,
   ),
 
-  // ── Variables ──────────────────────────────────────────────────────────────
   variables: op<ServiceAt, Record<string, string>>(
     `query ($projectId: String!, $environmentId: String!, $serviceId: String!) {
       variables(projectId: $projectId, environmentId: $environmentId, serviceId: $serviceId)
@@ -120,11 +111,9 @@ export const OPERATIONS = {
     nothing,
   ),
 
-  // ── Volumes ────────────────────────────────────────────────────────────────
   volumeCreate: op<{ input: ServiceAt & { mountPath: string } }, void>(`mutation ($input: VolumeCreateInput!) { volumeCreate(input: $input) { id } }`, nothing),
   volumeDelete: op<{ volumeId: string }, void>(`mutation ($volumeId: String!) { volumeDelete(volumeId: $volumeId) }`, nothing),
 
-  // ── Networking ─────────────────────────────────────────────────────────────
   domains: op<ServiceAt, ServiceDomain[]>(
     `query ($projectId: String!, $environmentId: String!, $serviceId: String!) {
       domains(projectId: $projectId, environmentId: $environmentId, serviceId: $serviceId) { serviceDomains { id domain targetPort } }
@@ -136,7 +125,6 @@ export const OPERATIONS = {
     (d) => d.serviceDomainCreate.domain,
   ),
   serviceDomainDelete: op<{ id: string }, void>(`mutation ($id: String!) { serviceDomainDelete(id: $id) }`, nothing),
-  /** The environment's private networks' ids. */
   privateNetworks: op<{ environmentId: string }, string[]>(
     `query ($environmentId: String!) { privateNetworks(environmentId: $environmentId) { publicId } }`,
     (d) => d.privateNetworks.map((n: { publicId: string }) => n.publicId),
@@ -161,5 +149,4 @@ export type RailwayField = keyof typeof OPERATIONS;
 /** The first field a document asks for, as Railway (and its fake) see it. */
 export const rootField = (document: string): string => document.slice(document.indexOf("{") + 1).match(/^\s*(\w+)/)?.[1] ?? "";
 
-/** Whether a document is a mutation, rather than a query. */
 export const isMutation = (document: string): boolean => document.trimStart().startsWith("mutation");

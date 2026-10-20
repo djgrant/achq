@@ -4,7 +4,7 @@ import { appsFor } from "../lib/apps.ts";
 import { githubUrls } from "../lib/client.ts";
 import { GitHubCodeHostProvider } from "./provider.ts";
 
-/** Repos on GitHub (or the fake the env points at). The router's instance has the App keys that list installed repos. */
+/** The router's instance has the App keys that list installed repos. */
 export const githubCodeHostProvider: Implementation<CodeHostProvider> = {
   id: CODE_HOST,
   create: (env) => new GitHubCodeHostProvider(githubUrls(env), appsFor(env)),

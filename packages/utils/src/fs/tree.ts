@@ -1,4 +1,3 @@
-// A directory read whole, for shipping it somewhere as data.
 import * as fs from "node:fs";
 import * as path from "node:path";
 

@@ -6,13 +6,11 @@ import * as path from "node:path";
 const SAFE_FILE_NAME = /^[\w-][\w.-]*$/;
 const UNSAFE_CHAR = /[^A-Za-z0-9._-]/g;
 
-/** Whether `name` can be used as a file name as it is. */
 export const isSafeFileName = (name: string): boolean => SAFE_FILE_NAME.test(name);
 
-/** `name` with every character that's unsafe in a file name replaced by `_`. */
 export const safeFileName = (name: string): string => name.replace(UNSAFE_CHAR, "_");
 
-/** Whether `file` is `root` or inside it. Both must be absolute and normalised. */
+/** Both must be absolute and normalised. */
 export const isWithin = (root: string, file: string): boolean => file === root || file.startsWith(root + path.sep);
 
 /** `relative` resolved against `root`, or undefined if it leads outside `root`. */

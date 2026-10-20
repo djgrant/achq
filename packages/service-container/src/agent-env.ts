@@ -9,7 +9,6 @@ const PRIVATE_FILE_MODE = 0o600;
 const PRIVATE_DIR_MODE = 0o700;
 const GIT_IDENTITY_PREFIXES = ["GIT_AUTHOR_", "GIT_COMMITTER_"];
 
-/** The env that makes git commit as `identity`, both as author and committer. */
 export const gitIdentity = ({ name, email }: Identity): Record<string, string> => ({
   GIT_AUTHOR_NAME: name,
   GIT_AUTHOR_EMAIL: email,
@@ -17,10 +16,8 @@ export const gitIdentity = ({ name, email }: Identity): Record<string, string> =
   GIT_COMMITTER_EMAIL: email,
 });
 
-/** The git identity variables in `env`. */
 export const gitIdentityEnv = (env: Record<string, string>) => filterKeys(env, (k) => GIT_IDENTITY_PREFIXES.some((prefix) => k.startsWith(prefix)));
 
-/** What an agent runs with: the container's env without private variables, HOME, its credentials, and the channel's identity for commits. */
 export const agentEnv = (base: Record<string, string | undefined>, home: string, credentialEnv: Record<string, string>, identity: Identity): Record<string, string> => ({
   ...withoutPrivate(base),
   HOME: home,
@@ -34,5 +31,4 @@ export const saveAgentEnv = (file: string, credentialEnv: Record<string, string>
   writeFileEnsured(file, JSON.stringify(saved), { mode: PRIVATE_FILE_MODE, dirMode: PRIVATE_DIR_MODE });
 };
 
-/** What `saveAgentEnv` saved, or nothing before the first run. */
 export const savedAgentEnv = (file: string): Record<string, string> => readJsonSync(file, {});

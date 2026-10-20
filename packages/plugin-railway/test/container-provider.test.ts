@@ -43,7 +43,6 @@ test("ensure creates a private service with a volume, and a second ensure change
   expect(result).toEqual({ url: "http://notationlabs-yieldstar-dev.railway.internal:3000" });
   const service = fake.service("notationlabs-yieldstar-dev")!;
   expect(service.settings).toMatchObject({ dockerfilePath: ".achq/Dockerfile", healthcheckPath: "/", sleepApplication: true });
-  // The deployer's variables, and the host's own.
   expect(service.variables).toEqual({
     ...spec.env,
     ACHQ_BRANCH: "main",

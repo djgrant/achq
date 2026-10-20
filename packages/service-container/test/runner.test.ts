@@ -157,7 +157,6 @@ describe("sessions", () => {
     expect(fs.readFileSync(w.claude.flag(triage!, "--append-system-prompt-file")!, "utf8")).toContain("You are the triager.");
     expect(w.channel.replies).toHaveLength(2);
 
-    // The container's startup file is written to HOME.
     expect(fs.readFileSync(path.join(w.paths.home, ".config/tool.toml"), "utf8")).toBe("level = 1\n");
   });
 });
@@ -190,7 +189,6 @@ describe("what the agent sees", () => {
     expect(tokenFile).toBe(path.join(w.paths.policyProvider("test-policy-provider"), "token"));
     expect(fs.readFileSync(tokenFile, "utf8")).toBe("agent-token-1");
     expect(fs.statSync(tokenFile).mode & 0o777).toBe(0o600);
-    // The runner's channel client got the channel credential.
     expect(w.channel.credentials.every((c) => c.value === CHANNEL_TOKEN)).toBe(true);
     expect(fs.readFileSync(w.paths.agentEnv, "utf8")).not.toContain(CHANNEL_TOKEN);
   });

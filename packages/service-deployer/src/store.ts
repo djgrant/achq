@@ -23,14 +23,9 @@ export const repoKey = (repo: string) => repo.toLowerCase();
 /** A file name can't start with `.` or be empty. */
 const UNSAFE_START = /^\.|^$/;
 
-/**
- * The name `repo`'s record is stored under: `owner__name`, with what a file
- * name can't hold replaced by `_`. A failed deploy of a name that's no repo's
- * is recorded too, so this takes any string.
- */
+/** A failed deploy of a name that's no repo's is recorded too, so this takes any string. */
 export const recordName = (repo: string) => safeFileName(repoKey(repo).replace("/", "__")).replace(UNSAFE_START, "_");
 
-/** Forgets the oldest of `list` beyond `MAX_DELIVERIES`. */
 const dropOldest = (list: string[]) => {
   if (list.length > MAX_DELIVERIES) list.splice(0, list.length - MAX_DELIVERIES);
 };

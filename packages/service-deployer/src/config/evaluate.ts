@@ -18,7 +18,6 @@ export type Evaluate = (files: Record<string, string>) => Promise<RepoManifest>;
 /** Sandbox module source, by module name. */
 type Modules = Record<string, string>;
 
-/** How many of the config's last log lines a manifest error quotes. */
 const LOG_LINES_QUOTED = 3;
 
 const CONFIG_MODULE = `${SANDBOX_ROOT}/config.ts`;
@@ -33,7 +32,7 @@ const transpileError = (path: string, error: unknown) => {
   return new ConfigError(`.achq/${path}${position ? `:${position.line}:${position.column}` : ""}: ${message}`);
 };
 
-/** `.achq/`'s source files as sandbox modules under SANDBOX_ROOT. Other files are skipped; a path that isn't plain throws. */
+/** Other files are skipped; a path that isn't plain throws. */
 const configModules = (files: Record<string, string>): Modules => {
   const modules: Modules = {};
   for (const [path, contents] of Object.entries(files)) {
@@ -49,7 +48,6 @@ const configModules = (files: Record<string, string>): Modules => {
   return modules;
 };
 
-/** Whether an import names a file, relatively or absolutely, rather than a package. */
 const isPathSpecifier = (specifier: string) => specifier.startsWith("./") || specifier.startsWith("../") || specifier.startsWith("/");
 
 /** What an import of `path` may mean, in the order they're tried: the file itself, then with each extension, then its index. */

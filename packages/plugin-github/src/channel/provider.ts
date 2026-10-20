@@ -42,7 +42,6 @@ export class GitHubChannelProvider implements ChannelProvider {
     };
   }
 
-  /** What each App is set up to send and allow, read as the App. */
   sources(): Promise<SourceSettings[]> {
     return Promise.all(
       this.apps.slugs().map(async (slug) => {
@@ -83,7 +82,6 @@ export class GitHubChannelClient implements ChannelClient {
     this.bot = botLogin(source);
   }
 
-  /** The thread's repo and issue number. */
   private issueOf(ref: ThreadRef) {
     const thread = parseThreadId(ref.id);
     return { thread, repo: this.gh.repo(thread.full) };
@@ -101,7 +99,6 @@ export class GitHubChannelClient implements ChannelClient {
     };
   }
 
-  /** An issue's opening post or a comment, as a message. */
   private toMessage(id: string, post: Issue | IssueComment): Message {
     return {
       id,
@@ -126,7 +123,6 @@ export class GitHubChannelClient implements ChannelClient {
     await repo.comment(thread.number, body);
   }
 
-  /** Reacts 👀 to the comment, or else the issue, the event is about. */
   async acknowledge(event: ChannelEvent) {
     if (!event.repo) return;
     const target = reactionTarget(event);
@@ -139,9 +135,7 @@ export class GitHubChannelClient implements ChannelClient {
   }
 }
 
-/** What acknowledging an event reacts with. */
 const ACKNOWLEDGEMENT: ReactionContent = "eyes";
 
-/** The comment an event is about, or else its issue. */
 const reactionTarget = ({ detail: { comment, issue } }: ChannelEvent): ReactionTarget | undefined =>
   typeof comment === "number" ? { comment } : typeof issue === "number" ? { issue } : undefined;

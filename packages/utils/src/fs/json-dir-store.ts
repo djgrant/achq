@@ -7,7 +7,6 @@ import { type JsonWriteOptions, jsonFile, listJsonNames, readJson, writeJson } f
 import { isSafeFileName } from "./paths.ts";
 
 export type JsonDirStore<T> = {
-  /** The value stored under `name`, or undefined. */
   read(name: string): Promise<T | undefined>;
   write(name: string, value: T): Promise<void>;
   /** Removing a missing name is fine. */

@@ -15,7 +15,6 @@ import { sessionsFor } from "./sessions.ts";
 export type ResumeOptions = {
   paths: Paths;
   number: string;
-  /** The session's exact ID. */
   session: string;
   loadConfig: (commit: string) => Promise<LoadedConfig>;
   container: string;
@@ -31,7 +30,6 @@ type ResumeCommand = ReturnType<AgentRuntime["resumeCommand"]>;
 type Stdio = NonNullable<ResumeOptions["stdio"]>;
 
 const INHERIT: Stdio = ["inherit", "inherit", "inherit"];
-/** Signals the session should get when the SSH shell gets them. */
 const FORWARDED_SIGNALS = ["SIGHUP", "SIGTERM"] as const;
 
 /**
@@ -60,7 +58,6 @@ export const resume = async (opts: ResumeOptions): Promise<number> => {
   return code;
 };
 
-/** The session's agent, configured as at its last run's commit, and how its runtime resumes it. */
 const resumeCommandFor = async (opts: ResumeOptions, session: Session): Promise<ResumeCommand> => {
   const config = await opts.loadConfig(session.commit);
   const agent = config.agents.find((a) => a.name === session.agent);

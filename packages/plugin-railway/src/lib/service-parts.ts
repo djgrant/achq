@@ -40,7 +40,6 @@ const DOWNLOAD = [
   `}`,
 ];
 
-/** Installs its dependencies, once. */
 const INSTALL = [
   `if (!fs.existsSync(dir + "/node_modules")) {`,
   `  const install = Bun.spawnSync(["bun", "install", "--production", "--frozen-lockfile"], { cwd: dir, stdout: "inherit", stderr: "inherit" });`,
@@ -48,7 +47,6 @@ const INSTALL = [
   `}`,
 ];
 
-/** Imports `entry` and runs its `main`. */
 const runEntry = (entry: string) => [`const entry = await import(dir + "/${entry}");`, `if (typeof entry.main === "function") await entry.main();`];
 
 /**
@@ -72,7 +70,6 @@ const settings = (service: AchqService): InstanceSettings => ({
   sleepApplication: service.sleeps,
 });
 
-/** The resources a router or deployer is made of, named within it. */
 export class ServiceParts {
   readonly name: string;
   readonly service: Service;
@@ -129,7 +126,6 @@ export class ServiceParts {
     return [this.service, ...groups, deploy];
   }
 
-  /** Fills in each group declared with a function, now that it's planned. */
   private resolveDeclaredGroups(ctx: Context) {
     for (const group of this.groups) {
       if (typeof group.declared === "function") Object.assign(group.values, group.declared(ctx));

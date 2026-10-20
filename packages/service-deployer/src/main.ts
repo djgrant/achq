@@ -9,7 +9,6 @@ import { deployerHandler } from "./server.ts";
 /** Bun's longest: a deploy that builds images can keep `/sync` busy for minutes. */
 const IDLE_TIMEOUT_S = 255;
 
-/** A comma-separated list, trimmed, without empty items. */
 const commaList = (value: string) =>
   value
     .split(",")

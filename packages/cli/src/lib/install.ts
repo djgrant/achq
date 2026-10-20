@@ -12,7 +12,6 @@ import { needRepo, repoRoot } from "./workdir.ts";
 
 export type InstallAction = "install" | "uninstall";
 
-/** What the code host makes for `action`. */
 const resourcesFor = (action: InstallAction, codeHost: CodeHostProvider, repo: string, config: RepoManifest): Resource[] =>
   action === "install" ? codeHost.install(repo, config) : codeHost.uninstall(repo, config);
 

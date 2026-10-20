@@ -11,7 +11,6 @@ type Actions = {
 /** By repo key. */
 type Manifests = Map<string, RepoManifest>;
 
-/** A deployed container, as the container provider lists it. */
 type Listed = { repo: string; name: string };
 
 /**
@@ -22,7 +21,6 @@ type Listed = { repo: string; name: string };
 const shouldPrune = (container: Listed, installed: boolean, manifest: RepoManifest | undefined) =>
   !installed || (manifest !== undefined && !manifest.containers.some((c) => c.name === container.name));
 
-/** Deploys every installed repo, recording each outcome, and returns the manifests they deployed. */
 const deployInstalled = async (installed: InstalledRepo[], actions: Actions, dryRun: boolean, result: SyncResult): Promise<Manifests> => {
   const manifests: Manifests = new Map();
   for (const { host, repo } of installed) {
@@ -34,7 +32,6 @@ const deployInstalled = async (installed: InstalledRepo[], actions: Actions, dry
   return manifests;
 };
 
-/** Uninstalls every repo with a record that's no longer installed. */
 const uninstallRemoved = async (ctx: DeployerContext, installed: Set<string>, actions: Actions, dryRun: boolean, result: SyncResult) => {
   for (const record of await ctx.store.all()) {
     if (record.state === "uninstalled" || installed.has(repoKey(record.repo))) continue;
@@ -43,7 +40,7 @@ const uninstallRemoved = async (ctx: DeployerContext, installed: Set<string>, ac
   }
 };
 
-/** Deletes containers no installed repo's manifest has. `manifests` are this sync's; for the rest, the last deployed. */
+/** `manifests` are this sync's; for the rest, the last deployed. */
 const pruneContainers = async (ctx: DeployerContext, installed: Set<string>, manifests: Manifests, dryRun: boolean, result: SyncResult) => {
   const records = new Map((await ctx.store.all()).map((r) => [repoKey(r.repo), r]));
   const manifestOf = (key: string) => manifests.get(key) ?? records.get(key)?.deployed?.manifest;

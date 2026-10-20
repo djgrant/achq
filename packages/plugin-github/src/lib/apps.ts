@@ -13,7 +13,7 @@ const JWT_REUSE_MS = 5 * 60_000;
 /** The least a token can ask for: enough to prove the installation reaches a repo. */
 const PROBE_PERMISSIONS = { metadata: "read" };
 
-/** `{ [slug]: { id, privateKey } }`, from ACHQ_GITHUB_APPS. */
+/** From ACHQ_GITHUB_APPS. */
 export type AppKeys = Record<string, { id: string; privateKey: string }>;
 
 const isAppKey = (app: any) => Boolean(app) && typeof app.privateKey === "string" && (typeof app.id === "string" || typeof app.id === "number");
@@ -32,13 +32,11 @@ export const appsVariable = (apps: AppKeys) => JSON.stringify(Object.fromEntries
 /** An App's webhook secret, from its App ID (sent in X-GitHub-Hook-Installation-Target-ID). */
 export const appWebhookSecret = (key: string, appId: string | number) => implementationSecret(key, `github-app-webhook:${appId}`);
 
-/** The API as the App with this ID and key, with a fresh JWT: for one-off calls, where caching buys nothing. */
+/** For one-off calls, where caching buys nothing. */
 export const asAppOnce = (api: string, appId: string | number, privateKey: string) => github(`Bearer ${appJwt(appId, privateKey)}`, api);
 
-/** Whether an installation reaches a repo, and if not, what GitHub said. */
 export type Coverage = { covered: true } | { covered: false; reason: string };
 
-/** A configured App and its installation on a repo. */
 export type FoundInstallation = { slug: string; installation: Installation };
 
 export class Apps {
@@ -57,7 +55,6 @@ export class Apps {
     return Object.hasOwn(this.keys, slug);
   }
 
-  /** The slug of the configured App with this ID. */
   byId(id: string) {
     return this.slugs().find((slug) => String(this.keys[slug]!.id) === id);
   }
@@ -67,7 +64,6 @@ export class Apps {
     return this.keys[slug]!;
   }
 
-  /** A JWT for the App, reused for five of its nine minutes. */
   private cachedJwt(slug: string) {
     const { id, privateKey } = this.key(slug);
     const now = Date.now();
@@ -78,7 +74,6 @@ export class Apps {
     return value;
   }
 
-  /** The API as the App itself. */
   asApp(slug: string): GitHub {
     this.key(slug);
     return github(() => `Bearer ${this.cachedJwt(slug)}`, this.baseUrl);
@@ -103,7 +98,6 @@ export class Apps {
     }
   }
 
-  /** The first configured App whose installation covers `repo`, skipping suspended ones. */
   async installedOn(repo: string): Promise<FoundInstallation | undefined> {
     for (const slug of this.slugs()) {
       const installation = await this.installation(slug, repo);

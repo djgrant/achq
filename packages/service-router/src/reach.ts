@@ -8,10 +8,9 @@ const SERVER_ERROR = 500;
 
 export type Reached = { ok: true; res: Response } | { ok: false; error: string };
 
-/** One try at a service, with the signal that times it out. */
 export type Try = (signal?: AbortSignal) => Promise<Response>;
 
-/** `fetch` for a request to `url` signed with `secret`. Sign each attempt afresh: a retry can outlast the timestamp's window. */
+/** Sign each attempt afresh: a retry can outlast the timestamp's window. */
 export const fetchSigned = (ctx: RouterContext, secret: string, method: string, url: string, body?: string, signal?: AbortSignal) =>
   ctx.fetch(url, signedRequestInit(secret, method, url, body, { now: ctx.now(), signal }));
 

@@ -1,6 +1,5 @@
 import type { ContainerProvider, ContainerSpec } from "@achq/core";
 
-/** Records what the deployer asks of the provider. */
 export class MemoryContainerProvider implements ContainerProvider {
   readonly services = new Map<string, { spec: ContainerSpec; builds: number }>();
   readonly calls: { op: "ensure" | "deploy" | "remove"; repo: string; name: string }[] = [];

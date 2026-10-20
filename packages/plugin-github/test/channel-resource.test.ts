@@ -105,7 +105,6 @@ class StubRouter extends Router {
     this.groups.push(values);
     return new Output<Record<string, string>>([], () => ({}));
   }
-  /** Its ACHQ_GITHUB_APPS, as the channels declared it. */
   apps(ctx: Context): EnvValue {
     expect(this.groups.length).toBe(1);
     const group = this.groups[0]!;

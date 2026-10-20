@@ -54,12 +54,10 @@ type Run = {
 type Container = RepoManifest["containers"][number];
 /** A tree with a `.achq/config.ts` to deploy. */
 type ConfigTreeWithConfig = ConfigTree & { tree: string };
-/** A container with its service in place: where the router reaches it, and what it was built from. */
 type EnsuredContainer = { name: string; url: string; image: ImageRecord };
 
 const CONFIG_FILE = `${CONFIG_DIR}/${CONFIG_ENTRY}`;
 
-/** `value` with `warnings`, if there are any: a clean deploy doesn't mention them. */
 const withWarnings = <T extends object>(value: T, warnings: string[] | undefined): T & { warnings?: string[] } =>
   warnings?.length ? { ...value, warnings } : value;
 
@@ -67,9 +65,6 @@ const ownerOf = (repo: string) => repo.split("/")[0]!;
 
 const timestamp = (ctx: DeployerContext) => ctx.now().toISOString();
 
-// ── Before touching the repo ──
-
-/** The code host, once `repo` is known to be a repo on it, of an owner this deployer serves. */
 const checkRepoAllowed = ({ ctx, hostId, repo }: Run): CodeHostProvider => {
   const host = Object.hasOwn(ctx.codeHostProviders, hostId) ? ctx.codeHostProviders[hostId] : undefined;
   if (!host) throw new DeployFailure(`achq doesn't know the code host "${hostId}"`);
@@ -80,7 +75,6 @@ const checkRepoAllowed = ({ ctx, hostId, repo }: Run): CodeHostProvider => {
   return host;
 };
 
-/** A client for `repo`, with a token the router mints for the host's deployer policy. */
 const mintRepoClient = async ({ ctx, repo }: Run, host: CodeHostProvider): Promise<RepoClient> => {
   try {
     const policy = host.deployerPolicy(repo);
@@ -93,15 +87,11 @@ const mintRepoClient = async ({ ctx, repo }: Run, host: CodeHostProvider): Promi
   }
 };
 
-/** Whether `tree` is the `.achq/` last deployed from this host, so there's nothing to do. */
 const isUnchanged = (previous: StoredRecord | undefined, hostId: string, tree: ConfigTree) =>
   previous?.state === "deployed" && previous.host === hostId && Boolean(tree.tree) && previous.deployed?.tree === tree.tree;
 
 const hasConfig = (tree: ConfigTree): tree is ConfigTreeWithConfig => Boolean(tree.tree) && tree.blobs.has(CONFIG_ENTRY);
 
-// ── Evaluating and checking the config ──
-
-/** `.achq/`'s source files: what evaluation reads. */
 const downloadSources = (ctx: DeployerContext, client: RepoClient, tree: ConfigTree) =>
   client.download(tree, [...tree.blobs.keys()].filter(isSourceFile), ctx.fileLimits);
 
@@ -113,13 +103,12 @@ const evaluate = async (ctx: DeployerContext, files: Record<string, string>) => 
   }
 };
 
-/** What the router's policy providers find wrong with the manifest's policies. */
 const policyProblems = async (ctx: DeployerContext, repo: string, manifest: RepoManifest) => {
   const policies = manifest.policies.map((p) => p.policy);
   return policies.length ? (await ctx.router.validate({ repo, policies })).problems : [];
 };
 
-/** The manifest `.achq/` evaluates to, once it passes every check. Warnings don't stop a deploy. */
+/** Warnings don't stop a deploy. */
 const evaluateAndCheck = async ({ ctx, repo }: Run, client: RepoClient, tree: ConfigTree) => {
   const manifest = await evaluate(ctx, await downloadSources(ctx, client, tree));
   const checked = checkManifest(manifest, { tree, sources: await ctx.router.sources() });
@@ -128,9 +117,6 @@ const evaluateAndCheck = async ({ ctx, repo }: Run, client: RepoClient, tree: Co
   return { manifest, warnings: checked.warnings };
 };
 
-// ── Containers ──
-
-/** What every container gets, and who it is, where its repo is, and how it reaches the router. */
 const containerEnv = (ctx: DeployerContext, host: CodeHostProvider, repo: string, c: Container): Record<string, string> => ({
   ...ctx.env.containerEnv,
   [ENV.repo]: repo,
@@ -142,7 +128,6 @@ const containerEnv = (ctx: DeployerContext, host: CodeHostProvider, repo: string
   [ENV.privateEnv]: ctx.env.privateEnv.join(","),
 });
 
-/** Whether the image moved or its Dockerfile changed since the last build, or there's never been one. */
 const needsBuild = (before: ImageRecord | undefined, image: ImageRecord) => !before || before.dockerfile !== image.dockerfile || before.blob !== image.blob;
 
 /**
@@ -170,10 +155,9 @@ const ensureContainers = async (run: Run, host: CodeHostProvider, tree: ConfigTr
   return ensured;
 };
 
-/** The policies a container names, as the manifest defines them. parseManifest has made sure each is there. */
+/** parseManifest has made sure each is there. */
 const policiesOf = (manifest: RepoManifest, c: Container) => c.policies.map((name) => manifest.policies.find((p) => p.name === name)!.policy);
 
-/** What the router serves for the repo: where each container is and what it may mint, its workspaces and its triggers. */
 const routerConfigFor = ({ hostId, repo }: Run, tree: ConfigTree, manifest: RepoManifest, ensured: EnsuredContainer[]): RouterRepoConfig => ({
   host: hostId,
   repo,
@@ -189,8 +173,6 @@ const locateContainers = async (ctx: DeployerContext, repo: string, manifest: Re
   for (const c of manifest.containers) located.push({ name: c.name, location: await ctx.containerProvider.locate(repo, c.name) });
   return located;
 };
-
-// ── Records ──
 
 const deployedRecord = (
   { ctx, hostId, repo }: Run,
@@ -219,13 +201,11 @@ const writeStatus = async (ctx: DeployerContext, client: RepoClient, record: Sto
   }
 };
 
-/** Stores the record, and writes it to ACHQ_STATUS if the deploy got a client to write with. */
 const saveRecord = async (run: Run, record: StoredRecord) => {
   await run.ctx.store.put(record);
   if (run.client) await writeStatus(run.ctx, run.client, record);
 };
 
-/** Logs and records the failure (unless it's a dry run), and reports it. */
 const reportFailure = async (run: Run, failure: unknown): Promise<DeployOutcome> => {
   const error = errorMessage(failure);
   const warnings = failure instanceof DeployFailure ? failure.warnings : [];
@@ -233,8 +213,6 @@ const reportFailure = async (run: Run, failure: unknown): Promise<DeployOutcome>
   if (!run.dryRun) await saveRecord(run, failedRecord(run, error, warnings));
   return withWarnings({ repo: run.repo, outcome: "failed", error }, warnings);
 };
-
-// ── The deploy ──
 
 const deployRun = async (run: Run): Promise<DeployOutcome> => {
   const { ctx, repo, previous } = run;
@@ -262,7 +240,7 @@ const deployRun = async (run: Run): Promise<DeployOutcome> => {
   return withWarnings({ repo, outcome: "deployed", manifest }, warnings);
 };
 
-/** Deploys `repo`'s `.achq/` on `hostId`. Run one per repo at a time. */
+/** Run one per repo at a time. */
 export const deploy = async (ctx: DeployerContext, hostId: string, repo: string, dryRun: boolean): Promise<DeployOutcome> => {
   const run: Run = { ctx, hostId, repo, dryRun, previous: await ctx.store.get(repo) };
   try {

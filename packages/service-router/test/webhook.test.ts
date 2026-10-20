@@ -11,7 +11,6 @@ describe("routing events to containers", () => {
     await r.router.settled();
     expect(deliveryIds(r.dev)).toEqual([plain.delivery!]);
     expect(r.docsbox.events).toEqual([]);
-    // Containers get the commit whose config the router holds.
     expect(r.dev.events[0].commit).toBe("abc123");
   });
 

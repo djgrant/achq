@@ -9,7 +9,6 @@ export type Limits = {
   /** Wall-clock limit, enforced by QuickJS's interrupt handler. */
   timeoutMs: number;
   stackBytes: number;
-  /** Largest result accepted back from the guest. */
   maxResultBytes: number;
 };
 
@@ -129,7 +128,7 @@ const readLogs = (context: QuickJSContext): string[] => {
   }
 };
 
-/** A guest error as one line. The guest controls these values, so they're only ever treated as text. */
+/** The guest controls these values, so they're only ever treated as text. */
 const describe = (value: unknown): string => {
   if (value && typeof value === "object") {
     const { name, message } = value as { name?: unknown; message?: unknown };

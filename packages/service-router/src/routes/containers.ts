@@ -18,7 +18,6 @@ import { repoFile, repoKey } from "../store.ts";
 
 type ChannelSource = { channel: string; source: string };
 
-/** Each (channel, source) the container's workspaces select threads from, once. */
 const channelSourcesOf = (config: RouterRepoConfig, container: string): ChannelSource[] => {
   const sources = new Map<string, ChannelSource>();
   for (const w of config.workspaces) {
@@ -69,7 +68,6 @@ export const credentials = async (ctx: RouterContext, req: Request) => {
   return jsonResponse({ credentials, channels } satisfies CredentialsResponse);
 };
 
-/** Records that the container's workspace claimed the thread, in memory and on the volume. */
 const recordClaim = async (ctx: RouterContext, config: RouterRepoConfig, request: ClaimRequest) => {
   const repo = repoKey(config.repo);
   const repoClaims = ctx.claims.get(repo) ?? {};

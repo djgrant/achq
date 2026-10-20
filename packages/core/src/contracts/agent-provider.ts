@@ -5,7 +5,6 @@ export type RunContext = {
   thread: ThreadRef;
   /** The workspace's worktree. */
   cwd: string;
-  /** This agent's own config directory. */
   configDir: string;
   /** Already without the container's private variables. */
   env: Record<string, string>;
@@ -23,7 +22,6 @@ export interface AgentRuntime {
   readonly name: string;
   /** A hash of everything in the cached prefix. A different key means a fresh session. */
   sessionKey(): Promise<string>;
-  /** Writes the agent's config into its own config directory. */
   configure(configDir: string): Promise<void>;
   run(context: RunContext): Promise<RunResult>;
   /** The command that opens a session interactively, for `achq resume`. */

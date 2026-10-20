@@ -218,8 +218,6 @@ test("the deployer runs in a Railway router's project", () => {
   expect(() => achq(() => new Deployer("deployer", { router: new Elsewhere("router"), owners: [] }))()).toThrow("router must be a railway.Router");
 });
 
-// ── Waiting for the router's deploy ──────────────────────────────────────────
-
 /** Railway's deploys as `status()` says, whatever the fake says. */
 const deploysAre = (status: () => string | undefined) => {
   const real = globalThis.fetch;

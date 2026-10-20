@@ -18,7 +18,6 @@ const DETACHED = "(detached)";
 /** Serialises operations on the shared mirror within this process. */
 export const mirrorLock = serial();
 
-/** Creates the mirror on first use, then fetches it. */
 export const fetchMirror = (mirror: string, url: string, env: Env = process.env) =>
   mirrorLock(async () => {
     const git = new Git(mirror, env);
@@ -34,7 +33,6 @@ const initMirror = async (git: Git, url: string) => {
 
 export const hasCommit = (mirror: string, commit: string) => new Git(mirror).hasCommit(commit);
 
-/** Extracts `dir` (e.g. `.achq`) at `commit` into `dest`. */
 export const extractTree = async (mirror: string, commit: string, dir: string, dest: string) => {
   ensureDir(dest);
   await extractArchive(await new Git(mirror).archive(commit, dir), dest);
@@ -58,7 +56,6 @@ export const ensureWorktree = async (mirror: string, dir: string, branch: string
   });
 };
 
-/** The local branch if one exists, else the remote branch, tracked, else a new branch from `origin/<base>`. */
 const worktreeSource = async (git: Git, branch: string, base: string): Promise<WorktreeBranch> => {
   if (await git.hasRef(`refs/heads/${branch}`)) return { branch };
   if (await git.hasRef(`refs/remotes/${ORIGIN}/${branch}`)) return { branch, from: `${ORIGIN}/${branch}`, track: true };
@@ -66,7 +63,6 @@ const worktreeSource = async (git: Git, branch: string, base: string): Promise<W
   throw new Error(`The base branch \`${base}\` doesn't exist on the remote`);
 };
 
-/** The worktree's branch and short HEAD, for the prompt. */
 export const describeHead = async (dir: string) => {
   const git = new Git(dir);
   return { branch: (await git.currentBranch()) ?? DETACHED, head: await git.shortHead() };

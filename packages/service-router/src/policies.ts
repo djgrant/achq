@@ -18,7 +18,7 @@ export const mint = async (ctx: RouterContext, policies: PolicyData[], repo: str
   return minted.flat();
 };
 
-/** Each policy's problems for `repo`, from the policy provider it names. A provider nobody has is a problem too. */
+/** A provider nobody has is a problem too. */
 export const validate = async (ctx: RouterContext, policies: PolicyData[], repo: string) => {
   const problems = await Promise.all(policies.map((p) => findProvider(ctx, p.provider)?.validate(p, repo) ?? [noProvider(p.provider)]));
   return problems.flat();

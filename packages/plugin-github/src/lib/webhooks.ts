@@ -1,4 +1,3 @@
-// Webhook deliveries: checking their signature, and normalising the ones achq acts on.
 import type { ChannelEvent, Data } from "@achq/core";
 import { hmacHex, safeEqual } from "@achq/core/signing";
 import { CHANNEL, CODE_HOST } from "./constants.ts";
@@ -15,7 +14,6 @@ const CONFIG_DIR = ".achq/";
  */
 const PUSH_COMMIT_CAP = 2048;
 
-/** The webhook actions achq acts on, per event. */
 const ISSUE_ACTIONS = new Set(["opened", "edited", "reopened", "labeled"]);
 const COMMENT_ACTIONS = new Set(["created", "edited"]);
 const INSTALLATION_ACTIONS = new Set(["created", "deleted", "suspend", "unsuspend"]);
@@ -28,13 +26,11 @@ export const verifyGitHubSignature = (secret: string, body: string, header: stri
 const fullNames = (repos: unknown): string[] =>
   Array.isArray(repos) ? repos.map((r) => r?.full_name).filter((n): n is string => typeof n === "string") : [];
 
-/** What every event carries: who sent it, and which delivery it was. */
 type EventBase = Pick<ChannelEvent, "channel" | "source" | "delivery">;
 
-/** A delivery's event name and parsed body. The payload is GitHub's, so it's read defensively. */
+/** The payload is GitHub's, so it's read defensively. */
 type Delivery = { name: string; base: EventBase; payload: any };
 
-/** Whether a push payload's commit added, changed or removed a file under `dir`. */
 const commitTouches = (commit: any, dir: string) =>
   [...(commit.added ?? []), ...(commit.modified ?? []), ...(commit.removed ?? [])].some((file: string) => file.startsWith(dir));
 
@@ -71,13 +67,11 @@ const parseIssueEvent = ({ name, base, payload }: Delivery): ChannelEvent | unde
   };
 };
 
-/** A push, and whether it changed the config on the default branch. */
 const parsePushEvent = ({ base, payload }: Delivery): ChannelEvent | undefined => {
   const repo: string | undefined = payload.repository?.full_name;
   if (!repo) return undefined;
   const commits: any[] = Array.isArray(payload.commits) ? payload.commits : [];
   const touchesConfig = commits.some((commit) => commitTouches(commit, CONFIG_DIR));
-  // A list that hit the cap may have dropped commits, so it can't say `.achq/` didn't change.
   const truncated = commits.length >= PUSH_COMMIT_CAP;
   const onDefaultBranch = payload.ref === `refs/heads/${payload.repository?.default_branch}`;
   return {
@@ -90,7 +84,6 @@ const parsePushEvent = ({ base, payload }: Delivery): ChannelEvent | undefined =
   };
 };
 
-/** `installation` and `installation_repositories`: which repos an App gained and lost. */
 const parseInstallationEvent = ({ name, base, payload }: Delivery): ChannelEvent | undefined => {
   const { action } = payload;
   const actions = name === "installation" ? INSTALLATION_ACTIONS : INSTALLATION_REPOS_ACTIONS;

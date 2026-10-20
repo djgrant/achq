@@ -1,6 +1,3 @@
-// Issues as threads: their ids, who's trusted on them, their labels, the ids
-// of their messages, and what fills a branch template.
-
 export const issueThreadId = (repo: string, number: number) => `${repo}#${number}`;
 
 export const parseThreadId = (id: string) => {
@@ -12,7 +9,6 @@ export const parseThreadId = (id: string) => {
 /** Author associations that mean write access to the repo. */
 export const TRUSTED = new Set(["OWNER", "MEMBER", "COLLABORATOR"]);
 
-/** A payload's labels, as names. */
 export const labelNames = (labels: unknown): string[] =>
   Array.isArray(labels) ? labels.map((l) => (typeof l === "string" ? l : l?.name)).filter((n): n is string => typeof n === "string") : [];
 

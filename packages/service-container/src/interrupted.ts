@@ -10,7 +10,6 @@ export type InterruptedOptions = {
   log: (line: string) => void;
 };
 
-/** Marks runs a restart interrupted and says so on their threads. */
 export const reportInterrupted = async (opts: InterruptedOptions) => {
   for (const { file, state } of allStates(opts.threads)) {
     const interrupted = markInterrupted(state);
@@ -21,7 +20,6 @@ export const reportInterrupted = async (opts: InterruptedOptions) => {
   }
 };
 
-/** Marks the state's running sessions interrupted, and returns them as `agent \`id\``. */
 const markInterrupted = (state: ThreadState): string[] =>
   Object.entries(state.sessions)
     .filter(([, s]) => s.status === "running")

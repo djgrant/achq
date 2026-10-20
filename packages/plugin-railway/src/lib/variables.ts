@@ -9,7 +9,7 @@ type Current = Record<string, string>;
 /** The variables to set. Unknown values differ from anything. */
 type Set = Record<string, string>;
 
-/** The variables to set: missing or different. Extra variables on the service are left alone. */
+/** Extra variables on the service are left alone. */
 export const variablesDiff = (want: Record<string, string>, have: Record<string, string>) => Object.keys(want).filter((key) => have[key] !== want[key]);
 
 /** `values` with each GENERATED one made: as `current` has it, or else a new secret. */
@@ -20,7 +20,6 @@ const resolveGenerated = (values: Declared, current: Current, newSecret: () => s
 const valuesAfter = (values: Declared, current: Current, set: Set = {}): Record<string, string | undefined> =>
   mapValues(values, (_, key) => set[key] ?? current[key]);
 
-/** A group of the variables achq sets on a service. */
 export class Variables extends ManagedResource<Props, Current, Current, Set> {
   readonly kind = "railway-variables";
 

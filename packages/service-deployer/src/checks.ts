@@ -7,10 +7,9 @@ import { CONFIG_DIR } from "./constants.ts";
 type Container = RepoManifest["containers"][number];
 type Trigger = RepoManifest["triggers"][number];
 
-/** Something in the manifest that names a source, and the channel if it names one. */
 type SourceReference = { what: string; channel?: string; source?: string };
 
-/** The router's settings for a source. A policy names only its source, so with no channel any channel's will do. */
+/** A policy names only its source, so with no channel any channel's will do. */
 const findSource = (sources: SourceSettings[], channel: string | undefined, source: string) =>
   sources.find((s) => (!channel || s.channel === channel) && s.source === source);
 
@@ -26,7 +25,6 @@ export const dockerfileOf = (c: Container): { dockerfile: string; path: string }
   return path ? { dockerfile: `${CONFIG_DIR}/${path}`, path } : undefined;
 };
 
-/** Every source the manifest names is one the router knows. */
 const checkSourcesKnown = (manifest: RepoManifest, sources: SourceSettings[]) =>
   sourceReferences(manifest).flatMap(({ what, channel, source }) => {
     if (typeof source !== "string" || !source) return [`${what} names no source`];
@@ -34,7 +32,6 @@ const checkSourcesKnown = (manifest: RepoManifest, sources: SourceSettings[]) =>
     return [];
   });
 
-/** Every container's image is a Dockerfile in the tree. */
 const checkImagesExist = (manifest: RepoManifest, tree: ConfigTree) =>
   manifest.containers.flatMap((c) => {
     const image = dockerfileOf(c);

@@ -33,10 +33,9 @@ export const containerProviderNamed = lookup("container provider", CONTAINER_PRO
 /** For a location's `containerProvider`, which may name a provider this build doesn't have. */
 export const findContainerProvider = (id: string | undefined) => CONTAINER_PROVIDERS.find((h) => h.id === id);
 
-/** Every variable only the router and deployer have: the union of every implementation's privateEnv. */
+/** Every variable only the router and deployer have. */
 export const privateEnv = () => [...new Set([...CHANNEL_PROVIDERS, ...POLICY_PROVIDERS, ...CODE_HOST_PROVIDERS, ...CONTAINER_PROVIDERS].flatMap((i) => i.privateEnv))];
 
-/** The variables every container needs, for every agent runtime. */
 export const agentEnv = () => AGENT_PROVIDERS.flatMap((a) => a.containerEnv);
 
 /** The bare imports a repo's `.achq/` may use. */

@@ -10,7 +10,6 @@ describe("admin", () => {
     const again = await boot({ dir: r.dir });
     const repos = (await (await again.admin("GET", "/admin/repos", undefined, again.pub)).json()) as RouterRepoConfig[];
     expect(repos.map((c) => c.repo)).toEqual([repo]);
-    // And routes on it.
     const event = comment(20);
     await again.webhook(event);
     await again.router.settled();

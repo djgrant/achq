@@ -1,6 +1,6 @@
 /** The router's public port: webhooks, `/wake`, signed admin requests. */
 export const ROUTER_PUBLIC_PORT = 8080;
-/** The router's private port. It has no public domain. Serves credentials and claims to containers, and admin to the deployer. */
+/** It has no public domain. Serves credentials and claims to containers, and admin to the deployer. */
 export const ROUTER_PRIVATE_PORT = 8081;
 export const DEPLOYER_PORT = 3000;
 export const CONTAINER_PORT = 3000;

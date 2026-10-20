@@ -15,13 +15,10 @@ export const paths = (data: string) => ({
   data,
   /** HOME for agents and the runner; `~` in startup files. */
   home: path.join(data, "home"),
-  /** The repo's bare mirror; worktrees hang off it. */
   mirror: path.join(data, "mirror.git"),
-  /** `.achq/` extracted and bundled, per commit. */
   config: (commit: string) => path.join(data, "config", commit),
   /** Each agent's own config directory (CLAUDE_CONFIG_DIR for Claude). */
   agent: (name: string) => path.join(data, "agents", name),
-  /** Where a policy provider's `install` writes its credentials, e.g. `/data/github/`. */
   policyProvider: (id: string) => path.join(data, id),
   /** The env (credentials, git identity) the last run gave agents, for `resume`. Mode 600. */
   agentEnv: path.join(data, "credentials", "agent-env.json"),
