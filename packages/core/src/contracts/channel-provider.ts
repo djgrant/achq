@@ -90,7 +90,7 @@ export interface ChannelProvider {
   matchEvent(selector: SelectorData, event: ChannelEvent): boolean;
   matchThread(selector: SelectorData, thread: { ref: ThreadRef; labels: string[] }): boolean;
 
-  // ── Container side ──
+  // ── Container side, and the router's own replies ──
   client(credential: Credential): ChannelClient;
 }
 

@@ -22,6 +22,8 @@
 //   GET  /admin/sources            → SourceSettings[]                           admin
 //   POST /admin/sync               SyncRequest → SyncResult                     admin, forwarded to the deployer (wakes it)
 //   GET  /admin/status             → DeployRecord[]                             admin, forwarded to the deployer
+//   GET  /admin/failed             → FailedDelivery[]                           admin
+//   POST /admin/failed/replay      → ReplayResult                               admin
 //
 // Deployer (DEPLOYER_PORT, private):
 //   GET  /                         health
@@ -58,6 +60,12 @@ export type RouterRepoConfig = {
 };
 
 export type WakeRequest = { host: string; repo: string; container: string };
+
+/** A delivery some target never answered, as `GET /admin/failed` lists it. `target` is a container's `<repo>/<name>`, or `deployer`. */
+export type FailedDelivery = { delivery: string; type: string; repo?: string; thread?: ThreadRef; targets: { target: string; error: string }[] };
+
+/** What `POST /admin/failed/replay` did: deliveries back in the inbox, and ones with nowhere left to go. */
+export type ReplayResult = { replayed: string[]; dropped: string[] };
 
 export type CredentialsRequest = { repo: string; container: string };
 export type CredentialsResponse = {

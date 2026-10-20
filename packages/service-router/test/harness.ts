@@ -36,10 +36,24 @@ export const testChannel: ChannelProvider = {
   matchEvent: (selector, event) => selector.type === event.type,
   matchThread: (selector, thread) => ((selector.labels as string[] | undefined) ?? []).every((l) => thread.labels.includes(l)),
   sources: async () => [{ channel: "test", source: "app", events: ["comment"], permissions: {} }],
-  client() {
-    throw new Error("not on the router");
+  client(credential) {
+    const notOnTheRouter = () => {
+      throw new Error("not on the router");
+    };
+    return {
+      thread: notOnTheRouter,
+      messages: notOnTheRouter,
+      acknowledge: notOnTheRouter,
+      identity: notOnTheRouter,
+      reply: async (thread, body) => {
+        channelReplies.push({ thread: thread.id, body, as: String(credential.scope.source) });
+      },
+    };
   },
 };
+
+/** What the router said on threads through the test channel, and as which source. */
+export const channelReplies: { thread: string; body: string; as: string }[] = [];
 
 export const testPolicyProvider: PolicyProvider = {
   id: "test",

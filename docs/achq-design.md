@@ -184,7 +184,8 @@ The router writes every event it accepts to its volume before answering GitHub, 
 
 - Each accepted delivery is written to `inbox/<delivery-id>.json`, then forwarded. It's deleted once its target answers.
 - On startup the router replays everything left in `inbox/`.
-- A delivery that runs out of retries moves to `failed/`, for inspection and replay by hand.
+- A delivery that runs out of retries moves to `failed/`. If it was for a container, the router replies on its thread, as the channel's source, that it didn't reach the agent and can be replayed, so whoever asked isn't left waiting. A thread is told once per delivery, however often a replay fails.
+- `achq status` from the infra lists failed deliveries, with each target's error. `achq replay` puts them back in the inbox, aimed at each container's current URL with the config the router holds now; one whose repo or container is gone is dropped. Nothing replays on its own: a container that's down for good would otherwise be retried forever.
 - A crash between forwarding and deleting means a delivery can arrive twice. Containers and the deployer ignore a delivery ID they've already handled.
 - This isn't a queue: there's no ordering, priority or backpressure. That stays deferred.
 
@@ -260,7 +261,8 @@ Installing is done to a repo, from its settings or with `achq install`, not to a
 | Command | Run from | Does |
 |---|---|---|
 | `achq up [--prune] [--dry-run]` | Infra | Brings the infra's resources in line with its code, and is safe to re-run: router and its config, deployer, each channel's App (creating any that are missing) and its webhook settings, then syncs installed repos |
-| `achq status` | Infra or repo | From the infra: every installed or deployed repo, its state, when it last deployed, and its containers. From a repo: its `ACHQ_STATUS` |
+| `achq status` | Infra or repo | From the infra: every installed or deployed repo, its state, when it last deployed, and its containers, then any failed deliveries. From a repo: its `ACHQ_STATUS` |
+| `achq replay` | Infra | Sends failed deliveries again, to where their containers are now |
 | `achq install [--dry-run]` | Repo | Reads the repo's config, checks it, and installs the repo on its code host: on GitHub, the App its policies name, after checking it sends and allows what the config needs, then waits for the deploy's outcome in `ACHQ_STATUS`. Opens GitHub's install page if the App has no installation on the account yet. |
 | `achq uninstall` | Repo | Removes the repo from its App's installation; the uninstall flow above follows |
 | `achq ssh` | Repo | As now |

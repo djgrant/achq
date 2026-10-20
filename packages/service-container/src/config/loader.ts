@@ -29,10 +29,11 @@ export type ConfigLoaderOptions = {
   fetch: () => Promise<void>;
 };
 
+/** Loads in this process, by any loader: each gets its own bundle path. */
+let loads = 0;
+
 /** Cached per commit. A failed load is tried again next time. */
 export const createConfigLoader = (opts: ConfigLoaderOptions): ((commit: string) => Promise<LoadedConfig>) => {
-  let loads = 0;
-
   /** Fetches only for a commit the mirror doesn't have, so a known commit loads offline. */
   const ensureCommit = async (commit: string) => {
     if (await hasCommit(opts.mirror, commit)) return;

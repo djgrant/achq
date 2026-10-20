@@ -6,9 +6,11 @@ import { errorMessage } from "@achq/utils/errors";
 import type { RouterContext } from "./context.ts";
 import { fetchSigned, reach, type Try } from "./reach.ts";
 import type { Target } from "./targets.ts";
+import { tellUnreached } from "./unreached.ts";
 
-export type InboxEntry = { event: ChannelEvent; targets: Target[] };
-export type FailedEntry = InboxEntry & { targets: (Target & { error: string })[] };
+/** `told`: the thread has been told its delivery failed, so a failed replay doesn't tell it again. */
+export type InboxEntry = { event: ChannelEvent; targets: Target[]; told?: boolean };
+export type FailedEntry = Omit<InboxEntry, "targets"> & { targets: (Target & { error: string })[] };
 
 type Endpoint = { url: string; secret: string; body: string };
 
@@ -30,21 +32,24 @@ const sendTo =
     return fetchSigned(ctx, secret, "POST", url, body, signal);
   };
 
-const describe = (t: Target) => (t.kind === "deployer" ? "deployer" : `${t.repo}/${t.container}`);
+export const targetLabel = (t: Target) => (t.kind === "deployer" ? "deployer" : `${t.repo}/${t.container}`);
 
 const deliverTo = async (ctx: RouterContext, target: Target, entry: InboxEntry) => {
   const result = await reach(ctx.delays, sendTo(ctx, target, entry), ctx.attemptTimeout);
   if (result.ok) await result.res.body?.cancel();
-  ctx.log(`${entry.event.delivery} ${entry.event.type} → ${describe(target)}: ${result.ok ? result.res.status : result.error}`);
+  ctx.log(`${entry.event.delivery} ${entry.event.type} → ${targetLabel(target)}: ${result.ok ? result.res.status : result.error}`);
   return { target, error: result.ok ? undefined : result.error };
 };
 
-/** Targets that never answer go to `failed/`. */
+/** Targets that never answer go to `failed/`, and a thread whose containers never answered is told, once. */
 const deliver = async (ctx: RouterContext, entry: InboxEntry) => {
   const { delivery } = entry.event;
   const results = await Promise.all(entry.targets.map((target) => deliverTo(ctx, target, entry)));
   const failed = results.flatMap(({ target, error }) => (error ? [{ ...target, error }] : []));
-  if (failed.length) await ctx.store.failed.write(delivery, { ...entry, targets: failed });
+  if (failed.length) {
+    const told = entry.told || (await tellUnreached(ctx, entry.event, failed));
+    await ctx.store.failed.write(delivery, { ...entry, targets: failed, ...(told && { told }) });
+  }
   await ctx.store.inbox.remove(delivery);
 };
 
@@ -60,13 +65,15 @@ const track = (ctx: RouterContext, entry: InboxEntry) => {
  * Persists a new delivery, then forwards it in the background. False for one
  * already being forwarded. It's claimed in `inFlight` before the write, so a
  * duplicate arriving meanwhile is turned away, and released if the write fails.
+ * `onPersisted` runs once it's in the inbox, before it's forwarded.
  */
-export const acceptDelivery = async (ctx: RouterContext, entry: InboxEntry): Promise<boolean> => {
+export const acceptDelivery = async (ctx: RouterContext, entry: InboxEntry, { onPersisted }: { onPersisted?: () => Promise<unknown> } = {}): Promise<boolean> => {
   const { delivery } = entry.event;
   if (ctx.inFlight.has(delivery)) return false;
   ctx.inFlight.set(delivery, Promise.resolve());
   try {
     await ctx.store.inbox.write(delivery, entry);
+    await onPersisted?.();
   } catch (e) {
     ctx.inFlight.delete(delivery);
     throw e;

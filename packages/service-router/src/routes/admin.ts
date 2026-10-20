@@ -1,11 +1,13 @@
 // Admin-signed requests from the deployer and the infra CLI: repo config, the
-// deployer's own access, what the router knows, and requests for the deployer.
+// deployer's own access, what the router knows, failed deliveries, and
+// requests for the deployer.
 import type { MintRequest, ValidateRequest } from "@achq/core";
 import { adminSecret } from "@achq/core/secrets";
 import { verifyAdminRequest } from "@achq/core/signing";
 import { jsonResponse, noContent, parseBody, textResponse } from "@achq/utils/http";
 import { ADMIN_REPO_PREFIX, REPO } from "../constants.ts";
 import type { RouterContext } from "../context.ts";
+import { listFailed, replayFailed } from "../failed.ts";
 import { mint, validate } from "../policies.ts";
 import { fetchSigned, reach } from "../reach.ts";
 import { policiesRequestSchema, repoConfigSchema } from "../requests.ts";
@@ -65,6 +67,8 @@ const ROUTES = new Map<string, Route>([
   ["GET /admin/sources", async (ctx) => jsonResponse(await allSources(ctx))],
   ["POST /admin/sync", (ctx, body) => toDeployer(ctx, "POST", "/sync", body)],
   ["GET /admin/status", (ctx) => toDeployer(ctx, "GET", "/status")],
+  ["GET /admin/failed", async (ctx) => jsonResponse(await listFailed(ctx))],
+  ["POST /admin/failed/replay", async (ctx) => jsonResponse(await replayFailed(ctx))],
 ]);
 
 const repoInPath = (pathname: string) => {

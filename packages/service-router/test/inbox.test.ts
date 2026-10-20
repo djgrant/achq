@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { accepted, boot, comment, deployed, deliveryIds, readJson, hold } from "./harness.ts";
+import { accepted, boot, channelReplies, comment, config, deployed, deliveryIds, fakeContainer, readJson, hold, repo } from "./harness.ts";
 
 describe("persisted events", () => {
   test("the delivery is on the volume before the router answers, and gone once delivered", async () => {
@@ -71,5 +71,64 @@ describe("persisted events", () => {
     expect(failed.targets[0].container).toBe("dev");
     expect(failed.targets[0].error).toContain("gave up after 3 attempts (503 down)");
     expect(existsSync(join(r.dir, "inbox", `${event.delivery}.json`))).toBe(false);
+  });
+
+  test("a thread whose container never answers is told so on the thread, once, as the channel's source", async () => {
+    const r = await deployed();
+    r.dev.respond = () => new Response("down", { status: 503 });
+    const before = channelReplies.length;
+    await r.webhook(comment(15));
+    await r.router.settled();
+    expect(channelReplies.slice(before)).toEqual([
+      { thread: `${repo}#15`, as: "app", body: "⚠️ This didn't reach the agent: `dev` didn't answer. It's kept, and runs when someone replays it with `achq replay`." },
+    ]);
+  });
+
+  test("GET /admin/failed lists each failed delivery, its targets and why", async () => {
+    const r = await deployed();
+    r.dev.respond = () => new Response("down", { status: 503 });
+    const event = comment(16);
+    await r.webhook(event);
+    await r.router.settled();
+    const res = await r.admin("GET", "/admin/failed");
+    expect(await res.json()).toEqual([
+      { delivery: event.delivery, type: "comment", repo, thread: event.thread, targets: [{ target: `${repo}/dev`, error: "gave up after 3 attempts (503 down)" }] },
+    ]);
+  });
+
+  test("replaying sends failed deliveries to where their containers are now; one that fails again goes back to failed/ without telling the thread twice", async () => {
+    const r = await deployed();
+    r.dev.respond = () => new Response("down", { status: 503 });
+    const event = comment(17);
+    await r.webhook(event);
+    await r.router.settled();
+    const told = channelReplies.length;
+
+    // Still down: back in failed/, and the thread isn't told again.
+    expect(await (await r.admin("POST", "/admin/failed/replay")).json()).toEqual({ replayed: [event.delivery], dropped: [] });
+    await r.router.settled();
+    expect(channelReplies).toHaveLength(told);
+    expect(readJson(join(r.dir, "failed", `${event.delivery}.json`)).told).toBe(true);
+
+    // The container moved, and the config changed meanwhile: the replay goes to the new URL, with the new commit.
+    const moved = fakeContainer("dev");
+    expect((await r.admin("PUT", `/admin/repos/${repo}`, { ...config(moved, r.docsbox), commit: "def456" })).status).toBe(204);
+    expect(await (await r.admin("POST", "/admin/failed/replay")).json()).toEqual({ replayed: [event.delivery], dropped: [] });
+    await r.router.settled();
+    expect(moved.events.map((e) => [e.event.delivery, e.commit])).toEqual([[event.delivery!, "def456"]]);
+    expect(existsSync(join(r.dir, "failed", `${event.delivery}.json`))).toBe(false);
+    expect(await (await r.admin("GET", "/admin/failed")).json()).toEqual([]);
+  });
+
+  test("replaying drops a failed delivery whose repo is no longer deployed", async () => {
+    const r = await deployed();
+    r.dev.respond = () => new Response("down", { status: 503 });
+    const event = comment(18);
+    await r.webhook(event);
+    await r.router.settled();
+    expect((await r.admin("DELETE", `/admin/repos/${repo}`)).status).toBe(204);
+    expect(await (await r.admin("POST", "/admin/failed/replay")).json()).toEqual({ replayed: [], dropped: [event.delivery] });
+    expect(existsSync(join(r.dir, "failed", `${event.delivery}.json`))).toBe(false);
+    expect(r.dev.attempts).toBe(3);
   });
 });
