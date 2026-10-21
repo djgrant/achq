@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { Message, Thread } from "@achq/core";
-import { buildPrompt } from "../src/prompt.ts";
+import { buildPrompt, parseCommand } from "../src/prompt.ts";
 
 describe("buildPrompt", () => {
   const msg = (id: string, author: string, body: string, opts: Partial<Message> = {}): Message => ({ id, author, body, trusted: true, own: false, at: `t${id}`, ...opts });
@@ -43,5 +43,18 @@ describe("buildPrompt", () => {
     expect(resumed.included).toBe(1);
     // An untrusted edit still isn't shown.
     expect(buildPrompt({ ...base, mode: "resume", since: "5", opening, edited: "4" }).included).toBe(0);
+  });
+});
+
+describe("parseCommand", () => {
+  test("resumes by default", () => {
+    expect(parseCommand("@claude what about leases?", "@claude")).toEqual({ mode: "resume", text: "what about leases?" });
+  });
+  test("parses /new and /compact anywhere after the mention", () => {
+    expect(parseCommand("hey @claude /new  build it\nplease", "@claude")).toEqual({ mode: "new", text: "build it\nplease" });
+    expect(parseCommand("@claude /compact focus on tests", "@claude")).toEqual({ mode: "compact", text: "focus on tests" });
+  });
+  test("doesn't mistake longer words for commands", () => {
+    expect(parseCommand("@claude /newer idea", "@claude").mode).toBe("resume");
   });
 });

@@ -1,6 +1,0 @@
-export const fillBranch = (template: string, vars: Record<string, string>) =>
-  template.replace(/\{(\w+)\}/g, (_, name: string) => {
-    const value = vars[name];
-    if (value === undefined) throw new Error(`The branch template \`${template}\` uses {${name}}, which the thread doesn't have`);
-    return value;
-  });

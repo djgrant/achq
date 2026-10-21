@@ -1,12 +1,10 @@
 import { CONTAINER_PORT } from "@achq/core";
-import { createAgent } from "./agent.ts";
+import { createAgent, settings } from "./agent.ts";
 import { savedAgentEnv } from "./agent-env.ts";
-import { createConfigLoader } from "./config/loader.ts";
-import { paths as layout } from "./paths.ts";
+import { createConfigLoader } from "./config.ts";
 import { fetchMirror } from "./repo.ts";
 import { resume } from "./resume.ts";
-import { formatSessions, sessionsFor } from "./sessions.ts";
-import { settings } from "./settings.ts";
+import { formatSessions, paths as layout, sessionsFor } from "./volume.ts";
 
 const main = async () => {
   const { repo, container, dataDir, repoUrl } = settings(process.env);

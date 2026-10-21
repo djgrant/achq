@@ -5,7 +5,7 @@ import { fakeRouter } from "@achq/test-utils/container-router";
 import { testPolicyProvider } from "@achq/test-utils/test-policy-provider";
 import { tempDir } from "@achq/test-utils/temp-dir";
 import { Credentials } from "../src/credentials.ts";
-import { paths as layout } from "../src/paths.ts";
+import { paths as layout } from "../src/volume.ts";
 
 const dirs: string[] = [];
 const cleanups: (() => void)[] = [];

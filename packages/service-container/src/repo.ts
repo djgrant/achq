@@ -6,38 +6,39 @@ import { disk } from "@achq/utils/disk";
 import type { Vars } from "@achq/utils/env";
 import { Git, type WorktreeBranch } from "@achq/utils/git";
 
-
 const ORIGIN = "origin";
 /** Remote branches land beside local ones rather than on them. */
 const REMOTE_TRACKING_REFSPEC = `+refs/heads/*:refs/remotes/${ORIGIN}/*`;
 const DETACHED = "(detached)";
 
 /** Serialises operations on the shared mirror within this process. */
-export const mirrorLock = async.serial();
+const mirrorLock = async.serial();
 
 export const fetchMirror = (mirror: string, url: string, env: Vars = process.env) =>
   mirrorLock(async () => {
     const git = new Git(mirror, env);
-    if (!git.exists()) await initMirror(git, url);
+    if (!git.exists()) {
+      await git.initBare();
+      await git.run(["remote", "add", ORIGIN, url]);
+      await git.run(["config", `remote.${ORIGIN}.fetch`, REMOTE_TRACKING_REFSPEC]);
+    }
     await git.fetch(ORIGIN, { prune: true });
   });
-
-const initMirror = async (git: Git, url: string) => {
-  await git.initBare();
-  await git.run(["remote", "add", ORIGIN, url]);
-  await git.run(["config", `remote.${ORIGIN}.fetch`, REMOTE_TRACKING_REFSPEC]);
-};
 
 export const hasCommit = (mirror: string, commit: string) => new Git(mirror).hasCommit(commit);
 
 export const extractTree = async (mirror: string, commit: string, dir: string, dest: string) => {
   disk.ensureDir(dest);
-  await extractArchive(await new Git(mirror).archive(commit, dir), dest);
-};
-
-const extractArchive = async (tar: Buffer, dest: string) => {
+  const tar = await new Git(mirror).archive(commit, dir);
   await $`tar -x -C ${dest} < ${tar}`.quiet();
 };
+
+export const fillBranch = (template: string, vars: Record<string, string>) =>
+  template.replace(/\{(\w+)\}/g, (_, name: string) => {
+    const value = vars[name];
+    if (value === undefined) throw new Error(`The branch template \`${template}\` uses {${name}}, which the thread doesn't have`);
+    return value;
+  });
 
 /**
  * Creates the thread's worktree on first use, on `branch`. An existing

@@ -4,7 +4,36 @@ import type { Message, Thread } from "@achq/core";
 import { crypto } from "@achq/utils/crypto";
 import { text } from "@achq/utils/text";
 import Mustache from "mustache";
-import { PROMPTS } from "./constants.ts";
+
+const PROMPTS = path.join(import.meta.dir, "..", "prompts");
+const EMPTY = "(empty)";
+const UNTRUSTED_OPENING = "(Left out: the opening post is by a user without write access.)";
+
+export type Mode = "resume" | "new" | "compact";
+export type Command = { mode: Mode; text: string };
+
+/**
+ * The command in a comment is whatever follows the first trigger:
+ *   @claude <prompt>          resume the issue's session (or start one)
+ *   @claude /new <prompt>     start a fresh session
+ *   @claude /compact [focus]  compact the issue's session
+ */
+export const parseCommand = (body: string, trigger: string): Command => {
+  const at = body.indexOf(trigger);
+  let rest = (at < 0 ? body : body.slice(at + trigger.length)).trimStart();
+  let mode: Mode = "resume";
+  for (const m of ["new", "compact"] as const) {
+    if (new RegExp(`^/${m}(?![\\w-])`).test(rest)) {
+      mode = m;
+      rest = rest.slice(m.length + 1).trimStart();
+      break;
+    }
+  }
+  return { mode, text: rest.trimEnd() };
+};
+
+/** achq's system prompt, which every agent gets before the repo's. */
+export const runnerPrompt = () => fs.readFileSync(path.join(PROMPTS, "system.md"), "utf8");
 
 export type PromptInput = {
   mode: "new" | "resume";
@@ -36,11 +65,6 @@ export type Prompt = {
   opening: string;
 };
 
-export const hashBody = (body: string) => crypto.sha256Hex(body);
-
-const EMPTY = "(empty)";
-const UNTRUSTED_OPENING = "(Left out: the opening post is by a user without write access.)";
-
 /**
  * Renders prompts/new.md or prompts/resume.md from trusted messages only.
  * New sessions also see the channel's own earlier replies, since they don't
@@ -50,32 +74,31 @@ export const buildPrompt = (input: PromptInput): Prompt => {
   const [first, ...replies] = input.messages;
   const isNew = input.mode === "new";
   const openingTrusted = Boolean(first && (first.trusted || first.own));
-  const opening = hashBody(first?.body ?? "");
+  const opening = crypto.sha256Hex(first?.body ?? "");
 
   const unseen = unseenReplies(input, replies);
   const shown = unseen.filter((m) => m.trusted || (isNew && m.own));
   const omitted = unseen.filter((m) => !m.trusted && !m.own).length + (isNew && first && !openingTrusted ? 1 : 0);
   const bodyChanged = !isNew && openingTrusted && input.opening !== undefined && input.opening !== opening;
+  const body = !first ? EMPTY : !openingTrusted ? UNTRUSTED_OPENING : first.body.trim() || EMPTY;
 
-  const prompt = render(input.mode, {
-    thread: { id: input.thread.ref.id, title: input.thread.title, url: input.thread.url, body: openingBody(first, openingTrusted) },
+  // The prompt is markdown, not HTML: values go in as written.
+  const template = fs.readFileSync(path.join(PROMPTS, `${input.mode}.md`), "utf8");
+  const view = {
+    thread: { id: input.thread.ref.id, title: input.thread.title, url: input.thread.url, body },
     messages: shown.map((m) => ({ author: m.author, date: m.at, body: stripNew(m.body, input.mention).trim() })),
     omitted,
     bodyChanged,
     branch: input.branch,
     head: input.head,
     by: input.by,
-  });
+  };
+  const prompt = Mustache.render(template, view, {}, { escape: String });
   return { prompt, included: shown.length + (bodyChanged ? 1 : 0), omitted, lastMessage: input.messages.at(-1)?.id, opening };
 };
 
-const openingBody = (first: Message | undefined, trusted: boolean) => {
-  if (!first) return EMPTY;
-  return trusted ? first.body.trim() || EMPTY : UNTRUSTED_OPENING;
-};
-
 /** Every reply for a new session; for a resumed one, those after `since`, plus the edited one. */
-const unseenReplies = (input: PromptInput, replies: Message[]): Message[] => {
+const unseenReplies = (input: PromptInput, replies: Message[]) => {
   if (input.mode === "new") return replies;
   const at = input.since ? replies.findIndex((m) => m.id === input.since) : -1;
   // The opening post, or a message since deleted: everything after it is new.
@@ -84,13 +107,5 @@ const unseenReplies = (input: PromptInput, replies: Message[]): Message[] => {
   return edited && !after.includes(edited) ? [edited, ...after] : after;
 };
 
-/** The prompt is markdown, not HTML: values go in as written. */
-const render = (mode: PromptInput["mode"], view: object) => {
-  const template = fs.readFileSync(path.join(PROMPTS, `${mode}.md`), "utf8");
-  return Mustache.render(template, view, {}, { escape: String });
-};
-
 /** `/new` is for the runner. The agent only needs what follows it. */
-const stripNew = (body: string, mention?: string) => (mention ? body.replace(newCommandAfter(mention), "$1") : body);
-
-const newCommandAfter = (mention: string) => new RegExp(`(${text.escapeRegExp(mention)})\\s+/new(?![\\w-])`, "g");
+const stripNew = (body: string, mention?: string) => (mention ? body.replace(new RegExp(`(${text.escapeRegExp(mention)})\\s+/new(?![\\w-])`, "g"), "$1") : body);

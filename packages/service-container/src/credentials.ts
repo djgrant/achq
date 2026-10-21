@@ -2,10 +2,16 @@ import type { ChannelCredential, CredentialsRequest, CredentialsResponse, Policy
 import { signedFetch } from "@achq/core/signing";
 import { async } from "@achq/utils/async";
 import { disk } from "@achq/utils/disk";
+import { errors } from "@achq/utils/errors";
 import { http } from "@achq/utils/http";
-import { REFRESH_BEFORE_MS } from "./constants.ts";
-import { logFailure } from "./log-failure.ts";
-import type { Paths } from "./paths.ts";
+import { MINUTE_MS } from "./constants.ts";
+import type { Paths } from "./volume.ts";
+
+/** Refresh when this little is left, so a failing refresh has half an hour of retries before anything breaks. */
+const REFRESH_BEFORE_MS = 30 * MINUTE_MS;
+
+/** Only the container's user reads installed credentials. */
+const PRIVATE_DIR_MODE = 0o700;
 
 export type CredentialsOptions = {
   routerUrl: string;
@@ -36,12 +42,15 @@ export class Credentials {
    * Valid credentials. Fetches when there are none or they've expired. When
    * fewer than 30 minutes remain, returns these and refreshes in the background.
    */
-  async get(): Promise<Current> {
+  async get() {
     const current = this.current;
-    const state = freshness(current, this.now());
-    if (state === "expired") return this.refresh();
-    if (state === "expiring") void logFailure(this.refresh(), this.log, "credential refresh failed");
-    return current!;
+    if (!current) return this.refresh();
+    const expiry = Math.min(...[...current.credentials, ...current.channels].map((c) => Date.parse(c.expiresAt)), Number.POSITIVE_INFINITY);
+    const left = expiry - this.now();
+    if (left <= 0) return this.refresh();
+    // Expiring credentials still work, but are refreshed ahead of time so a failing refresh has time to retry.
+    if (left < REFRESH_BEFORE_MS) void this.refresh().catch((e) => this.log(`credential refresh failed: ${errors.message(e)}`));
+    return current;
   }
 
   /** Never given to agents. */
@@ -52,53 +61,25 @@ export class Credentials {
     return found;
   }
 
-  private refresh = async.singleFlight(async (): Promise<Current> => {
-    const response = await this.requestCredentials();
-    this.current = { ...response, env: await this.installCredentials(response) };
+  private refresh = async.singleFlight(async () => {
+    const { routerUrl, containerSecret, repo, container, policyProviders, paths } = this.opts;
+    const res = await signedFetch(containerSecret, `${routerUrl}/credentials`, { method: "POST", body: JSON.stringify({ repo, container } satisfies CredentialsRequest) });
+    await http.expectOk(res, "The router refused credentials");
+    const response = (await res.json()) as CredentialsResponse;
+
+    const env: Record<string, string> = {};
+    for (const provider of policyProviders) {
+      const mine = response.credentials.filter((c) => c.provider === provider.id);
+      if (!mine.length) continue;
+      const dir = paths.policyProvider(provider.id);
+      disk.ensureDir(dir, { mode: PRIVATE_DIR_MODE });
+      Object.assign(env, (await provider.install(mine, dir)).env);
+    }
+    const known = new Set(policyProviders.map((p) => p.id));
+    const unknown = [...new Set(response.credentials.map((c) => c.provider).filter((id) => !known.has(id)))];
+    if (unknown.length) this.log(`no policy provider installs ${unknown.join(", ")} credentials`);
+
+    this.current = { ...response, env };
     return this.current;
   });
-
-  private async requestCredentials(): Promise<CredentialsResponse> {
-    const { routerUrl, containerSecret, repo, container } = this.opts;
-    const request: CredentialsRequest = { repo, container };
-    const res = await signedFetch(containerSecret, `${routerUrl}/credentials`, { method: "POST", body: JSON.stringify(request) });
-    await http.expectOk(res, "The router refused credentials");
-    return (await res.json()) as CredentialsResponse;
-  }
-
-  private async installCredentials(response: CredentialsResponse): Promise<Record<string, string>> {
-    const { policyProviders, paths } = this.opts;
-    const env: Record<string, string> = {};
-    for (const p of policyProviders) {
-      const mine = response.credentials.filter((c) => c.provider === p.id);
-      if (!mine.length) continue;
-      const dir = paths.policyProvider(p.id);
-      disk.ensureDir(dir, { mode: PRIVATE_DIR_MODE });
-      Object.assign(env, (await p.install(mine, dir)).env);
-    }
-    const unknown = uninstallable(response, policyProviders);
-    if (unknown.length) this.log(`no policy provider installs ${unknown.join(", ")} credentials`);
-    return env;
-  }
 }
-
-/** Only the container's user reads installed credentials. */
-const PRIVATE_DIR_MODE = 0o700;
-
-/** `expiring` credentials still work, but are refreshed ahead of time so a failing refresh has time to retry. */
-type Freshness = "expired" | "expiring" | "fresh";
-
-const freshness = (current: CredentialsResponse | undefined, now: number): Freshness => {
-  if (!current) return "expired";
-  const left = expiry(current) - now;
-  if (left <= 0) return "expired";
-  return left < REFRESH_BEFORE_MS ? "expiring" : "fresh";
-};
-
-const expiry = (c: CredentialsResponse) =>
-  Math.min(...[...c.credentials, ...c.channels].map((x) => Date.parse(x.expiresAt)), Number.POSITIVE_INFINITY);
-
-const uninstallable = (response: CredentialsResponse, policyProviders: PolicyProvider[]) => {
-  const known = new Set(policyProviders.map((p) => p.id));
-  return [...new Set(response.credentials.map((c) => c.provider).filter((id) => !known.has(id)))];
-};

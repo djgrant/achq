@@ -6,8 +6,8 @@ import { threadKey } from "@achq/core";
 import { signedHeaders } from "@achq/core/signing";
 import { flock } from "@achq/utils/flock";
 import { CHANNEL_TOKEN } from "@achq/test-utils/container-router";
-import { Runner } from "../src/runner.ts";
-import { readState } from "../src/state.ts";
+import { keepAwake, Runner } from "../src/runner.ts";
+import { readState } from "../src/volume.ts";
 import { SECRET, world } from "./world.ts";
 
 const branchOf = async (dir: string) => (await $`git -C ${dir} branch --show-current`.quiet().text()).trim();
@@ -308,4 +308,17 @@ describe("startup", () => {
     await w.runner.reportInterrupted();
     expect(w.channel.replies.filter((r) => r.body.includes("restarted"))).toHaveLength(1);
   });
+});
+
+test("keepAwake pings ACHQ_KEEP_AWAKE_URL only when the container provider sets it", async () => {
+  expect(keepAwake({})).toBeUndefined();
+  expect(keepAwake({ ACHQ_KEEP_AWAKE_URL: "" })).toBeUndefined();
+  const hits: string[] = [];
+  const server = Bun.serve({ port: 0, fetch: (req) => (hits.push(new URL(req.url).pathname), new Response("ok")) });
+  try {
+    await keepAwake({ ACHQ_KEEP_AWAKE_URL: `http://localhost:${server.port}/` })!();
+    expect(hits).toEqual(["/"]);
+  } finally {
+    server.stop(true);
+  }
 });

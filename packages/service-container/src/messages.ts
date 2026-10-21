@@ -8,7 +8,7 @@ export const unrunnableAgent = (trigger: { name: string; agent: string }) =>
 
 export const NOTHING_TO_COMPACT = "There is no current session on this thread to compact.";
 
-export const resumeHint = (mention: string | undefined) =>
+const resumeHint = (mention: string | undefined) =>
   mention ? `\n\nComment \`${mention} <prompt>\` to resume the session, or \`${mention} /new <prompt>\` to start over.` : "";
 
 export const runFailed = (error: string, mention: string | undefined) =>

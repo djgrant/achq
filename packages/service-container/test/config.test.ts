@@ -4,10 +4,8 @@ import * as path from "node:path";
 import * as claude from "@achq/claude";
 import { makeOrigin } from "@achq/test-utils/origin";
 import { tempDir } from "@achq/test-utils/temp-dir";
-import { bundleConfig } from "../src/config/bundle.ts";
-import { evaluateBundle } from "../src/config/evaluate.ts";
-import { createConfigLoader } from "../src/config/loader.ts";
-import { paths as layout } from "../src/paths.ts";
+import { bundleConfig, createConfigLoader, evaluateBundle } from "../src/config.ts";
+import { paths as layout } from "../src/volume.ts";
 import { fetchMirror } from "../src/repo.ts";
 
 const dirs: string[] = [];

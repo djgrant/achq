@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { withoutPrivate } from "../src/env.ts";
+import { withoutPrivate } from "../src/agent-env.ts";
 
 test("agents never get achq's private variables, or the ones ACHQ_PRIVATE_ENV names", () => {
   const env = {

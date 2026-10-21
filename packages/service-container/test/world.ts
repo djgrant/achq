@@ -9,11 +9,10 @@ import { makeOrigin } from "@achq/test-utils/origin";
 import { testPolicyProvider } from "@achq/test-utils/test-policy-provider";
 import { tempDir } from "@achq/test-utils/temp-dir";
 import { TestChannelProvider } from "@achq/test-utils/test-channel-provider";
-import { createConfigLoader } from "../src/config/loader.ts";
-import { paths as layout } from "../src/paths.ts";
+import { createConfigLoader } from "../src/config.ts";
 import { fetchMirror } from "../src/repo.ts";
 import { Runner } from "../src/runner.ts";
-import { readState } from "../src/state.ts";
+import { paths as layout, readState } from "../src/volume.ts";
 
 export const dirs: string[] = [];
 const cleanups: (() => void)[] = [];
