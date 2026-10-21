@@ -1,12 +1,12 @@
 import * as path from "node:path";
-import { type Context, Deployer, DEPLOYER_PORT, ENV, type Infra, known, plan, type Resource, Router, ROUTER_PRIVATE_PORT, type SyncRequest, type SyncResult } from "@achq/core";
+import { type Check, type Context, Deployer, DEPLOYER_PORT, ENV, type Infra, known, plan, type Resource, Router, ROUTER_PRIVATE_PORT, type SyncRequest, type SyncResult } from "@achq/core";
 import { adminSecret } from "@achq/core/secrets";
 import { signedFetch } from "@achq/core/signing";
 import { collections } from "@achq/utils/collections";
 import { crypto } from "@achq/utils/crypto";
-import type { Vars } from "@achq/utils/env";
+import { Env, type Vars } from "@achq/utils/env";
 import { HttpError } from "@achq/utils/http";
-import { containerProviderNamed, INFRA_MODULES } from "achq/registry";
+import { agentEnv, containerProviderNamed, INFRA_MODULES } from "achq/registry";
 import { planLines } from "./format.ts";
 
 const SECRET_BYTES = 32;
@@ -82,6 +82,20 @@ export const checkInfra = ({ resources }: Infra): InfraResources => {
   }
   return { router, deployer, resources };
 };
+
+/** What to make sure of before reaching the infra in `file`: what its container provider checks, e.g. that Railway takes your token. */
+export const infraChecks = async (file: string, env: Vars) => {
+  const { deployer } = await loadInfra(file);
+  return containerProviderNamed(deployer.containerProvider).checks?.(env) ?? [];
+};
+
+/** That `env` has what every container gets from it: each agent runtime's variables. */
+export const agentEnvCheck = (env: Vars): Check => ({
+  label: "Agent variables",
+  check: async () => {
+    for (const { name, hint } of agentEnv()) new Env(env).require(name, hint);
+  },
+});
 
 /** The router's public URL and AGENT_WEBHOOK_KEY, read from where it runs. Plans the router, so changes nothing. */
 export const routerAccess = async ({ router }: InfraResources, ctx: Context) => {

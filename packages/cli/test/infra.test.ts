@@ -6,7 +6,7 @@ import * as core from "@achq/core";
 import { achq } from "@achq/core";
 import * as github from "@achq/github/infra";
 import * as railway from "@achq/railway/infra";
-import { checkInfra, loadInfra } from "../src/lib/infra.ts";
+import { agentEnvCheck, checkInfra, infraChecks, loadInfra } from "../src/lib/infra.ts";
 
 let tmp: string;
 beforeEach(() => {
@@ -103,4 +103,21 @@ export default achq(() => {
   expect(channels.map((c) => [(c as any).inputs.name, (c as any).inputs.org])).toEqual([["djgrant-claude", undefined], ["notation-achq", "notationlabs"]]);
   // The infra's channel is the class the CLI knows: its imports resolved to this checkout.
   expect(channels[0]).toBeInstanceOf(github.Channel);
+});
+
+test("before reaching the infra, achq checks what its container provider does, and that the agents' variables are set", async () => {
+  fs.writeFileSync(
+    path.join(tmp, "achq.infra.ts"),
+    `import { achq, railway } from "achq/infra";
+export default achq(() => {
+  const router = new railway.Router("router", { project: "achq" });
+  new railway.Deployer("deployer", { router, owners: [] });
+});
+`,
+  );
+  const checks = await infraChecks(path.join(tmp, "achq.infra.ts"), {});
+  expect(checks.map((c) => c.label)).toEqual(["Railway token"]);
+  await expect(checks[0]!.check()).rejects.toThrow("Missing RAILWAY_API_TOKEN");
+  await expect(agentEnvCheck({}).check()).rejects.toThrow("Missing CLAUDE_CODE_OAUTH_TOKEN");
+  await expect(agentEnvCheck({ CLAUDE_CODE_OAUTH_TOKEN: "t" }).check()).resolves.toBeUndefined();
 });

@@ -6,7 +6,7 @@ import { agentEnv, codeHostProviderNamed } from "achq/registry";
 import { z } from "zod";
 import { ACHQ_CODE_PATHS } from "../constants.ts";
 import { formatSync } from "../lib/format.ts";
-import { loadInfra, up } from "../lib/infra.ts";
+import { agentEnvCheck, infraChecks, loadInfra, up } from "../lib/infra.ts";
 import { clean } from "../lib/terminal.ts";
 import { needInfra } from "../lib/workdir.ts";
 
@@ -17,6 +17,7 @@ export const command = defineCommand({
     prune: { from: "flag", schema: z.boolean().default(false), description: "Delete uninstalled repos' containers" },
     dryRun: { from: "flag", schema: z.boolean().default(false), description: "Preview changes" },
   },
+  pre: async () => [...(await infraChecks(needInfra(), process.env)), agentEnvCheck(process.env)],
   run: clean(async (_r, { context }) => {
     const infra = await loadInfra(needInfra());
     // Where the router and deployer's code comes from: achq's own repo, on its code host.

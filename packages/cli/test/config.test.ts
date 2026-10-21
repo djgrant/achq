@@ -36,5 +36,5 @@ test("the environment arrives when the env command swallows what it runs prints,
 });
 
 test("an env command that fails says so", async () => {
-  expect(envFrom({ env: "false", dir: tmp })).rejects.toThrow("`false` failed (exit 1)");
+  await expect(envFrom({ env: "false", dir: tmp })).rejects.toThrow("`false` failed (exit 1)");
 });
