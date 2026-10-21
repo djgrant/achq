@@ -1,7 +1,8 @@
+import { join } from "node:path";
 import { type ChannelProvider, type CodeHostProvider, type PolicyProvider, repoName, type RouterRepoConfig } from "@achq/core";
+import { JsonDirStore } from "@achq/utils/disk";
 import { ATTEMPT_TIMEOUT_MS, DELAYS } from "./constants.ts";
-import { createStore, type Store } from "./store.ts";
-import type { Claims } from "./targets.ts";
+import type { Claims, FailedEntry, InboxEntry } from "./deliveries.ts";
 
 export type RouterDeps = {
   /** Each one's sources are what the deployer checks. */
@@ -20,27 +21,34 @@ export type RouterDeps = {
   log?: (line: string) => void;
 };
 
-export type RouterContext = Required<Omit<RouterDeps, "dataDir">> & {
-  store: Store;
-  /** Router config and claims, by lowercased repo. Loaded on start, written through to the volume. */
-  repos: Map<string, RouterRepoConfig>;
-  claims: Map<string, Claims>;
-  /** Deliveries being forwarded, so a duplicate isn't queued twice, and so tests can wait for them. */
-  inFlight: Map<string, Promise<void>>;
-};
+/** What's kept per repo is kept in a file named after it. */
+export const repoFile = (repo: string) => repoName.key(repo).replace("/", "__");
+export const repoFromFile = (name: string) => name.replace("__", "/");
 
-export const createContext = (deps: RouterDeps): RouterContext => ({
+export const createContext = (deps: RouterDeps) => ({
   ...deps,
   fetch: deps.fetch ?? fetch,
   delays: deps.delays ?? DELAYS,
   attemptTimeout: deps.attemptTimeout ?? ATTEMPT_TIMEOUT_MS,
   now: deps.now ?? Date.now,
-  log: deps.log ?? console.log,
-  store: createStore(deps.dataDir),
-  repos: new Map(),
-  claims: new Map(),
-  inFlight: new Map(),
+  log: deps.log ?? ((line: string) => console.log(line)),
+  /** The volume. */
+  store: {
+    repos: new JsonDirStore<RouterRepoConfig>(join(deps.dataDir, "repos")),
+    claims: new JsonDirStore<Claims>(join(deps.dataDir, "claims")),
+    /** Accepted deliveries some target hasn't answered yet, by delivery ID. */
+    inbox: new JsonDirStore<InboxEntry>(join(deps.dataDir, "inbox")),
+    /** Deliveries some target never answered, by delivery ID. */
+    failed: new JsonDirStore<FailedEntry>(join(deps.dataDir, "failed")),
+  },
+  /** Router config and claims, by `repoName.key`. Loaded on start, written through to the volume. */
+  repos: new Map<string, RouterRepoConfig>(),
+  claims: new Map<string, Claims>(),
+  /** Deliveries being forwarded, so a duplicate isn't queued twice, and so tests can wait for them. */
+  inFlight: new Map<string, Promise<void>>(),
 });
+
+export type RouterContext = ReturnType<typeof createContext>;
 
 export const configOf = (ctx: RouterContext, repo: string | undefined) => (repo ? ctx.repos.get(repoName.key(repo)) : undefined);
 
