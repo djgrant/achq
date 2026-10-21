@@ -27,7 +27,7 @@ let hook: { url?: string; content_type?: string; insecure_ssl?: string; secret?:
 let settings: { events: string[]; permissions: Record<string, string> };
 
 const jwtValid = (auth: string | null) => {
-  const [h, p, s] = (auth?.replace(/^Bearer /, "") ?? "").split(".");
+  const [h, p, s] = (auth?.replace(/^bearer /i, "") ?? "").split(".");
   return Boolean(s) && createVerify("RSA-SHA256").update(`${h}.${p}`).verify(createPublicKey(publicKey), s, "base64url");
 };
 

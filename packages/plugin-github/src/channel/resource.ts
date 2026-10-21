@@ -1,6 +1,6 @@
 import { all, type Change, type Context, known, ManagedResource, type Planned, type Router, UNKNOWN } from "@achq/core";
-import type { AppSettings, HookConfig } from "@achq/utils/gh";
-import { type AppKeys, asAppOnce, appsVariable, appWebhookSecret, parseApps } from "../lib/apps.ts";
+import { type AppSettings, GitHub, type HookConfig } from "@achq/utils/gh";
+import { type AppKeys, appsVariable, appWebhookSecret, parseApps } from "../lib/apps.ts";
 import { githubUrls } from "../lib/client.ts";
 import { GITHUB_ENV } from "../lib/constants.ts";
 import { appSlug, manifestFlow } from "../lib/manifest.ts";
@@ -111,7 +111,7 @@ export class Channel extends ManagedResource<ChannelProps, ChannelState, Channel
   async read({ slug, org, stored }: ChannelProps, ctx: Context): Promise<ChannelState | undefined> {
     if (!stored) return undefined;
     const { api, web } = githubUrls(ctx.env);
-    const app = asAppOnce(api, stored.id, stored.privateKey);
+    const app = GitHub.connectAsApp(stored.id, stored.privateKey, { baseUrl: api });
     const [settings, hook] = await Promise.all([app.app(), app.hookConfig()]);
     return { events: settings.events, permissions: settings.permissions, hook, settings: appSettingsUrl(slug, org, web) };
   }
@@ -140,16 +140,16 @@ export class Channel extends ManagedResource<ChannelProps, ChannelState, Channel
   async apply({ slug, name, org, hookUrl, key, stored }: ChannelProps, _: ChannelState | undefined, changes: ChannelChange[], ctx: Context): Promise<ChannelAttrs> {
     const { api, web } = githubUrls(ctx.env);
     if (changes.some((c) => c.kind === "webhook")) {
-      await asAppOnce(api, stored!.id, stored!.privateKey).setHookConfig(hookConfig(hookUrl, key, stored!.id));
+      await GitHub.connectAsApp(stored!.id, stored!.privateKey, { baseUrl: api }).setHookConfig(hookConfig(hookUrl, key, stored!.id));
       return { slug, ...stored! };
     }
     const open = ctx.open;
     if (!open) throw new Error(`Creating GitHub App ${name} opens your browser, which only \`achq infra up\` can do`);
     const created = await manifestFlow({ name, org, hookUrl }, { open: (url) => open(url, `create ${name} on GitHub`), githubApi: api, githubWeb: web });
     // The secret derives from the App ID, which GitHub only assigns on creation.
-    await asAppOnce(api, created.id, created.pem).setHookConfig(hookConfig(hookUrl, key, created.id));
+    await GitHub.connectAsApp(String(created.id), created.pem, { baseUrl: api }).setHookConfig(hookConfig(hookUrl, key, created.id));
     if (created.slug !== slug) ctx.log(`  ! GitHub named it ${created.slug}: set the App's name to "${created.slug}" in the infra`);
     ctx.log(`  created ${created.html_url}`);
-    return { slug: created.slug, id: String(created.id), privateKey: created.pem };
+    return { slug: created.slug ?? slug, id: String(created.id), privateKey: created.pem };
   }
 }

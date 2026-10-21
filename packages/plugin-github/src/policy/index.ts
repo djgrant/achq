@@ -3,7 +3,7 @@ import { appsFor } from "../lib/apps.ts";
 import { POLICY_PROVIDER, PRIVATE_ENV } from "../lib/constants.ts";
 import { GitHubPolicyProvider } from "./provider.ts";
 
-/** Shares the channel's Apps (and JWT cache) when made from the same configuration. */
+/** The router's instance has the App keys that mint tokens; a container's only installs them. */
 export const githubPolicyProvider: Implementation<PolicyProvider> = {
   id: POLICY_PROVIDER,
   create: (env) => new GitHubPolicyProvider(appsFor(env)),

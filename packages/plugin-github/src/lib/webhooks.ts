@@ -1,5 +1,4 @@
 import type { ChannelEvent, Data } from "@achq/core";
-import { hmacHex, safeEqual } from "@achq/core/signing";
 import { CHANNEL, CODE_HOST } from "./constants.ts";
 import { issueThreadId, labelNames, messageId, OPENING_POST_ID, TRUSTED } from "./threads.ts";
 
@@ -18,10 +17,6 @@ const ISSUE_ACTIONS = new Set(["opened", "edited", "reopened", "labeled"]);
 const COMMENT_ACTIONS = new Set(["created", "edited"]);
 const INSTALLATION_ACTIONS = new Set(["created", "deleted", "suspend", "unsuspend"]);
 const INSTALLATION_REPOS_ACTIONS = new Set(["added", "removed"]);
-
-/** Checks GitHub's X-Hub-Signature-256 header against the raw body. */
-export const verifyGitHubSignature = (secret: string, body: string, header: string | null) =>
-  Boolean(header?.startsWith("sha256=")) && safeEqual(header!, `sha256=${hmacHex(secret, body)}`);
 
 const fullNames = (repos: unknown): string[] =>
   Array.isArray(repos) ? repos.map((r) => r?.full_name).filter((n): n is string => typeof n === "string") : [];

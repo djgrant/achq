@@ -75,7 +75,7 @@ beforeAll(() => {
       }
       if ((m = route.match(/^GET \/user\/installations\/(\d+)\/repositories$/))) {
         const i = fake.installations.find((x) => x.id === Number(m![1]))!;
-        return Response.json({ repositories: i.repos.map((full_name) => ({ full_name })) });
+        return Response.json({ total_count: i.repos.length, repositories: i.repos.map((full_name) => ({ full_name })) });
       }
       if ((m = route.match(/^GET \/repos\/([^/]+\/[^/]+)$/))) return Response.json({ id: 777, full_name: m[1] });
       if ((m = route.match(/^(PUT|DELETE) \/user\/installations\/(\d+)\/repositories\/777$/))) {
@@ -89,7 +89,7 @@ beforeAll(() => {
       return new Response(`no route ${route}`, { status: 500 });
     },
   });
-  gh = GitHub.connect("token t", { baseUrl: `http://localhost:${server.port}` });
+  gh = GitHub.connect({ token: "t", baseUrl: `http://localhost:${server.port}` });
 });
 afterAll(() => server.stop(true));
 beforeEach(() => {

@@ -102,6 +102,6 @@ describe("against GitHub", () => {
   test("the client's token doesn't reach other repos", async () => {
     gh.addIssue("notationlabs/shared", { number: 1 });
     const client = api.channel.client(await api.channel.mintClient("notation-achq", repo));
-    await expect(client.thread({ channel: "github", id: "notationlabs/shared#1" })).rejects.toThrow(/404/);
+    await expect(client.thread({ channel: "github", id: "notationlabs/shared#1" })).rejects.toMatchObject({ status: 404 });
   });
 });

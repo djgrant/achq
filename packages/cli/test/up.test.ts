@@ -46,7 +46,7 @@ const realHome = process.env.HOME;
 const realCwd = process.cwd();
 
 const jwtValid = (auth: string | null) => {
-  const token = auth?.replace(/^Bearer /, "") ?? "";
+  const token = auth?.replace(/^bearer /i, "") ?? "";
   const [h, p, s] = token.split(".");
   return Boolean(s) && createVerify("RSA-SHA256").update(`${h}.${p}`).verify(createPublicKey(publicKey), s, "base64url");
 };

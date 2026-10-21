@@ -1,12 +1,13 @@
 import type { ChannelProvider, ChannelClient, ChannelCredential, ChannelEvent, Credential, Message, SelectorData, SourceSettings, Thread, ThreadRef } from "@achq/core";
-import { type GitHub, type Issue, type IssueComment, type ReactionContent, type ReactionTarget, splitRepo, type User } from "@achq/utils/gh";
+import { GitHub, type Issue, type IssueComment, type ReactionContent, type ReactionTarget, splitRepo, type User } from "@achq/utils/gh";
+import { verify } from "@octokit/webhooks-methods";
 import { type Apps, appWebhookSecret } from "../lib/apps.ts";
-import { asToken, botLogin } from "../lib/client.ts";
+import { botLogin } from "../lib/client.ts";
 import { CHANNEL, GITHUB_API, REPO } from "../lib/constants.ts";
 import { CLIENT_PERMISSIONS } from "../lib/permissions.ts";
 import { matchEvent, matchThread } from "../lib/selectors.ts";
 import { labelNames, messageId, OPENING_POST_ID, parseThreadId, slugify, TRUSTED } from "../lib/threads.ts";
-import { parseEvent, verifyGitHubSignature } from "../lib/webhooks.ts";
+import { parseEvent } from "../lib/webhooks.ts";
 
 /** Apps as channels: each App is a source. Only the router has the key that verifies webhooks. */
 export class GitHubChannelProvider implements ChannelProvider {
@@ -19,10 +20,11 @@ export class GitHubChannelProvider implements ChannelProvider {
 
   async verify(headers: Headers, body: string) {
     const appId = headers.get("x-github-hook-installation-target-id");
-    if (!this.key || !appId) return undefined;
+    const signature = headers.get("x-hub-signature-256");
+    if (!this.key || !appId || !signature || !body) return undefined;
     const slug = this.apps.byId(appId);
     if (!slug) return undefined;
-    return verifyGitHubSignature(appWebhookSecret(this.key, appId), body, headers.get("x-hub-signature-256")) ? slug : undefined;
+    return (await verify(appWebhookSecret(this.key, appId), body, signature)) ? slug : undefined;
   }
 
   parse(source: string, headers: Headers, body: string) {
@@ -76,7 +78,7 @@ export class GitHubChannelClient implements ChannelClient {
   private bot: string;
 
   constructor(credential: Credential, baseUrl = GITHUB_API) {
-    this.gh = asToken(credential.value, baseUrl);
+    this.gh = GitHub.connect({ token: credential.value, baseUrl });
     const source = credential.scope.source;
     if (typeof source !== "string") throw new Error("GitHub credential has no source in its scope");
     this.bot = botLogin(source);
@@ -103,7 +105,7 @@ export class GitHubChannelClient implements ChannelClient {
     return {
       id,
       author: post.user?.login ?? "",
-      trusted: TRUSTED.has(post.author_association),
+      trusted: TRUSTED.has(post.author_association ?? ""),
       own: post.user?.login === this.bot,
       body: post.body ?? "",
       at: post.created_at,

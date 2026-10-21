@@ -75,14 +75,14 @@ export class FakeGitHub {
     const m = /^\/repos\/([^/]+\/[^/]+)(\/.*)?$/.exec(url.pathname);
     if (!m) return new Response("not found", { status: 404 });
     const repo = this.repos.get(decodeURIComponent(m[1]!).toLowerCase());
-    const token = req.headers.get("authorization")?.replace(/^token /, "");
+    const token = req.headers.get("authorization")?.replace(/^token /i, "");
     if (!token || this.tokens.get(token)?.toLowerCase() !== decodeURIComponent(m[1]!).toLowerCase()) return Response.json({ message: "Bad credentials" }, { status: 401 });
     if (!repo) return Response.json({ message: "Not Found" }, { status: 404 });
     const rest = m[2] ?? "";
     const notFound = () => Response.json({ message: "Not Found" }, { status: 404 });
     let r: RegExpExecArray | null;
     if (req.method === "GET" && rest === "") return Response.json({ full_name: repo.full_name, default_branch: repo.default_branch });
-    if (req.method === "GET" && (r = /^\/git\/ref\/heads\/(.+)$/.exec(rest))) {
+    if (req.method === "GET" && (r = /^\/git\/ref\/heads(?:\/|%2F)(.+)$/i.exec(rest))) {
       const sha = repo.heads.get(decodeURIComponent(r[1]!));
       return sha ? Response.json({ object: { sha, type: "commit" } }) : notFound();
     }

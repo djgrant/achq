@@ -1,8 +1,7 @@
 import { type Change, type Context, ManagedResource } from "@achq/core";
-import { type AppSettings, type GitHub, sameLogin, sameRepo, splitRepo, type UserInstallation } from "@achq/utils/gh";
+import { type AppSettings, GitHub, ghToken, sameLogin, sameRepo, splitRepo, type UserInstallation } from "@achq/utils/gh";
 import { githubUrls } from "../lib/client.ts";
 import { covers } from "../lib/permissions.ts";
-import { userGitHub } from "../lib/user.ts";
 
 export type { AppSettings };
 
@@ -30,10 +29,7 @@ const ownerOf = (repo: string) => splitRepo(repo).owner;
 const installationSettings = ({ id, account }: UserInstallation, web: string) =>
   account.type === "Organization" ? `${web}/organizations/${account.login}/settings/installations/${id}` : `${web}/settings/installations/${id}`;
 
-const liveApp = async (gh: GitHub, slug: string): Promise<AppSettings | "private"> => {
-  const app = await gh.publicApp(slug);
-  return app ? { events: app.events, permissions: app.permissions } : "private";
-};
+const liveApp = async (gh: GitHub, slug: string): Promise<AppSettings | "private"> => (await gh.publicApp(slug)) ?? "private";
 
 const installationOn = async (gh: GitHub, slug: string, owner: string) =>
   (await gh.userInstallations()).find((i) => i.app_slug === slug && sameLogin(i.account.login, owner));
@@ -58,7 +54,7 @@ export class CodeHost extends ManagedResource<CodeHostProps, CodeHostState, {}, 
 
   async read({ slug, repo, installed }: CodeHostProps, ctx: Context): Promise<CodeHostState> {
     const { api, web } = githubUrls(ctx.env);
-    const gh = userGitHub(api, ctx.env);
+    const gh = GitHub.connect({ token: ghToken(ctx.env), baseUrl: api });
     const app = installed ? await liveApp(gh, slug) : undefined;
     const found = await installationOn(gh, slug, ownerOf(repo));
     if (!found) return { app, present: false };
@@ -112,7 +108,7 @@ const openInstallPage = async ({ slug, repo }: CodeHostProps, ctx: Context) => {
 
 /** Needs admin on the repo. */
 const changeInstallationRepos = async ({ repo }: CodeHostProps, installationId: number, change: "add" | "remove", ctx: Context) => {
-  const gh = userGitHub(githubUrls(ctx.env).api, ctx.env);
+  const gh = GitHub.connect({ token: ghToken(ctx.env), baseUrl: githubUrls(ctx.env).api });
   const { id: repoId } = await gh.repo(repo).info();
   if (change === "add") return gh.addToInstallation(installationId, repoId);
   await gh.removeFromInstallation(installationId, repoId);

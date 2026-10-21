@@ -1,12 +1,11 @@
 import { type CodeHostProvider, type ConfigTree, type Credential, type FileLimits, type InstalledRepo, type RepoClient, type RepoManifest, STATUS_VARIABLE, type Status } from "@achq/core";
-import { type GitHub, ghToken, repoKey, type RepoApi, type TreeEntry } from "@achq/utils/gh";
+import { GitHub, ghToken, repoKey, type RepoApi, type TreeEntry } from "@achq/utils/gh";
 import type { Apps } from "../lib/apps.ts";
-import { asToken, github, type GitHubUrls } from "../lib/client.ts";
+import type { GitHubUrls } from "../lib/client.ts";
 import { configNeeds, configSource } from "../lib/config-needs.ts";
 import { CODE_HOST, POLICY_PROVIDER, REPO_NAME } from "../lib/constants.ts";
 import { DEPLOYER_PERMISSIONS } from "../lib/permissions.ts";
 import { lastCommit, readStatus, repoOf } from "../lib/repos.ts";
-import { userGitHub } from "../lib/user.ts";
 import type { GitHubPolicyData } from "../policy/resource.ts";
 import { CodeHost } from "./resource.ts";
 
@@ -63,14 +62,16 @@ const repoClient = (repo: RepoApi): RepoClient => ({
 /** A repo is set up for achq when the config's one App is installed on it. Only the router has the App keys that list where. */
 export class GitHubCodeHostProvider implements CodeHostProvider {
   readonly repoName = REPO_NAME;
-  /** You, through your gh login: the CLI's side. */
-  private gh: GitHub;
+  private you?: GitHub;
 
   constructor(
     private urls: GitHubUrls,
     private apps: Apps,
-  ) {
-    this.gh = userGitHub(urls.api);
+  ) {}
+
+  /** You, through your gh login: the CLI's side. Logged in on first use, since the router makes this provider too. */
+  private get gh() {
+    return (this.you ??= GitHub.connect({ token: ghToken(), baseUrl: this.urls.api }));
   }
 
   /** Through whichever App is installed on the repo: GitHub's policy provider finds it. */
@@ -79,11 +80,11 @@ export class GitHubCodeHostProvider implements CodeHostProvider {
   }
 
   repo(repo: string, credential: Credential) {
-    return repoClient(asToken(credential.value, this.urls.api).repo(repo));
+    return repoClient(GitHub.connect({ token: credential.value, baseUrl: this.urls.api }).repo(repo));
   }
 
   canPush(repo: string, token: string) {
-    return github(`Bearer ${token}`, this.urls.api).repo(repo).canPush();
+    return GitHub.connect({ token, baseUrl: this.urls.api }).repo(repo).canPush();
   }
 
   cloneUrl(repo: string) {
@@ -130,7 +131,7 @@ export class GitHubCodeHostProvider implements CodeHostProvider {
     for (const installation of await this.apps.asApp(slug).installations()) {
       if (installation.suspended_at) continue;
       const { token } = await this.apps.token(slug, installation.id, { permissions: LIST_PERMISSIONS });
-      for (const { full_name } of await asToken(token, this.apps.baseUrl).installationRepos()) repos.push(full_name);
+      for (const { full_name } of await GitHub.connect({ token, baseUrl: this.apps.baseUrl }).installationRepos()) repos.push(full_name);
     }
     return repos;
   }

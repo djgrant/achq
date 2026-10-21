@@ -12,7 +12,8 @@
   },
   "dependencies": {
     "@achq/core": "workspace:*",
-    "@achq/utils": "workspace:*"
+    "@achq/utils": "workspace:*",
+    "@octokit/webhooks-methods": "^6.0.0"
   },
   "devDependencies": {
     "@achq/test-utils": "workspace:*"

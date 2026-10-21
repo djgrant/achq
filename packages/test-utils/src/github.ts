@@ -130,18 +130,18 @@ export class FakeGitHub {
 
   /** The App a JWT is from, if its signature checks out against that App's public key and it hasn't expired. */
   private jwtApp(auth: string): FakeApp | undefined {
-    const m = /^Bearer (.+)\.(.+)\.(.+)$/.exec(auth);
+    const m = /^bearer (.+)\.(.+)\.(.+)$/i.exec(auth);
     if (!m) return undefined;
     const [, header, payload, signature] = m;
     const claims = JSON.parse(Buffer.from(payload!, "base64url").toString());
-    const app = this.apps.find((a) => a.id === claims.iss);
+    const app = this.apps.find((a) => a.id === String(claims.iss));
     if (!app || claims.exp < Date.now() / 1000) return undefined;
     const ok = createVerify("RSA-SHA256").update(`${header}.${payload}`).verify(app.publicKey, signature!, "base64url");
     return ok ? app : undefined;
   }
 
   private token(auth: string) {
-    const m = /^token (.+)$/.exec(auth);
+    const m = /^token (.+)$/i.exec(auth);
     return m ? this.tokens.get(m[1]!) : undefined;
   }
 
@@ -153,10 +153,14 @@ export class FakeGitHub {
     this.requests.push({ method, path, auth });
     const json = (body: unknown, status = 200) => Response.json(body, { status });
     const notFound = () => json({ message: "Not Found" }, 404);
-    const page = <T>(items: T[]) => {
+    /** One page of `items`, `wrap`ped as the route lists them, with GitHub's `Link` to the next page when there is one. */
+    const paged = <T>(items: T[], wrap: (page: T[]) => unknown = (page) => page) => {
       const per = Number(url.searchParams.get("per_page") ?? 30);
       const n = Number(url.searchParams.get("page") ?? 1);
-      return items.slice((n - 1) * per, n * per);
+      const next = new URL(url);
+      next.searchParams.set("page", String(n + 1));
+      const headers: Record<string, string> = n * per < items.length ? { link: `<${next}>; rel="next"` } : {};
+      return Response.json(wrap(items.slice((n - 1) * per, n * per)), { headers });
     };
     let m: RegExpExecArray | null;
 
@@ -166,7 +170,7 @@ export class FakeGitHub {
       if (!app) return json({ message: "A JSON web token could not be decoded" }, 401);
       if (path === "/app" && method === "GET") return json({ slug: app.slug, id: Number(app.id), events: app.events, permissions: app.permissions });
       if (path === "/app/installations" && method === "GET")
-        return json(page(this.installations.filter((i) => i.app === app.slug).map((i) => this.installationJson(i))));
+        return paged(this.installations.filter((i) => i.app === app.slug).map((i) => this.installationJson(i)));
       if ((m = /^\/repos\/([^/]+)\/([^/]+)\/installation$/.exec(path)) && method === "GET") {
         // Like GitHub: found by the repo's owner, whether or not the installation selected this repo.
         const i = this.installations.find((i) => i.app === app.slug && i.account.toLowerCase() === m![1]!.toLowerCase());
@@ -197,7 +201,7 @@ export class FakeGitHub {
     if (path === "/installation/repositories" && method === "GET") {
       if (!token) return json({ message: "Bad credentials" }, 401);
       const repos = token.repos.map((full_name) => ({ full_name }));
-      return json({ total_count: repos.length, repositories: page(repos) });
+      return paged(repos, (page) => ({ total_count: repos.length, repositories: page }));
     }
     if ((m = /^\/users\/([^/]+)$/.exec(path)) && method === "GET") {
       const login = decodeURIComponent(m[1]!);
@@ -207,7 +211,7 @@ export class FakeGitHub {
     }
     if ((m = /^\/repos\/([^/]+\/[^/]+)(\/git\/.+|\/actions\/variables(?:\/[^/]+)?)?$/.exec(path))) {
       const repo = this.repos.get(m[1]!.toLowerCase());
-      const person = this.userTokens.get(auth.replace(/^(token|Bearer) /, ""));
+      const person = this.userTokens.get(auth.replace(/^(token|bearer) /i, ""));
       if (person && repo && !m[2] && method === "GET") {
         const push = person.push.some((r) => r.toLowerCase() === repo.full_name.toLowerCase());
         return json({ full_name: repo.full_name, default_branch: repo.default_branch, private: true, permissions: { admin: false, maintain: false, push, triage: push, pull: true } });
@@ -220,7 +224,7 @@ export class FakeGitHub {
         if (method !== "GET") return notFound();
         if (level("contents") < 1) return json({ message: "Resource not accessible by integration" }, 403);
         let n: RegExpExecArray | null;
-        if ((n = /^\/git\/ref\/heads\/(.+)$/.exec(rest))) {
+        if ((n = /^\/git\/ref\/heads(?:\/|%2F)(.+)$/i.exec(rest))) {
           const sha = git(repo.gitDir, ["rev-parse", "-q", "--verify", `refs/heads/${decodeURIComponent(n[1]!)}`])?.toString().trim();
           return sha ? json({ ref: `refs/heads/${decodeURIComponent(n[1]!)}`, object: { sha, type: "commit" } }) : notFound();
         }
@@ -287,7 +291,7 @@ export class FakeGitHub {
         const { comments, reactions, ...rest } = issue;
         return json({ ...rest, html_url: `https://github.com/${repo}/issues/${issue.number}` });
       }
-      if (sub === "/comments" && method === "GET") return json(page(issue.comments));
+      if (sub === "/comments" && method === "GET") return paged(issue.comments);
       if (sub === "/comments" && method === "POST") {
         const { body } = (await req.json() as any);
         const bot = `${token.app}[bot]`;

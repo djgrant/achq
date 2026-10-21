@@ -8,7 +8,7 @@ import { FakeGitHub, makeApp } from "@achq/test-utils/github";
 import { githubChannelProvider } from "../src/channel/index.ts";
 import { githubCodeHostProvider } from "../src/code-host/index.ts";
 import type { GitHubPolicyData } from "../src/index.ts";
-import { appsFor, parseApps } from "../src/lib/apps.ts";
+import { parseApps } from "../src/lib/apps.ts";
 import { githubPolicyProvider } from "../src/policy/index.ts";
 import { githubEnv } from "./payloads.ts";
 
@@ -31,13 +31,6 @@ beforeAll(() => {
   );
 });
 afterAll(() => gh.stop());
-
-test("the channel, code host and policy providers made from one configuration share its Apps, and so one JWT cache", () => {
-  const env = githubEnv(gh.keys(), gh.url);
-  expect(appsFor({ ...env })).toBe(appsFor(env));
-  expect(appsFor(githubEnv(gh.keys()))).not.toBe(appsFor(env));
-  expect(appsFor(githubEnv({}, gh.url))).not.toBe(appsFor(env));
-});
 
 describe("validate", () => {
   test("a policy within an installation's permissions, on a repo it covers, is fine", async () => {
@@ -71,7 +64,7 @@ describe("validate", () => {
 
   test("authenticates as the App with a JWT the fake checks against its public key", async () => {
     const impostor = githubPolicyProvider.create(githubEnv({ "notation-achq": { id: "101", privateKey: appB.privateKey } }, gh.url));
-    await expect(impostor.validate(policy({ contents: "read" }), "notationlabs/yieldstar")).rejects.toThrow(/401/);
+    await expect(impostor.validate(policy({ contents: "read" }), "notationlabs/yieldstar")).rejects.toMatchObject({ status: 401 });
   });
 });
 

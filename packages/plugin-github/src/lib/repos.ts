@@ -3,7 +3,7 @@ import type { CommitSummary, GitHub } from "@achq/utils/gh";
 
 const STATUS_EXCERPT_CHARS = 200;
 
-const committedAt = (commit: CommitSummary) => commit.commit.committer.date;
+const committedAt = (commit: CommitSummary) => commit.commit.committer?.date ?? "";
 const newestFirst = (a: CommitSummary, b: CommitSummary) => committedAt(b).localeCompare(committedAt(a));
 
 export const lastCommit = async (gh: GitHub, repo: string, branch: string, paths: string[]) => {

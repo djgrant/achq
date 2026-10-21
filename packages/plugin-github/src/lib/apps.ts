@@ -1,11 +1,8 @@
 import { implementationSecret } from "@achq/core/secrets";
 import { errorMessage } from "@achq/utils/errors";
-import { appJwt, type GitHub, type Installation, splitRepo, type TokenNarrowing } from "@achq/utils/gh";
-import { github, githubUrls } from "./client.ts";
+import { GitHub, type Installation, splitRepo, type TokenNarrowing } from "@achq/utils/gh";
+import { githubUrls } from "./client.ts";
 import { GITHUB_API, GITHUB_ENV } from "./constants.ts";
-
-/** App JWTs are valid for nine minutes and reused for five. */
-const JWT_REUSE_MS = 5 * 60_000;
 
 /** The least a token can ask for: enough to prove the installation reaches a repo. */
 const PROBE_PERMISSIONS = { metadata: "read" };
@@ -29,15 +26,12 @@ export const appsVariable = (apps: AppKeys) => JSON.stringify(Object.fromEntries
 /** An App's webhook secret, from its App ID (sent in X-GitHub-Hook-Installation-Target-ID). */
 export const appWebhookSecret = (key: string, appId: string | number) => implementationSecret(key, `github-app-webhook:${appId}`);
 
-/** For one-off calls, where caching buys nothing. */
-export const asAppOnce = (api: string, appId: string | number, privateKey: string) => github(`Bearer ${appJwt(appId, privateKey)}`, api);
-
 export type Coverage = { covered: true } | { covered: false; reason: string };
 
 export type FoundInstallation = { slug: string; installation: Installation };
 
 export class Apps {
-  private jwts = new Map<string, { value: string; until: number }>();
+  private clients = new Map<string, GitHub>();
 
   constructor(
     private keys: AppKeys = {},
@@ -56,24 +50,15 @@ export class Apps {
     return this.slugs().find((slug) => String(this.keys[slug]!.id) === id);
   }
 
-  private key(slug: string) {
+  /** The API as the App. */
+  asApp(slug: string) {
     if (!this.has(slug)) throw new Error(`GitHub App "${slug}" isn't configured on the router`);
-    return this.keys[slug]!;
-  }
-
-  private cachedJwt(slug: string) {
-    const { id, privateKey } = this.key(slug);
-    const now = Date.now();
-    const cached = this.jwts.get(slug);
-    if (cached && cached.until > now) return cached.value;
-    const value = appJwt(id, privateKey, now);
-    this.jwts.set(slug, { value, until: now + JWT_REUSE_MS });
-    return value;
-  }
-
-  asApp(slug: string): GitHub {
-    this.key(slug);
-    return github(() => `Bearer ${this.cachedJwt(slug)}`, this.baseUrl);
+    let client = this.clients.get(slug);
+    if (!client) {
+      const { id, privateKey } = this.keys[slug]!;
+      this.clients.set(slug, (client = GitHub.connectAsApp(id, privateKey, { baseUrl: this.baseUrl })));
+    }
+    return client;
   }
 
   /** The App's installation on `repo`'s owner, or undefined if it isn't installed there. */
@@ -110,13 +95,5 @@ export class Apps {
   }
 }
 
-const shared = new Map<string, Apps>();
-
-/** The Apps `env` configures, one per configuration: the router's channel, code host and policy providers share one JWT cache. */
-export const appsFor = (env: Record<string, string | undefined>) => {
-  const api = githubUrls(env).api;
-  const configured = `${api} ${env[GITHUB_ENV.apps] ?? ""}`;
-  let apps = shared.get(configured);
-  if (!apps) shared.set(configured, (apps = new Apps(parseApps(env[GITHUB_ENV.apps]), api)));
-  return apps;
-};
+/** The Apps `env` configures. */
+export const appsFor = (env: Record<string, string | undefined>) => new Apps(parseApps(env[GITHUB_ENV.apps]), githubUrls(env).api);
