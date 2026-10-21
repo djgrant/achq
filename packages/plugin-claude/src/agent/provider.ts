@@ -1,26 +1,19 @@
 import * as path from "node:path";
-import { type Agent as CoreAgent, type AgentProvider, type AgentRuntime, type RunContext, type RunResult, type RuntimeContext } from "@achq/core";
+import type { Agent as CoreAgent, AgentProvider, AgentRuntime, RunContext, RuntimeContext } from "@achq/core";
 import { crypto } from "@achq/utils/crypto";
-import { json } from "@achq/utils/json";
 import { disk } from "@achq/utils/disk";
-import { type Collected, subprocess } from "@achq/utils/subprocess";
-import { claudeSettings, effortFlags, transcriptExists, updateClaudeJson, writeFiles } from "../lib/config-dir.ts";
+import { json } from "@achq/utils/json";
+import { subprocess } from "@achq/utils/subprocess";
+import { text } from "@achq/utils/text";
+import { claudeSettings, effortFlags, resolveStartupPath, transcriptExists, updateClaudeJson } from "../lib/config-dir.ts";
 import { BIN_ENV, CLAUDE_ENV, DENIED, RUNTIME, SETTINGS_FILE, SYSTEM_PROMPT_FILE, TOKEN_ENV } from "../lib/constants.ts";
-import { StreamStats, tokens } from "../lib/stream.ts";
-import type { Agent, AgentConfig } from "./resource.ts";
-
-type Session = RunContext["session"];
-type Log = (line: string) => void;
+import { ClaudeStream } from "../lib/stream.ts";
+import type { Agent } from "./resource.ts";
 
 const DEFAULT_BIN = "claude";
 /** A run's flags that an interactive `resume` leaves out: print mode, streaming JSON, no permission prompts. */
 const HEADLESS_FLAGS = ["-p", "--output-format=stream-json", "--verbose", "--dangerously-skip-permissions"];
-const COMPACT_COMMAND = "/compact";
-const TOOL_INPUT_LOG_CHARS = 200;
-const TEXT_LOG_CHARS = 500;
 const STDERR_TAIL_LINES = 40;
-const NO_REPLY = "Claude finished without a reply.";
-const TIMED_OUT = "The run timed out and was stopped.";
 const RESUME_THEME = "dark";
 
 export class ClaudeAgentProvider implements AgentProvider {
@@ -28,131 +21,83 @@ export class ClaudeAgentProvider implements AgentProvider {
   readonly containerEnv = [{ name: TOKEN_ENV, hint: "Run `claude setup-token`." }];
 
   /** A field, not a method: the container lists it by id, apart from the provider. */
-  readonly runtime = (agent: CoreAgent, ctx: RuntimeContext) => agentRuntime(agent as Agent, ctx);
-}
+  readonly runtime = (coreAgent: CoreAgent, ctx: RuntimeContext): AgentRuntime => {
+    const agent = coreAgent as Agent;
+    const config = agent.config;
+    const claude = ctx.env[BIN_ENV] || DEFAULT_BIN;
+    const repoPrompt = config.systemPrompt ? ctx.readFile(config.systemPrompt) : "";
+    const systemPrompt = [ctx.runnerPrompt.trim(), repoPrompt.trim()].filter(Boolean).join("\n\n") + "\n";
+    const agentFiles = ctx.resolveFiles(config.files);
+    const promptFile = (configDir: string) => path.join(configDir, SYSTEM_PROMPT_FILE);
+    const claudeEnv = (configDir: string) => ({ CLAUDE_CONFIG_DIR: configDir, ...CLAUDE_ENV });
+    const argv = (configDir: string, session: RunContext["session"], headless: boolean) => [
+      claude,
+      ...(headless ? HEADLESS_FLAGS : []),
+      `--append-system-prompt-file=${promptFile(configDir)}`,
+      "new" in session ? `--session-id=${session.new}` : `--resume=${session.resume}`,
+      ...effortFlags(config),
+      "--disallowedTools",
+      ...DENIED,
+    ];
 
-const agentRuntime = (agent: Agent, ctx: RuntimeContext): AgentRuntime => {
-  const config = agent.config;
-  const claude = ctx.env[BIN_ENV] || DEFAULT_BIN;
-  const repoPrompt = config.systemPrompt ? ctx.readFile(config.systemPrompt) : "";
-  const systemPrompt = [ctx.runnerPrompt.trim(), repoPrompt.trim()].filter(Boolean).join("\n\n") + "\n";
-  const agentFiles = ctx.resolveFiles(config.files);
-  const argv = (configDir: string, session: Session, headless: boolean) => claudeArgv(claude, configDir, session, config, headless);
+    return {
+      name: agent.name,
 
-  return {
-    name: agent.name,
+      async sessionKey() {
+        const prefix = {
+          // Named `kind` so existing session keys still match.
+          kind: RUNTIME,
+          name: agent.name,
+          config: json.from(config, `agent ${agent.name} config`),
+          systemPrompt,
+          containerFiles: ctx.containerFiles,
+          agentFiles,
+        };
+        return crypto.sha256Hex(json.stableStringify(prefix));
+      },
 
-    async sessionKey() {
-      const prefix = {
-        // Named `kind` so existing session keys still match.
-        kind: RUNTIME,
-        name: agent.name,
-        config: json.from(config, `agent ${agent.name} config`),
-        systemPrompt,
-        containerFiles: ctx.containerFiles,
-        agentFiles,
-      };
-      return crypto.sha256Hex(json.stableStringify(prefix));
-    },
+      async configure(configDir) {
+        disk.ensureDir(configDir);
+        for (const [key, content] of Object.entries(agentFiles)) disk.writeEnsured(resolveStartupPath(key, ctx.home, configDir), content);
+        disk.writeJsonSync(path.join(configDir, SETTINGS_FILE), claudeSettings(config), { pretty: true });
+        disk.writeEnsured(promptFile(configDir), systemPrompt);
+        // The first interactive start asks for a theme; `resume` shouldn't.
+        updateClaudeJson(configDir, (c) => {
+          c.hasCompletedOnboarding = true;
+          c.theme ??= RESUME_THEME;
+        });
+      },
 
-    async configure(configDir) {
-      disk.ensureDir(configDir);
-      writeFiles(agentFiles, ctx.home, configDir);
-      disk.writeJsonSync(path.join(configDir, SETTINGS_FILE), claudeSettings(config), { pretty: true });
-      disk.writeEnsured(promptFile(configDir), systemPrompt);
-      skipOnboarding(configDir);
-    },
+      async run(context) {
+        const { configDir, session, cwd, log, signal } = context;
+        if ("resume" in session && !transcriptExists(configDir, session.resume)) {
+          return { reply: "", error: `The transcript for session \`${session.resume}\` is missing from the volume.` };
+        }
+        // `resume` opens this worktree interactively; don't ask whether to trust it.
+        updateClaudeJson(configDir, (c) => {
+          c.projects ??= {};
+          c.projects[cwd] = { ...c.projects[cwd], hasTrustDialogAccepted: true };
+        });
 
-    async run(context: RunContext): Promise<RunResult> {
-      const { configDir, session, cwd, log, signal } = context;
-      if ("resume" in session && !transcriptExists(configDir, session.resume)) {
-        return { reply: "", error: `The transcript for session \`${session.resume}\` is missing from the volume.` };
-      }
-      trustWorktree(configDir, cwd);
+        const stream = new ClaudeStream();
+        const proc = await subprocess.collect(argv(configDir, session, true), {
+          cwd,
+          env: { ...context.env, ...claudeEnv(configDir) },
+          input: context.prompt,
+          signal,
+          onLine: (line) => stream.read(line, log),
+        });
+        const stderr = proc.stderr.trim();
+        if (stderr) log(stderr);
 
-      const stats = new StreamStats();
-      const proc = await subprocess.collect(argv(configDir, session, true), {
-        cwd,
-        env: { ...context.env, ...claudeEnv(configDir) },
-        input: context.prompt,
-        signal,
-        onLine: (line) => readStreamLine(line, stats, log),
-      });
-      const stderr = proc.stderr.trim();
-      if (stderr) log(stderr);
+        const failure = stream.failure(proc, signal);
+        if (failure) return { reply: "", error: [failure, ...text.tailLines(stderr, STDERR_TAIL_LINES)].join("\n") };
+        return { reply: stream.reply(context.prompt) };
+      },
 
-      const failure = failureDetail(stats, signal, proc);
-      if (failure) return { reply: "", error: [failure, ...tailLines(stderr, STDERR_TAIL_LINES)].join("\n") };
-      return { reply: replyFor(stats, context.prompt) };
-    },
-
-    resumeCommand(session, configDir) {
-      return { argv: argv(configDir, { resume: session }, false), env: claudeEnv(configDir) };
-    },
+      resumeCommand(session, configDir) {
+        return { argv: argv(configDir, { resume: session }, false), env: claudeEnv(configDir) };
+      },
+    };
   };
-};
-
-const promptFile = (configDir: string) => path.join(configDir, SYSTEM_PROMPT_FILE);
-
-const claudeArgv = (claude: string, configDir: string, session: Session, config: AgentConfig, headless: boolean) => [
-  claude,
-  ...(headless ? HEADLESS_FLAGS : []),
-  `--append-system-prompt-file=${promptFile(configDir)}`,
-  "new" in session ? `--session-id=${session.new}` : `--resume=${session.resume}`,
-  ...effortFlags(config),
-  "--disallowedTools",
-  ...DENIED,
-];
-
-const claudeEnv = (configDir: string) => ({ CLAUDE_CONFIG_DIR: configDir, ...CLAUDE_ENV });
-
-/** The first interactive start asks for a theme; `resume` shouldn't. */
-const skipOnboarding = (configDir: string) =>
-  updateClaudeJson(configDir, (c) => {
-    c.hasCompletedOnboarding = true;
-    c.theme ??= RESUME_THEME;
-  });
-
-/** `resume` opens this worktree interactively; don't ask whether to trust it. */
-const trustWorktree = (configDir: string, cwd: string) =>
-  updateClaudeJson(configDir, (c) => {
-    c.projects ??= {};
-    c.projects[cwd] = { ...c.projects[cwd], hasTrustDialogAccepted: true };
-  });
-
-/** A line that isn't JSON is logged as it is. */
-const readStreamLine = (line: string, stats: StreamStats, log: Log) => {
-  let event: any;
-  try {
-    event = JSON.parse(line);
-  } catch {
-    return log(line);
-  }
-  stats.push(event);
-  logEvent(event, log);
-};
-
-const logEvent = (event: any, log: Log) => {
-  if (event.type !== "assistant") return;
-  for (const block of event.message?.content ?? []) {
-    if (block.type === "tool_use") log(`→ ${block.name} ${JSON.stringify(block.input).slice(0, TOOL_INPUT_LOG_CHARS)}`);
-    if (block.type === "text") log(String(block.text).slice(0, TEXT_LOG_CHARS));
-  }
-};
-
-/** Why the run failed, or undefined if it didn't: Claude's own error, the timeout, or the exit status. */
-const failureDetail = (stats: StreamStats, signal: AbortSignal, proc: Collected): string | undefined => {
-  const result = stats.result;
-  if (result?.is_error) return `${result.subtype}: ${result.result ?? result.errors?.join("\n") ?? ""}`;
-  if (proc.exitCode === 0) return undefined;
-  if (signal.aborted) return TIMED_OUT;
-  return `claude exited with ${proc.signalCode ?? proc.exitCode}`;
-};
-
-/** The reply to post: the compaction's effect for `/compact`, otherwise Claude's result. */
-const replyFor = (stats: StreamStats, prompt: string) => {
-  if (stats.compacted && prompt.startsWith(COMPACT_COMMAND)) return `Compacted the session: ${tokens(stats.compacted.pre)} → ${tokens(stats.compacted.post)} tokens.`;
-  return stats.result?.result?.trim() || NO_REPLY;
-};
-
-const tailLines = (text: string, n: number) => text.split("\n").filter(Boolean).slice(-n);
+}

@@ -13,10 +13,6 @@ export const resolveStartupPath = (key: string, home: string, configDir: string)
   return path.isAbsolute(key) ? key : path.join(home, key);
 };
 
-export const writeFiles = (resolved: Record<string, string>, home: string, configDir: string) => {
-  for (const [key, content] of Object.entries(resolved)) disk.writeEnsured(resolveStartupPath(key, home, configDir), content);
-};
-
 /** The parts of `.claude.json` achq sets. Claude Code owns the rest. */
 export type ClaudeJson = {
   hasCompletedOnboarding?: boolean;
@@ -36,7 +32,7 @@ export const transcriptExists = (configDir: string, session: string) => {
 };
 
 /** `settings.json`: achq's defaults, then the repo's settings on top. */
-export const claudeSettings = (config: AgentConfig): Record<string, unknown> => ({
+export const claudeSettings = (config: AgentConfig) => ({
   model: config.model ?? DEFAULT_MODEL,
   ...(config.effort && PERSISTED_EFFORT.has(config.effort) && { effortLevel: config.effort }),
   attribution: { commit: "", pr: "" },
