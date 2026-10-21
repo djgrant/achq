@@ -1,3 +1,4 @@
+import { Hono } from "hono";
 import { errorDetail } from "./errors.ts";
 
 /** How much of an error response's body goes into an error message: enough to read, not a whole HTML page. */
@@ -5,7 +6,7 @@ export const ERROR_BODY_CHARS = 500;
 
 const excerpt = (body: string) => body.slice(0, ERROR_BODY_CHARS);
 
-/** A response a client didn't want, e.g. `GitHub GET /repos/a/b: 404 Not Found`. `service` names who answered. */
+/** A response a client didn't want, e.g. `Router GET /admin/installed: 401 bad signature`. `service` names who answered. */
 export class HttpError extends Error {
   constructor(
     readonly status: number,
@@ -27,47 +28,14 @@ export const expectOk = async (res: Response, what: string): Promise<Response> =
   return res;
 };
 
-export const textResponse = (body: string, status = 200) => new Response(body, { status });
-export const jsonResponse = (value: unknown, status = 200) => Response.json(value, { status });
-export const noContent = () => new Response(null, { status: 204 });
-
 export const bearerToken = (req: Request): string | undefined => req.headers.get("authorization")?.match(/^Bearer (\S+)$/)?.[1];
 
-/** A request body as an object, or undefined if it isn't JSON or isn't an object. Its fields still need checking. */
-export const parseObject = <T>(body: string): Partial<T> | undefined => {
-  const value = parseJson(body);
-  return value && typeof value === "object" && !Array.isArray(value) ? (value as Partial<T>) : undefined;
-};
-
-/** Anything with zod's `safeParse`, so this module doesn't depend on zod. */
-export type Schema<T> = { safeParse(value: unknown): { success: true; data: T } | { success: false } };
-
-/** A request body checked against `schema`, or undefined if it isn't JSON or doesn't fit. An empty body is `{}`. */
-export const parseBody = <T>(schema: Schema<T>, body: string): T | undefined => {
-  const value = body ? parseJson(body) : {};
-  if (value === undefined) return undefined;
-  const parsed = schema.safeParse(value);
-  return parsed.success ? parsed.data : undefined;
-};
-
-const parseJson = (body: string): unknown => {
-  try {
-    return JSON.parse(body);
-  } catch {
-    return undefined;
-  }
-};
-
-export type Handle = (req: Request, url: URL) => Promise<Response | undefined> | Response | undefined;
-
-/** `handle`, with health on `GET /`, a 404 for what it leaves unhandled, and a 500 that logs the error but doesn't leak it. */
-export const withHealthAndErrors = (handle: Handle, log: (line: string) => void) => async (req: Request): Promise<Response> => {
-  const url = new URL(req.url);
-  if (req.method === "GET" && url.pathname === "/") return textResponse("ok");
-  try {
-    return (await handle(req, url)) ?? textResponse("not found", 404);
-  } catch (e) {
-    log(`${req.method} ${url.pathname}: ${errorDetail(e)}`);
-    return textResponse("internal error", 500);
-  }
-};
+/** An app that answers health on `GET /`, 404s what it doesn't route, and 500s an error, logging it without leaking it. */
+export const service = (log: (line: string) => void) =>
+  new Hono()
+    .get("/", (c) => c.text("ok"))
+    .notFound((c) => c.text("not found", 404))
+    .onError((error, c) => {
+      log(`${c.req.method} ${c.req.path}: ${errorDetail(error)}`);
+      return c.text("internal error", 500);
+    });

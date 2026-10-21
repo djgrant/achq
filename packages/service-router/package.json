@@ -9,7 +9,10 @@
   "dependencies": {
     "@achq/core": "workspace:*",
     "@achq/utils": "workspace:*",
-    "achq": "workspace:*"
+    "@hono/zod-validator": "^0.9.1",
+    "achq": "workspace:*",
+    "hono": "^4.13.13",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@achq/test-utils": "workspace:*"

@@ -1,8 +1,10 @@
-import type { WakeRequest } from "@achq/core";
-import { bearerToken, parseBody, textResponse } from "@achq/utils/http";
+import { WakeRequest } from "@achq/core/protocol";
+import { bearerToken } from "@achq/utils/http";
+import { zValidator } from "@hono/zod-validator";
+import { Hono } from "hono";
+import { REPO } from "../constants.ts";
 import { configOf, type RouterContext } from "../context.ts";
 import { reach } from "../reach.ts";
-import { wakeRequestSchema } from "../requests.ts";
 
 const codeHostOf = (ctx: RouterContext, id: string) => (Object.hasOwn(ctx.codeHostProviders, id) ? ctx.codeHostProviders[id] : undefined);
 
@@ -13,21 +15,22 @@ const deployedContainer = (ctx: RouterContext, request: WakeRequest) => {
 };
 
 /** For `achq container ssh`: wakes a container for someone who can push to its repo, on the host it's deployed from. */
-export const wake = async (ctx: RouterContext, req: Request) => {
-  const token = bearerToken(req);
-  if (!token) return textResponse("missing token", 401);
-  const request = parseBody(wakeRequestSchema, await req.text());
-  if (!request) return textResponse("bad request", 400);
-  const host = codeHostOf(ctx, request.host);
-  if (!host) return textResponse("unknown host", 400);
-  // Checked before saying whether the repo is deployed, so strangers learn nothing.
-  if (!(await host.canPush(request.repo, token))) return textResponse("no push access", 403);
-  const container = deployedContainer(ctx, request);
-  if (!container) return textResponse("not deployed", 404);
+export const wake = (ctx: RouterContext) =>
+  new Hono().post("/wake", zValidator("json", WakeRequest), async (c) => {
+    const token = bearerToken(c.req.raw);
+    if (!token) return c.text("missing token", 401);
+    const request = c.req.valid("json");
+    if (!REPO.test(request.repo)) return c.text("bad request", 400);
+    const host = codeHostOf(ctx, request.host);
+    if (!host) return c.text("unknown host", 400);
+    // Checked before saying whether the repo is deployed, so strangers learn nothing.
+    if (!(await host.canPush(request.repo, token))) return c.text("no push access", 403);
+    const container = deployedContainer(ctx, request);
+    if (!container) return c.text("not deployed", 404);
 
-  // Any request wakes it; its health check answers once it's up.
-  const result = await reach(ctx.delays, (signal) => ctx.fetch(`${container.url}/`, { signal }), ctx.attemptTimeout);
-  if (!result.ok) return textResponse(result.error, 504);
-  await result.res.body?.cancel();
-  return textResponse("awake");
-};
+    // Any request wakes it; its health check answers once it's up.
+    const result = await reach(ctx.delays, (signal) => ctx.fetch(`${container.url}/`, { signal }), ctx.attemptTimeout);
+    if (!result.ok) return c.text(result.error, 504);
+    await result.res.body?.cancel();
+    return c.text("awake");
+  });

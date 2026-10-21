@@ -65,7 +65,7 @@ export const world = async (opts: { maxRuns?: number } = {}) => {
     return res.status;
   };
   const post = (body: string, headers: Record<string, string> = signedHeaders(SECRET, "POST", "/events", body)) =>
-    runner.fetch(new Request("http://container/events", { method: "POST", body, headers }));
+    runner.fetch(new Request("http://container/events", { method: "POST", body, headers: { ...headers, "content-type": "application/json" } }));
   const state = (n: number) => readState(paths.thread(threadKey(channel.ref(n))))!;
   return { root, git, claude, router, channel, paths, env, runner, send, post, state, logs, load };
 };

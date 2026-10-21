@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
+import { Hono } from "hono";
 import { adminSecret } from "../src/wire/secrets.ts";
-import { signedHeaders, signedRequestInit, verifyAdminRequest, verifySigned, verifySignedRequest } from "../src/wire/signing.ts";
+import { signedBy, signedHeaders, signedRequestInit, verifySigned } from "../src/wire/signing.ts";
 
 describe("signed requests", () => {
   const secret = adminSecret("k");
@@ -28,26 +29,25 @@ describe("signed requests", () => {
   });
 });
 
-describe("signed Requests", () => {
-  const key = "k";
-  const secret = adminSecret(key);
+describe("signedBy", () => {
+  const secret = adminSecret("k");
   const at = 1_000_000_000_000;
   const url = "http://deployer.internal/sync?prune=1";
-  const request = (init: RequestInit) => new Request(url, init);
+  const app = new Hono().use(signedBy(secret, () => at)).post("/sync", async (c) => c.text(await c.req.text()));
+  const send = (init: RequestInit) => app.fetch(new Request(url, init));
 
-  test("a request made with signedRequestInit verifies, over its path and query, giving its body", async () => {
+  test("lets through a request signedRequestInit made, over its path and query, with its body", async () => {
     const init = signedRequestInit(secret, "POST", url, `{"a":1}`, { now: at });
     expect(new Headers(init.headers).get("content-type")).toBe("application/json");
-    expect(await verifySignedRequest(request(init), secret, at)).toEqual({ body: `{"a":1}` });
-    expect(await verifyAdminRequest(request(signedRequestInit(secret, "POST", url, undefined, { now: at })), key, at)).toEqual({ body: "" });
+    const res = await send(init);
+    expect([res.status, await res.text()]).toEqual([200, `{"a":1}`]);
+    expect((await send(signedRequestInit(secret, "POST", url, undefined, { now: at }))).status).toBe(200);
   });
 
-  test("a request for another query, secret or time doesn't", async () => {
-    const init = signedRequestInit(secret, "POST", "http://deployer.internal/sync", "{}", { now: at });
-    expect(await verifySignedRequest(request(init), secret, at)).toBeUndefined();
-    const signed = signedRequestInit(secret, "POST", url, "{}", { now: at });
-    expect(await verifyAdminRequest(request(signed), "other", at)).toBeUndefined();
-    expect(await verifySignedRequest(request(signed), secret, at + 6 * 60_000)).toBeUndefined();
+  test("answers 401 to one signed for another query, secret or time", async () => {
+    expect((await send(signedRequestInit(secret, "POST", "http://deployer.internal/sync", "{}", { now: at }))).status).toBe(401);
+    expect((await send(signedRequestInit(adminSecret("other"), "POST", url, "{}", { now: at }))).status).toBe(401);
+    expect((await send(signedRequestInit(secret, "POST", url, "{}", { now: at - 6 * 60_000 }))).status).toBe(401);
   });
 
   test("passes the signal through", () => {

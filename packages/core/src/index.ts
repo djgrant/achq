@@ -13,4 +13,4 @@ export * from "./contracts/code-host-provider.ts";
 export * from "./contracts/container-provider.ts";
 export * from "./contracts/agent-provider.ts";
 export * from "./wire/constants.ts";
-export * from "./wire/protocol.ts";
+export type * from "./wire/protocol.ts";

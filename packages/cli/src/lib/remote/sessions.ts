@@ -1,5 +1,6 @@
-import type { SessionSummary } from "@achq/core";
+import { SessionSummary } from "@achq/core/protocol";
 import { alignedTable } from "@achq/utils/text";
+import { z } from "zod";
 
 /** How much of unexpected output goes into the error: enough to see what answered. */
 const UNEXPECTED_OUTPUT_CHARS = 200;
@@ -12,9 +13,9 @@ const SESSION_COLUMNS = ["ID", "THREAD", "AGENT", "LAST RUN"];
 export const parseSessions = (out: string): SessionSummary[] => {
   const start = out.indexOf("[");
   if (start < 0) throw new Error(`Unexpected output from achq-agent sessions: ${out.trim().slice(0, UNEXPECTED_OUTPUT_CHARS)}`);
-  const rows = JSON.parse(out.slice(start)) as SessionSummary[];
-  if (!Array.isArray(rows)) throw new Error("achq-agent sessions didn't return a list");
-  return rows;
+  const sessions = z.array(SessionSummary).safeParse(JSON.parse(out.slice(start)));
+  if (!sessions.success) throw new Error(`achq-agent sessions didn't return a list of sessions: ${z.prettifyError(sessions.error)}`);
+  return sessions.data;
 };
 
 /** The session to open: the one asked for, the only one, or `undefined` to ask. */

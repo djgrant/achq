@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { ContainerEnvelope, DeployerEnvelope, PolicyData, SelectorData, PolicyProvider, ChannelProvider, ChannelEvent, CodeHostProvider, RouterRepoConfig } from "@achq/core";
 import { adminSecret, containerSecret } from "@achq/core/secrets";
-import { hmacHex, safeEqual, signedHeaders, verifySigned } from "@achq/core/signing";
+import { hmacHex, safeEqual, signedRequestInit, verifySigned } from "@achq/core/signing";
 import { createRouter } from "../src/router.ts";
 
 export const key = "test-key";
@@ -163,10 +163,8 @@ export const boot = async ({ dir = mkdtempSync(join(tmpdir(), "achq-router-")), 
   const pub = serve(router.publicFetch);
   const priv = serve(router.privateFetch);
 
-  const signedRequest = (base: string, secret: string, method: string, path: string, body?: object, at = Date.now()) => {
-    const text = body === undefined ? undefined : JSON.stringify(body);
-    return fetch(`${base}${path}`, { method, body: text, headers: signedHeaders(secret, method, path, text ?? "", at) });
-  };
+  const signedRequest = (base: string, secret: string, method: string, path: string, body?: object, at = Date.now()) =>
+    fetch(`${base}${path}`, signedRequestInit(secret, method, `${base}${path}`, body === undefined ? undefined : JSON.stringify(body), { now: at }));
   return {
     dir,
     router,
@@ -180,7 +178,7 @@ export const boot = async ({ dir = mkdtempSync(join(tmpdir(), "achq-router-")), 
       return fetch(`${pub}/webhook`, { method: "POST", body, headers: { "x-test-source": "app", "x-test-signature": hmacHex(secret, body) } });
     },
     wake: (body: object, token?: string) =>
-      fetch(`${pub}/wake`, { method: "POST", body: JSON.stringify(body), headers: token ? { authorization: `Bearer ${token}` } : {} }),
+      fetch(`${pub}/wake`, { method: "POST", body: JSON.stringify(body), headers: { "content-type": "application/json", ...(token && { authorization: `Bearer ${token}` }) } }),
   };
 };
 

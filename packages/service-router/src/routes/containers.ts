@@ -1,19 +1,15 @@
-import {
-  type ChannelCredential,
-  type ClaimRequest,
-  type CredentialsRequest,
-  type CredentialsResponse,
-  type RouterRepoConfig,
-  threadKey,
-} from "@achq/core";
+import { type ChannelCredential, type CredentialsResponse, threadKey } from "@achq/core";
+import { ClaimRequest, CredentialsRequest, type RouterRepoConfig } from "@achq/core/protocol";
 import { containerSecret } from "@achq/core/secrets";
-import { verifySigned } from "@achq/core/signing";
-import { jsonResponse, noContent, parseBody, type Schema, textResponse } from "@achq/utils/http";
+import { isSigned } from "@achq/core/signing";
+import { zValidator } from "@hono/zod-validator";
+import { Hono } from "hono";
+import { createMiddleware } from "hono/factory";
 import { configOf, type RouterContext } from "../context.ts";
 import { mint } from "../policies.ts";
-import { claimRequestSchema, containerIdentitySchema } from "../requests.ts";
 import { repoFile, repoKey } from "../store.ts";
 
+type Container = RouterRepoConfig["containers"][number];
 type ChannelSource = { channel: string; source: string };
 
 const channelSourcesOf = (config: RouterRepoConfig, container: string): ChannelSource[] => {
@@ -35,51 +31,39 @@ const channelOf = (ctx: RouterContext, id: string) => {
 const mintClients = (ctx: RouterContext, config: RouterRepoConfig, container: string): Promise<ChannelCredential[]> =>
   Promise.all(channelSourcesOf(config, container).map(({ channel, source }) => channelOf(ctx, channel).mintClient(source, config.repo)));
 
-type Container = RouterRepoConfig["containers"][number];
-type FromContainer<T> = { error: Response } | { request: T; config: RouterRepoConfig; container: Container };
+/** A request a container signed: the body names the container, and the signature proves it's that container. */
+const fromContainer = (ctx: RouterContext) =>
+  createMiddleware<{ Variables: { config: RouterRepoConfig; container: Container } }>(async (c, next) => {
+    const identity = CredentialsRequest.safeParse(await c.req.json().catch(() => undefined));
+    if (!identity.success) return c.text("bad request", 400);
+    const { repo, container: name } = identity.data;
+    if (!(await isSigned(c, containerSecret(ctx.key, repo, name), ctx.now()))) return c.text("bad signature", 401);
+    const config = configOf(ctx, repo);
+    const container = config?.containers.find((x) => x.name === name);
+    if (!config || !container) return c.text("no such container", 404);
+    c.set("config", config);
+    c.set("container", container);
+    await next();
+  });
 
-/**
- * A container-signed request: the body names the container, and the signature
- * proves it's that container. Only then is the rest of the body checked
- * against `schema`. A response for a request that isn't one.
- */
-const fromContainer = async <T extends CredentialsRequest>(ctx: RouterContext, req: Request, path: string, schema: Schema<T>): Promise<FromContainer<T>> => {
-  const body = await req.text();
-  const identity = parseBody(containerIdentitySchema, body);
-  if (!identity) return { error: textResponse("bad request", 400) };
-  if (!verifySigned(containerSecret(ctx.key, identity.repo, identity.container), "POST", path, body, req.headers, ctx.now()))
-    return { error: textResponse("bad signature", 401) };
-  const config = configOf(ctx, identity.repo);
-  const container = config?.containers.find((c) => c.name === identity.container);
-  if (!config || !container) return { error: textResponse("no such container", 404) };
-  const parsed = schema.safeParse(identity);
-  if (!parsed.success) return { error: textResponse("bad request", 400) };
-  return { request: parsed.data, config, container };
-};
-
-export const credentials = async (ctx: RouterContext, req: Request) => {
-  const found = await fromContainer(ctx, req, "/credentials", containerIdentitySchema);
-  if ("error" in found) return found.error;
-  const { config, container } = found;
-  const credentials = await mint(ctx, container.policies, config.repo);
-  const channels = await mintClients(ctx, config, container.name);
-  return jsonResponse({ credentials, channels } satisfies CredentialsResponse);
-};
-
-const recordClaim = async (ctx: RouterContext, config: RouterRepoConfig, request: ClaimRequest) => {
-  const repo = repoKey(config.repo);
-  const repoClaims = ctx.claims.get(repo) ?? {};
-  const thread = threadKey(request.thread);
-  repoClaims[thread] = { ...repoClaims[thread], [request.container]: request.workspace };
-  ctx.claims.set(repo, repoClaims);
-  await ctx.store.claims.write(repoFile(repo), repoClaims);
-};
-
-export const claim = async (ctx: RouterContext, req: Request) => {
-  const found = await fromContainer(ctx, req, "/claims", claimRequestSchema);
-  if ("error" in found) return found.error;
-  const { request, config } = found;
-  if (!config.workspaces.some((w) => w.name === request.workspace && w.container === request.container)) return textResponse("no such workspace", 404);
-  await recordClaim(ctx, config, request);
-  return noContent();
-};
+/** For containers, over the private network. */
+export const containers = (ctx: RouterContext) =>
+  new Hono()
+    .post("/credentials", fromContainer(ctx), async (c) => {
+      const { config, container } = c.var;
+      const credentials = await mint(ctx, container.policies, config.repo);
+      const channels = await mintClients(ctx, config, container.name);
+      return c.json({ credentials, channels } satisfies CredentialsResponse);
+    })
+    .post("/claims", fromContainer(ctx), zValidator("json", ClaimRequest), async (c) => {
+      const { config } = c.var;
+      const claim = c.req.valid("json");
+      if (!config.workspaces.some((w) => w.name === claim.workspace && w.container === claim.container)) return c.text("no such workspace", 404);
+      const repo = repoKey(config.repo);
+      const repoClaims = ctx.claims.get(repo) ?? {};
+      const thread = threadKey(claim.thread);
+      repoClaims[thread] = { ...repoClaims[thread], [claim.container]: claim.workspace };
+      ctx.claims.set(repo, repoClaims);
+      await ctx.store.claims.write(repoFile(repo), repoClaims);
+      return c.body(null, 204);
+    });

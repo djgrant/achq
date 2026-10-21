@@ -1,5 +1,6 @@
 import { hmacHex, safeEqual } from "@achq/utils/crypto";
-import { adminSecret } from "./secrets.ts";
+import type { Context } from "hono";
+import { createMiddleware } from "hono/factory";
 
 export { hmacHex, safeEqual };
 
@@ -47,11 +48,10 @@ export const signedRequestInit = (
 export const signedFetch = (secret: string, url: string, init: { method: string; body?: string; headers?: Record<string, string> }) =>
   fetch(url, signedRequestInit(secret, init.method, url, init.body, { headers: init.headers }));
 
-/** Reads the body. */
-export const verifySignedRequest = async (req: Request, secret: string, now = Date.now()): Promise<{ body: string } | undefined> => {
-  const body = await req.text();
-  return verifySigned(secret, req.method, signedPath(req.url), body, req.headers, now) ? { body } : undefined;
-};
+/** Whether `secret` signed the request `c` handles. Reads its body. */
+export const isSigned = async (c: Context, secret: string, now = Date.now()) =>
+  verifySigned(secret, c.req.method, signedPath(c.req.url), await c.req.text(), c.req.raw.headers, now);
 
-/** `verifySignedRequest` with the admin secret derived from AGENT_WEBHOOK_KEY: requests from the router, the deployer and the infra CLI. */
-export const verifyAdminRequest = (req: Request, key: string, now = Date.now()) => verifySignedRequest(req, adminSecret(key), now);
+/** Answers 401 to a request `secret` didn't sign. */
+export const signedBy = (secret: string, now: () => number = Date.now) =>
+  createMiddleware(async (c, next) => ((await isSigned(c, secret, now())) ? next() : c.text("bad signature", 401)));

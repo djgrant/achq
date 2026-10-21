@@ -1,4 +1,5 @@
-import type { SessionSummary } from "@achq/core";
+import { SessionSummary } from "@achq/core/protocol";
+import { z } from "zod";
 import type { Paths } from "./paths.ts";
 import { allStates, type ThreadState } from "./state.ts";
 
@@ -11,6 +12,5 @@ export const sessionsFor = (paths: Paths, number?: string): (SessionSummary & { 
     )
     .sort((a, b) => b.lastRun.localeCompare(a.lastRun));
 
-/** A JSON array. The laptop's `achq container resume` parses it (parseSessions in packages/cli/src/lib/remote/sessions.ts). */
-export const formatSessions = (sessions: SessionSummary[]) =>
-  JSON.stringify(sessions.map(({ id, thread, agent, workspace, lastRun }) => ({ id, thread, agent, workspace, lastRun })));
+/** A JSON array of their summaries, only: the laptop's `achq container resume` parses it (parseSessions in packages/cli/src/lib/remote/sessions.ts). */
+export const formatSessions = (sessions: SessionSummary[]) => JSON.stringify(z.array(SessionSummary).parse(sessions));

@@ -191,7 +191,7 @@ const adminJson = async <T>(base: string, method: string, route: string, body?: 
   return (await res.json()) as T;
 };
 
-const serve = (stops: (() => void)[], fetch: (req: Request) => Promise<Response>) => {
+const serve = (stops: (() => void)[], fetch: (req: Request) => Response | Promise<Response>) => {
   const server = Bun.serve({ port: 0, fetch });
   stops.push(() => server.stop(true));
   return `http://localhost:${server.port}`;
@@ -230,7 +230,7 @@ export const startWorld = async () => {
   const routerDir = path.join(root, "router");
   const githubEnv = { ACHQ_GITHUB_APPS: JSON.stringify(github.keys()), GITHUB_API_URL: github.url, AGENT_WEBHOOK_KEY: KEY };
   const codeHostProviders = { github: githubCodeHostProvider.create(githubEnv) };
-  let deployerFetch: (req: Request) => Promise<Response> = async () => new Response("starting", { status: 503 });
+  let deployerFetch: (req: Request) => Response | Promise<Response> = async () => new Response("starting", { status: 503 });
   const deployerUrl = serve(stops, (req) => deployerFetch(req));
   const router = createRouter({
     channelProviders: [githubChannelProvider.create(githubEnv)],

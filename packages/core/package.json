@@ -5,10 +5,13 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./protocol": "./src/wire/protocol.ts",
     "./secrets": "./src/wire/secrets.ts",
     "./signing": "./src/wire/signing.ts"
   },
   "dependencies": {
-    "@achq/utils": "workspace:*"
+    "@achq/utils": "workspace:*",
+    "hono": "^4.13.13",
+    "zod": "^4.3.6"
   }
 }

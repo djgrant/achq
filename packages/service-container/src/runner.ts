@@ -54,7 +54,7 @@ type Matched = { workspaces: Workspace[]; triggers: Trigger[] };
 export class Runner {
   readonly paths: Paths;
   readonly credentials: Credentials;
-  readonly fetch: (req: Request) => Promise<Response>;
+  readonly fetch: (req: Request) => Response | Promise<Response>;
   /** One thread's runs go one after another. */
   private enqueue = keyedQueue();
   private pending = new Set<Promise<unknown>>();
@@ -81,6 +81,7 @@ export class Runner {
       secret: opts.containerSecret,
       now: this.now,
       accept: (envelope) => this.track(this.handle(envelope).catch((e) => this.log(`[${envelope.event.delivery}] ${errorDetail(e)}`))),
+      log: this.log,
     });
     this.slots = this.runSlots(opts.maxRuns ?? DEFAULT_MAX_RUNS);
     this.triggerDeps = {

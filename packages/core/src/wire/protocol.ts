@@ -1,29 +1,60 @@
-import type { RepoManifest } from "../resources/repo-manifest.ts";
-import type { PolicyData, SelectorData } from "../resources/config.ts";
-import type { PolicyCredential } from "../contracts/policy-provider.ts";
+import { isPlainObject as isObject } from "@achq/utils/json";
+import { z } from "zod";
 import type { ChannelCredential, ChannelEvent, ThreadRef } from "../contracts/channel-provider.ts";
+import type { PolicyCredential } from "../contracts/policy-provider.ts";
+import type { PolicyData, SelectorData } from "../resources/config.ts";
+
+// What its channel or policy provider interprets is checked only for what names it.
+const policyData = z.custom<PolicyData>((value) => isObject(value) && typeof value.provider === "string");
+const selectorData = z.custom<SelectorData>((value) => isObject(value) && typeof value.channel === "string" && typeof value.source === "string");
+const channelEvent = z.custom<ChannelEvent>((value) => isObject(value) && typeof value.delivery === "string" && typeof value.type === "string");
+const threadRef = z.object({ channel: z.string(), id: z.string() }) satisfies z.ZodType<ThreadRef>;
 
 /** What the router forwards to the deployer: install and config events, which name the `CodeHostProvider` they're about. */
-export type DeployerEnvelope = { event: Extract<ChannelEvent, { host: string }> };
+export const DeployerEnvelope = z.object({ event: channelEvent.refine((event): event is Extract<ChannelEvent, { host: string }> => typeof event.host === "string") });
+export type DeployerEnvelope = z.infer<typeof DeployerEnvelope>;
 
-export type ContainerEnvelope = {
-  event: ChannelEvent;
+export const ContainerEnvelope = z.object({
+  event: channelEvent,
   /** The commit whose `.achq/` config the router was given, so the container runs the same one. */
-  commit: string;
-};
+  commit: z.string(),
+});
+export type ContainerEnvelope = z.infer<typeof ContainerEnvelope>;
 
-export type RouterRepoConfig = {
+export const RouterRepoConfig = z.object({
   /** The `CodeHostProvider` the repo is on. */
-  host: string;
-  repo: string;
+  host: z.string(),
+  repo: z.string(),
   /** The commit whose `.achq/` config this is. Forwarded with events so containers run the same config. */
-  commit: string;
-  containers: { name: string; url: string; policies: PolicyData[] }[];
-  workspaces: RepoManifest["workspaces"];
-  triggers: { name: string; event: SelectorData }[];
-};
+  commit: z.string(),
+  containers: z.array(z.object({ name: z.string(), url: z.string(), policies: z.array(policyData) })),
+  workspaces: z.array(z.object({ name: z.string(), container: z.string(), threads: selectorData, branch: z.string(), base: z.string() })),
+  triggers: z.array(z.object({ name: z.string(), event: selectorData })),
+});
+export type RouterRepoConfig = z.infer<typeof RouterRepoConfig>;
 
-export type WakeRequest = { host: string; repo: string; container: string };
+export const WakeRequest = z.object({ host: z.string(), repo: z.string(), container: z.string() });
+export type WakeRequest = z.infer<typeof WakeRequest>;
+
+/** Who a container says it is. Its signature proves it. */
+export const CredentialsRequest = z.object({ repo: z.string(), container: z.string() });
+export type CredentialsRequest = z.infer<typeof CredentialsRequest>;
+
+export const ClaimRequest = CredentialsRequest.extend({ workspace: z.string(), thread: threadRef });
+export type ClaimRequest = z.infer<typeof ClaimRequest>;
+
+export const MintRequest = z.object({ repo: z.string(), policies: z.array(policyData) });
+export type MintRequest = z.infer<typeof MintRequest>;
+
+export const ValidateRequest = MintRequest;
+export type ValidateRequest = MintRequest;
+
+export const SyncRequest = z.object({ prune: z.boolean().optional(), dryRun: z.boolean().optional() });
+export type SyncRequest = z.infer<typeof SyncRequest>;
+
+/** A thread's session, as `achq-agent sessions [n]` prints them (a JSON array, most recently run first) for `achq container resume`. `thread` is e.g. the issue number. */
+export const SessionSummary = z.object({ id: z.string(), thread: z.string(), agent: z.string(), workspace: z.string(), lastRun: z.string() });
+export type SessionSummary = z.infer<typeof SessionSummary>;
 
 /** A delivery some target never answered, as `GET /admin/failed` lists it. `target` is a container's `<repo>/<name>`, or `deployer`. */
 export type FailedDelivery = { delivery: string; type: string; repo?: string; thread?: ThreadRef; targets: { target: string; error: string }[] };
@@ -31,7 +62,6 @@ export type FailedDelivery = { delivery: string; type: string; repo?: string; th
 /** What `POST /admin/failed/replay` did: deliveries back in the inbox, and ones with nowhere left to go. */
 export type ReplayResult = { replayed: string[]; dropped: string[] };
 
-export type CredentialsRequest = { repo: string; container: string };
 export type CredentialsResponse = {
   /** For the agent: one or more per policy provider, covering the container's policies. */
   credentials: PolicyCredential[];
@@ -39,17 +69,11 @@ export type CredentialsResponse = {
   channels: ChannelCredential[];
 };
 
-export type ClaimRequest = { repo: string; container: string; workspace: string; thread: ThreadRef };
-
-export type MintRequest = { repo: string; policies: PolicyData[] };
-export type ValidateRequest = { repo: string; policies: PolicyData[] };
-
 export type InstalledRepo = { host: string; repo: string };
 
 /** What a source (e.g. a GitHub App) is set up to send and allow, for checks. */
 export type SourceSettings = { channel: string; source: string; events: string[]; permissions: Record<string, string> };
 
-export type SyncRequest = { prune?: boolean; dryRun?: boolean };
 export type SyncResult = { deployed: string[]; unchanged: string[]; uninstalled: string[]; pruned: string[]; failed: { repo: string; error: string }[] };
 
 export type DeployState = "deployed" | "failed" | "uninstalled";
@@ -67,9 +91,6 @@ export type DeployRecord = {
   containers?: { name: string; location: Record<string, string> }[];
   warnings?: string[];
 };
-
-/** A thread's session, as `achq-agent sessions [n]` prints them (a JSON array, most recently run first) for `achq container resume`. `thread` is e.g. the issue number. */
-export type SessionSummary = { id: string; thread: string; agent: string; workspace: string; lastRun: string };
 
 /** The ACHQ_STATUS repository variable's JSON. */
 export type Status = DeployRecord & { router: string };
