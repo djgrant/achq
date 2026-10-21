@@ -3,9 +3,10 @@ import { Env } from "@achq/utils/env";
 import { text } from "@achq/utils/text";
 import { containerProviderNamed, privateEnv, CODE_HOST_PROVIDERS } from "achq/registry";
 import { createDeployer } from "./deployer.ts";
-import { DEFAULT_DATA_DIR } from "./constants.ts";
-import { routerClient } from "./clients/router.ts";
+import { routerClient } from "./router-client.ts";
 import { deployerHandler } from "./server.ts";
+
+const DEFAULT_DATA_DIR = "/data";
 
 /** Bun's longest: a deploy that builds images can keep `/sync` busy for minutes. */
 const IDLE_TIMEOUT_S = 255;

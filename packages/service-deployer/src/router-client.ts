@@ -15,34 +15,25 @@ export interface RouterClient {
 /** Who answers, in a failed call's HttpError: `Router GET /admin/installed: 401 …`. */
 const SERVICE = "Router";
 
-const withoutTrailingSlashes = (url: string) => url.replace(/\/+$/, "");
-
-/** A JSON body, or undefined for an empty one, as a 204 has. */
-const parseJsonBody = <T>(text: string) => (text ? JSON.parse(text) : undefined) as T;
-
-/** A response that isn't 2xx throws an HttpError. */
-const signedJsonClient =
-  (secret: string, base: string) =>
-  async <T>(method: string, path: string, body?: unknown): Promise<T> => {
-    const res = await signedFetch(secret, base + path, { method, body: body === undefined ? undefined : JSON.stringify(body) });
-    if (!res.ok) throw new HttpError(res.status, method, path, await res.text(), SERVICE);
-    return parseJsonBody<T>(await res.text());
-  };
-
-const parseRepo = (repo: string) => {
-  const [owner, name, ...rest] = repo.split("/");
-  return owner && name && !rest.length ? { owner, name } : undefined;
-};
-
-const repoPath = (repo: string) => {
-  const parts = parseRepo(repo);
-  if (!parts) throw new Error(`"${repo}" isn't owner/name`);
-  return `/admin/repos/${encodeURIComponent(parts.owner)}/${encodeURIComponent(parts.name)}`;
-};
-
 /** `url` is the router's private base URL (ACHQ_ROUTER_URL). */
 export const routerClient = ({ url, key }: { url: string; key: string }): RouterClient => {
-  const call = signedJsonClient(adminSecret(key), withoutTrailingSlashes(url));
+  const secret = adminSecret(key);
+  const base = url.replace(/\/+$/, "");
+
+  /** A response that isn't 2xx throws an HttpError. An empty body, as a 204 has, is undefined. */
+  const call = async <T>(method: string, path: string, body?: unknown): Promise<T> => {
+    const res = await signedFetch(secret, base + path, { method, body: body === undefined ? undefined : JSON.stringify(body) });
+    const text = await res.text();
+    if (!res.ok) throw new HttpError(res.status, method, path, text, SERVICE);
+    return (text ? JSON.parse(text) : undefined) as T;
+  };
+
+  const repoPath = (repo: string) => {
+    const [owner, name, ...rest] = repo.split("/");
+    if (!owner || !name || rest.length) throw new Error(`"${repo}" isn't owner/name`);
+    return `/admin/repos/${encodeURIComponent(owner)}/${encodeURIComponent(name)}`;
+  };
+
   return {
     mint: (request) => call("POST", "/admin/mint", request),
     validate: (request) => call("POST", "/admin/validate", request),

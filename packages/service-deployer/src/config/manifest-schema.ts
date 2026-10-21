@@ -15,13 +15,12 @@ type Tagged<K extends string> = { [P in K]: string } & { [key: string]: Json };
 
 const MAX_TAG_LENGTH = 100;
 
-const hasTag = (record: Record<string, Json>, key: string) => {
-  const tag = record[key];
-  return typeof tag === "string" && tag.length > 0 && tag.length <= MAX_TAG_LENGTH;
-};
-
 /** zod can't express "this key is a string, the rest any data", so the refinement's guarantee is asserted in the type. */
-const tagged = <K extends string>(key: K) => z.record(z.string(), data).refine((r) => hasTag(r, key), `needs "${key}"`) as unknown as z.ZodType<Tagged<K>>;
+const tagged = <K extends string>(key: K) =>
+  z.record(z.string(), data).refine((r) => {
+    const tag = r[key];
+    return typeof tag === "string" && tag.length > 0 && tag.length <= MAX_TAG_LENGTH;
+  }, `needs "${key}"`) as unknown as z.ZodType<Tagged<K>>;
 
 const selector = tagged("channel");
 const policyData = tagged("provider");
@@ -38,21 +37,6 @@ type Named = { name: string };
 
 const KINDS = ["policies", "containers", "workspaces", "agents", "triggers"] as const;
 
-const parseJson = (json: string): unknown => {
-  try {
-    return JSON.parse(json);
-  } catch {
-    throw new Error("The config's manifest isn't valid JSON");
-  }
-};
-
-const assertNamesUnique = (manifest: RepoManifest) => {
-  for (const kind of KINDS) {
-    const [repeated] = collections.duplicates(manifest[kind].map((r) => r.name));
-    if (repeated !== undefined) throw new Error(`The config's manifest has two ${kind} named "${repeated}"`);
-  }
-};
-
 const assertRefs = <T extends Named>(items: T[], label: string, refsOf: (item: T) => string[], targets: Named[], kind: string) => {
   const known = new Set(targets.map((t) => t.name));
   for (const item of items)
@@ -60,14 +44,23 @@ const assertRefs = <T extends Named>(items: T[], label: string, refsOf: (item: T
 };
 
 /** Strict, because the config can monkeypatch anything in the sandbox, collectManifest included, and forge what comes back. */
-export const parseManifest = (json: string): RepoManifest => {
-  const parsed = manifestSchema.safeParse(parseJson(json));
+export const parseManifest = (json: string) => {
+  let value: unknown;
+  try {
+    value = JSON.parse(json);
+  } catch {
+    throw new Error("The config's manifest isn't valid JSON");
+  }
+  const parsed = manifestSchema.safeParse(value);
   if (!parsed.success) {
     const issue = parsed.error.issues[0]!;
     throw new Error(`The config's manifest is invalid at ${issue.path.join(".") || "the top level"}: ${issue.message}`);
   }
   const manifest = parsed.data as RepoManifest;
-  assertNamesUnique(manifest);
+  for (const kind of KINDS) {
+    const [repeated] = collections.duplicates(manifest[kind].map((r) => r.name));
+    if (repeated !== undefined) throw new Error(`The config's manifest has two ${kind} named "${repeated}"`);
+  }
   assertRefs(manifest.containers, "Container", (c) => c.policies, manifest.policies, "policy");
   assertRefs(manifest.workspaces, "Workspace", (w) => [w.container], manifest.containers, "container");
   assertRefs(manifest.triggers, "Trigger", (t) => [t.agent], manifest.agents, "agent");

@@ -1,8 +1,16 @@
 import { join } from "node:path";
 import { type DeployRecord, type RepoManifest, repoName } from "@achq/core";
-import { disk, JsonDirStore } from "@achq/utils/disk";
 import { async } from "@achq/utils/async";
-import { MAX_DELIVERIES, PRIVATE_FILE_MODE } from "./constants.ts";
+import { disk, JsonDirStore } from "@achq/utils/disk";
+
+/** How many delivery IDs are remembered as handled: the newest. */
+const MAX_DELIVERIES = 5000;
+
+/** The deployer's files are its own: they hold every repo's deploy state. */
+const PRIVATE_FILE_MODE = 0o600;
+
+/** A file name can't start with `.` or be empty. */
+const UNSAFE_START = /^\.|^$/;
 
 /** What a container was last deployed from: a change to either means a rebuild. */
 export type ImageRecord = { dockerfile: string; blob: string };
@@ -15,16 +23,8 @@ export type StoredRecord = DeployRecord & { deployed?: DeployedSnapshot };
 /** The record without what only the deployer reads. */
 export const wireRecord = ({ deployed: _deployed, ...record }: StoredRecord): DeployRecord => record;
 
-
-/** A file name can't start with `.` or be empty. */
-const UNSAFE_START = /^\.|^$/;
-
 /** A failed deploy of a name that's no repo's is recorded too, so this takes any string. */
 export const recordName = (repo: string) => disk.safeFileName(repoName.key(repo).replace("/", "__")).replace(UNSAFE_START, "_");
-
-const dropOldest = (list: string[]) => {
-  if (list.length > MAX_DELIVERIES) list.splice(0, list.length - MAX_DELIVERIES);
-};
 
 export const createStore = (dataDir: string) => {
   const records = new JsonDirStore<StoredRecord>(join(dataDir, "records"), { pretty: true, mode: PRIVATE_FILE_MODE });
@@ -44,7 +44,7 @@ export const createStore = (dataDir: string) => {
       const list = await loadDeliveries();
       if (list.includes(delivery)) return;
       list.push(delivery);
-      dropOldest(list);
+      if (list.length > MAX_DELIVERIES) list.splice(0, list.length - MAX_DELIVERIES);
       await inOrder(() => disk.writeJson(deliveriesFile, list, { mode: PRIVATE_FILE_MODE }));
     },
   };

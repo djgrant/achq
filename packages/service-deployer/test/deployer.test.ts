@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { STATUS_VARIABLE, type DeployerEnvelope } from "@achq/core";
 import { adminSecret, containerSecret } from "@achq/core/secrets";
 import { signedFetch } from "@achq/core/signing";
-import { evaluateConfig } from "../src/config/index.ts";
+import { evaluateConfig } from "../src/config/evaluate.ts";
 import { DOC_CONFIG, DOC_PLAN } from "@achq/test-utils/config";
 import { createDeployer } from "../src/deployer.ts";
 import { githubChannelProvider } from "@achq/github/channel";
@@ -13,7 +13,7 @@ import { githubCodeHostProvider } from "@achq/github/code-host";
 import { FakeGitHub } from "@achq/test-utils/deployer/github";
 import { FakeRouter } from "@achq/test-utils/deployer/router";
 import { MemoryContainerProvider } from "@achq/test-utils/deployer/container-provider";
-import { routerClient } from "../src/clients/router.ts";
+import { routerClient } from "../src/router-client.ts";
 import { deployerHandler } from "../src/server.ts";
 
 const KEY = "test-webhook-key";
