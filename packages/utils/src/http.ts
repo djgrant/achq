@@ -22,14 +22,14 @@ export const http = {
   excerpt: (body: string) => body.slice(0, ERROR_BODY_CHARS),
 
   /** An error for a response that wasn't 2xx, e.g. `The router refused credentials: 403 forbidden`. Reads the body. */
-  responseError: async (res: Response, what: string): Promise<Error> => new Error(`${what}: ${res.status} ${http.excerpt(await res.text())}`.trimEnd()),
+  responseError: async (res: Response, what: string) => new Error(`${what}: ${res.status} ${http.excerpt(await res.text())}`.trimEnd()),
 
-  expectOk: async (res: Response, what: string): Promise<Response> => {
+  expectOk: async (res: Response, what: string) => {
     if (!res.ok) throw await http.responseError(res, what);
     return res;
   },
 
-  bearerToken: (req: Request): string | undefined => req.headers.get("authorization")?.match(/^Bearer (\S+)$/)?.[1],
+  bearerToken: (req: Request) => req.headers.get("authorization")?.match(/^Bearer (\S+)$/)?.[1],
 
   /** An app that answers health on `GET /`, 404s what it doesn't route, and 500s an error, logging it without leaking it. */
   service: (log: (line: string) => void) =>

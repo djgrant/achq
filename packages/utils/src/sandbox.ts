@@ -46,7 +46,7 @@ const relative: Resolve = (specifier, importer) => {
 };
 
 /** A module with top-level await evaluates to a promise for its exports; anything else is its exports. */
-const settle = (context: QuickJSContext, handle: QuickJSHandle, fail: (h: QuickJSHandle) => SandboxError): QuickJSHandle => {
+const settle = (context: QuickJSContext, handle: QuickJSHandle, fail: (h: QuickJSHandle) => SandboxError) => {
   const pending = context.runtime.executePendingJobs();
   if (pending.error) throw fail(pending.error);
   const state = context.getPromiseState(handle);
@@ -60,7 +60,7 @@ const settle = (context: QuickJSContext, handle: QuickJSHandle, fail: (h: QuickJ
   throw new SandboxError("never finished: it awaits something that never settles");
 };
 
-const readLogs = (context: QuickJSContext): string[] => {
+const readLogs = (context: QuickJSContext) => {
   try {
     const handle = context.getProp(context.global, "__logs");
     const value = context.dump(handle);
@@ -72,7 +72,7 @@ const readLogs = (context: QuickJSContext): string[] => {
 };
 
 /** The guest controls these values, so they're only ever treated as text. */
-const describe = (value: unknown): string => {
+const describe = (value: unknown) => {
   if (value && typeof value === "object") {
     const { name, message } = value as { name?: unknown; message?: unknown };
     if (typeof message === "string") return `${typeof name === "string" ? name : "Error"}: ${message}`.slice(0, 2000);

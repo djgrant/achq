@@ -19,13 +19,13 @@ type Killable = { kill(signal?: NodeJS.Signals): void };
 
 export const subprocess = {
   /** Never throws for a failing command, only for a missing one. */
-  run: (argv: string[], { cwd, env }: RunOptions = {}): RunResult => {
+  run: (argv: string[], { cwd, env }: RunOptions = {}) => {
     const proc = Bun.spawnSync(argv, { cwd, env, stdout: "pipe", stderr: "pipe" });
     return { ok: proc.success, exitCode: proc.exitCode, stdout: proc.stdout.toString(), stderr: proc.stderr.toString() };
   },
 
   /** Its output, trimmed, or undefined if it fails. */
-  tryRun: (argv: string[], options: RunOptions = {}): string | undefined => {
+  tryRun: (argv: string[], options: RunOptions = {}) => {
     const result = subprocess.run(argv, options);
     return result.ok ? result.stdout.trim() : undefined;
   },
@@ -44,7 +44,7 @@ export const subprocess = {
   },
 
   /** Runs `argv` to the end, collecting its output. Never throws for a failing command. */
-  collect: async (argv: string[], { cwd, env, input, onLine, signal }: CollectOptions = {}): Promise<Collected> => {
+  collect: async (argv: string[], { cwd, env, input, onLine, signal }: CollectOptions = {}) => {
     const proc = Bun.spawn(argv, { cwd, env, stdin: input === undefined ? "ignore" : "pipe", stdout: "pipe", stderr: "pipe" });
     const kill = () => proc.kill();
     if (signal?.aborted) kill();

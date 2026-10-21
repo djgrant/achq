@@ -74,7 +74,7 @@ export const async = {
   },
 
   /** Undefined once `timeoutMs` has been slept without success. A throw from `probe` stops polling. */
-  pollUntil: async <T>(probe: () => Promise<T>, done: (value: T) => boolean, options: PollOptions): Promise<T | undefined> => {
+  pollUntil: async <T>(probe: () => Promise<T>, done: (value: T) => boolean, options: PollOptions) => {
     const { intervalMs, timeoutMs, sleep: wait = sleep } = options;
     for (let slept = 0; ; slept += intervalMs) {
       const value = await probe();

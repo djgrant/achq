@@ -38,7 +38,7 @@ describe("run", () => {
     expect(logs).toEqual([`a {"b":1}`, "2"]);
   });
 
-  test("each sandbox.run starts fresh: globals set by one aren't seen by the next", async () => {
+  test("each run starts fresh: globals set by one aren't seen by the next", async () => {
     await sandbox.run("/main.js", { modules: { "/main.js": `globalThis.leftover = "yes"; export default "";` } });
     expect((await sandbox.run("/main.js", { modules: { "/main.js": `export default typeof globalThis.leftover;` } })).result).toBe("undefined");
   });

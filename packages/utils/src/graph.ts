@@ -3,7 +3,7 @@ export const graph = {
    * `roots` and everything reachable from them through `next`, each once, in
    * depth-first order: a node, then what it leads to. `next` is asked once per node.
    */
-  reachable: <T>(roots: Iterable<T>, next: (node: T) => Iterable<T>): T[] => {
+  reachable: <T>(roots: Iterable<T>, next: (node: T) => Iterable<T>) => {
     const seen = new Set<T>();
     const visit = (node: T) => {
       if (seen.has(node)) return;
@@ -18,7 +18,7 @@ export const graph = {
    * `nodes` and what they depend on, each after its dependencies, otherwise in
    * the order given. A cycle throws, naming it with `label`: `A cycle: a → b → a`.
    */
-  topoSort: <T>(nodes: Iterable<T>, dependenciesOf: (node: T) => Iterable<T>, label: (node: T) => string): T[] => {
+  topoSort: <T>(nodes: Iterable<T>, dependenciesOf: (node: T) => Iterable<T>, label: (node: T) => string) => {
     const order = new Set<T>();
     const visiting: T[] = [];
     const visit = (node: T) => {

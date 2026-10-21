@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { http, HttpError } from "../src/http.ts";
 
 describe("errors for unwanted responses", () => {
-  test("HttpError names the http.service, request and status, with the body cut short", () => {
+  test("HttpError names the service, request and status, with the body cut short", () => {
     const body = "x".repeat(1000);
     const error = new HttpError(404, "GET", "/repos/a/b", body, "GitHub");
     expect(error.message).toBe(`GitHub GET /repos/a/b: 404 ${http.excerpt(body)}`);

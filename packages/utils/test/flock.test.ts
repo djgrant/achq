@@ -41,7 +41,7 @@ describe("acquire", () => {
 });
 
 describe("lockedArgv", () => {
-  test("exits flock.BUSY without running the command while the lock is held, and runs it once it's free", async () => {
+  test("exits BUSY without running the command while the lock is held, and runs it once it's free", async () => {
     const file = lockFile();
     const marker = `${file}.ran`;
     const release = await flock.acquire(file);

@@ -59,7 +59,7 @@ export class GitHub {
   }
 
   /** Your gh login's token: `GH_TOKEN` in `env` wins, as it does for gh itself; otherwise `gh auth token`. */
-  static cliToken(env: Vars = {}): string {
+  static cliToken(env: Vars = {}) {
     if (env.GH_TOKEN) return env.GH_TOKEN;
     const { ok, stdout, stderr } = subprocess.run(["gh", "auth", "token"]);
     if (!ok) throw new Error(`Needs a gh login (gh auth login): ${stderr.trim()}`);

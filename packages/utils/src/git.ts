@@ -13,11 +13,11 @@ export class Git {
   ) {}
 
   /** The root of the repo `dir` is in, or undefined outside one. */
-  static root(dir: string): string | undefined {
+  static root(dir: string) {
     return subprocess.tryRun(["git", "rev-parse", "--show-toplevel"], { cwd: dir });
   }
 
-  static remoteUrl(dir: string, name: string): string | undefined {
+  static remoteUrl(dir: string, name: string) {
     return subprocess.tryRun(["git", "remote", "get-url", name], { cwd: dir });
   }
 
@@ -26,62 +26,62 @@ export class Git {
   }
 
   /** Throws with git's stderr if it fails. */
-  async run(args: string[]): Promise<Buffer> {
+  async run(args: string[]) {
     const result = await this.exec(args);
     if (result.exitCode !== 0) throw new Error(`git ${args.join(" ")}: ${result.stderr.toString().trim()}`);
     return result.stdout;
   }
 
-  async text(args: string[]): Promise<string> {
+  async text(args: string[]) {
     return (await this.run(args)).toString().trim();
   }
 
-  async ok(args: string[]): Promise<boolean> {
+  async ok(args: string[]) {
     return (await this.exec(args)).exitCode === 0;
   }
 
-  exists(): boolean {
+  exists() {
     return fs.existsSync(this.dir);
   }
 
   /** Whether `ref` (e.g. `refs/heads/main`) exists. */
-  hasRef(ref: string): Promise<boolean> {
+  hasRef(ref: string) {
     return this.ok(["rev-parse", "-q", "--verify", ref]);
   }
 
-  async hasCommit(commit: string): Promise<boolean> {
+  async hasCommit(commit: string) {
     return this.exists() && this.ok(["cat-file", "-e", `${commit}^{commit}`]);
   }
 
-  async initBare(): Promise<void> {
+  async initBare() {
     await $`git init -q --bare ${this.dir}`.env(this.env).quiet();
   }
 
-  async fetch(remote: string, { prune = false }: { prune?: boolean } = {}): Promise<void> {
+  async fetch(remote: string, { prune = false }: { prune?: boolean } = {}) {
     await this.run(["fetch", "-q", ...(prune ? ["--prune"] : []), remote]);
   }
 
-  async worktreeAdd(path: string, on: WorktreeBranch): Promise<void> {
+  async worktreeAdd(path: string, on: WorktreeBranch) {
     if (on.from === undefined) return void (await this.run(["worktree", "add", "-q", path, on.branch]));
     await this.run(["worktree", "add", "-q", on.track ? "--track" : "--no-track", "-b", on.branch, path, on.from]);
   }
 
-  async worktreePrune(): Promise<void> {
+  async worktreePrune() {
     await this.run(["worktree", "prune"]);
   }
 
-  async archive(commit: string, path: string): Promise<Buffer> {
+  async archive(commit: string, path: string) {
     const result = await this.exec(["archive", "--format=tar", commit, path]);
     if (result.exitCode !== 0) throw new Error(`No ${path}/ at ${commit}: ${result.stderr.toString().trim()}`);
     return result.stdout;
   }
 
   /** Undefined when HEAD is detached. */
-  async currentBranch(): Promise<string | undefined> {
+  async currentBranch() {
     return (await this.text(["branch", "--show-current"])) || undefined;
   }
 
-  shortHead(): Promise<string> {
+  shortHead() {
     return this.text(["rev-parse", "--short", "HEAD"]);
   }
 }

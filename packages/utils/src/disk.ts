@@ -28,7 +28,7 @@ const jsonNames = (entries: string[]) =>
     .sort();
 
 export const disk = {
-  isNotFound: (e: unknown): boolean => (e as NodeJS.ErrnoException | undefined)?.code === "ENOENT",
+  isNotFound: (e: unknown) => (e as NodeJS.ErrnoException | undefined)?.code === "ENOENT",
 
   /** Its directory must exist. */
   writeAtomic: async (file: string, data: string, { mode }: WriteOptions = {}) => {
@@ -54,7 +54,7 @@ export const disk = {
   },
 
   /** Creates an empty `file`, or returns false if it already exists. Atomic, so of racing callers exactly one gets true. */
-  createExclusive: (file: string): boolean => {
+  createExclusive: (file: string) => {
     try {
       fs.writeFileSync(file, "", { flag: "wx" });
       return true;
@@ -65,7 +65,7 @@ export const disk = {
   },
 
   /** The parsed file, or undefined if it doesn't exist. */
-  readJson: async <T>(file: string): Promise<T | undefined> => {
+  readJson: async <T>(file: string) => {
     try {
       return JSON.parse(await fsp.readFile(file, "utf8")) as T;
     } catch (e) {
@@ -74,7 +74,7 @@ export const disk = {
     }
   },
 
-  readJsonSync: <T>(file: string): T | undefined => {
+  readJsonSync: <T>(file: string) => {
     try {
       return JSON.parse(fs.readFileSync(file, "utf8")) as T;
     } catch (e) {
@@ -103,7 +103,7 @@ export const disk = {
   },
 
   /** The `.json` files in `dir`, by name without the extension, sorted. None if `dir` is missing. */
-  listJsonNames: async (dir: string): Promise<string[]> => {
+  listJsonNames: async (dir: string) => {
     try {
       return jsonNames(await fsp.readdir(dir));
     } catch (e) {
@@ -112,7 +112,7 @@ export const disk = {
     }
   },
 
-  listJsonNamesSync: (dir: string): string[] => {
+  listJsonNamesSync: (dir: string) => {
     try {
       return jsonNames(fs.readdirSync(dir));
     } catch (e) {
@@ -124,7 +124,7 @@ export const disk = {
   jsonFile: (dir: string, name: string) => path.join(dir, `${name}${JSON_EXT}`),
 
   /** Every file under `dir`, by path relative to it, as text. Directories named in `skip` aren't entered. */
-  readTree: (dir: string, { skip = [] }: { skip?: string[] } = {}): Record<string, string> => {
+  readTree: (dir: string, { skip = [] }: { skip?: string[] } = {}) => {
     const files: Record<string, string> = {};
     const walk = (sub: string) => {
       for (const entry of fs.readdirSync(path.join(dir, sub), { withFileTypes: true })) {
@@ -137,15 +137,15 @@ export const disk = {
     return files;
   },
 
-  isSafeFileName: (name: string): boolean => SAFE_FILE_NAME.test(name),
+  isSafeFileName: (name: string) => SAFE_FILE_NAME.test(name),
 
-  safeFileName: (name: string): string => name.replace(UNSAFE_CHAR, "_"),
+  safeFileName: (name: string) => name.replace(UNSAFE_CHAR, "_"),
 
   /** Both must be absolute and normalised. */
-  isWithin: (root: string, file: string): boolean => file === root || file.startsWith(root + path.sep),
+  isWithin: (root: string, file: string) => file === root || file.startsWith(root + path.sep),
 
   /** `relative` resolved against `root`, or undefined if it leads outside `root`. */
-  resolveWithin: (root: string, relative: string): string | undefined => {
+  resolveWithin: (root: string, relative: string) => {
     const file = path.resolve(root, relative);
     return disk.isWithin(path.resolve(root), file) ? file : undefined;
   },
@@ -187,7 +187,7 @@ export class JsonDirStore<T> {
   }
 
   /** Every stored value, in name order. */
-  async all(): Promise<T[]> {
+  async all() {
     const values = await Promise.all((await this.list()).map((name) => this.read(name)));
     // A name removed while listing reads as undefined.
     return values.filter((v) => v !== undefined) as T[];

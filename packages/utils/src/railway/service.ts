@@ -12,7 +12,7 @@ export class RailwayService {
     this.id = at.serviceId;
   }
 
-  private get instanceAt(): InstanceAt {
+  private get instanceAt() {
     return { environmentId: this.at.environmentId, serviceId: this.at.serviceId };
   }
 
@@ -20,7 +20,7 @@ export class RailwayService {
     await this.transport.call(OPERATIONS.serviceDelete, { id: this.id, environmentId: this.at.environmentId });
   }
 
-  instance(): Promise<Instance> {
+  instance() {
     return this.transport.call(OPERATIONS.serviceInstance, this.instanceAt);
   }
 
@@ -33,7 +33,7 @@ export class RailwayService {
     await this.transport.call(OPERATIONS.serviceConnect, { id: this.id, input: { repo, branch } });
   }
 
-  autoDeploy(): Promise<boolean> {
+  autoDeploy() {
     return this.transport.call(OPERATIONS.serviceInstanceAutoDeployStatus, this.at);
   }
 
@@ -50,7 +50,7 @@ export class RailwayService {
     await this.transport.call(OPERATIONS.serviceInstanceDeployV2, this.instanceAt);
   }
 
-  variables(): Promise<Record<string, string>> {
+  variables() {
     return this.transport.call(OPERATIONS.variables, this.at);
   }
 
@@ -64,12 +64,12 @@ export class RailwayService {
   }
 
   /** Its public `*.up.railway.app` domains. */
-  domains(): Promise<ServiceDomain[]> {
+  domains() {
     return this.transport.call(OPERATIONS.domains, this.at);
   }
 
   /** A new public domain routed to `targetPort`, by name. */
-  addDomain(targetPort: number): Promise<string> {
+  addDomain(targetPort: number) {
     return this.transport.call(OPERATIONS.serviceDomainCreate, { input: { ...this.instanceAt, targetPort } });
   }
 
@@ -82,7 +82,7 @@ export class RailwayService {
    * service already has the right one. Undefined until it has an endpoint,
    * which it gets on its first deploy.
    */
-  async privateEndpoint(): Promise<PrivateEndpoint | undefined> {
+  async privateEndpoint() {
     const [privateNetworkId] = await this.transport.call(OPERATIONS.privateNetworks, { environmentId: this.at.environmentId });
     if (!privateNetworkId) return undefined;
     const endpoint = await this.transport.call(OPERATIONS.privateNetworkEndpoint, { ...this.instanceAt, privateNetworkId });

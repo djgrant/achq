@@ -12,7 +12,7 @@ export const flock = {
    * Takes the lock, waiting for it. A helper process holds it until `release`
    * closes its stdin, or until this process dies and stdin closes with it.
    */
-  acquire: async (file: string): Promise<() => Promise<void>> => {
+  acquire: async (file: string) => {
     fs.mkdirSync(path.dirname(file), { recursive: true });
     const proc = Bun.spawn(["perl", "-e", HOLD, file], { stdin: "pipe", stdout: "pipe", stderr: "inherit" });
     const reader = proc.stdout.getReader();

@@ -13,9 +13,9 @@ export const op = <Vars, Result>(document: string, pick: (data: Data) => Result)
 
 export type Edges<T> = { edges: { node: T }[] };
 
-export const nodes = <T>(connection: Edges<T>): T[] => connection.edges.map((e) => e.node);
+export const nodes = <T>(connection: Edges<T>) => connection.edges.map((e) => e.node);
 
-const nothing = (): void => undefined;
+const nothing = () => undefined;
 
 export type RawProject = {
   id: string;
@@ -144,6 +144,6 @@ export const OPERATIONS = {
 export type RailwayField = keyof typeof OPERATIONS;
 
 /** The first field a document asks for, as Railway (and its fake) see it. */
-export const rootField = (document: string): string => document.slice(document.indexOf("{") + 1).match(/^\s*(\w+)/)?.[1] ?? "";
+export const rootField = (document: string) => document.slice(document.indexOf("{") + 1).match(/^\s*(\w+)/)?.[1] ?? "";
 
-export const isMutation = (document: string): boolean => document.trimStart().startsWith("mutation");
+export const isMutation = (document: string) => document.trimStart().startsWith("mutation");

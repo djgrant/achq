@@ -5,12 +5,12 @@ export type Vars = Record<string, string | undefined>;
 export class Env {
   constructor(readonly vars: Vars) {}
 
-  optional(name: string): string | undefined {
+  optional(name: string) {
     return this.vars[name] || undefined;
   }
 
   /** Throws naming what's missing, and `hint` on how to set it. */
-  require(name: string, hint = ""): string {
+  require(name: string, hint = "") {
     const value = this.optional(name);
     if (value === undefined) throw new Error(`Missing ${name} in the environment.${hint ? ` ${hint}` : ""}`);
     return value;
