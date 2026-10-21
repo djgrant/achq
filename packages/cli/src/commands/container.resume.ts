@@ -1,10 +1,7 @@
 import { defineCommand } from "@pokit/core";
-import { chooseOne } from "../lib/choose.ts";
-import { clean } from "../lib/errors.ts";
 import { z } from "zod";
-import { reachContainer } from "../lib/remote/reach.ts";
-import { parseSessions, pickSession, sessionLabel, sessionTable } from "../lib/remote/sessions.ts";
-import { terminalEnv } from "../lib/terminal.ts";
+import { parseSessions, pickSession, reachContainer, sessionLabel, sessionTable } from "../lib/container.ts";
+import { chooseOne, clean, terminalEnv } from "../lib/terminal.ts";
 import { needRepo, repoFlag } from "../lib/workdir.ts";
 
 export const command = defineCommand({

@@ -1,7 +1,7 @@
 import { defineCommand } from "@pokit/core";
-import { clean } from "../lib/errors.ts";
 import { z } from "zod";
-import { reachContainer } from "../lib/remote/reach.ts";
+import { reachContainer } from "../lib/container.ts";
+import { clean } from "../lib/terminal.ts";
 import { needRepo, repoFlag } from "../lib/workdir.ts";
 
 export const command = defineCommand({

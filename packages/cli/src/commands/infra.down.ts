@@ -1,5 +1,5 @@
 import { defineCommand } from "@pokit/core";
-import { clean } from "../lib/errors.ts";
+import { clean } from "../lib/terminal.ts";
 
 export const command = defineCommand({
   label: "Tear down the infra (not implemented)",

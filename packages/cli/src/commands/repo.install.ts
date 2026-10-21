@@ -1,19 +1,12 @@
 import { defineCommand } from "@pokit/core";
-import { clean } from "../lib/errors.ts";
-import { z } from "zod";
 import { text } from "@achq/utils/text";
+import { z } from "zod";
 import { STATUS_TIMEOUT_MS } from "../constants.ts";
-import { planInstall } from "../lib/install.ts";
-import { formatStatus } from "../lib/status/format.ts";
-import { waitForStatus } from "../lib/status/read.ts";
+import { formatStatus } from "../lib/format.ts";
+import { planInstall, waitForStatus } from "../lib/repo.ts";
+import { clean } from "../lib/terminal.ts";
 
 const MS_PER_MINUTE = 60_000;
-
-/** e.g. `3 minutes`. */
-const inMinutes = (ms: number) => {
-  const minutes = ms / MS_PER_MINUTE;
-  return `${minutes} ${text.plural(minutes, "minute")}`;
-};
 
 export const command = defineCommand({
   label: "Install achq",
@@ -30,7 +23,8 @@ export const command = defineCommand({
     console.log("Waiting for the deploy's result…");
     const status = await waitForStatus((r) => codeHost.status(r), repo, since);
     if (!status) {
-      console.log(`No result after ${inMinutes(STATUS_TIMEOUT_MS)}. Run \`achq infra up\` to sync installs, then \`achq repo status\`.`);
+      const minutes = STATUS_TIMEOUT_MS / MS_PER_MINUTE;
+      console.log(`No result after ${minutes} ${text.plural(minutes, "minute")}. Run \`achq infra up\` to sync installs, then \`achq repo status\`.`);
       process.exitCode = 1;
       return;
     }

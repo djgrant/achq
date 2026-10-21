@@ -3,11 +3,10 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { collectManifest, resetDeclarations, type Status } from "@achq/core";
-import { loadRepoManifest } from "../src/lib/load/repo-config.ts";
+import { loadRepoManifest, waitForStatus } from "../src/lib/repo.ts";
 import * as achq from "achq";
 import * as claude from "achq/claude";
 import * as github from "achq/github";
-import { waitForStatus } from "../src/lib/status/read.ts";
 
 // A real .achq/ directory, as the design's example writes it, with a local import.
 const CONFIG = `

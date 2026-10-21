@@ -1,8 +1,8 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { z } from "zod";
-import { CLI_ENV, CONFIG_FILE } from "../../constants.ts";
-import { callerCwd, repoRoot } from "../workdir.ts";
+import { CLI_ENV, CONFIG_FILE } from "../constants.ts";
+import { callerCwd, repoRoot } from "./workdir.ts";
 
 const Config = z.object({
   /** A command prefix that puts secrets in the environment, e.g. `op run --env-file=.env --`. achq runs itself under it. */
@@ -12,7 +12,7 @@ const Config = z.object({
 export type CliConfig = z.infer<typeof Config> & { dir: string };
 
 /** The config at the root of `dir`'s repo, if there is one. */
-export const loadConfig = async (dir = callerCwd()): Promise<CliConfig | undefined> => {
+export const loadConfig = async (dir = callerCwd()) => {
   const root = repoRoot(dir);
   const file = path.join(root, CONFIG_FILE);
   if (!fs.existsSync(file)) return;

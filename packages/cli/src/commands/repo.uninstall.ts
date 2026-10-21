@@ -1,7 +1,7 @@
 import { defineCommand } from "@pokit/core";
 import { z } from "zod";
-import { clean } from "../lib/errors.ts";
-import { planInstall } from "../lib/install.ts";
+import { planInstall } from "../lib/repo.ts";
+import { clean } from "../lib/terminal.ts";
 
 export const command = defineCommand({
   label: "Uninstall achq",

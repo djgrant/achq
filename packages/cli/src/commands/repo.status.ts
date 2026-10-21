@@ -1,6 +1,6 @@
 import { defineCommand } from "@pokit/core";
-import { clean } from "../lib/errors.ts";
-import { formatStatus } from "../lib/status/format.ts";
+import { formatStatus } from "../lib/format.ts";
+import { clean } from "../lib/terminal.ts";
 import { needRepo, notSetUp, repoFlag } from "../lib/workdir.ts";
 
 export const command = defineCommand({

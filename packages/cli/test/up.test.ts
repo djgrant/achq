@@ -9,10 +9,7 @@ import { verifySigned } from "@achq/core/signing";
 import * as github from "@achq/github/infra";
 import { type FakeRailway, startFakeRailway } from "@achq/test-utils/railway";
 import * as railway from "@achq/railway/infra";
-import { cliContext } from "../src/lib/context.ts";
-import { checkInfra } from "../src/lib/load/infra.ts";
-import { routerAccess } from "../src/lib/router.ts";
-import { up, type UpDeps } from "../src/lib/up/up.ts";
+import { checkInfra, cliContext, routerAccess, up, type UpDeps } from "../src/lib/infra.ts";
 
 const { privateKey: pem, publicKey } = generateKeyPairSync("rsa", { modulusLength: 2048, privateKeyEncoding: { type: "pkcs8", format: "pem" }, publicKeyEncoding: { type: "spki", format: "pem" } });
 const pemBody = pem.split("\n")[5]; // a line from the middle of the key

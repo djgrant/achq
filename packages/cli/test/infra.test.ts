@@ -6,7 +6,7 @@ import * as core from "@achq/core";
 import { achq } from "@achq/core";
 import * as github from "@achq/github/infra";
 import * as railway from "@achq/railway/infra";
-import { checkInfra, loadInfra } from "../src/lib/load/infra.ts";
+import { checkInfra, loadInfra } from "../src/lib/infra.ts";
 
 let tmp: string;
 beforeEach(() => {

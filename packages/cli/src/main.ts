@@ -1,7 +1,7 @@
 import { runCli } from "@pokit/core";
 import { createTerminalUI } from "@pokit/terminal";
 import * as path from "node:path";
-import { loadConfig, runUnderEnv, underEnv } from "./lib/load/config.ts";
+import { loadConfig, runUnderEnv, underEnv } from "./lib/config.ts";
 
 const root = path.resolve(import.meta.dir, "..");
 const args = process.argv.slice(2);
