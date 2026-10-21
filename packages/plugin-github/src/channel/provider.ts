@@ -1,13 +1,14 @@
-import { type ChannelClient, type ChannelCredential, type ChannelEvent, type ChannelProvider, type Credential, type Message, repoName, type SelectorData, type SourceSettings, type Thread, type ThreadRef } from "@achq/core";
-import { GitHub, type Issue, type IssueComment, type ReactionContent, type ReactionTarget, type User } from "@achq/utils/gh";
+import { type ChannelClient, type ChannelEvent, type ChannelProvider, type Credential, type Message, repoName, type SelectorData, type ThreadRef } from "@achq/core";
+import { GitHub, type Issue, type IssueComment, type ReactionContent, type ReactionTarget } from "@achq/utils/gh";
 import { verify } from "@octokit/webhooks-methods";
-import { type Apps, appWebhookSecret } from "../lib/apps.ts";
-import { botLogin } from "../lib/client.ts";
+import { type Apps, appWebhookSecret, botLogin } from "../lib/apps.ts";
 import { CHANNEL, GITHUB_API, REPO } from "../lib/constants.ts";
 import { CLIENT_PERMISSIONS } from "../lib/permissions.ts";
 import { matchEvent, matchThread } from "../lib/selectors.ts";
 import { labelNames, messageId, OPENING_POST_ID, parseThreadId, slugify, TRUSTED } from "../lib/threads.ts";
 import { parseEvent } from "../lib/webhooks.ts";
+
+const ACKNOWLEDGEMENT: ReactionContent = "eyes";
 
 /** Apps as channels: each App is a source. Only the router has the key that verifies webhooks. */
 export class GitHubChannelProvider implements ChannelProvider {
@@ -31,7 +32,7 @@ export class GitHubChannelProvider implements ChannelProvider {
     return parseEvent(source, headers, body);
   }
 
-  async mintClient(source: string, repo: string): Promise<ChannelCredential> {
+  async mintClient(source: string, repo: string) {
     if (!REPO.test(repo)) throw new Error(`Not a repo: ${repo}`);
     const installation = await this.apps.installation(source, repo);
     if (!installation) throw new Error(`${source} isn't installed on ${repo}`);
@@ -44,7 +45,7 @@ export class GitHubChannelProvider implements ChannelProvider {
     };
   }
 
-  sources(): Promise<SourceSettings[]> {
+  sources() {
     return Promise.all(
       this.apps.slugs().map(async (slug) => {
         const { events, permissions } = await this.apps.asApp(slug).app();
@@ -66,12 +67,6 @@ export class GitHubChannelProvider implements ChannelProvider {
   }
 }
 
-/** A user's GitHub-provided address, which commits can be attributed to without exposing a real one. */
-const noreplyEmail = (user: User) => `${user.id}+${user.login}@users.noreply.github.com`;
-
-/** Message IDs sort chronologically as strings. */
-const byId = (a: Message, b: Message) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
-
 /** The runner's view of a repo's issues, with a channel credential from `mintClient`. */
 export class GitHubChannelClient implements ChannelClient {
   private gh: GitHub;
@@ -89,7 +84,7 @@ export class GitHubChannelClient implements ChannelClient {
     return { thread, repo: this.gh.repo(thread.full) };
   }
 
-  async thread(ref: ThreadRef): Promise<Thread> {
+  async thread(ref: ThreadRef) {
     const { thread, repo } = this.issueOf(ref);
     const issue = await repo.issue(thread.number);
     return {
@@ -112,12 +107,13 @@ export class GitHubChannelClient implements ChannelClient {
     };
   }
 
-  async messages(ref: ThreadRef): Promise<Message[]> {
+  async messages(ref: ThreadRef) {
     const { thread, repo } = this.issueOf(ref);
     const [issue, comments] = await Promise.all([repo.issue(thread.number), repo.issueComments(thread.number)]);
     // `edited` isn't set. REST doesn't say when an issue body last changed, and `updated_at` moves with every comment.
     const opening = this.toMessage(OPENING_POST_ID, issue);
-    return [opening, ...comments.map((comment) => this.toMessage(messageId(comment.id), comment))].sort(byId);
+    // Message IDs sort chronologically as strings.
+    return [opening, ...comments.map((comment) => this.toMessage(messageId(comment.id), comment))].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   }
 
   async reply(ref: ThreadRef, body: string) {
@@ -126,18 +122,14 @@ export class GitHubChannelClient implements ChannelClient {
   }
 
   async acknowledge(event: ChannelEvent) {
-    if (!event.repo) return;
-    const target = reactionTarget(event);
-    if (target) await this.gh.repo(event.repo).react(target, ACKNOWLEDGEMENT);
+    const { comment, issue } = event.detail;
+    const target: ReactionTarget | undefined = typeof comment === "number" ? { comment } : typeof issue === "number" ? { issue } : undefined;
+    if (event.repo && target) await this.gh.repo(event.repo).react(target, ACKNOWLEDGEMENT);
   }
 
   async identity() {
     const user = await this.gh.user(this.bot);
-    return { name: user.login, email: noreplyEmail(user) };
+    // GitHub's address for the user, which commits can be attributed to without exposing a real one.
+    return { name: user.login, email: `${user.id}+${user.login}@users.noreply.github.com` };
   }
 }
-
-const ACKNOWLEDGEMENT: ReactionContent = "eyes";
-
-const reactionTarget = ({ detail: { comment, issue } }: ChannelEvent): ReactionTarget | undefined =>
-  typeof comment === "number" ? { comment } : typeof issue === "number" ? { issue } : undefined;

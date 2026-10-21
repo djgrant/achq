@@ -1,12 +1,10 @@
 import { all, type Change, type Context, known, ManagedResource, type Planned, type Router, UNKNOWN } from "@achq/core";
 import { type AppSettings, GitHub, type HookConfig } from "@achq/utils/gh";
 import { type AppKeys, appsVariable, appWebhookSecret, parseApps } from "../lib/apps.ts";
-import { githubUrls } from "../lib/client.ts";
-import { GITHUB_ENV } from "../lib/constants.ts";
+import { GITHUB_ENV, githubUrls } from "../lib/constants.ts";
 import { appSlug, manifestFlow } from "../lib/manifest.ts";
-import { APP_EVENTS, APP_PERMISSIONS, covers } from "../lib/permissions.ts";
+import { APP_EVENTS, APP_PERMISSIONS, lacking } from "../lib/permissions.ts";
 import { ChannelRef } from "./config.ts";
-import type { Vars } from "@achq/utils/env";
 
 export type ChannelInputs = {
   name: string;
@@ -35,16 +33,6 @@ export type ChannelAttrs = { slug: string; id: string; privateKey: string };
 
 export type ChannelChange = { kind: "create" } | { kind: "webhook" };
 
-const appProblems = (settings: AppSettings) => [
-  ...APP_EVENTS.filter((e) => !settings.events.includes(e)).map((e) => `doesn't send ${e}`),
-  ...Object.entries(APP_PERMISSIONS)
-    .filter(([name, level]) => !covers(settings.permissions[name], level))
-    .map(([name, level]) => `lacks ${name}: ${level}`),
-];
-
-const appSettingsUrl = (slug: string, org: string | undefined, web: string) =>
-  org ? `${web}/organizations/${org}/settings/apps/${slug}/permissions` : `${web}/settings/apps/${slug}/permissions`;
-
 const WANTED_HOOK = { content_type: "json", insecure_ssl: "0" } as const;
 
 const hookConfig = (url: string, key: string, appId: string | number): HookConfig => ({
@@ -53,29 +41,7 @@ const hookConfig = (url: string, key: string, appId: string | number): HookConfi
   secret: appWebhookSecret(key, appId),
 });
 
-/** The secret isn't compared: GitHub doesn't show it, so it's written with every change. */
-const hookDiffers = (hookUrl: string, hook: HookConfig) =>
-  !known(hookUrl) || hook.url !== hookUrl || hook.content_type !== WANTED_HOOK.content_type || hook.insecure_ssl !== WANTED_HOOK.insecure_ssl;
-
-const mergeAppKeys = (env: Vars, created: ChannelAttrs[]): AppKeys => ({
-  ...parseApps(env[GITHUB_ENV.apps]),
-  ...Object.fromEntries(created.map(({ slug, id, privateKey }) => [slug, { id, privateKey }])),
-});
-
 const routerChannels = new WeakMap<Router, Map<string, Channel>>();
-
-/**
- * The router's ACHQ_GITHUB_APPS: the App of every channel declared on it, so
- * it's declared once, as a function, when the router is planned. Keys of Apps
- * no longer declared stay: removing a channel from the infra doesn't delete its
- * App on GitHub.
- */
-const declareKeys = (router: Router, channels: Map<string, Channel>) =>
-  router.variables(() => ({
-    [GITHUB_ENV.apps]: all([router.env, all([...channels.values()].map((channel) => channel.outputs()))]).map(([env, created]) =>
-      appsVariable(mergeAppKeys(env, created)),
-    ),
-  }));
 
 export class Channel extends ManagedResource<ChannelProps, ChannelState, ChannelAttrs, ChannelChange> {
   readonly kind = "github-channel";
@@ -96,10 +62,19 @@ export class Channel extends ManagedResource<ChannelProps, ChannelState, Channel
       stored: router.env.map((env) => parseApps(env[GITHUB_ENV.apps])[slug]),
     });
     this.slug = slug;
-    let channels = routerChannels.get(router);
-    if (!channels) {
-      routerChannels.set(router, (channels = new Map()));
-      declareKeys(router, channels);
+    const channels = routerChannels.get(router) ?? new Map<string, Channel>();
+    if (!routerChannels.has(router)) {
+      routerChannels.set(router, channels);
+      // The router's ACHQ_GITHUB_APPS: the App of every channel declared on it, so
+      // it's declared once, as a function, when the router is planned. Keys of Apps
+      // no longer declared stay: removing a channel from the infra doesn't delete its
+      // App on GitHub.
+      router.variables(() => ({
+        [GITHUB_ENV.apps]: all([router.env, all([...channels.values()].map((channel) => channel.outputs()))]).map(([env, apps]) => {
+          const declared = Object.fromEntries(apps.map((app) => [app.slug, { id: app.id, privateKey: app.privateKey }]));
+          return appsVariable({ ...parseApps(env[GITHUB_ENV.apps]), ...declared });
+        }),
+      }));
     }
     if (channels.has(slug)) throw new Error(`Two channels are named ${slug}`);
     channels.set(slug, this);
@@ -114,11 +89,16 @@ export class Channel extends ManagedResource<ChannelProps, ChannelState, Channel
     const { api, web } = githubUrls(ctx.env);
     const app = GitHub.connectAsApp(stored.id, stored.privateKey, { baseUrl: api });
     const [settings, hook] = await Promise.all([app.app(), app.hookConfig()]);
-    return { events: settings.events, permissions: settings.permissions, hook, settings: appSettingsUrl(slug, org, web) };
+    const permissionsPage = org ? `${web}/organizations/${org}/settings/apps/${slug}/permissions` : `${web}/settings/apps/${slug}/permissions`;
+    return { events: settings.events, permissions: settings.permissions, hook, settings: permissionsPage };
   }
 
   diff({ hookUrl }: ChannelProps, current: ChannelState | undefined): ChannelChange[] {
-    return !current ? [{ kind: "create" }] : hookDiffers(hookUrl, current.hook) ? [{ kind: "webhook" }] : [];
+    if (!current) return [{ kind: "create" }];
+    // The secret isn't compared: GitHub doesn't show it, so it's written with every change.
+    const { hook } = current;
+    const differs = !known(hookUrl) || hook.url !== hookUrl || hook.content_type !== WANTED_HOOK.content_type || hook.insecure_ssl !== WANTED_HOOK.insecure_ssl;
+    return differs ? [{ kind: "webhook" }] : [];
   }
 
   describe(change: ChannelChange, { slug, name, org, hookUrl }: ChannelProps): Change {
@@ -131,7 +111,9 @@ export class Channel extends ManagedResource<ChannelProps, ChannelState, Channel
   }
 
   check({ slug }: ChannelProps, current: ChannelState) {
-    return appProblems(current).map((problem) => `${slug} ${problem}: change it at ${current.settings}`);
+    const lacks = lacking(current, { events: APP_EVENTS, permissions: APP_PERMISSIONS });
+    const problems = [...lacks.events.map((e) => `doesn't send ${e}`), ...lacks.permissions.map(([name, level]) => `lacks ${name}: ${level}`)];
+    return problems.map((problem) => `${slug} ${problem}: change it at ${current.settings}`);
   }
 
   planned({ slug, stored }: ChannelProps, current: ChannelState | undefined): Planned<ChannelAttrs> {

@@ -2,9 +2,7 @@ import { afterAll, beforeAll, beforeEach, expect, test } from "bun:test";
 import { Agent, type Change, collectManifest, Container, type Context, plan, resetDeclarations, Trigger, Workspace } from "@achq/core";
 import { configSource, configNeeds } from "../src/lib/config-needs.ts";
 import { Channel, Policy } from "../src/index.ts";
-import { GitHub } from "@achq/utils/gh";
 import { githubCodeHostProvider } from "../src/code-host/index.ts";
-import { readStatus, repoOf } from "../src/lib/repos.ts";
 
 class TestAgent extends Agent {
   readonly runtime = "test";
@@ -39,13 +37,12 @@ test("a config naming two Apps, or none, is refused", () => {
 });
 
 test("a repo comes from an https or ssh remote on GitHub", () => {
-  const web = "https://github.com";
-  expect(repoOf("https://github.com/notationlabs/yieldstar.git", web)).toBe("notationlabs/yieldstar");
-  expect(repoOf("git@github.com:notationlabs/yieldstar.git", web)).toBe("notationlabs/yieldstar");
-  expect(repoOf("https://github.com/djgrant/achq", web)).toBe("djgrant/achq");
-  expect(repoOf("https://gitlab.com/notationlabs/yieldstar.git", web)).toBeUndefined();
-  // The code host's, with the web URL the env points it at.
-  expect(githubCodeHostProvider.create({}).repoOf("git@github.com:notationlabs/yieldstar.git")).toBe("notationlabs/yieldstar");
+  const github = githubCodeHostProvider.create({});
+  expect(github.repoOf("https://github.com/notationlabs/yieldstar.git")).toBe("notationlabs/yieldstar");
+  expect(github.repoOf("git@github.com:notationlabs/yieldstar.git")).toBe("notationlabs/yieldstar");
+  expect(github.repoOf("https://github.com/djgrant/achq")).toBe("djgrant/achq");
+  expect(github.repoOf("https://gitlab.com/notationlabs/yieldstar.git")).toBeUndefined();
+  // On the web URL the env points it at.
   expect(githubCodeHostProvider.create({ GITHUB_WEB_URL: "http://localhost:3000" }).repoOf("http://localhost:3000/o/r.git")).toBe("o/r");
 });
 
@@ -59,7 +56,6 @@ type Fake = {
 };
 let fake: Fake;
 let server: ReturnType<typeof Bun.serve>;
-let gh: GitHub;
 
 beforeAll(() => {
   server = Bun.serve({
@@ -89,7 +85,6 @@ beforeAll(() => {
       return new Response(`no route ${route}`, { status: 500 });
     },
   });
-  gh = GitHub.connect({ token: "t", baseUrl: `http://localhost:${server.port}` });
 });
 afterAll(() => server.stop(true));
 beforeEach(() => {
@@ -198,7 +193,8 @@ test("uninstall from an installation on all repos can't be applied: it says wher
 });
 
 test("ACHQ_STATUS is read from the repository variable, and is undefined before the first deploy", async () => {
-  expect(await readStatus(gh, "notationlabs/yieldstar")).toBeUndefined();
-  fake.status = { value: JSON.stringify({ host: "github", repo: "notationlabs/yieldstar", state: "deployed", at: "2026-10-17T10:02:00Z" }) };
-  expect((await readStatus(gh, "notationlabs/yieldstar"))?.state).toBe("deployed");
+  const codeHost = githubCodeHostProvider.create({ GITHUB_API_URL: `http://localhost:${server.port}`, GH_TOKEN: "t" });
+  expect(await codeHost.status(REPO)).toBeUndefined();
+  fake.status = { value: JSON.stringify({ host: "github", repo: REPO, state: "deployed", at: "2026-10-17T10:02:00Z" }) };
+  expect((await codeHost.status(REPO))?.state).toBe("deployed");
 });

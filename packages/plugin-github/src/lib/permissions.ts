@@ -1,9 +1,15 @@
-export type Permissions = Record<string, string>;
+import type { AppSettings, Permissions } from "@achq/utils/gh";
 
 const PERMISSION_RANK: Record<string, number> = { read: 1, write: 2, admin: 3 };
 
 export const covers = (granted: string | undefined, wanted: string) =>
   granted !== undefined && (PERMISSION_RANK[granted] ?? 0) >= (PERMISSION_RANK[wanted] ?? Infinity);
+
+/** What an App lacks of `wanted`: the events it doesn't send, and each permission it has less of. */
+export const lacking = (app: AppSettings, wanted: AppSettings) => ({
+  events: wanted.events.filter((e) => !app.events.includes(e)),
+  permissions: Object.entries(wanted.permissions).filter(([name, level]) => !covers(app.permissions[name], level)),
+});
 
 export const maxLevel = (a: string | undefined, b: string) =>
   a !== undefined && (PERMISSION_RANK[a] ?? 0) >= (PERMISSION_RANK[b] ?? 0) ? a : b;

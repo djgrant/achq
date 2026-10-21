@@ -19,16 +19,12 @@ const COMMENT_ACTIONS = new Set(["created", "edited"]);
 const INSTALLATION_ACTIONS = new Set(["created", "deleted", "suspend", "unsuspend"]);
 const INSTALLATION_REPOS_ACTIONS = new Set(["added", "removed"]);
 
-const fullNames = (repos: unknown): string[] =>
-  Array.isArray(repos) ? repos.map((r) => r?.full_name).filter((n): n is string => typeof n === "string") : [];
+const fullNames = (repos: unknown) => (Array.isArray(repos) ? repos.map((r) => r?.full_name).filter((n) => typeof n === "string") : []);
 
 type EventBase = Pick<ChannelEvent, "channel" | "source" | "delivery">;
 
 /** The payload is GitHub's, so it's read defensively. */
 type Delivery = { name: string; base: EventBase; payload: any };
-
-const commitTouches = (commit: any, dir: string) =>
-  [...(commit.added ?? []), ...(commit.modified ?? []), ...(commit.removed ?? [])].some((file: string) => file.startsWith(dir));
 
 /** `issues` and `issue_comment`, on issues only (not pull requests). */
 const parseIssueEvent = ({ name, base, payload }: Delivery): ChannelEvent | undefined => {
@@ -67,7 +63,7 @@ const parsePushEvent = ({ base, payload }: Delivery): ChannelEvent | undefined =
   const repo: string | undefined = payload.repository?.full_name;
   if (!repo) return undefined;
   const commits: any[] = Array.isArray(payload.commits) ? payload.commits : [];
-  const touchesConfig = commits.some((commit) => commitTouches(commit, CONFIG_DIR));
+  const touchesConfig = commits.some((commit) => [...(commit.added ?? []), ...(commit.modified ?? []), ...(commit.removed ?? [])].some((file: string) => file.startsWith(CONFIG_DIR)));
   const truncated = commits.length >= PUSH_COMMIT_CAP;
   const onDefaultBranch = payload.ref === `refs/heads/${payload.repository?.default_branch}`;
   return {
@@ -82,25 +78,21 @@ const parsePushEvent = ({ base, payload }: Delivery): ChannelEvent | undefined =
 
 const parseInstallationEvent = ({ name, base, payload }: Delivery): ChannelEvent | undefined => {
   const { action } = payload;
-  const actions = name === "installation" ? INSTALLATION_ACTIONS : INSTALLATION_REPOS_ACTIONS;
-  if (!actions.has(action)) return undefined;
+  if (!(name === "installation" ? INSTALLATION_ACTIONS : INSTALLATION_REPOS_ACTIONS).has(action)) return undefined;
+  // An installation's own repos (when GitHub lists them) come and go with it: suspending removes them, unsuspending adds them back.
+  const listed = fullNames(payload.repositories);
+  const adds = action === "created" || action === "unsuspend";
   return {
     ...base,
     type: `${name}.${action}`,
     host: CODE_HOST,
-    installation: name === "installation" ? installationChange(payload) : repositoriesChange(payload),
+    installation:
+      name === "installation"
+        ? { added: adds ? listed : [], removed: adds ? [] : listed }
+        : { added: fullNames(payload.repositories_added), removed: fullNames(payload.repositories_removed) },
     detail: { installation: payload.installation?.id ?? 0, account: payload.installation?.account?.login ?? "" },
   };
 };
-
-/** For an installation, the repos it covers (when GitHub lists them): suspending removes them, unsuspending adds them back. */
-const installationChange = (payload: any) => {
-  const listed = fullNames(payload.repositories);
-  const adds = payload.action === "created" || payload.action === "unsuspend";
-  return { added: adds ? listed : [], removed: adds ? [] : listed };
-};
-
-const repositoriesChange = (payload: any) => ({ added: fullNames(payload.repositories_added), removed: fullNames(payload.repositories_removed) });
 
 const PARSERS: Record<string, (delivery: Delivery) => ChannelEvent | undefined> = {
   issues: parseIssueEvent,
@@ -110,24 +102,20 @@ const PARSERS: Record<string, (delivery: Delivery) => ChannelEvent | undefined> 
   installation_repositories: parseInstallationEvent,
 };
 
-const parseJson = (body: string): unknown => {
-  try {
-    return JSON.parse(body);
-  } catch {
-    return undefined;
-  }
-};
-
 /**
  * Normalises a verified delivery. Never carries the raw payload: only what the
  * router filters on and the container needs later.
  */
-export const parseEvent = (source: string, headers: Headers, body: string): ChannelEvent | undefined => {
+export const parseEvent = (source: string, headers: Headers, body: string) => {
   const name = headers.get("x-github-event");
   const delivery = headers.get("x-github-delivery");
-  if (!name || !delivery) return undefined;
-  const parse = Object.hasOwn(PARSERS, name) ? PARSERS[name]! : undefined;
-  const payload = parseJson(body);
-  if (!parse || payload === undefined) return undefined;
+  const parse = name && Object.hasOwn(PARSERS, name) ? PARSERS[name] : undefined;
+  if (!name || !delivery || !parse) return undefined;
+  let payload: unknown;
+  try {
+    payload = JSON.parse(body);
+  } catch {
+    return undefined;
+  }
   return parse({ name, base: { channel: CHANNEL, source, delivery }, payload });
 };

@@ -51,7 +51,7 @@ export class Issues extends ThreadSelector {
 export const mentions = (body: string | undefined, mention: string) =>
   body !== undefined && new RegExp(`(?<![\\w@.-])${text.escapeRegExp(mention)}(?![\\w-])`, "i").test(body);
 
-export const matchEvent = (selector: SelectorData, event: ChannelEvent): boolean => {
+export const matchEvent = (selector: SelectorData, event: ChannelEvent) => {
   const s = selector as Partial<EventSelectorData>;
   if (s.channel !== CHANNEL || event.channel !== CHANNEL || s.source !== event.source) return false;
   if (typeof s.event !== "string" || !Array.isArray(s.actions)) return false;
@@ -67,7 +67,7 @@ export const matchEvent = (selector: SelectorData, event: ChannelEvent): boolean
   return true;
 };
 
-export const matchThread = (selector: SelectorData, thread: { ref: ThreadRef; labels: string[] }): boolean => {
+export const matchThread = (selector: SelectorData, thread: { ref: ThreadRef; labels: string[] }) => {
   const s = selector as Partial<IssueSelectorData>;
   if (s.channel !== CHANNEL || thread.ref.channel !== CHANNEL || s.kind !== "issue") return false;
   return (s.labels ?? []).every((l) => thread.labels.includes(l));

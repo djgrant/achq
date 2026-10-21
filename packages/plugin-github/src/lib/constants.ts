@@ -1,3 +1,5 @@
+import type { Vars } from "@achq/utils/env";
+
 export const GITHUB_API = "https://api.github.com";
 export const GITHUB_WEB = "https://github.com";
 
@@ -17,6 +19,11 @@ export const GITHUB_ENV = {
   /** Points web links and clone URLs at a fake. */
   web: "GITHUB_WEB_URL",
 } as const;
+
+export type GitHubUrls = { api: string; web: string };
+
+/** Where `env` points the API client, and web links and clone URLs. */
+export const githubUrls = (env: Vars): GitHubUrls => ({ api: env[GITHUB_ENV.api] || GITHUB_API, web: env[GITHUB_ENV.web] || GITHUB_WEB });
 
 /** Variables that only exist on the router, or that an App's own tooling sets. */
 export const PRIVATE_ENV = [GITHUB_ENV.apps, "GITHUB_APP_PRIVATE_KEY", "GITHUB_WEBHOOK_SECRET", "GITHUB_APP_ID"];

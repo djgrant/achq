@@ -9,8 +9,7 @@ export const parseThreadId = (id: string) => {
 /** Author associations that mean write access to the repo. */
 export const TRUSTED = new Set(["OWNER", "MEMBER", "COLLABORATOR"]);
 
-export const labelNames = (labels: unknown): string[] =>
-  Array.isArray(labels) ? labels.map((l) => (typeof l === "string" ? l : l?.name)).filter((n): n is string => typeof n === "string") : [];
+export const labelNames = (labels: unknown) => (Array.isArray(labels) ? labels.map((l) => (typeof l === "string" ? l : l?.name)).filter((n) => typeof n === "string") : []);
 
 /**
  * Message IDs must sort chronologically as strings, because the container keeps

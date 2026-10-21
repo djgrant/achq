@@ -1,10 +1,9 @@
 import { repoName } from "@achq/core";
 import { implementationSecret } from "@achq/core/secrets";
 import { errors } from "@achq/utils/errors";
-import { GitHub, type Installation, type TokenNarrowing } from "@achq/utils/gh";
-import { githubUrls } from "./client.ts";
-import { GITHUB_API, GITHUB_ENV } from "./constants.ts";
 import type { Vars } from "@achq/utils/env";
+import { GitHub, type Installation, type TokenNarrowing } from "@achq/utils/gh";
+import { GITHUB_API, GITHUB_ENV, githubUrls } from "./constants.ts";
 
 /** The least a token can ask for: enough to prove the installation reaches a repo. */
 const PROBE_PERMISSIONS = { metadata: "read" };
@@ -24,6 +23,9 @@ export const parseApps = (json: string | undefined): AppKeys => {
 
 /** ACHQ_GITHUB_APPS' JSON, stable, so the same Apps always make the same variable. */
 export const appsVariable = (apps: AppKeys) => JSON.stringify(Object.fromEntries(Object.entries(apps).sort(([a], [b]) => a.localeCompare(b))));
+
+/** The login an App comments and pushes as. */
+export const botLogin = (slug: string) => `${slug}[bot]`;
 
 /** An App's webhook secret, from its App ID (sent in X-GitHub-Hook-Installation-Target-ID). */
 export const appWebhookSecret = (key: string, appId: string | number) => implementationSecret(key, `github-app-webhook:${appId}`);
@@ -82,7 +84,7 @@ export class Apps {
     }
   }
 
-  async installedOn(repo: string): Promise<FoundInstallation | undefined> {
+  async installedOn(repo: string) {
     for (const slug of this.slugs()) {
       const installation = await this.installation(slug, repo);
       if (!installation || installation.suspended_at) continue;

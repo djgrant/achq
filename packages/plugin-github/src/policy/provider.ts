@@ -2,21 +2,11 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { type PolicyCredential, type PolicyData, type PolicyProvider, repoName } from "@achq/core";
 import { disk } from "@achq/utils/disk";
-import type { Installation } from "@achq/utils/gh";
-import type { Apps, FoundInstallation } from "../lib/apps.ts";
-import { botLogin } from "../lib/client.ts";
+import type { Permissions } from "@achq/utils/gh";
+import { type Apps, botLogin, type FoundInstallation } from "../lib/apps.ts";
 import { POLICY_PROVIDER, REPO } from "../lib/constants.ts";
-import {
-  GH_CONFIG_DIR,
-  GH_HOSTS_FILE,
-  GIT_CONFIG_FILE,
-  ghHostsYml,
-  gitConfig,
-  removeStaleTokens,
-  tokenFileName,
-  writeSecretFile,
-} from "../lib/git-credentials.ts";
-import { covers, maxLevel, type Permissions, POLICY_LEVELS } from "../lib/permissions.ts";
+import { GH_CONFIG_DIR, GH_HOSTS_FILE, GIT_CONFIG_FILE, ghHostsYml, gitConfig, removeStaleTokens, tokenFileName, writeSecretFile } from "../lib/git-credentials.ts";
+import { covers, maxLevel, POLICY_LEVELS } from "../lib/permissions.ts";
 import type { GitHubPolicyData } from "./resource.ts";
 
 /** gh's config directory is only the agent's. */
@@ -29,39 +19,19 @@ type TokenGroup = { source: string; installation: number; repos: string[]; permi
 const notInstalled = (source: string | undefined, repo: string) =>
   source ? `${source} isn't installed on ${repo}` : `No GitHub App on the router is installed on ${repo}`;
 
-const ownRepoFirst = (repo: string) => {
-  const rank = (group: TokenGroup) => (repoName.same(group.repos[0]!, repo) ? 0 : 1);
-  return (a: TokenGroup, b: TokenGroup) => rank(a) - rank(b);
-};
-
-const badLevels = (permissions: Record<string, string>) =>
-  Object.entries(permissions)
-    .filter(([, level]) => !POLICY_LEVELS.has(level))
-    .map(([name, level]) => `Permission ${name} is "${level}"; it must be "read" or "write"`);
-
-const suspended = (slug: string, installation: Installation) =>
-  installation.suspended_at ? [`${slug}'s installation on ${installation.account.login} is suspended`] : [];
-
-const ungranted = (slug: string, installation: Installation, permissions: Record<string, string>) =>
-  Object.entries(permissions)
-    .filter(([name, level]) => !covers(installation.permissions[name], level))
-    .map(([name, level]) => {
-      const granted = installation.permissions[name];
-      return `${slug} has ${granted ? `${name}: ${granted}` : `no ${name} permission`} on ${installation.account.login}; the policy wants ${name}: ${level}`;
-    });
-
 export class GitHubPolicyProvider implements PolicyProvider {
   readonly id = POLICY_PROVIDER;
 
   constructor(private apps: Apps) {}
 
-  private async installation(source: string | undefined, repo: string): Promise<FoundInstallation | undefined> {
+  /** The policy's App's installation on the repo's owner, or else whichever App's covers the repo. */
+  private async installation(source: string | undefined, repo: string) {
     if (!source) return this.apps.installedOn(repo);
     const installation = await this.apps.installation(source, repo);
     return installation && { slug: source, installation };
   }
 
-  async validate(data: PolicyData, repo: string): Promise<string[]> {
+  async validate(data: PolicyData, repo: string) {
     const policy = data as Partial<GitHubPolicyData>;
     if (policy.provider !== POLICY_PROVIDER) return [`Policy is for policy provider "${policy.provider}", not github`];
     if (policy.source !== undefined && (typeof policy.source !== "string" || !this.apps.has(policy.source))) {
@@ -69,20 +39,25 @@ export class GitHubPolicyProvider implements PolicyProvider {
     }
     const target = policy.repo ?? repo;
     if (typeof target !== "string" || !REPO.test(target)) return [`"${target}" isn't an owner/name repo`];
-    const permissions = policy.permissions ?? {};
-    const levels = badLevels(permissions);
-    if (levels.length) return levels;
+    const permissions = Object.entries(policy.permissions ?? {});
+    const badLevels = permissions.filter(([, level]) => !POLICY_LEVELS.has(level));
+    if (badLevels.length) return badLevels.map(([name, level]) => `Permission ${name} is "${level}"; it must be "read" or "write"`);
 
     const found = await this.installation(policy.source, target);
     if (!found) return [notInstalled(policy.source, target)];
     const { slug, installation } = found;
-    const unusable = suspended(slug, installation);
-    if (unusable.length) return unusable;
-    const missing = ungranted(slug, installation, permissions);
-    if (missing.length) return missing;
+    const owner = installation.account.login;
+    if (installation.suspended_at) return [`${slug}'s installation on ${owner} is suspended`];
+    const ungranted = permissions.filter(([name, level]) => !covers(installation.permissions[name], level));
+    if (ungranted.length) {
+      return ungranted.map(([name, level]) => {
+        const granted = installation.permissions[name];
+        return `${slug} has ${granted ? `${name}: ${granted}` : `no ${name} permission`} on ${owner}; the policy wants ${name}: ${level}`;
+      });
+    }
 
     const coverage = await this.apps.covers(slug, installation.id, target);
-    return coverage.covered ? [] : [`${slug}'s installation on ${installation.account.login} doesn't cover ${target}: ${coverage.reason}`];
+    return coverage.covered ? [] : [`${slug}'s installation on ${owner} doesn't cover ${target}: ${coverage.reason}`];
   }
 
   /**
@@ -93,25 +68,17 @@ export class GitHubPolicyProvider implements PolicyProvider {
    * The config's own repo comes first, since gh uses the first token.
    */
   async mint(policies: PolicyData[], repo: string): Promise<PolicyCredential[]> {
-    const groups = await this.groupByTokenScope(policies, repo);
-    return Promise.all(groups.sort(ownRepoFirst(repo)).map((group) => this.mintGroup(group)));
-  }
-
-  private async groupByTokenScope(policies: PolicyData[], repo: string): Promise<TokenGroup[]> {
+    // Each source's installation on a repo is looked up once.
     const lookups = new Map<string, Promise<FoundInstallation | undefined>>();
-    const findInstallationOnce = (source: string | undefined, target: string) => {
-      const key = `${source ?? ""}\n${repoName.key(target)}`;
-      let found = lookups.get(key);
-      if (!found) lookups.set(key, (found = this.installation(source, target)));
-      return found;
-    };
     const groups = new Map<string, TokenGroup>();
     for (const data of policies) {
       const policy = data as GitHubPolicyData;
       if (policy.provider !== POLICY_PROVIDER) continue;
       const target = policy.repo ?? repo;
       if (!REPO.test(target)) throw new Error(`"${target}" isn't an owner/name repo`);
-      const found = await findInstallationOnce(policy.source, target);
+      const lookup = `${policy.source ?? ""}\n${repoName.key(target)}`;
+      if (!lookups.has(lookup)) lookups.set(lookup, this.installation(policy.source, target));
+      const found = await lookups.get(lookup);
       if (!found) throw new Error(notInstalled(policy.source, target));
       const key = `${found.slug}\n${found.installation.id}\n${repoName.key(target)}`;
       const group = groups.get(key) ?? { source: found.slug, installation: found.installation.id, repos: [], permissions: {} };
@@ -119,17 +86,15 @@ export class GitHubPolicyProvider implements PolicyProvider {
       if (!group.repos.some((r) => repoName.same(r, target))) group.repos.push(target);
       for (const [name, level] of Object.entries(policy.permissions)) group.permissions[name] = maxLevel(group.permissions[name], level);
     }
-    return [...groups.values()];
-  }
 
-  private async mintGroup({ source, installation, repos, permissions }: TokenGroup): Promise<PolicyCredential> {
-    const token = await this.apps.token(source, installation, { repositories: repos.map((r) => repoName.split(r).name), permissions });
-    return {
-      provider: POLICY_PROVIDER,
-      value: token.token,
-      expiresAt: token.expires_at,
-      scope: { source, installation, repos, permissions },
-    };
+    const rank = (group: TokenGroup) => (repoName.same(group.repos[0]!, repo) ? 0 : 1);
+    const ownRepoFirst = [...groups.values()].sort((a, b) => rank(a) - rank(b));
+    return Promise.all(
+      ownRepoFirst.map(async ({ source, installation, repos, permissions }) => {
+        const token = await this.apps.token(source, installation, { repositories: repos.map((r) => repoName.split(r).name), permissions });
+        return { provider: POLICY_PROVIDER, value: token.token, expiresAt: token.expires_at, scope: { source, installation, repos, permissions } };
+      }),
+    );
   }
 
   /**
@@ -146,7 +111,7 @@ export class GitHubPolicyProvider implements PolicyProvider {
    * The env is the same on every refresh. Only the files behind it change.
    * A caller that sets its own `GIT_CONFIG_COUNT` must merge, not overwrite.
    */
-  async install(credentials: PolicyCredential[], dir: string): Promise<{ env: Record<string, string> }> {
+  async install(credentials: PolicyCredential[], dir: string) {
     const mine = credentials.filter((c) => c.provider === POLICY_PROVIDER);
     const ghDir = path.join(dir, GH_CONFIG_DIR);
     disk.ensureDir(ghDir, { mode: GH_DIR_MODE });
@@ -158,12 +123,17 @@ export class GitHubPolicyProvider implements PolicyProvider {
       const tokenFile = path.join(dir, name);
       writeSecretFile(tokenFile, credential.value);
       tokenFiles.add(name);
-      for (const repo of credentialRepos(credential)) entries.push({ repo, tokenFile });
+      const repos = Array.isArray(credential.scope.repos) ? credential.scope.repos : [];
+      for (const repo of repos) if (typeof repo === "string" && REPO.test(repo)) entries.push({ repo, tokenFile });
     });
 
     const gitconfig = path.join(dir, GIT_CONFIG_FILE);
     writeSecretFile(gitconfig, gitConfig(entries));
-    writeGhHosts(path.join(ghDir, GH_HOSTS_FILE), mine[0]);
+    // gh is logged in with the first credential, or logged out when there's none.
+    const hosts = path.join(ghDir, GH_HOSTS_FILE);
+    const [first] = mine;
+    if (!first) fs.rmSync(hosts, { force: true });
+    else writeSecretFile(hosts, ghHostsYml(first.value, typeof first.scope.source === "string" ? botLogin(first.scope.source) : ANONYMOUS_GH_USER));
     removeStaleTokens(dir, tokenFiles);
 
     return {
@@ -176,15 +146,3 @@ export class GitHubPolicyProvider implements PolicyProvider {
     };
   }
 }
-
-const credentialRepos = (credential: PolicyCredential): string[] => {
-  const repos = Array.isArray(credential.scope.repos) ? credential.scope.repos : [];
-  return repos.filter((repo): repo is string => typeof repo === "string" && REPO.test(repo));
-};
-
-/** Logs gh in with `credential`, or logs it out when there's none. */
-const writeGhHosts = (hosts: string, credential: PolicyCredential | undefined) => {
-  if (!credential) return fs.rmSync(hosts, { force: true });
-  const { source } = credential.scope;
-  writeSecretFile(hosts, ghHostsYml(credential.value, typeof source === "string" ? botLogin(source) : ANONYMOUS_GH_USER));
-};

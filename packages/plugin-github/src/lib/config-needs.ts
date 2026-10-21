@@ -16,7 +16,7 @@ export const configSource = (manifest: RepoManifest) => {
 export const configNeeds = (manifest: RepoManifest, slug: string) => {
   const events = new Set<string>(CONFIG_EVENTS);
   for (const t of manifest.triggers) if (t.event.channel === CHANNEL && typeof t.event.event === "string") events.add(t.event.event);
-  const permissions: Record<string, string> = { ...CONFIG_PERMISSIONS };
+  const permissions = { ...CONFIG_PERMISSIONS };
   const want = (name: string, level: string) => {
     permissions[name] = maxLevel(permissions[name], level);
   };

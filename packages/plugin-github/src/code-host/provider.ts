@@ -1,11 +1,11 @@
-import { type CodeHostProvider, type ConfigTree, type Credential, type FileLimits, type InstalledRepo, type RepoClient, type RepoManifest, repoName, STATUS_VARIABLE, type Status } from "@achq/core";
-import { GitHub, type RepoApi, type TreeEntry } from "@achq/utils/gh";
+import { type CodeHostProvider, type ConfigTree, type Credential, type FileLimits, type RepoClient, type RepoManifest, repoName, STATUS_VARIABLE, type Status } from "@achq/core";
+import type { Vars } from "@achq/utils/env";
+import { type CommitSummary, GitHub, type RepoApi } from "@achq/utils/gh";
+import { text } from "@achq/utils/text";
 import type { Apps } from "../lib/apps.ts";
-import type { GitHubUrls } from "../lib/client.ts";
 import { configNeeds, configSource } from "../lib/config-needs.ts";
-import { CODE_HOST, POLICY_PROVIDER, REPO_NAME } from "../lib/constants.ts";
+import { CODE_HOST, githubUrls, type GitHubUrls, POLICY_PROVIDER, REPO_NAME } from "../lib/constants.ts";
 import { DEPLOYER_PERMISSIONS } from "../lib/permissions.ts";
-import { lastCommit, readStatus, repoOf } from "../lib/repos.ts";
 import type { GitHubPolicyData } from "../policy/resource.ts";
 import { CodeHost } from "./resource.ts";
 
@@ -13,65 +13,24 @@ const CONFIG_DIR = ".achq";
 /** A git tree entry's mode for a symlink, whose blob is only the path it points to. */
 const SYMLINK_MODE = "120000";
 const LIST_PERMISSIONS = { metadata: "read" };
-
-/** A file with content: not a directory, a submodule (`commit`) or a symlink. */
-const isRegularFile = (entry: TreeEntry) => entry.type === "blob" && entry.mode !== SYMLINK_MODE;
-
-/** Symlinks and submodules aren't followed. */
-const configBlobs = (entries: TreeEntry[]): ConfigTree["blobs"] =>
-  new Map(entries.filter(isRegularFile).map((entry) => [entry.path, { sha: entry.sha, size: entry.size ?? 0 }]));
-
-const assertWithinLimits = (paths: string[], tree: ConfigTree, limits: FileLimits) => {
-  if (paths.length > limits.maxFiles) throw new Error(`${CONFIG_DIR}/ has ${paths.length} source files; the limit is ${limits.maxFiles}`);
-  const listed = paths.reduce((sum, path) => sum + (tree.blobs.get(path)?.size ?? 0), 0);
-  if (listed > limits.maxBytes) throw new Error(`${CONFIG_DIR}/'s source files total ${listed} bytes; the limit is ${limits.maxBytes}`);
-};
-
-/** The repo as the deployer's token reaches it. */
-const repoClient = (repo: RepoApi): RepoClient => ({
-  async config(): Promise<ConfigTree> {
-    const { default_branch: branch } = await repo.info();
-    const commit = await repo.headOf(branch);
-    const configSha = await repo.subtree(commit, CONFIG_DIR);
-    if (!configSha) return { commit, branch, blobs: new Map() };
-    const entries = await repo.listTree(configSha, `${CONFIG_DIR}/`);
-    return { commit, branch, tree: configSha, blobs: configBlobs(entries) };
-  },
-
-  async download(tree: ConfigTree, paths: string[], limits: FileLimits) {
-    assertWithinLimits(paths, tree, limits);
-    const files: Record<string, string> = {};
-    let downloaded = 0;
-    for (const path of paths) {
-      const blob = tree.blobs.get(path);
-      if (!blob) throw new Error(`${CONFIG_DIR}/${path} isn't in the tree`);
-      const bytes = await repo.blob(blob.sha);
-      // Sizes come from the listing; check what actually arrived too.
-      downloaded += bytes.length;
-      if (downloaded > limits.maxBytes) throw new Error(`${CONFIG_DIR}/'s source files are over the ${limits.maxBytes}-byte limit`);
-      files[path] = bytes.toString("utf8");
-    }
-    return files;
-  },
-
-  writeStatus(status: Status) {
-    return repo.upsertVariable(STATUS_VARIABLE, JSON.stringify(status));
-  },
-});
+const STATUS_EXCERPT_CHARS = 200;
 
 /** A repo is set up for achq when the config's one App is installed on it. Only the router has the App keys that list where. */
 export class GitHubCodeHostProvider implements CodeHostProvider {
   readonly repoName = REPO_NAME;
+  private urls: GitHubUrls;
   private you?: GitHub;
 
   constructor(
-    private urls: GitHubUrls,
+    private env: Vars,
     private apps: Apps,
-  ) {}
+  ) {
+    this.urls = githubUrls(env);
+  }
 
   /** You, through your gh login: the CLI's side. Logged in on first use, since the router makes this provider too. */
   private get gh() {
-    return (this.you ??= GitHub.connect({ token: GitHub.cliToken(), baseUrl: this.urls.api }));
+    return (this.you ??= GitHub.connect({ token: this.token(), baseUrl: this.urls.api }));
   }
 
   /** Through whichever App is installed on the repo: GitHub's policy provider finds it. */
@@ -80,7 +39,7 @@ export class GitHubCodeHostProvider implements CodeHostProvider {
   }
 
   repo(repo: string, credential: Credential) {
-    return repoClient(GitHub.connect({ token: credential.value, baseUrl: this.urls.api }).repo(repo));
+    return new GitHubRepoClient(GitHub.connect({ token: credential.value, baseUrl: this.urls.api }).repo(repo));
   }
 
   canPush(repo: string, token: string) {
@@ -91,20 +50,33 @@ export class GitHubCodeHostProvider implements CodeHostProvider {
     return `${this.urls.web}/${repo}.git`;
   }
 
+  /** From an https or ssh remote. */
   repoOf(remote: string) {
-    return repoOf(remote, this.urls.web);
+    const host = text.escapeRegExp(new URL(this.urls.web).host);
+    return remote.trim().match(new RegExp(`${host}[:/]([\\w.-]+/[\\w.-]+?)(?:\\.git)?$`))?.[1];
   }
 
   token() {
-    return GitHub.cliToken();
+    return GitHub.cliToken(this.env);
   }
 
-  status(repo: string) {
-    return readStatus(this.gh, repo);
+  async status(repo: string) {
+    const value = await this.gh.repo(repo).variable(STATUS_VARIABLE);
+    if (value === undefined) return undefined;
+    try {
+      return JSON.parse(value) as Status;
+    } catch {
+      throw new Error(`${repo}'s ${STATUS_VARIABLE} isn't JSON: ${value.slice(0, STATUS_EXCERPT_CHARS)}`);
+    }
   }
 
-  lastCommit(repo: string, branch: string, paths: string[]) {
-    return lastCommit(this.gh, repo, branch, paths);
+  async lastCommit(repo: string, branch: string, paths: string[]) {
+    const api = this.gh.repo(repo);
+    const latestPerPath = await Promise.all(paths.map((path) => api.latestCommitTouching(branch, path)));
+    const committedAt = (commit: CommitSummary) => commit.commit.committer?.date ?? "";
+    const [latest] = latestPerPath.filter((commit) => commit !== undefined).sort((a, b) => committedAt(b).localeCompare(committedAt(a)));
+    if (!latest) throw new Error(`No commits on ${repo}`);
+    return latest.sha;
   }
 
   install(repo: string, manifest: RepoManifest) {
@@ -120,22 +92,59 @@ export class GitHubCodeHostProvider implements CodeHostProvider {
     return new CodeHost({ slug, repo, installed, needs: configNeeds(manifest, slug) });
   }
 
-  async installed(): Promise<InstalledRepo[]> {
-    const perApp = await Promise.all(this.apps.slugs().map((slug) => this.appInstalledRepos(slug)));
-    return dedupe(perApp.flat()).map((repo) => ({ host: CODE_HOST, repo }));
-  }
-
-  /** The repos an App's installations cover, skipping suspended ones (they can't mint tokens). */
-  private async appInstalledRepos(slug: string): Promise<string[]> {
-    const repos: string[] = [];
-    for (const installation of await this.apps.asApp(slug).installations()) {
-      if (installation.suspended_at) continue;
-      const { token } = await this.apps.token(slug, installation.id, { permissions: LIST_PERMISSIONS });
-      for (const { full_name } of await GitHub.connect({ token, baseUrl: this.apps.baseUrl }).installationRepos()) repos.push(full_name);
-    }
-    return repos;
+  /** The repos every App's installations cover. Suspended installations are skipped: they can't mint tokens. */
+  async installed() {
+    const perApp = await Promise.all(
+      this.apps.slugs().map(async (slug) => {
+        const repos: string[] = [];
+        for (const installation of await this.apps.asApp(slug).installations()) {
+          if (installation.suspended_at) continue;
+          const { token } = await this.apps.token(slug, installation.id, { permissions: LIST_PERMISSIONS });
+          for (const { full_name } of await GitHub.connect({ token, baseUrl: this.apps.baseUrl }).installationRepos()) repos.push(full_name);
+        }
+        return repos;
+      }),
+    );
+    // Each repo once, compared as GitHub does; the last spelling wins.
+    const repos = new Map(perApp.flat().map((repo) => [repoName.key(repo), repo]));
+    return [...repos.values()].map((repo) => ({ host: CODE_HOST, repo }));
   }
 }
 
-/** Each repo once, compared as GitHub does; the last spelling wins. */
-const dedupe = (repos: string[]) => [...new Map(repos.map((repo) => [repoName.key(repo), repo])).values()];
+/** The repo as the deployer's token reaches it. */
+class GitHubRepoClient implements RepoClient {
+  constructor(private repo: RepoApi) {}
+
+  async config(): Promise<ConfigTree> {
+    const { default_branch: branch } = await this.repo.info();
+    const commit = await this.repo.headOf(branch);
+    const configSha = await this.repo.subtree(commit, CONFIG_DIR);
+    if (!configSha) return { commit, branch, blobs: new Map() };
+    const entries = await this.repo.listTree(configSha, `${CONFIG_DIR}/`);
+    // Only files with content: symlinks and submodules (`commit`) aren't followed.
+    const files = entries.filter((entry) => entry.type === "blob" && entry.mode !== SYMLINK_MODE);
+    return { commit, branch, tree: configSha, blobs: new Map(files.map((entry) => [entry.path, { sha: entry.sha, size: entry.size ?? 0 }])) };
+  }
+
+  async download(tree: ConfigTree, paths: string[], limits: FileLimits) {
+    if (paths.length > limits.maxFiles) throw new Error(`${CONFIG_DIR}/ has ${paths.length} source files; the limit is ${limits.maxFiles}`);
+    const listed = paths.reduce((sum, path) => sum + (tree.blobs.get(path)?.size ?? 0), 0);
+    if (listed > limits.maxBytes) throw new Error(`${CONFIG_DIR}/'s source files total ${listed} bytes; the limit is ${limits.maxBytes}`);
+    const files: Record<string, string> = {};
+    let downloaded = 0;
+    for (const path of paths) {
+      const blob = tree.blobs.get(path);
+      if (!blob) throw new Error(`${CONFIG_DIR}/${path} isn't in the tree`);
+      const bytes = await this.repo.blob(blob.sha);
+      // Sizes come from the listing; check what actually arrived too.
+      downloaded += bytes.length;
+      if (downloaded > limits.maxBytes) throw new Error(`${CONFIG_DIR}/'s source files are over the ${limits.maxBytes}-byte limit`);
+      files[path] = bytes.toString("utf8");
+    }
+    return files;
+  }
+
+  writeStatus(status: Status) {
+    return this.repo.upsertVariable(STATUS_VARIABLE, JSON.stringify(status));
+  }
+}
