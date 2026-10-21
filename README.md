@@ -126,13 +126,13 @@ Each folder in `packages/` is a workspace package, prefixed with its kind. Packa
 |---|---|---|
 | Kernel | `core` | The contracts plugins implement, resources and the engine that plans and applies them, and the wire protocol between achq's services |
 | Plugin | `plugin-github`, `plugin-railway`, `plugin-claude` | Implementations of core's contracts for one vendor |
-| Service | `service-router`, `service-deployer`, `service-container` | What runs: `main.ts` reads its settings from the environment and wires it up from the registry |
-| Tool | `cli` | `commands/` (one per command), `lib/` |
+| Service | `service-router`, `service-deployer`, `service-container` | What runs: `main.ts` reads its settings from the environment and wires it up from the registry. Each serves its routes with Hono, and has a module per theme, e.g. the router's `router.ts` is its whole HTTP API and `deliveries.ts` an event's way to its targets |
+| Tool | `cli` | `commands/` (one per command), `lib/` (a module per side: `infra`, `repo`, `container`, `workdir`, its own `config`, the `terminal`, and what it prints, `format`) |
 | Facade | `achq` | What configs import (`achq`, `achq/github`, `achq/claude`) and what the infra imports (`achq/infra`), and `achq/registry`: one list of implementations per contract |
-| Library | `utils` | Know nothing about achq: `utils/flock` (file locks), `utils/sandbox` (QuickJS) |
+| Library | `utils` | Know nothing about achq. A module per domain, exporting one namespace (`errors`, `json`, `text`, `collections`, `graph`, `async`, `crypto`, `disk`, `subprocess`, `http`, `flock`, `sandbox`), or classes where it builds on something (`Env`, `Git`, `GitHub` over Octokit, `Railway`, `JsonDirStore`). Callers keep the namespace, `json.from(…)`, `async.retry(…)`, so where a helper comes from is plain |
 | Testing | `test-utils`, `test-e2e` | Fakes shared across packages; the whole system end to end |
 
-**Core** is in four parts: `resources/` (the `Resource` class, what configs and the infra declare), `engine/` (outputs, `plan` and `apply`), `contracts/` (one file per contract), `wire/` (the HTTP protocol, its constants, signing and secrets).
+**Core** is in four parts: `resources/` (the `Resource` class, what configs and the infra declare), `engine/` (outputs, `plan` and `apply`), `contracts/` (one file per contract), `wire/` (the HTTP protocol between services: its requests as zod schemas in `@achq/core/protocol`, checked where they arrive, its constants, signing, with the Hono middleware that checks it, and secrets).
 
 **A resource is one class**: what it's declared with, and, if achq keeps it in shape, how it's read, compared and changed (`ManagedResource`: `read`, `diff`, `describe`, `planned`, `apply`, `check`). A resource made of others returns them from `children`. `achq infra up` plans the infra's resources; nothing else knows how they're made.
 
@@ -145,7 +145,7 @@ Each folder in `packages/` is a workspace package, prefixed with its kind. Packa
 | `provider.ts` | The provider, e.g. `GitHubPolicyProvider` |
 | `index.ts` | Exports the provider alone, as the registry lists it |
 
-GitHub's are `channel/` (`github.Channel` and `GitHubChannelProvider`), `policy/` (`github.Policy` and `GitHubPolicyProvider`) and `code-host/` (`github.CodeHost`, the config's App installed on a repo, which `achq repo install` and `uninstall` plan, and `GitHubCodeHostProvider`). Everything else is in the package's one `src/lib/`, a file per topic: the vendor's API client, its auth, selectors and so on. Railway's are `container/` (`RailwayContainerProvider`, with its shell, `railway ssh`; the resource is core's `Container`), `router/` (`railway.Router`) and `deployer/` (`railway.Deployer`), which hold only a resource; its `lib/` has Railway's own objects as resources (`Project`, `Service`, `Deployment`, `Variables`) and the GraphQL client. Claude's is `agent/` (`claude.Agent` and `ClaudeAgentProvider`).
+GitHub's are `channel/` (`github.Channel` and `GitHubChannelProvider`), `policy/` (`github.Policy` and `GitHubPolicyProvider`) and `code-host/` (`github.CodeHost`, the config's App installed on a repo, which `achq repo install` and `uninstall` plan, and `GitHubCodeHostProvider`). Everything else is in the package's one `src/lib/`, a file per topic the concepts share: its Apps and their keys, webhooks, selectors, permissions and so on. The API client itself is `GitHub` in `@achq/utils/gh`, over Octokit. Railway's are `container/` (`RailwayContainerProvider`, with its shell, `railway ssh`; the resource is core's `Container`), `router/` (`railway.Router`) and `deployer/` (`railway.Deployer`), which hold only a resource; its `lib/` has Railway's own objects as resources (`Project`, `Service`, `Deployment`, `Variables`), and how a service is made of them (`service-parts.ts`). The GraphQL client is `Railway` in `@achq/utils/railway`. Claude's is `agent/` (`claude.Agent` and `ClaudeAgentProvider`).
 
 `src/index.ts` is what repo configs import: it runs in the deployer's sandbox, so it and everything it imports is typechecked without Bun or Node types (`tsconfig.sandbox.json`). `src/infra.ts` is what the infra file imports.
 
