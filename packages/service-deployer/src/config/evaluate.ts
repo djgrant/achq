@@ -1,5 +1,5 @@
 import { posix } from "node:path";
-import { type Limits, run } from "@achq/utils/sandbox";
+import { type Limits, sandbox } from "@achq/utils/sandbox";
 import type { RepoManifest } from "@achq/core";
 import { LOADERS, SANDBOX_ENTRY, SANDBOX_IMPORTS, SANDBOX_LIB, SANDBOX_ROOT } from "../constants.ts";
 import { achqModules } from "./library.ts";
@@ -66,7 +66,7 @@ export const evaluateConfig = async (files: Record<string, string>, limits: Part
   if (!(CONFIG_MODULE in modules)) throw new ConfigError("There's no .achq/config.ts");
   modules[SANDBOX_ENTRY] = ENTRY_SOURCE;
 
-  const { result, logs } = await run(SANDBOX_ENTRY, { modules, resolve: resolverFor(modules), limits }).catch((error: Error) => {
+  const { result, logs } = await sandbox.run(SANDBOX_ENTRY, { modules, resolve: resolverFor(modules), limits }).catch((error: Error) => {
     throw new ConfigError(`The config ${asConfigPaths(error.message)}`);
   });
   try {

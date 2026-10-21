@@ -1,23 +1,21 @@
 import { join } from "node:path";
-import type { RouterRepoConfig } from "@achq/core";
-import { createJsonDirStore } from "@achq/utils/fs";
+import { repoName, type RouterRepoConfig } from "@achq/core";
+import { JsonDirStore } from "@achq/utils/disk";
 import type { FailedEntry, InboxEntry } from "./inbox.ts";
 import type { Claims } from "./targets.ts";
 
-/** Repo names are case-insensitive, so state is kept by the lowercased name. */
-export const repoKey = (repo: string) => repo.toLowerCase();
 
-export const repoFile = (repo: string) => repoKey(repo).replace("/", "__");
+export const repoFile = (repo: string) => repoName.key(repo).replace("/", "__");
 
 export const repoFromFile = (name: string) => name.replace("__", "/");
 
 export const createStore = (root: string) => ({
-  repos: createJsonDirStore<RouterRepoConfig>(join(root, "repos")),
-  claims: createJsonDirStore<Claims>(join(root, "claims")),
+  repos: new JsonDirStore<RouterRepoConfig>(join(root, "repos")),
+  claims: new JsonDirStore<Claims>(join(root, "claims")),
   /** Accepted deliveries some target hasn't answered yet, by delivery ID. */
-  inbox: createJsonDirStore<InboxEntry>(join(root, "inbox")),
+  inbox: new JsonDirStore<InboxEntry>(join(root, "inbox")),
   /** Deliveries some target never answered, by delivery ID. */
-  failed: createJsonDirStore<FailedEntry>(join(root, "failed")),
+  failed: new JsonDirStore<FailedEntry>(join(root, "failed")),
 });
 
 export type Store = ReturnType<typeof createStore>;

@@ -1,6 +1,6 @@
 import { type ChannelProvider, type ChannelEvent, type ClaimRequest, type RepoManifest, type Thread, threadKey } from "@achq/core";
 import { signedFetch } from "@achq/core/signing";
-import { expectOk } from "@achq/utils/http";
+import { http } from "@achq/utils/http";
 import { logFailure } from "./log-failure.ts";
 import type { Paths } from "./paths.ts";
 import { readState, type ThreadState, writeState } from "./state.ts";
@@ -32,5 +32,5 @@ export const claimThread = (opts: ClaimOptions, channel: ChannelProvider, event:
 /** Records the claim on the router, so it sends the thread's events here. */
 const tellRouter = async (opts: ClaimOptions, claim: ClaimRequest) => {
   const res = await signedFetch(opts.containerSecret, `${opts.routerUrl}/claims`, { method: "POST", body: JSON.stringify(claim) });
-  await expectOk(res, "The router refused the claim");
+  await http.expectOk(res, "The router refused the claim");
 };

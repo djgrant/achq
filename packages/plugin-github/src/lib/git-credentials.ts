@@ -1,7 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import type { PolicyCredential } from "@achq/core";
-import { safeFileName, writeFileAtomicSync } from "@achq/utils/fs";
+import { disk } from "@achq/utils/disk";
 
 export const GH_CONFIG_DIR = "gh";
 export const GH_HOSTS_FILE = "hosts.yml";
@@ -40,7 +40,7 @@ export const gitConfig = (entries: { repo: string; tokenFile: string }[]) => {
 const SECRET_MODE = 0o600;
 
 /** Writes a file only its owner can read, so a reader sees the old content or the new, never half of either. */
-export const writeSecretFile = (file: string, content: string) => writeFileAtomicSync(file, content, { mode: SECRET_MODE });
+export const writeSecretFile = (file: string, content: string) => disk.writeAtomicSync(file, content, { mode: SECRET_MODE });
 
 export const ghHostsYml = (token: string, user: string) => `github.com:\n    oauth_token: ${token}\n    user: ${user}\n    git_protocol: https\n`;
 
@@ -53,5 +53,5 @@ export const tokenFileName = (credential: PolicyCredential, index: number) => {
   const { source, installation, repos } = credential.scope;
   const repo = Array.isArray(repos) && repos.length === 1 ? `-${repos[0]}` : "";
   const name = typeof source === "string" && typeof installation === "number" ? `${source}-${installation}${repo}` : String(index);
-  return `${safeFileName(name)}${TOKEN_SUFFIX}`;
+  return `${disk.safeFileName(name)}${TOKEN_SUFFIX}`;
 };

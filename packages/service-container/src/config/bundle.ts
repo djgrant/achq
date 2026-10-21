@@ -1,7 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import type { BunPlugin } from "bun";
-import { isWithin } from "@achq/utils/fs";
+import { disk } from "@achq/utils/disk";
 import { CONFIG_MODULES } from "achq/registry";
 
 const MODULES: Record<string, string> = Object.fromEntries(CONFIG_MODULES.map((specifier) => [specifier, Bun.resolveSync(specifier, import.meta.dir)]));
@@ -34,7 +34,7 @@ const onlyAllowedImports = (realRoot: string): BunPlugin => ({
     });
     build.onResolve({ filter: RELATIVE_IMPORT }, (args) => {
       const file = path.resolve(path.dirname(fs.realpathSync(args.importer)), args.path);
-      if (!isWithin(realRoot, file)) throw new Error(`.achq/ can only import its own files, not "${args.path}"`);
+      if (!disk.isWithin(realRoot, file)) throw new Error(`.achq/ can only import its own files, not "${args.path}"`);
       return undefined;
     });
   },

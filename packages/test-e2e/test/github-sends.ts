@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { implementationSecret } from "@achq/core/secrets";
-import { hmacHex } from "@achq/core/signing";
+import { crypto } from "@achq/utils/crypto";
 import type { FakeGitHub } from "@achq/test-utils/github";
 
 export const KEY = "e2e-agent-webhook-key";
@@ -77,7 +77,7 @@ export const githubSends = (github: FakeGitHub, routerUrl: () => string) => {
         "x-github-hook-installation-target-type": "integration",
         "x-github-hook-installation-target-id": APP_ID,
         "x-hub-signature": `sha1=${new Bun.CryptoHasher("sha1", appWebhookSecret(KEY, APP_ID)).update(body).digest("hex")}`,
-        "x-hub-signature-256": `sha256=${hmacHex(appWebhookSecret(KEY, APP_ID), body)}`,
+        "x-hub-signature-256": `sha256=${crypto.hmacHex(appWebhookSecret(KEY, APP_ID), body)}`,
       },
     });
     return { status: res.status, text: await res.text(), again: () => deliver(event, payload, delivery) };

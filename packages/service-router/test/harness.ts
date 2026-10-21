@@ -4,7 +4,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { ContainerEnvelope, DeployerEnvelope, PolicyData, SelectorData, PolicyProvider, ChannelProvider, ChannelEvent, CodeHostProvider, RouterRepoConfig } from "@achq/core";
 import { adminSecret, containerSecret } from "@achq/core/secrets";
-import { hmacHex, safeEqual, signedRequestInit, verifySigned } from "@achq/core/signing";
+import { signedRequestInit, verifySigned } from "@achq/core/signing";
+import { crypto } from "@achq/utils/crypto";
 import { createRouter } from "../src/router.ts";
 
 export const key = "test-key";
@@ -12,7 +13,7 @@ export const repo = "acme/widgets";
 export const hour = () => new Date(Date.now() + 3_600_000).toISOString();
 
 /** Each source's webhook secret, derived from the key the way the GitHub channel does. */
-export const sourceSecret = (source: string) => hmacHex(key, `test-source:${source}`);
+export const sourceSecret = (source: string) => crypto.hmacHex(key, `test-source:${source}`);
 export const SOURCES = ["app"];
 
 /** Deliveries are a ChannelEvent's fields as JSON, signed per source. */
@@ -21,7 +22,7 @@ export const testChannel: ChannelProvider = {
   async verify(headers, body) {
     const source = headers.get("x-test-source") ?? "";
     const signature = headers.get("x-test-signature") ?? "";
-    return SOURCES.includes(source) && safeEqual(signature, hmacHex(sourceSecret(source), body)) ? source : undefined;
+    return SOURCES.includes(source) && crypto.safeEqual(signature, crypto.hmacHex(sourceSecret(source), body)) ? source : undefined;
   },
   parse(source, _headers, body) {
     const data = JSON.parse(body);
@@ -175,7 +176,7 @@ export const boot = async ({ dir = mkdtempSync(join(tmpdir(), "achq-router-")), 
       signedRequest(base, containerSecret(key, forRepo, container), "POST", path, body, at),
     webhook: (event: Partial<ChannelEvent>, secret = sourceSecret("app")) => {
       const body = JSON.stringify(event);
-      return fetch(`${pub}/webhook`, { method: "POST", body, headers: { "x-test-source": "app", "x-test-signature": hmacHex(secret, body) } });
+      return fetch(`${pub}/webhook`, { method: "POST", body, headers: { "x-test-source": "app", "x-test-signature": crypto.hmacHex(secret, body) } });
     },
     wake: (body: object, token?: string) =>
       fetch(`${pub}/wake`, { method: "POST", body: JSON.stringify(body), headers: { "content-type": "application/json", ...(token && { authorization: `Bearer ${token}` }) } }),

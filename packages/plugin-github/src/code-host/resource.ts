@@ -1,5 +1,5 @@
-import { type Change, type Context, ManagedResource } from "@achq/core";
-import { type AppSettings, GitHub, ghToken, sameLogin, sameRepo, splitRepo, type UserInstallation } from "@achq/utils/gh";
+import { type Change, type Context, ManagedResource, repoName } from "@achq/core";
+import { type AppSettings, GitHub, type UserInstallation } from "@achq/utils/gh";
 import { githubUrls } from "../lib/client.ts";
 import { covers } from "../lib/permissions.ts";
 
@@ -24,7 +24,7 @@ export type CodeHostState = {
 /** "open": the App has no installation on the owner yet, so you install it on GitHub. */
 export type CodeHostChange = "add" | "open" | "remove";
 
-const ownerOf = (repo: string) => splitRepo(repo).owner;
+const ownerOf = (repo: string) => repoName.split(repo).owner;
 
 const installationSettings = ({ id, account }: UserInstallation, web: string) =>
   account.type === "Organization" ? `${web}/organizations/${account.login}/settings/installations/${id}` : `${web}/settings/installations/${id}`;
@@ -32,10 +32,10 @@ const installationSettings = ({ id, account }: UserInstallation, web: string) =>
 const liveApp = async (gh: GitHub, slug: string): Promise<AppSettings | "private"> => (await gh.publicApp(slug)) ?? "private";
 
 const installationOn = async (gh: GitHub, slug: string, owner: string) =>
-  (await gh.userInstallations()).find((i) => i.app_slug === slug && sameLogin(i.account.login, owner));
+  (await gh.userInstallations()).find((i) => i.app_slug === slug && GitHub.sameLogin(i.account.login, owner));
 
 const selects = async (gh: GitHub, installationId: number, repo: string) =>
-  (await gh.userInstallationRepos(installationId)).some((r) => sameRepo(r.full_name, repo));
+  (await gh.userInstallationRepos(installationId)).some((r) => repoName.same(r.full_name, repo));
 
 const missing = (app: AppSettings, needs: AppSettings) => [
   ...needs.events.filter((e) => !app.events.includes(e)).map((e) => `the ${e} event`),
@@ -54,7 +54,7 @@ export class CodeHost extends ManagedResource<CodeHostProps, CodeHostState, {}, 
 
   async read({ slug, repo, installed }: CodeHostProps, ctx: Context): Promise<CodeHostState> {
     const { api, web } = githubUrls(ctx.env);
-    const gh = GitHub.connect({ token: ghToken(ctx.env), baseUrl: api });
+    const gh = GitHub.connect({ token: GitHub.cliToken(ctx.env), baseUrl: api });
     const app = installed ? await liveApp(gh, slug) : undefined;
     const found = await installationOn(gh, slug, ownerOf(repo));
     if (!found) return { app, present: false };
@@ -108,7 +108,7 @@ const openInstallPage = async ({ slug, repo }: CodeHostProps, ctx: Context) => {
 
 /** Needs admin on the repo. */
 const changeInstallationRepos = async ({ repo }: CodeHostProps, installationId: number, change: "add" | "remove", ctx: Context) => {
-  const gh = GitHub.connect({ token: ghToken(ctx.env), baseUrl: githubUrls(ctx.env).api });
+  const gh = GitHub.connect({ token: GitHub.cliToken(ctx.env), baseUrl: githubUrls(ctx.env).api });
   const { id: repoId } = await gh.repo(repo).info();
   if (change === "add") return gh.addToInstallation(installationId, repoId);
   await gh.removeFromInstallation(installationId, repoId);

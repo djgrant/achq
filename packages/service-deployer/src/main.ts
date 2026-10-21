@@ -1,5 +1,6 @@
 import { DEPLOYER_PORT, ENV } from "@achq/core";
-import { optionalEnv, requireEnv } from "@achq/utils/env";
+import { Env } from "@achq/utils/env";
+import { text } from "@achq/utils/text";
 import { containerProviderNamed, privateEnv, CODE_HOST_PROVIDERS } from "achq/registry";
 import { createDeployer } from "./deployer.ts";
 import { DEFAULT_DATA_DIR } from "./constants.ts";
@@ -9,29 +10,23 @@ import { deployerHandler } from "./server.ts";
 /** Bun's longest: a deploy that builds images can keep `/sync` busy for minutes. */
 const IDLE_TIMEOUT_S = 255;
 
-const commaList = (value: string) =>
-  value
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean);
-
 export const main = () => {
-  const env = process.env;
-  const key = requireEnv(env, ENV.key);
-  const routerUrl = requireEnv(env, ENV.routerUrl);
+  const env = new Env(process.env);
+  const key = env.require(ENV.key);
+  const routerUrl = env.require(ENV.routerUrl);
   const deployer = createDeployer({
-    containerProvider: containerProviderNamed(requireEnv(env, ENV.containerProvider)).create(env),
+    containerProvider: containerProviderNamed(env.require(ENV.containerProvider)).create(env.vars),
     router: routerClient({ url: routerUrl, key }),
-    codeHostProviders: Object.fromEntries(CODE_HOST_PROVIDERS.map((h) => [h.id, h.create(env)])),
-    owners: commaList(requireEnv(env, ENV.owners)),
-    dataDir: optionalEnv(env, ENV.dataDir) ?? DEFAULT_DATA_DIR,
+    codeHostProviders: Object.fromEntries(CODE_HOST_PROVIDERS.map((h) => [h.id, h.create(env.vars)])),
+    owners: text.commaList(env.require(ENV.owners)),
+    dataDir: env.optional(ENV.dataDir) ?? DEFAULT_DATA_DIR,
     env: {
-      containerEnv: JSON.parse(requireEnv(env, ENV.containerEnv)),
+      containerEnv: JSON.parse(env.require(ENV.containerEnv)),
       privateEnv: privateEnv(),
       key,
       routerUrl,
-      routerPublicUrl: requireEnv(env, ENV.routerPublicUrl),
-      ref: requireEnv(env, ENV.ref),
+      routerPublicUrl: env.require(ENV.routerPublicUrl),
+      ref: env.require(ENV.ref),
     },
   });
 

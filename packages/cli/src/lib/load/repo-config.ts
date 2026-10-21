@@ -2,7 +2,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import type { RepoManifest } from "@achq/core";
 import { evaluateConfig } from "@achq/deployer/config";
-import { readTree } from "@achq/utils/fs";
+import { disk } from "@achq/utils/disk";
 
 const CONFIG_DIR = ".achq";
 const CONFIG_ENTRY = "config.ts";
@@ -17,7 +17,7 @@ const assertHasConfig = (repoDir: string, dir: string) => {
 export const readConfigFiles = (repoDir: string) => {
   const dir = path.join(repoDir, CONFIG_DIR);
   assertHasConfig(repoDir, dir);
-  return readTree(dir, { skip: SKIPPED_DIRS });
+  return disk.readTree(dir, { skip: SKIPPED_DIRS });
 };
 
 /** The repo's manifest, evaluated in the sandbox as the deployer does it. */

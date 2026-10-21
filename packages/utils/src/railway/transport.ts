@@ -1,4 +1,4 @@
-import { ERROR_BODY_CHARS } from "../http.ts";
+import { http } from "../http.ts";
 import type { Data, Operation } from "./operations.ts";
 
 export const RAILWAY_API = "https://backboard.railway.com/graphql/v2";
@@ -11,7 +11,7 @@ const parseResponse = (status: number, text: string): GraphQLResponse => {
   try {
     return JSON.parse(text);
   } catch {
-    throw new RailwayError(`Railway: ${status} ${text.slice(0, ERROR_BODY_CHARS)}`);
+    throw new RailwayError(`Railway: ${status} ${http.excerpt(text)}`);
   }
 };
 

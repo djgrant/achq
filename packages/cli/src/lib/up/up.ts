@@ -3,12 +3,13 @@ import { cliContext } from "../context.ts";
 import type { InfraResources } from "../load/infra.ts";
 import { adminRequest } from "../router.ts";
 import { planLines } from "../changes.ts";
+import type { Vars } from "@achq/utils/env";
 
 export type UpOptions = { prune: boolean; dryRun: boolean };
 
 export type UpDeps = {
   /** What the resources read their settings and credentials from. */
-  env: Record<string, string | undefined>;
+  env: Vars;
   containerEnv: Record<string, string>;
   /** The achq commit the router and deployer run. */
   achqRef: () => Promise<string>;

@@ -1,4 +1,4 @@
-import { randomHex } from "@achq/utils/crypto";
+import { crypto } from "@achq/utils/crypto";
 import { type CreatedApp, GitHub } from "@achq/utils/gh";
 import { GITHUB_API, GITHUB_WEB } from "./constants.ts";
 import { APP_EVENTS, APP_PERMISSIONS } from "./permissions.ts";
@@ -52,7 +52,7 @@ export const manifestFlow = async (
 ): Promise<CreatedApp> => {
   const web = options.githubWeb ?? GITHUB_WEB;
   const gh = GitHub.connect({ baseUrl: options.githubApi ?? GITHUB_API });
-  const state = randomHex(STATE_BYTES);
+  const state = crypto.randomHex(STATE_BYTES);
   let settle!: { resolve: (app: CreatedApp) => void; reject: (e: Error) => void };
   const created = new Promise<CreatedApp>((resolve, reject) => (settle = { resolve, reject }));
 

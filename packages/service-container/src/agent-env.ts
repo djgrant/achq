@@ -1,6 +1,7 @@
-import { filterKeys } from "@achq/utils/collections";
-import { readJsonSync, writeFileEnsured } from "@achq/utils/fs";
+import { collections } from "@achq/utils/collections";
+import { disk } from "@achq/utils/disk";
 import { withoutPrivate } from "./env.ts";
+import type { Vars } from "@achq/utils/env";
 
 type Identity = { name: string; email: string };
 
@@ -16,9 +17,9 @@ export const gitIdentity = ({ name, email }: Identity): Record<string, string> =
   GIT_COMMITTER_EMAIL: email,
 });
 
-export const gitIdentityEnv = (env: Record<string, string>) => filterKeys(env, (k) => GIT_IDENTITY_PREFIXES.some((prefix) => k.startsWith(prefix)));
+export const gitIdentityEnv = (env: Record<string, string>) => collections.filterKeys(env, (k) => GIT_IDENTITY_PREFIXES.some((prefix) => k.startsWith(prefix)));
 
-export const agentEnv = (base: Record<string, string | undefined>, home: string, credentialEnv: Record<string, string>, identity: Identity): Record<string, string> => ({
+export const agentEnv = (base: Vars, home: string, credentialEnv: Record<string, string>, identity: Identity): Record<string, string> => ({
   ...withoutPrivate(base),
   HOME: home,
   ...credentialEnv,
@@ -28,7 +29,7 @@ export const agentEnv = (base: Record<string, string | undefined>, home: string,
 /** For `resume`, which opens sessions outside the runner: the credentials and git identity the last run had. */
 export const saveAgentEnv = (file: string, credentialEnv: Record<string, string>, env: Record<string, string>) => {
   const saved = { ...credentialEnv, ...gitIdentityEnv(env) };
-  writeFileEnsured(file, JSON.stringify(saved), { mode: PRIVATE_FILE_MODE, dirMode: PRIVATE_DIR_MODE });
+  disk.writeEnsured(file, JSON.stringify(saved), { mode: PRIVATE_FILE_MODE, dirMode: PRIVATE_DIR_MODE });
 };
 
-export const savedAgentEnv = (file: string): Record<string, string> => readJsonSync(file, {});
+export const savedAgentEnv = (file: string) => disk.readJsonSync<Record<string, string>>(file) ?? {};

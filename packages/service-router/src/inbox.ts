@@ -1,6 +1,6 @@
 import type { ChannelEvent, ContainerEnvelope, DeployerEnvelope } from "@achq/core";
 import { adminSecret, containerSecret } from "@achq/core/secrets";
-import { errorMessage } from "@achq/utils/errors";
+import { errors } from "@achq/utils/errors";
 import type { RouterContext } from "./context.ts";
 import { fetchSigned, reach, type Try } from "./reach.ts";
 import type { Target } from "./targets.ts";
@@ -54,7 +54,7 @@ const deliver = async (ctx: RouterContext, entry: InboxEntry) => {
 const track = (ctx: RouterContext, entry: InboxEntry) => {
   const { delivery } = entry.event;
   const done = deliver(ctx, entry)
-    .catch((e) => ctx.log(`${delivery}: ${errorMessage(e)}`))
+    .catch((e) => ctx.log(`${delivery}: ${errors.message(e)}`))
     .finally(() => ctx.inFlight.delete(delivery));
   ctx.inFlight.set(delivery, done);
 };

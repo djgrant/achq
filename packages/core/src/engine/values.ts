@@ -1,4 +1,4 @@
-import { deepEqual, isPlainObject } from "@achq/utils/json";
+import { json } from "@achq/utils/json";
 import type { ManagedResource } from "../resources/resource.ts";
 
 /** A value not known until what it comes from is created, e.g. a new service's URL. */
@@ -10,10 +10,8 @@ export const GENERATED: unique symbol = Symbol("generated once");
 
 export const known = <T>(value: T | Unknown): value is T => value !== UNKNOWN;
 
-export const isPlain = isPlainObject;
-
 export const hasUnknown = (value: unknown): boolean =>
-  value === UNKNOWN || (Array.isArray(value) ? value.some(hasUnknown) : isPlain(value) && Object.values(value).some(hasUnknown));
+  value === UNKNOWN || (Array.isArray(value) ? value.some(hasUnknown) : json.isPlainObject(value) && Object.values(value).some(hasUnknown));
 
 /** Each resource's outputs, as planned or as applied. */
 export type Outputs = Map<ManagedResource, unknown>;
@@ -55,16 +53,14 @@ export const all = <T extends unknown[]>(inputs: { [K in keyof T]: Input<T[K]> }
 export const resolve = (value: unknown, outputs: Outputs): any => {
   if (value instanceof Output) return value.get(outputs);
   if (Array.isArray(value)) return value.map((v) => resolve(v, outputs));
-  if (isPlain(value)) return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, resolve(v, outputs)]));
+  if (json.isPlainObject(value)) return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, resolve(v, outputs)]));
   return value;
 };
 
 export const dependencies = (value: unknown): ManagedResource[] => {
   if (value instanceof Output) return value.from;
   if (Array.isArray(value)) return value.flatMap(dependencies);
-  if (isPlain(value)) return Object.values(value).flatMap(dependencies);
+  if (json.isPlainObject(value)) return Object.values(value).flatMap(dependencies);
   return [];
 };
 
-/** Deep equality over what `resolve` makes: plain objects, arrays and other values by identity. */
-export const same = deepEqual;

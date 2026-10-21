@@ -1,5 +1,5 @@
-import type { DeployRecord, InstalledRepo, Status } from "@achq/core";
-import { alignedTable } from "@achq/utils/text";
+import { type DeployRecord, type InstalledRepo, repoName, type Status } from "@achq/core";
+import { text } from "@achq/utils/text";
 
 const SHORT_SHA_LENGTH = 7;
 const NONE = "-";
@@ -27,15 +27,13 @@ export const formatStatus = (status: Status) => {
 /** A repo the router knows: installed on its code host, deployed, or both. */
 type RepoRow = { repo: string; installed: boolean; record?: DeployRecord };
 
-/** Repo names compare case-insensitively, as code hosts treat them. */
-const repoKey = (repo: string) => repo.toLowerCase();
 
 /** A record's spelling of the name wins. */
 const joinByRepo = (records: DeployRecord[], installed: InstalledRepo[]): RepoRow[] => {
   const rows = new Map<string, RepoRow>();
-  for (const i of installed) rows.set(repoKey(i.repo), { repo: i.repo, installed: true });
+  for (const i of installed) rows.set(repoName.key(i.repo), { repo: i.repo, installed: true });
   for (const record of records) {
-    const key = repoKey(record.repo);
+    const key = repoName.key(record.repo);
     rows.set(key, { repo: record.repo, installed: rows.get(key)?.installed ?? false, record });
   }
   return [...rows].sort(([a], [b]) => a.localeCompare(b)).map(([, row]) => row);
@@ -54,7 +52,7 @@ const infraRow = (row: RepoRow) => [row.repo, repoState(row), row.record?.at ?? 
 export const infraStatusTable = (records: DeployRecord[], installed: InstalledRepo[]) => {
   const rows = joinByRepo(records, installed);
   if (!rows.length) return "No repo is installed";
-  const table = alignedTable([INFRA_COLUMNS, ...rows.map(infraRow)]);
+  const table = text.alignedTable([INFRA_COLUMNS, ...rows.map(infraRow)]);
   const errors = rows.flatMap(({ repo, record }) => (record?.error ? [`${repo}: ${record.error}`] : []));
   return [...table, ...(errors.length ? ["", ...errors] : [])].join("\n");
 };

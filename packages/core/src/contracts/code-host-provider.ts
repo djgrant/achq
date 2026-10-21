@@ -4,6 +4,17 @@ import type { ManagedResource } from "../resources/resource.ts";
 import type { Credential } from "./channel-provider.ts";
 import type { InstalledRepo, Status } from "../wire/protocol.ts";
 
+/** A repo's `owner/name`. Code hosts compare them case-insensitively, and so does achq. */
+export const repoName = {
+  /** What anything kept per repo is kept under. */
+  key: (repo: string) => repo.toLowerCase(),
+  same: (a: string, b: string) => repoName.key(a) === repoName.key(b),
+  split: (repo: string) => {
+    const [owner = "", name = ""] = repo.split("/");
+    return { owner, name };
+  },
+};
+
 /** A repo's default branch head, and the `.achq` tree in it. */
 export type ConfigTree = {
   commit: string;

@@ -1,6 +1,6 @@
 import { afterAll, beforeEach, describe, expect, test } from "bun:test";
 import { createVerify, generateKeyPairSync } from "node:crypto";
-import { ghToken, GitHub, repoKey, sameLogin, sameRepo, splitRepo } from "../src/gh/index.ts";
+import { GitHub } from "../src/gh/index.ts";
 
 // A tiny GitHub: each test sets the routes it answers, and every request is recorded.
 type Route = (req: Request, url: URL) => Response | Promise<Response>;
@@ -140,14 +140,11 @@ describe("a repo's variables, issues and access", () => {
 });
 
 describe("names and auth", () => {
-  test("repo names split, and compare case-insensitively", () => {
-    expect(splitRepo("Owner/Name")).toEqual({ owner: "Owner", name: "Name" });
-    expect(sameRepo("Owner/Name", "owner/name")).toBe(true);
-    expect(repoKey("Owner/Name")).toBe("owner/name");
-    expect(sameLogin("NotationLabs", "notationlabs")).toBe(true);
+  test("logins compare case-insensitively", () => {
+    expect(GitHub.sameLogin("NotationLabs", "notationlabs")).toBe(true);
   });
 
-  test("ghToken takes GH_TOKEN from the env without asking gh", () => {
-    expect(ghToken({ GH_TOKEN: "from-env" })).toBe("from-env");
+  test("cliToken takes GH_TOKEN from the env without asking gh", () => {
+    expect(GitHub.cliToken({ GH_TOKEN: "from-env" })).toBe("from-env");
   });
 });

@@ -1,11 +1,11 @@
 import { $ } from "bun";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { serial } from "@achq/utils/async";
-import { ensureDir } from "@achq/utils/fs";
+import { async } from "@achq/utils/async";
+import { disk } from "@achq/utils/disk";
+import type { Vars } from "@achq/utils/env";
 import { Git, type WorktreeBranch } from "@achq/utils/git";
 
-export type Env = Record<string, string | undefined>;
 
 const ORIGIN = "origin";
 /** Remote branches land beside local ones rather than on them. */
@@ -13,9 +13,9 @@ const REMOTE_TRACKING_REFSPEC = `+refs/heads/*:refs/remotes/${ORIGIN}/*`;
 const DETACHED = "(detached)";
 
 /** Serialises operations on the shared mirror within this process. */
-export const mirrorLock = serial();
+export const mirrorLock = async.serial();
 
-export const fetchMirror = (mirror: string, url: string, env: Env = process.env) =>
+export const fetchMirror = (mirror: string, url: string, env: Vars = process.env) =>
   mirrorLock(async () => {
     const git = new Git(mirror, env);
     if (!git.exists()) await initMirror(git, url);
@@ -31,7 +31,7 @@ const initMirror = async (git: Git, url: string) => {
 export const hasCommit = (mirror: string, commit: string) => new Git(mirror).hasCommit(commit);
 
 export const extractTree = async (mirror: string, commit: string, dir: string, dest: string) => {
-  ensureDir(dest);
+  disk.ensureDir(dest);
   await extractArchive(await new Git(mirror).archive(commit, dir), dest);
 };
 
@@ -43,9 +43,9 @@ const extractArchive = async (tar: Buffer, dest: string) => {
  * Creates the thread's worktree on first use, on `branch`. An existing
  * worktree is left exactly as it is: it's the sessions' working state.
  */
-export const ensureWorktree = async (mirror: string, dir: string, branch: string, base: string, env: Env = process.env) => {
+export const ensureWorktree = async (mirror: string, dir: string, branch: string, base: string, env: Vars = process.env) => {
   if (fs.existsSync(dir)) return;
-  ensureDir(path.dirname(dir));
+  disk.ensureDir(path.dirname(dir));
   await mirrorLock(async () => {
     const git = new Git(mirror, env);
     await git.worktreePrune();

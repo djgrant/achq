@@ -1,3 +1,3 @@
-import { openUrl } from "@achq/utils/process";
+import { subprocess } from "@achq/utils/subprocess";
 
-export const openInBrowser = async (url: string) => openUrl(url);
+export const openInBrowser = async (url: string) => subprocess.openUrl(url);

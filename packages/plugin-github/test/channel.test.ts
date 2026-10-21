@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { appWebhookSecret } from "../src/lib/apps.ts";
-import { hmacHex } from "@achq/core/signing";
+import { crypto } from "@achq/utils/crypto";
 import { FakeGitHub } from "@achq/test-utils/github";
 import { githubChannelProvider } from "../src/channel/index.ts";
 import type { GitHubChannelProvider } from "../src/channel/provider.ts";
@@ -14,17 +14,17 @@ describe("verify", () => {
     expect(await channel.verify(headers("issue_comment", body), body)).toBe("notation-achq");
     const b = headers("issue_comment", body, {
       "x-github-hook-installation-target-id": "202",
-      "x-hub-signature-256": `sha256=${hmacHex(appWebhookSecret(KEY, "202"), body)}`,
+      "x-hub-signature-256": `sha256=${crypto.hmacHex(appWebhookSecret(KEY, "202"), body)}`,
     });
     expect(await channel.verify(b, body)).toBe("djgrant-claude");
   });
 
   test("rejects a wrong secret, another App's ID, an unknown App, a tampered body and missing headers", async () => {
-    const wrong = `sha256=${hmacHex(appWebhookSecret("another-key", "101"), body)}`;
+    const wrong = `sha256=${crypto.hmacHex(appWebhookSecret("another-key", "101"), body)}`;
     expect(await channel.verify(headers("issue_comment", body, { "x-hub-signature-256": wrong }), body)).toBeUndefined();
     // Signed for App 101, but claims to be App 202: 202's secret doesn't check out.
     expect(await channel.verify(headers("issue_comment", body, { "x-github-hook-installation-target-id": "202" }), body)).toBeUndefined();
-    const unknown = { "x-github-hook-installation-target-id": "999", "x-hub-signature-256": `sha256=${hmacHex(appWebhookSecret(KEY, "999"), body)}` };
+    const unknown = { "x-github-hook-installation-target-id": "999", "x-hub-signature-256": `sha256=${crypto.hmacHex(appWebhookSecret(KEY, "999"), body)}` };
     expect(await channel.verify(headers("issue_comment", body, unknown), body)).toBeUndefined();
     expect(await channel.verify(headers("issue_comment", body), body.replace("please", "PLEASE"))).toBeUndefined();
     expect(await channel.verify(headers("issue_comment", body, { "x-hub-signature-256": null }), body)).toBeUndefined();

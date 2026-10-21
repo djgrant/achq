@@ -1,8 +1,8 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import type { Message, Thread } from "@achq/core";
-import { sha256Hex } from "@achq/utils/crypto";
-import { escapeRegExp } from "@achq/utils/text";
+import { crypto } from "@achq/utils/crypto";
+import { text } from "@achq/utils/text";
 import Mustache from "mustache";
 import { PROMPTS } from "./constants.ts";
 
@@ -36,7 +36,7 @@ export type Prompt = {
   opening: string;
 };
 
-export const hashBody = (body: string) => sha256Hex(body);
+export const hashBody = (body: string) => crypto.sha256Hex(body);
 
 const EMPTY = "(empty)";
 const UNTRUSTED_OPENING = "(Left out: the opening post is by a user without write access.)";
@@ -93,4 +93,4 @@ const render = (mode: PromptInput["mode"], view: object) => {
 /** `/new` is for the runner. The agent only needs what follows it. */
 const stripNew = (body: string, mention?: string) => (mention ? body.replace(newCommandAfter(mention), "$1") : body);
 
-const newCommandAfter = (mention: string) => new RegExp(`(${escapeRegExp(mention)})\\s+/new(?![\\w-])`, "g");
+const newCommandAfter = (mention: string) => new RegExp(`(${text.escapeRegExp(mention)})\\s+/new(?![\\w-])`, "g");

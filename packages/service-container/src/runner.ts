@@ -1,8 +1,9 @@
 import { type ChannelClient, type ChannelProvider, type ChannelEvent, type ContainerEnvelope, type PolicyProvider, type RepoManifest, type RuntimeFactory, type Thread, threadKey } from "@achq/core";
-import { keyedQueue, memo } from "@achq/utils/async";
-import { errorDetail, errorMessage } from "@achq/utils/errors";
-import { withLock } from "@achq/utils/flock";
-import { ensureDirs } from "@achq/utils/fs";
+import { async } from "@achq/utils/async";
+import { errors } from "@achq/utils/errors";
+import { flock } from "@achq/utils/flock";
+import { disk } from "@achq/utils/disk";
+import type { Vars } from "@achq/utils/env";
 import { agentEnv, saveAgentEnv } from "./agent-env.ts";
 import { claimThread } from "./claim.ts";
 import type { LoadedConfig } from "./config/loader.ts";
@@ -38,7 +39,7 @@ export type RunnerOptions = {
   maxRuns?: number;
   runTimeoutMs?: number;
   /** Private variables are removed. */
-  env?: Record<string, string | undefined>;
+  env?: Vars;
   now?: () => number;
   /** Outbound traffic while runs are going, so the container provider doesn't sleep the container. Defaults to fetching ENV.keepAwakeUrl, when it's set. */
   keepAwake?: () => Promise<unknown>;
@@ -47,7 +48,6 @@ export type RunnerOptions = {
 
 type Workspace = RepoManifest["workspaces"][number];
 type Trigger = RepoManifest["triggers"][number];
-type Env = Record<string, string | undefined>;
 
 type Matched = { workspaces: Workspace[]; triggers: Trigger[] };
 
@@ -56,7 +56,7 @@ export class Runner {
   readonly credentials: Credentials;
   readonly fetch: (req: Request) => Response | Promise<Response>;
   /** One thread's runs go one after another. */
-  private enqueue = keyedQueue();
+  private enqueue = async.keyedQueue();
   private pending = new Set<Promise<unknown>>();
   private slots: RunSlots;
   private triggerDeps: TriggerDeps;
@@ -80,7 +80,7 @@ export class Runner {
     this.fetch = eventsHandler({
       secret: opts.containerSecret,
       now: this.now,
-      accept: (envelope) => this.track(this.handle(envelope).catch((e) => this.log(`[${envelope.event.delivery}] ${errorDetail(e)}`))),
+      accept: (envelope) => this.track(this.handle(envelope).catch((e) => this.log(`[${envelope.event.delivery}] ${errors.detail(e)}`))),
       log: this.log,
     });
     this.slots = this.runSlots(opts.maxRuns ?? DEFAULT_MAX_RUNS);
@@ -90,7 +90,7 @@ export class Runner {
       runTimeoutMs: opts.runTimeoutMs ?? DEFAULT_RUN_TIMEOUT_MINUTES * MINUTE_MS,
       now: this.now,
     };
-    ensureDirs(this.paths.home, this.paths.threads, this.paths.deliveries);
+    for (const dir of [this.paths.home, this.paths.threads, this.paths.deliveries]) disk.ensureDir(dir);
   }
 
   /** Resolves when everything in flight has finished. For tests and shutdown. */
@@ -103,7 +103,7 @@ export class Runner {
     p.finally(() => this.pending.delete(p));
   }
 
-  private get baseEnv(): Env {
+  private get baseEnv(): Vars {
     return this.opts.env ?? process.env;
   }
 
@@ -143,7 +143,7 @@ export class Runner {
 
     const key = threadKey(event.thread);
     const queued = this.enqueue(key, () => this.slots.run(() => this.work(event, config, matched)));
-    this.track(queued.catch((e) => this.log(`[${key}] ${errorDetail(e)}`)));
+    this.track(queued.catch((e) => this.log(`[${key}] ${errors.detail(e)}`)));
   }
 
   private channelOf(event: ChannelEvent) {
@@ -156,7 +156,7 @@ export class Runner {
       return await this.opts.loadConfig(commit);
     } catch (e) {
       // The router only forwards events some trigger matches, so someone is waiting on a reply.
-      const message = errorMessage(e);
+      const message = errors.message(e);
       this.log(`[${event.delivery}] couldn't load the config at ${commit}: ${message}`);
       const client = await this.client(channel, event.source);
       await reply(client, event.thread!, configLoadFailed(commit, message), this.log);
@@ -181,15 +181,15 @@ export class Runner {
     const workspace = workspaces.find((w) => w.name === state.workspace)!;
 
     await logFailure(client.acknowledge(event), log, "acknowledge failed");
-    await withLock(this.paths.lock(workspace.name, key), async () => {
+    await flock.withLock(this.paths.lock(workspace.name, key), async () => {
       const { env: credentialEnv } = await this.credentials.get();
       let cwd: string;
       try {
         cwd = await this.prepareWorktree(workspace, key, thread, { ...process.env, ...credentialEnv });
       } catch (e) {
-        return reply(client, ref, worktreeFailed(errorMessage(e)), log);
+        return reply(client, ref, worktreeFailed(errors.message(e)), log);
       }
-      const ctx = this.contextFor(config);
+      const ctx = await this.contextFor(config);
       const env = await this.agentEnvFor(client, credentialEnv);
       for (const trigger of triggers) {
         await runTrigger(this.triggerDeps, { trigger, event, config, ctx, client, thread, state, cwd, env, log });
@@ -202,7 +202,7 @@ export class Runner {
     return claimThread({ paths: this.paths, repo, container, routerUrl, containerSecret, log: this.log }, channel, event, thread, workspaces);
   }
 
-  private async prepareWorktree(workspace: Workspace, key: string, thread: Thread, gitEnv: Env): Promise<string> {
+  private async prepareWorktree(workspace: Workspace, key: string, thread: Thread, gitEnv: Vars): Promise<string> {
     const cwd = this.paths.worktree(workspace.name, key);
     await fetchMirror(this.paths.mirror, this.opts.repoUrl, gitEnv);
     await ensureWorktree(this.paths.mirror, cwd, fillBranch(workspace.branch, thread.vars), workspace.base, gitEnv);
@@ -217,7 +217,7 @@ export class Runner {
   }
 
   /** Session keys and runtimes read the container's startup files, so they're written here, once per config. */
-  private contextFor = memo((config: LoadedConfig) => {
+  private contextFor = async.memo(async (config: LoadedConfig) => {
     const container = config.manifest.containers.find((c) => c.name === this.opts.container);
     if (!container) throw new Error(`The config at ${config.commit} has no container "${this.opts.container}"`);
     const ctx = containerContext(config, this.paths.home, this.baseEnv, container);

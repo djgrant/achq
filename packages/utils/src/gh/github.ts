@@ -3,7 +3,8 @@ import { Octokit as Core } from "@octokit/core";
 import { paginateRest } from "@octokit/plugin-paginate-rest";
 import { restEndpointMethods, type RestEndpointMethodTypes } from "@octokit/plugin-rest-endpoint-methods";
 import { RequestError } from "@octokit/request-error";
-import { splitRepo } from "./names.ts";
+import type { Vars } from "../env.ts";
+import { subprocess } from "../subprocess.ts";
 import type { AppSettings, HookConfig, Installation, Permissions, ReactionContent, ReactionTarget, TokenNarrowing, UserInstallation } from "./types.ts";
 
 /** Without a request log: a 404 is often an answer, not an error to print. */
@@ -55,6 +56,19 @@ export class GitHub {
   /** As the App itself: each request carries a JWT its private key signs. */
   static connectAsApp(appId: string, privateKey: string, { baseUrl }: Pick<Connection, "baseUrl"> = {}) {
     return new GitHub(new Octokit({ authStrategy: createAppAuth, auth: { appId, privateKey }, baseUrl, userAgent: USER_AGENT }));
+  }
+
+  /** Your gh login's token: `GH_TOKEN` in `env` wins, as it does for gh itself; otherwise `gh auth token`. */
+  static cliToken(env: Vars = {}): string {
+    if (env.GH_TOKEN) return env.GH_TOKEN;
+    const { ok, stdout, stderr } = subprocess.run(["gh", "auth", "token"]);
+    if (!ok) throw new Error(`Needs a gh login (gh auth login): ${stderr.trim()}`);
+    return stdout.trim();
+  }
+
+  /** Logins compare case-insensitively, as GitHub compares them. */
+  static sameLogin(a: string, b: string) {
+    return a.toLowerCase() === b.toLowerCase();
   }
 
   repo(fullName: string) {
@@ -134,8 +148,8 @@ export class RepoApi {
     private octokit: Octokit,
     readonly fullName: string,
   ) {
-    const { owner, name } = splitRepo(fullName);
-    this.at = { owner, repo: name };
+    const [owner = "", repo = ""] = fullName.split("/");
+    this.at = { owner, repo };
   }
 
   async info() {

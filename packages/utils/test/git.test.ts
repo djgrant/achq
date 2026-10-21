@@ -3,7 +3,7 @@ import { $ } from "bun";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Git, remoteUrl, repoRoot } from "../src/git.ts";
+import { Git } from "../src/git.ts";
 
 const dirs: string[] = [];
 afterEach(() => {
@@ -71,12 +71,12 @@ test("archive gives a path at a commit, or says it isn't there", async () => {
   await expect(git.archive("HEAD", "missing")).rejects.toThrow("No missing/ at HEAD");
 });
 
-test("repoRoot and remoteUrl, synchronously", async () => {
+test("root and remoteUrl, synchronously", async () => {
   const { dir, git } = await origin();
   fs.mkdirSync(path.join(dir, "sub"));
-  expect(repoRoot(path.join(dir, "sub"))).toBe(dir);
-  expect(repoRoot(tmpDir())).toBeUndefined();
-  expect(remoteUrl(dir, "origin")).toBeUndefined();
+  expect(Git.root(path.join(dir, "sub"))).toBe(dir);
+  expect(Git.root(tmpDir())).toBeUndefined();
+  expect(Git.remoteUrl(dir, "origin")).toBeUndefined();
   await git.run(["remote", "add", "origin", "https://example.com/a/b.git"]);
-  expect(remoteUrl(dir, "origin")).toBe("https://example.com/a/b.git");
+  expect(Git.remoteUrl(dir, "origin")).toBe("https://example.com/a/b.git");
 });

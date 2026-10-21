@@ -1,5 +1,5 @@
 import { ACHQ_SOURCE, all, type Context, ENV, type EnvValues, type Input, type ManagedResource, type Output, type Service as AchqService } from "@achq/core";
-import { duplicates } from "@achq/utils/collections";
+import { collections } from "@achq/utils/collections";
 import type { InstanceSettings } from "@achq/utils/railway";
 import { BUN_IMAGE, VOLUME } from "./constants.ts";
 import { Deployment, fingerprint } from "./deployment.ts";
@@ -129,7 +129,7 @@ export class ServiceParts {
 
   /** Two groups setting one variable would undo each other on every apply. */
   private assertNoSharedVariables() {
-    const shared = duplicates(this.groups.flatMap(({ values }) => Object.keys(values)));
+    const shared = collections.duplicates(this.groups.flatMap(({ values }) => Object.keys(values)));
     if (shared.length) throw new Error(`${this.name}: ${shared.join(", ")} declared in two groups of variables`);
   }
 }

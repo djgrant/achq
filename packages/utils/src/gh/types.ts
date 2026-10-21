@@ -1,6 +1,6 @@
 import type { RestEndpointMethodTypes } from "@octokit/plugin-rest-endpoint-methods";
 
-type Data<T extends { response: { data: unknown } }> = T["response"]["data"];
+type ResponseData<T extends { response: { data: unknown } }> = T["response"]["data"];
 type Rest = RestEndpointMethodTypes;
 
 /** Permission name to level: `{ contents: "write" }`. */
@@ -22,11 +22,11 @@ export type TokenNarrowing = { repositories?: string[]; permissions?: Permission
 export type ReactionTarget = { issue: number } | { comment: number };
 
 export type ReactionContent = Rest["reactions"]["createForIssue"]["parameters"]["content"];
-export type CommitSummary = Data<Rest["repos"]["listCommits"]>[number];
-export type TreeEntry = Data<Rest["git"]["getTree"]>["tree"][number];
-export type HookConfig = Data<Rest["apps"]["getWebhookConfigForApp"]>;
+export type CommitSummary = ResponseData<Rest["repos"]["listCommits"]>[number];
+export type TreeEntry = ResponseData<Rest["git"]["getTree"]>["tree"][number];
+export type HookConfig = ResponseData<Rest["apps"]["getWebhookConfigForApp"]>;
 /** The App the manifest flow created, with its private key. */
-export type CreatedApp = Data<Rest["apps"]["createFromManifest"]>;
-export type User = Data<Rest["users"]["getByUsername"]>;
-export type Issue = Data<Rest["issues"]["get"]>;
-export type IssueComment = Data<Rest["issues"]["getComment"]>;
+export type CreatedApp = ResponseData<Rest["apps"]["createFromManifest"]>;
+export type User = ResponseData<Rest["users"]["getByUsername"]>;
+export type Issue = ResponseData<Rest["issues"]["get"]>;
+export type IssueComment = ResponseData<Rest["issues"]["getComment"]>;

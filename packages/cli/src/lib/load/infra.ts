@@ -1,6 +1,6 @@
 import * as path from "node:path";
 import { Deployer, type Infra, type Resource, Router } from "@achq/core";
-import { onlyItem } from "@achq/utils/collections";
+import { collections } from "@achq/utils/collections";
 import { containerProviderNamed } from "achq/registry";
 import { registerModules } from "./modules.ts";
 
@@ -47,8 +47,8 @@ const assertSharesRouter = (resources: Resource[], router: Router, deployer: Dep
 
 /** The infra's router and deployer, checked against each other and everything else it declares. */
 export const checkInfra = ({ resources }: Infra): InfraResources => {
-  const router = onlyItem(ofClass(resources, Router));
-  const deployer = onlyItem(ofClass(resources, Deployer));
+  const router = collections.only(ofClass(resources, Router));
+  const deployer = collections.only(ofClass(resources, Deployer));
   if (!router || !deployer) throw new Error(ONE_EACH);
   assertShareContainerProvider(router, deployer);
   assertKnownContainerProvider(deployer);

@@ -1,5 +1,5 @@
 import { type Change, type Context, known, ManagedResource, type Planned, UNKNOWN } from "@achq/core";
-import { allOf } from "@achq/utils/async";
+import { async } from "@achq/utils/async";
 import type { FoundService, Instance, InstanceSettings, PrivateEndpoint, RailwayService, ServiceDomain } from "@achq/utils/railway";
 import type { At } from "./project.ts";
 import { railwayFromEnv } from "./railway.ts";
@@ -67,7 +67,7 @@ const deploysOnPush = (service: RailwayService) => service.autoDeploy().catch(()
 
 /** What's fixed to a service, read together. Only what `props` asks for is read beyond its instance, domains and endpoint. */
 const readInstanceState = async ({ service, volumes }: FoundService, props: ServiceProps): Promise<ServiceState> => {
-  const read = await allOf({
+  const read = await async.allOf({
     instance: service.instance(),
     domains: service.domains(),
     endpoint: service.privateEndpoint(),

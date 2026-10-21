@@ -1,4 +1,4 @@
-import { hmacHex } from "@achq/core/signing";
+import { crypto } from "@achq/utils/crypto";
 import { makeApp } from "@achq/test-utils/github";
 import { githubChannelProvider } from "../src/channel/index.ts";
 import { type AppKeys, appWebhookSecret } from "../src/lib/apps.ts";
@@ -55,7 +55,7 @@ export const headers = (event: string, body: string, over: Record<string, string
     "x-github-delivery": "d-1",
     "x-github-hook-installation-target-id": "101",
     "x-github-hook-installation-target-type": "integration",
-    "x-hub-signature-256": `sha256=${hmacHex(appWebhookSecret(KEY, "101"), body)}`,
+    "x-hub-signature-256": `sha256=${crypto.hmacHex(appWebhookSecret(KEY, "101"), body)}`,
   });
   for (const [k, v] of Object.entries(over)) v === null ? h.delete(k) : h.set(k, v);
   return h;

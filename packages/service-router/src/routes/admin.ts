@@ -1,3 +1,4 @@
+import { repoName } from "@achq/core";
 import { MintRequest, RouterRepoConfig, ValidateRequest } from "@achq/core/protocol";
 import { adminSecret } from "@achq/core/secrets";
 import { signedBy } from "@achq/core/signing";
@@ -8,7 +9,7 @@ import type { RouterContext } from "../context.ts";
 import { listFailed, replayFailed } from "../failed.ts";
 import { mint, validate } from "../policies.ts";
 import { fetchSigned, reach } from "../reach.ts";
-import { repoFile, repoKey } from "../store.ts";
+import { repoFile } from "../store.ts";
 
 /** JSON unless it says otherwise. */
 const relay = async (res: Response) =>
@@ -28,17 +29,17 @@ export const admin = (ctx: RouterContext) =>
     .put(REPO_PATH, zValidator("json", RouterRepoConfig), async (c) => {
       const repo = `${c.req.param("owner")}/${c.req.param("name")}`;
       const config = c.req.valid("json");
-      if (repoKey(config.repo) !== repoKey(repo)) return c.text("bad config", 400);
+      if (repoName.key(config.repo) !== repoName.key(repo)) return c.text("bad config", 400);
       // Written before it's live, so what's served is always what a restart would load.
       await ctx.store.repos.write(repoFile(repo), config);
-      ctx.repos.set(repoKey(repo), config);
+      ctx.repos.set(repoName.key(repo), config);
       return c.body(null, 204);
     })
     .delete(REPO_PATH, async (c) => {
       const repo = `${c.req.param("owner")}/${c.req.param("name")}`;
       // Claims are kept: reinstalling brings everything back as it was.
       await ctx.store.repos.remove(repoFile(repo));
-      ctx.repos.delete(repoKey(repo));
+      ctx.repos.delete(repoName.key(repo));
       return c.body(null, 204);
     })
     .post("/mint", zValidator("json", MintRequest), async (c) => {

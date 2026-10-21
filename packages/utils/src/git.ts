@@ -1,8 +1,7 @@
 import { $ } from "bun";
 import * as fs from "node:fs";
-import { tryRun } from "./process.ts";
-
-type Env = Record<string, string | undefined>;
+import type { Vars } from "./env.ts";
+import { subprocess } from "./subprocess.ts";
 
 /** Where a new worktree's branch comes from: an existing local branch, or a new one started at `from`. */
 export type WorktreeBranch = { branch: string; from?: undefined } | { branch: string; from: string; track: boolean };
@@ -10,8 +9,17 @@ export type WorktreeBranch = { branch: string; from?: undefined } | { branch: st
 export class Git {
   constructor(
     readonly dir: string,
-    readonly env: Env = process.env,
+    readonly env: Vars = process.env,
   ) {}
+
+  /** The root of the repo `dir` is in, or undefined outside one. */
+  static root(dir: string): string | undefined {
+    return subprocess.tryRun(["git", "rev-parse", "--show-toplevel"], { cwd: dir });
+  }
+
+  static remoteUrl(dir: string, name: string): string | undefined {
+    return subprocess.tryRun(["git", "remote", "get-url", name], { cwd: dir });
+  }
 
   private exec(args: string[]) {
     return $`git -C ${this.dir} ${args}`.env(this.env).quiet().nothrow();
@@ -77,7 +85,3 @@ export class Git {
     return this.text(["rev-parse", "--short", "HEAD"]);
   }
 }
-
-export const repoRoot = (dir: string): string | undefined => tryRun(["git", "rev-parse", "--show-toplevel"], { cwd: dir });
-
-export const remoteUrl = (dir: string, name: string): string | undefined => tryRun(["git", "remote", "get-url", name], { cwd: dir });

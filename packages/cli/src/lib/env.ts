@@ -1,3 +1,3 @@
-import { requireEnv } from "@achq/utils/env";
+import { Env } from "@achq/utils/env";
 
-export const need = (name: string, hint = "") => requireEnv(process.env, name, hint);
+export const need = (name: string, hint = "") => new Env(process.env).require(name, hint);

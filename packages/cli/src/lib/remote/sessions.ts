@@ -1,5 +1,5 @@
 import { SessionSummary } from "@achq/core/protocol";
-import { alignedTable } from "@achq/utils/text";
+import { text } from "@achq/utils/text";
 import { z } from "zod";
 
 /** How much of unexpected output goes into the error: enough to see what answered. */
@@ -33,4 +33,4 @@ export const sessionLabel = (s: SessionSummary) => `#${s.thread} ${s.agent} (${s
 
 /** The minimal list, for when there's no terminal to pick in. */
 export const sessionTable = (sessions: SessionSummary[]) =>
-  alignedTable([SESSION_COLUMNS, ...sessions.map((s) => [s.id, `#${s.thread}`, `${s.agent} (${s.workspace})`, s.lastRun])]).join("\n");
+  text.alignedTable([SESSION_COLUMNS, ...sessions.map((s) => [s.id, `#${s.thread}`, `${s.agent} (${s.workspace})`, s.lastRun])]).join("\n");

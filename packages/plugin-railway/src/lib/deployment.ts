@@ -1,7 +1,7 @@
 import { type Change, type Context, known, ManagedResource, type Planned } from "@achq/core";
-import { pollUntil } from "@achq/utils/async";
-import { sortKeys } from "@achq/utils/collections";
-import { sha256Hex } from "@achq/utils/crypto";
+import { async } from "@achq/utils/async";
+import { collections } from "@achq/utils/collections";
+import { crypto } from "@achq/utils/crypto";
 import { DEPLOY_STATUS, FAILED_DEPLOY_STATUSES, type InstanceSettings, type RailwayService } from "@achq/utils/railway";
 import { DEPLOY_POLL_INTERVAL_MS, DEPLOY_TIMEOUT_MS, DEPLOYED } from "./constants.ts";
 import type { At } from "./project.ts";
@@ -20,7 +20,7 @@ const FINGERPRINT_CHARS = 16;
 
 /** Railway can't say what a deploy was made from, so its hash is kept in DEPLOYED. Variables are sorted, so their order doesn't count. */
 export const fingerprint = (spec: { settings: InstanceSettings; variables: Record<string, string> }) =>
-  sha256Hex(JSON.stringify({ settings: spec.settings, variables: sortKeys(spec.variables) }), FINGERPRINT_CHARS);
+  crypto.sha256Hex(JSON.stringify({ settings: spec.settings, variables: collections.sortKeys(spec.variables) }), FINGERPRINT_CHARS);
 
 const minutes = (ms: number) => `${ms / 60_000} minutes`;
 
@@ -68,6 +68,6 @@ const live = async (service: RailwayService, name: string, ctx: Context) => {
     return status;
   };
   const isLive = (status: string | undefined) => status === DEPLOY_STATUS.live;
-  const went = await pollUntil(latestStatus, isLive, { intervalMs: DEPLOY_POLL_INTERVAL_MS, timeoutMs: DEPLOY_TIMEOUT_MS, sleep: ctx.sleep });
+  const went = await async.pollUntil(latestStatus, isLive, { intervalMs: DEPLOY_POLL_INTERVAL_MS, timeoutMs: DEPLOY_TIMEOUT_MS, sleep: ctx.sleep });
   if (!went) throw new Error(`${name} hasn't deployed after ${minutes(DEPLOY_TIMEOUT_MS)}`);
 };

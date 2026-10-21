@@ -1,13 +1,13 @@
-import { isPlainObject as isObject } from "@achq/utils/json";
+import { json } from "@achq/utils/json";
 import { z } from "zod";
 import type { ChannelCredential, ChannelEvent, ThreadRef } from "../contracts/channel-provider.ts";
 import type { PolicyCredential } from "../contracts/policy-provider.ts";
 import type { PolicyData, SelectorData } from "../resources/config.ts";
 
 // What its channel or policy provider interprets is checked only for what names it.
-const policyData = z.custom<PolicyData>((value) => isObject(value) && typeof value.provider === "string");
-const selectorData = z.custom<SelectorData>((value) => isObject(value) && typeof value.channel === "string" && typeof value.source === "string");
-const channelEvent = z.custom<ChannelEvent>((value) => isObject(value) && typeof value.delivery === "string" && typeof value.type === "string");
+const policyData = z.custom<PolicyData>((value) => json.isPlainObject(value) && typeof value.provider === "string");
+const selectorData = z.custom<SelectorData>((value) => json.isPlainObject(value) && typeof value.channel === "string" && typeof value.source === "string");
+const channelEvent = z.custom<ChannelEvent>((value) => json.isPlainObject(value) && typeof value.delivery === "string" && typeof value.type === "string");
 const threadRef = z.object({ channel: z.string(), id: z.string() }) satisfies z.ZodType<ThreadRef>;
 
 /** What the router forwards to the deployer: install and config events, which name the `CodeHostProvider` they're about. */

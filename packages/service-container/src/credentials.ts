@@ -1,8 +1,8 @@
 import type { ChannelCredential, CredentialsRequest, CredentialsResponse, PolicyProvider } from "@achq/core";
 import { signedFetch } from "@achq/core/signing";
-import { singleFlight } from "@achq/utils/async";
-import { ensureDir } from "@achq/utils/fs";
-import { expectOk } from "@achq/utils/http";
+import { async } from "@achq/utils/async";
+import { disk } from "@achq/utils/disk";
+import { http } from "@achq/utils/http";
 import { REFRESH_BEFORE_MS } from "./constants.ts";
 import { logFailure } from "./log-failure.ts";
 import type { Paths } from "./paths.ts";
@@ -52,7 +52,7 @@ export class Credentials {
     return found;
   }
 
-  private refresh = singleFlight(async (): Promise<Current> => {
+  private refresh = async.singleFlight(async (): Promise<Current> => {
     const response = await this.requestCredentials();
     this.current = { ...response, env: await this.installCredentials(response) };
     return this.current;
@@ -62,7 +62,7 @@ export class Credentials {
     const { routerUrl, containerSecret, repo, container } = this.opts;
     const request: CredentialsRequest = { repo, container };
     const res = await signedFetch(containerSecret, `${routerUrl}/credentials`, { method: "POST", body: JSON.stringify(request) });
-    await expectOk(res, "The router refused credentials");
+    await http.expectOk(res, "The router refused credentials");
     return (await res.json()) as CredentialsResponse;
   }
 
@@ -73,7 +73,7 @@ export class Credentials {
       const mine = response.credentials.filter((c) => c.provider === p.id);
       if (!mine.length) continue;
       const dir = paths.policyProvider(p.id);
-      ensureDir(dir, { mode: PRIVATE_DIR_MODE });
+      disk.ensureDir(dir, { mode: PRIVATE_DIR_MODE });
       Object.assign(env, (await p.install(mine, dir)).env);
     }
     const unknown = uninstallable(response, policyProviders);

@@ -1,12 +1,13 @@
 import type { Change } from "../engine/plan.ts";
 import { hasUnknown, type Inputs, Output, type Planned, UNKNOWN, type Unknown } from "../engine/values.ts";
 import { declare } from "./declarations.ts";
+import type { Vars } from "@achq/utils/env";
 
 export const RESOURCE_NAME = /^[a-z][a-z0-9-]{0,30}$/;
 
 /** What planning and applying give a resource. */
 export type Context = {
-  env: Record<string, string | undefined>;
+  env: Vars;
   log(line: string): void;
   /** Opens `url` in your browser to `what`, e.g. to create an App. Only the CLI can, and only while applying. */
   open?(url: string, what: string): Promise<void>;

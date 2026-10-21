@@ -1,13 +1,13 @@
 import { expect, test } from "bun:test";
-import { optionalEnv, requireEnv } from "../src/env.ts";
+import { Env } from "../src/env.ts";
 
 test("an empty variable counts as unset", () => {
-  expect(optionalEnv({ A: "" }, "A")).toBeUndefined();
-  expect(optionalEnv({ A: "x" }, "A")).toBe("x");
+  expect(new Env({ A: "" }).optional("A")).toBeUndefined();
+  expect(new Env({ A: "x" }).optional("A")).toBe("x");
 });
 
-test("requireEnv names what's missing and how to set it", () => {
-  expect(requireEnv({ A: "x" }, "A")).toBe("x");
-  expect(() => requireEnv({}, "A")).toThrow("Missing A in the environment.");
-  expect(() => requireEnv({ A: "" }, "A", "Create one.")).toThrow("Missing A in the environment. Create one.");
+test("require names what's missing and how to set it", () => {
+  expect(new Env({ A: "x" }).require("A")).toBe("x");
+  expect(() => new Env({}).require("A")).toThrow("Missing A in the environment.");
+  expect(() => new Env({ A: "" }).require("A", "Create one.")).toThrow("Missing A in the environment. Create one.");
 });

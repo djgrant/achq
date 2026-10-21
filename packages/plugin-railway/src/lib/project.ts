@@ -1,5 +1,5 @@
 import { type Change, type Context, ManagedResource, type Planned, UNKNOWN } from "@achq/core";
-import { optionalEnv } from "@achq/utils/env";
+import { Env } from "@achq/utils/env";
 import type { ProjectAt, ProjectSnapshot } from "@achq/utils/railway";
 import { RAILWAY_ENV } from "./constants.ts";
 import { railwayFromEnv, workspaceId } from "./railway.ts";
@@ -17,7 +17,7 @@ export class Project extends ManagedResource<Props, At, At, "create"> {
 
   async read({ name }: Props, ctx: Context) {
     const railway = railwayFromEnv(ctx.env);
-    const found = await railway.projectByName(name, optionalEnv(ctx.env, RAILWAY_ENV.workspace));
+    const found = await railway.projectByName(name, new Env(ctx.env).optional(RAILWAY_ENV.workspace));
     if (!found) return undefined;
     return placeOf(await railway.readProject(found.id));
   }

@@ -1,7 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import type { Agent, RepoManifest } from "@achq/core";
-import { memoAsync } from "@achq/utils/async";
+import { async } from "@achq/utils/async";
 import { CONFIG_DIR } from "../constants.ts";
 import { extractTree, hasCommit } from "../repo.ts";
 import { bundleConfig } from "./bundle.ts";
@@ -47,5 +47,5 @@ export const createConfigLoader = (opts: ConfigLoaderOptions): ((commit: string)
     return { commit, root, ...(await evaluateBundle(bundle)) };
   };
 
-  return memoAsync(load);
+  return async.memo(load);
 };

@@ -1,6 +1,6 @@
-import type { ChannelProvider, CodeHostProvider, PolicyProvider, RouterRepoConfig } from "@achq/core";
+import { type ChannelProvider, type CodeHostProvider, type PolicyProvider, repoName, type RouterRepoConfig } from "@achq/core";
 import { ATTEMPT_TIMEOUT_MS, DELAYS } from "./constants.ts";
-import { createStore, repoKey, type Store } from "./store.ts";
+import { createStore, type Store } from "./store.ts";
 import type { Claims } from "./targets.ts";
 
 export type RouterDeps = {
@@ -42,7 +42,7 @@ export const createContext = (deps: RouterDeps): RouterContext => ({
   inFlight: new Map(),
 });
 
-export const configOf = (ctx: RouterContext, repo: string | undefined) => (repo ? ctx.repos.get(repoKey(repo)) : undefined);
+export const configOf = (ctx: RouterContext, repo: string | undefined) => (repo ? ctx.repos.get(repoName.key(repo)) : undefined);
 
 /** None for an event that names no repo. */
-export const claimsOf = (ctx: RouterContext, repo: string | undefined): Claims => (repo ? ctx.claims.get(repoKey(repo)) : undefined) ?? {};
+export const claimsOf = (ctx: RouterContext, repo: string | undefined): Claims => (repo ? ctx.claims.get(repoName.key(repo)) : undefined) ?? {};

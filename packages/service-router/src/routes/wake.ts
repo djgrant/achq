@@ -1,5 +1,5 @@
 import { WakeRequest } from "@achq/core/protocol";
-import { bearerToken } from "@achq/utils/http";
+import { http } from "@achq/utils/http";
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import { REPO } from "../constants.ts";
@@ -17,7 +17,7 @@ const deployedContainer = (ctx: RouterContext, request: WakeRequest) => {
 /** For `achq container ssh`: wakes a container for someone who can push to its repo, on the host it's deployed from. */
 export const wake = (ctx: RouterContext) =>
   new Hono().post("/wake", zValidator("json", WakeRequest), async (c) => {
-    const token = bearerToken(c.req.raw);
+    const token = http.bearerToken(c.req.raw);
     if (!token) return c.text("missing token", 401);
     const request = c.req.valid("json");
     if (!REPO.test(request.repo)) return c.text("bad request", 400);

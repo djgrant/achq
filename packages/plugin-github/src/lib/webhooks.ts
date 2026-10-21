@@ -1,4 +1,5 @@
-import type { ChannelEvent, Data } from "@achq/core";
+import type { ChannelEvent } from "@achq/core";
+import type { Json } from "@achq/utils/json";
 import { CHANNEL, CODE_HOST } from "./constants.ts";
 import { issueThreadId, labelNames, messageId, OPENING_POST_ID, TRUSTED } from "./threads.ts";
 
@@ -39,7 +40,7 @@ const parseIssueEvent = ({ name, base, payload }: Delivery): ChannelEvent | unde
   if (name === "issue_comment" && !comment) return undefined;
   const author = comment ?? issue;
   const text: string = author.body ?? "";
-  const detail: { [key: string]: Data } = { issue: issue.number };
+  const detail: { [key: string]: Json } = { issue: issue.number };
   if (comment) detail.comment = comment.id;
   if (action === "labeled" && payload.label?.name) detail.label = payload.label.name;
   return {

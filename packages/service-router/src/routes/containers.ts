@@ -1,4 +1,4 @@
-import { type ChannelCredential, type CredentialsResponse, threadKey } from "@achq/core";
+import { type ChannelCredential, type CredentialsResponse, repoName, threadKey } from "@achq/core";
 import { ClaimRequest, CredentialsRequest, type RouterRepoConfig } from "@achq/core/protocol";
 import { containerSecret } from "@achq/core/secrets";
 import { isSigned } from "@achq/core/signing";
@@ -7,7 +7,7 @@ import { Hono } from "hono";
 import { createMiddleware } from "hono/factory";
 import { configOf, type RouterContext } from "../context.ts";
 import { mint } from "../policies.ts";
-import { repoFile, repoKey } from "../store.ts";
+import { repoFile } from "../store.ts";
 
 type Container = RouterRepoConfig["containers"][number];
 type ChannelSource = { channel: string; source: string };
@@ -59,7 +59,7 @@ export const containers = (ctx: RouterContext) =>
       const { config } = c.var;
       const claim = c.req.valid("json");
       if (!config.workspaces.some((w) => w.name === claim.workspace && w.container === claim.container)) return c.text("no such workspace", 404);
-      const repo = repoKey(config.repo);
+      const repo = repoName.key(config.repo);
       const repoClaims = ctx.claims.get(repo) ?? {};
       const thread = threadKey(claim.thread);
       repoClaims[thread] = { ...repoClaims[thread], [claim.container]: claim.workspace };

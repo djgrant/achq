@@ -1,4 +1,3 @@
-export * from "./resources/data.ts";
 export * from "./resources/declarations.ts";
 export * from "./resources/resource.ts";
 export * from "./resources/config.ts";

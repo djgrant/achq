@@ -13,6 +13,7 @@
     "achq": "workspace:*"
   },
   "devDependencies": {
-    "@achq/test-utils": "workspace:*"
+    "@achq/test-utils": "workspace:*",
+    "@achq/utils": "workspace:*"
   }
 }

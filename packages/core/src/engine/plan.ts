@@ -1,6 +1,7 @@
 import { type Context, ManagedResource, type Resource } from "../resources/resource.ts";
-import { reachable, topoSort } from "@achq/utils/collections";
-import { dependencies, hasUnknown, type Input, type Outputs, resolve, same, type Unknown } from "./values.ts";
+import { graph } from "@achq/utils/graph";
+import { json } from "@achq/utils/json";
+import { dependencies, hasUnknown, type Input, type Outputs, resolve, type Unknown } from "./values.ts";
 
 /** A planned change, for printing. Variable changes name the variables, never their values. */
 export type Change = { op: "+" | "~" | "-"; target: string; detail?: string };
@@ -72,7 +73,7 @@ const assertKnown = (resource: ManagedResource, props: unknown, live: Outputs) =
 };
 
 const replanIfChanged = async ({ resource, step: planned }: PlannedStep, props: unknown, ctx: Context): Promise<Step> =>
-  same(props, planned.props) ? planned : readAndCompare(resource, props, ctx);
+  json.deepEqual(props, planned.props) ? planned : readAndCompare(resource, props, ctx);
 
 const applyStep = async (resource: ManagedResource, props: unknown, { current, changes, planned }: Step, ctx: Context): Promise<unknown> =>
   changes.length ? resource.apply(props, current, changes, ctx) : planned;
@@ -85,6 +86,6 @@ const plannedWith = (r: Resource, ctx: Context): Resource[] => [...(r instanceof
 
 /** Each resource's children are asked for once. */
 const managed = (resources: Resource[], ctx: Context) =>
-  reachable(resources, (r) => plannedWith(r, ctx)).filter((r): r is ManagedResource => r instanceof ManagedResource);
+  graph.reachable(resources, (r) => plannedWith(r, ctx)).filter((r): r is ManagedResource => r instanceof ManagedResource);
 
-const sorted = (resources: ManagedResource[]) => topoSort(resources, dependsOn, label);
+const sorted = (resources: ManagedResource[]) => graph.topoSort(resources, dependsOn, label);

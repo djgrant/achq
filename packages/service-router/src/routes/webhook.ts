@@ -1,5 +1,5 @@
 import type { ChannelProvider } from "@achq/core";
-import { isSafeFileName } from "@achq/utils/fs";
+import { disk } from "@achq/utils/disk";
 import { Hono } from "hono";
 import { claimsOf, configOf, type RouterContext } from "../context.ts";
 import { acceptDelivery } from "../inbox.ts";
@@ -22,7 +22,7 @@ export const webhook = (ctx: RouterContext) =>
     const event = found.channel.parse(found.source, headers, body);
     if (!event) return c.text("ignored");
     // The delivery ID names its inbox file.
-    if (!isSafeFileName(event.delivery)) return c.text("bad delivery id", 400);
+    if (!disk.isSafeFileName(event.delivery)) return c.text("bad delivery id", 400);
 
     const targets = targetsFor(found.channel, event, configOf(ctx, event.repo), claimsOf(ctx, event.repo));
     if (!targets.length) return c.text("no match");

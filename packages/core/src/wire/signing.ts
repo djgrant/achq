@@ -1,15 +1,13 @@
-import { hmacHex, safeEqual } from "@achq/utils/crypto";
+import { crypto } from "@achq/utils/crypto";
 import type { Context } from "hono";
 import { createMiddleware } from "hono/factory";
-
-export { hmacHex, safeEqual };
 
 const MAX_SKEW_MS = 5 * 60_000;
 const TIMESTAMP_HEADER = "x-achq-timestamp";
 const SIGNATURE_HEADER = "x-achq-signature";
 
 const signature = (secret: string, method: string, path: string, timestamp: string, body: string) =>
-  hmacHex(secret, `${method.toUpperCase()}\n${path}\n${timestamp}\n${body}`);
+  crypto.hmacHex(secret, `${method.toUpperCase()}\n${path}\n${timestamp}\n${body}`);
 
 const signedPath = (url: string) => {
   const { pathname, search } = new URL(url);
@@ -25,7 +23,7 @@ export const verifySigned = (secret: string, method: string, path: string, body:
   const timestamp = headers.get(TIMESTAMP_HEADER);
   const signed = headers.get(SIGNATURE_HEADER);
   if (!timestamp || !signed || Math.abs(now - Number(timestamp)) > MAX_SKEW_MS) return false;
-  return safeEqual(signed, signature(secret, method, path, timestamp, body));
+  return crypto.safeEqual(signed, signature(secret, method, path, timestamp, body));
 };
 
 const bodyHeaders = (body: string | undefined): Record<string, string> => (body === undefined ? {} : { "content-type": "application/json" });

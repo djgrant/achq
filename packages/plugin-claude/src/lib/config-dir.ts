@@ -1,6 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { updateJsonSync, writeFileEnsured } from "@achq/utils/fs";
+import { disk } from "@achq/utils/disk";
 import type { AgentConfig } from "../agent/resource.ts";
 import { CLAUDE_HOME, CLAUDE_JSON, DEFAULT_MODEL, PERSISTED_EFFORT } from "./constants.ts";
 
@@ -14,7 +14,7 @@ export const resolveStartupPath = (key: string, home: string, configDir: string)
 };
 
 export const writeFiles = (resolved: Record<string, string>, home: string, configDir: string) => {
-  for (const [key, content] of Object.entries(resolved)) writeFileEnsured(resolveStartupPath(key, home, configDir), content);
+  for (const [key, content] of Object.entries(resolved)) disk.writeEnsured(resolveStartupPath(key, home, configDir), content);
 };
 
 /** The parts of `.claude.json` achq sets. Claude Code owns the rest. */
@@ -27,7 +27,7 @@ export type ClaudeJson = {
 
 /** Changes `.claude.json` in place, keeping what Claude Code wrote. */
 export const updateClaudeJson = (configDir: string, fn: (config: ClaudeJson) => void) => {
-  updateJsonSync<ClaudeJson>(path.join(configDir, CLAUDE_JSON), {}, fn, { pretty: true });
+  disk.updateJsonSync<ClaudeJson>(path.join(configDir, CLAUDE_JSON), {}, fn, { pretty: true });
 };
 
 export const transcriptExists = (configDir: string, session: string) => {

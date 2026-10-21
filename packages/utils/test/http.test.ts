@@ -1,31 +1,33 @@
 import { describe, expect, test } from "bun:test";
-import { bearerToken, ERROR_BODY_CHARS, expectOk, HttpError, responseError, service } from "../src/http.ts";
+import { http, HttpError } from "../src/http.ts";
 
 describe("errors for unwanted responses", () => {
-  test("HttpError names the service, request and status, with the body cut short", () => {
-    const error = new HttpError(404, "GET", "/repos/a/b", "x".repeat(ERROR_BODY_CHARS + 10), "GitHub");
-    expect(error.message).toBe(`GitHub GET /repos/a/b: 404 ${"x".repeat(ERROR_BODY_CHARS)}`);
-    expect(error.body.length).toBe(ERROR_BODY_CHARS + 10);
+  test("HttpError names the http.service, request and status, with the body cut short", () => {
+    const body = "x".repeat(1000);
+    const error = new HttpError(404, "GET", "/repos/a/b", body, "GitHub");
+    expect(error.message).toBe(`GitHub GET /repos/a/b: 404 ${http.excerpt(body)}`);
+    expect(http.excerpt(body).length).toBeLessThan(body.length);
+    expect(error.body).toBe(body);
     expect(new HttpError(500, "POST", "/x", "").message).toBe("POST /x: 500");
   });
 
   test("expectOk passes 2xx through and throws for anything else", async () => {
     const ok = new Response("fine");
-    expect(await expectOk(ok, "Reading")).toBe(ok);
-    await expect(expectOk(new Response("nope", { status: 403 }), "The router refused credentials")).rejects.toThrow("The router refused credentials: 403 nope");
-    expect((await responseError(new Response("", { status: 502 }), "Waking")).message).toBe("Waking: 502");
+    expect(await http.expectOk(ok, "Reading")).toBe(ok);
+    await expect(http.expectOk(new Response("nope", { status: 403 }), "The router refused credentials")).rejects.toThrow("The router refused credentials: 403 nope");
+    expect((await http.responseError(new Response("", { status: 502 }), "Waking")).message).toBe("Waking: 502");
   });
 });
 
 test("bearerToken reads the Authorization header", () => {
-  expect(bearerToken(new Request("http://x/", { headers: { authorization: "Bearer abc" } }))).toBe("abc");
-  expect(bearerToken(new Request("http://x/", { headers: { authorization: "token abc" } }))).toBeUndefined();
-  expect(bearerToken(new Request("http://x/"))).toBeUndefined();
+  expect(http.bearerToken(new Request("http://x/", { headers: { authorization: "Bearer abc" } }))).toBe("abc");
+  expect(http.bearerToken(new Request("http://x/", { headers: { authorization: "token abc" } }))).toBeUndefined();
+  expect(http.bearerToken(new Request("http://x/"))).toBeUndefined();
 });
 
 describe("service", () => {
   const logged: string[] = [];
-  const app = service((line) => logged.push(line))
+  const app = http.service((line) => logged.push(line))
     .get("/hello", (c) => c.text(`hello ${c.req.query("a")}`))
     .post("/boom", () => {
       throw new Error("secret detail");

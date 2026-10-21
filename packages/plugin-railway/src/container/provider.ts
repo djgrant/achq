@@ -1,6 +1,6 @@
 import { type Change, type Context, type ContainerProvider, type ContainerShell, type ContainerSpec, ENV, plan } from "@achq/core";
-import { randomHex } from "@achq/utils/crypto";
-import { requireBinary, spawnCollect } from "@achq/utils/process";
+import { crypto } from "@achq/utils/crypto";
+import { subprocess } from "@achq/utils/subprocess";
 import { type Instance, RAILWAY_API, Railway, type RailwayProject, type RailwayService } from "@achq/utils/railway";
 import { BRANCH, CONNECTED, CONTAINER_PROVIDER, RAILWAY_ENV, SOURCE_HOST } from "../lib/constants.ts";
 import { containerService } from "../lib/container-service.ts";
@@ -27,7 +27,7 @@ export class RailwayContainerProvider implements ContainerProvider {
     this.ctx = {
       env: { [RAILWAY_ENV.token]: options.token, [RAILWAY_ENV.endpoint]: endpoint },
       log: () => {},
-      newSecret: () => randomHex(SECRET_BYTES),
+      newSecret: () => crypto.randomHex(SECRET_BYTES),
       sleep: (ms) => Bun.sleep(ms),
     };
   }
@@ -123,7 +123,7 @@ const sshArgs = (location: Record<string, string>, command: string[]) => [
   ...(command.length ? ["--", ...command] : []),
 ];
 
-const requireRailwayCli = () => requireBinary("railway", "the Railway CLI", "brew install railway");
+const requireRailwayCli = () => subprocess.requireBinary("railway", "the Railway CLI", "brew install railway");
 
 export const railwayShell: ContainerShell = {
   reachable: (location) => Boolean(location.project && location.environment && location.service),
@@ -135,7 +135,7 @@ export const railwayShell: ContainerShell = {
 
   async run(location, command) {
     requireRailwayCli();
-    const { ok, stdout, stderr } = await spawnCollect(["railway", ...sshArgs(location, command)]);
+    const { ok, stdout, stderr } = await subprocess.collect(["railway", ...sshArgs(location, command)]);
     if (!ok) throw new Error(`${command.join(" ")} failed in ${location.service}: ${stderr.trim() || stdout.trim()}`);
     return stdout;
   },

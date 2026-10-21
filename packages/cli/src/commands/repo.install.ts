@@ -1,7 +1,7 @@
 import { defineCommand } from "@pokit/core";
 import { clean } from "../lib/errors.ts";
 import { z } from "zod";
-import { plural } from "@achq/utils/text";
+import { text } from "@achq/utils/text";
 import { STATUS_TIMEOUT_MS } from "../constants.ts";
 import { planInstall } from "../lib/install.ts";
 import { formatStatus } from "../lib/status/format.ts";
@@ -12,7 +12,7 @@ const MS_PER_MINUTE = 60_000;
 /** e.g. `3 minutes`. */
 const inMinutes = (ms: number) => {
   const minutes = ms / MS_PER_MINUTE;
-  return `${minutes} ${plural(minutes, "minute")}`;
+  return `${minutes} ${text.plural(minutes, "minute")}`;
 };
 
 export const command = defineCommand({

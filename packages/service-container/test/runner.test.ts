@@ -4,7 +4,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { threadKey } from "@achq/core";
 import { signedHeaders } from "@achq/core/signing";
-import { lockedArgv } from "@achq/utils/flock";
+import { flock } from "@achq/utils/flock";
 import { CHANNEL_TOKEN } from "@achq/test-utils/container-router";
 import { Runner } from "../src/runner.ts";
 import { readState } from "../src/state.ts";
@@ -283,7 +283,7 @@ describe("concurrency", () => {
     w.channel.open(4);
     await w.send(w.channel.comment(4, "@claude first"));
     const lock = w.paths.lock("issues", threadKey(w.channel.ref(4)));
-    const holder = Bun.spawn(lockedArgv(lock, ["sleep", "0.6"]));
+    const holder = Bun.spawn(flock.lockedArgv(lock, ["sleep", "0.6"]));
     await Bun.sleep(150);
     const sent = Date.now();
     await w.send(w.channel.comment(4, "@claude second"));

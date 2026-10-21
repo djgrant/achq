@@ -1,8 +1,8 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import type { CodeHostProvider } from "@achq/core";
-import type { Env } from "@achq/utils/env";
-import * as git from "@achq/utils/git";
+import type { Vars } from "@achq/utils/env";
+import { Git } from "@achq/utils/git";
 import { z } from "zod";
 import { CODE_HOST_PROVIDERS } from "achq/registry";
 import { CLI_ENV, INFRA_FILE } from "../constants.ts";
@@ -11,7 +11,7 @@ import { CLI_ENV, INFRA_FILE } from "../constants.ts";
 export const callerCwd = () => process.env[CLI_ENV.callerCwd] ?? process.cwd();
 
 /** The git repo `dir` is in, or `dir` itself outside one. */
-export const repoRoot = (dir = callerCwd()) => git.repoRoot(dir) ?? dir;
+export const repoRoot = (dir = callerCwd()) => Git.root(dir) ?? dir;
 
 /** The infra file at the root of `dir`'s repo, if it's the ACHQ infra repo. */
 export const infraFile = (dir = callerCwd()) => {
@@ -26,12 +26,12 @@ export const needInfra = (dir = callerCwd()) => {
   return file;
 };
 
-export const originUrl = (dir = callerCwd()): string | undefined => git.remoteUrl(dir, "origin");
+export const originUrl = (dir = callerCwd()): string | undefined => Git.remoteUrl(dir, "origin");
 
 export type RepoHere = { host: string; repo: string; codeHost: CodeHostProvider };
 
 /** The repo `remote` names, on whichever host has it. */
-export const repoAt = (remote: string, env: Env = process.env): RepoHere | undefined => {
+export const repoAt = (remote: string, env: Vars = process.env): RepoHere | undefined => {
   for (const h of CODE_HOST_PROVIDERS) {
     const codeHost = h.create(env);
     const repo = codeHost.repoOf(remote);
@@ -42,7 +42,7 @@ export const repoAt = (remote: string, env: Env = process.env): RepoHere | undef
 const knownHosts = () => CODE_HOST_PROVIDERS.map((h) => h.id).join(" or ");
 
 /** The repo `name` (`owner/name`) is, on the one host whose names it fits. */
-const repoNamed = (name: string, env: Env = process.env): RepoHere | undefined => {
+const repoNamed = (name: string, env: Vars = process.env): RepoHere | undefined => {
   const fits = CODE_HOST_PROVIDERS.map((h) => ({ host: h.id, repo: name, codeHost: h.create(env) })).filter((h) => h.codeHost.repoName.test(name));
   if (fits.length > 1) throw new Error(`${name} could be on ${fits.map((h) => h.host).join(" or ")}; pass its URL`);
   return fits[0];

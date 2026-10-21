@@ -1,5 +1,5 @@
 import { type ChannelEvent, threadKey } from "@achq/core";
-import { errorMessage } from "@achq/utils/errors";
+import { errors } from "@achq/utils/errors";
 import type { RouterContext } from "./context.ts";
 import type { Target } from "./targets.ts";
 
@@ -16,7 +16,7 @@ export const tellUnreached = async (ctx: RouterContext, event: ChannelEvent, fai
     await client.reply(event.thread, unreachedReply(containers));
     return true;
   } catch (e) {
-    ctx.log(`${event.delivery}: couldn't tell ${threadKey(event.thread)} it failed: ${errorMessage(e)}`);
+    ctx.log(`${event.delivery}: couldn't tell ${threadKey(event.thread)} it failed: ${errors.message(e)}`);
     return false;
   }
 };

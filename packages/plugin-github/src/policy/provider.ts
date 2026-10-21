@@ -1,8 +1,8 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { PolicyCredential, PolicyData, PolicyProvider } from "@achq/core";
-import { ensureDir } from "@achq/utils/fs";
-import { type Installation, repoKey, sameRepo, splitRepo } from "@achq/utils/gh";
+import { type PolicyCredential, type PolicyData, type PolicyProvider, repoName } from "@achq/core";
+import { disk } from "@achq/utils/disk";
+import type { Installation } from "@achq/utils/gh";
 import type { Apps, FoundInstallation } from "../lib/apps.ts";
 import { botLogin } from "../lib/client.ts";
 import { POLICY_PROVIDER, REPO } from "../lib/constants.ts";
@@ -30,7 +30,7 @@ const notInstalled = (source: string | undefined, repo: string) =>
   source ? `${source} isn't installed on ${repo}` : `No GitHub App on the router is installed on ${repo}`;
 
 const ownRepoFirst = (repo: string) => {
-  const rank = (group: TokenGroup) => (sameRepo(group.repos[0]!, repo) ? 0 : 1);
+  const rank = (group: TokenGroup) => (repoName.same(group.repos[0]!, repo) ? 0 : 1);
   return (a: TokenGroup, b: TokenGroup) => rank(a) - rank(b);
 };
 
@@ -100,7 +100,7 @@ export class GitHubPolicyProvider implements PolicyProvider {
   private async groupByTokenScope(policies: PolicyData[], repo: string): Promise<TokenGroup[]> {
     const lookups = new Map<string, Promise<FoundInstallation | undefined>>();
     const findInstallationOnce = (source: string | undefined, target: string) => {
-      const key = `${source ?? ""}\n${repoKey(target)}`;
+      const key = `${source ?? ""}\n${repoName.key(target)}`;
       let found = lookups.get(key);
       if (!found) lookups.set(key, (found = this.installation(source, target)));
       return found;
@@ -113,17 +113,17 @@ export class GitHubPolicyProvider implements PolicyProvider {
       if (!REPO.test(target)) throw new Error(`"${target}" isn't an owner/name repo`);
       const found = await findInstallationOnce(policy.source, target);
       if (!found) throw new Error(notInstalled(policy.source, target));
-      const key = `${found.slug}\n${found.installation.id}\n${repoKey(target)}`;
+      const key = `${found.slug}\n${found.installation.id}\n${repoName.key(target)}`;
       const group = groups.get(key) ?? { source: found.slug, installation: found.installation.id, repos: [], permissions: {} };
       groups.set(key, group);
-      if (!group.repos.some((r) => sameRepo(r, target))) group.repos.push(target);
+      if (!group.repos.some((r) => repoName.same(r, target))) group.repos.push(target);
       for (const [name, level] of Object.entries(policy.permissions)) group.permissions[name] = maxLevel(group.permissions[name], level);
     }
     return [...groups.values()];
   }
 
   private async mintGroup({ source, installation, repos, permissions }: TokenGroup): Promise<PolicyCredential> {
-    const token = await this.apps.token(source, installation, { repositories: repos.map((r) => splitRepo(r).name), permissions });
+    const token = await this.apps.token(source, installation, { repositories: repos.map((r) => repoName.split(r).name), permissions });
     return {
       provider: POLICY_PROVIDER,
       value: token.token,
@@ -149,7 +149,7 @@ export class GitHubPolicyProvider implements PolicyProvider {
   async install(credentials: PolicyCredential[], dir: string): Promise<{ env: Record<string, string> }> {
     const mine = credentials.filter((c) => c.provider === POLICY_PROVIDER);
     const ghDir = path.join(dir, GH_CONFIG_DIR);
-    ensureDir(ghDir, { mode: GH_DIR_MODE });
+    disk.ensureDir(ghDir, { mode: GH_DIR_MODE });
 
     const tokenFiles = new Set<string>();
     const entries: { repo: string; tokenFile: string }[] = [];

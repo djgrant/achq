@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { threadKey } from "@achq/core";
-import { acquire, BUSY } from "@achq/utils/flock";
+import { flock } from "@achq/utils/flock";
 import { resume } from "../src/resume.ts";
 import { formatSessions, sessionsFor } from "../src/sessions.ts";
 import { world } from "./world.ts";
@@ -36,8 +36,8 @@ describe("sessions and resume", () => {
     expect(call.env.ACHQ_CONTAINER_SECRET).toBeUndefined();
 
     // While a run holds the lock, resume refuses.
-    const release = await acquire(w.paths.lock("issues", threadKey(w.channel.ref(8))));
-    expect(await resume({ ...base, session: triage.id })).toBe(BUSY);
+    const release = await flock.acquire(w.paths.lock("issues", threadKey(w.channel.ref(8))));
+    expect(await resume({ ...base, session: triage.id })).toBe(flock.BUSY);
     await release();
   });
 });

@@ -152,6 +152,7 @@
       },
       "devDependencies": {
         "@achq/test-utils": "workspace:*",
+        "@achq/utils": "workspace:*",
       },
     },
     "packages/test-utils": {

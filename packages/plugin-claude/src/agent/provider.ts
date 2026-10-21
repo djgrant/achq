@@ -1,8 +1,9 @@
 import * as path from "node:path";
-import { type Agent as CoreAgent, type AgentProvider, type AgentRuntime, type RunContext, type RunResult, type RuntimeContext, stableStringify, toData } from "@achq/core";
-import { sha256Hex } from "@achq/utils/crypto";
-import { ensureDir, writeFileEnsured, writeJsonSync } from "@achq/utils/fs";
-import { type Collected, spawnCollect } from "@achq/utils/process";
+import { type Agent as CoreAgent, type AgentProvider, type AgentRuntime, type RunContext, type RunResult, type RuntimeContext } from "@achq/core";
+import { crypto } from "@achq/utils/crypto";
+import { json } from "@achq/utils/json";
+import { disk } from "@achq/utils/disk";
+import { type Collected, subprocess } from "@achq/utils/subprocess";
 import { claudeSettings, effortFlags, transcriptExists, updateClaudeJson, writeFiles } from "../lib/config-dir.ts";
 import { BIN_ENV, CLAUDE_ENV, DENIED, RUNTIME, SETTINGS_FILE, SYSTEM_PROMPT_FILE, TOKEN_ENV } from "../lib/constants.ts";
 import { StreamStats, tokens } from "../lib/stream.ts";
@@ -46,19 +47,19 @@ const agentRuntime = (agent: Agent, ctx: RuntimeContext): AgentRuntime => {
         // Named `kind` so existing session keys still match.
         kind: RUNTIME,
         name: agent.name,
-        config: toData(config, `agent ${agent.name} config`),
+        config: json.from(config, `agent ${agent.name} config`),
         systemPrompt,
         containerFiles: ctx.containerFiles,
         agentFiles,
       };
-      return sha256Hex(stableStringify(prefix));
+      return crypto.sha256Hex(json.stableStringify(prefix));
     },
 
     async configure(configDir) {
-      ensureDir(configDir);
+      disk.ensureDir(configDir);
       writeFiles(agentFiles, ctx.home, configDir);
-      writeJsonSync(path.join(configDir, SETTINGS_FILE), claudeSettings(config), { pretty: true });
-      writeFileEnsured(promptFile(configDir), systemPrompt);
+      disk.writeJsonSync(path.join(configDir, SETTINGS_FILE), claudeSettings(config), { pretty: true });
+      disk.writeEnsured(promptFile(configDir), systemPrompt);
       skipOnboarding(configDir);
     },
 
@@ -70,7 +71,7 @@ const agentRuntime = (agent: Agent, ctx: RuntimeContext): AgentRuntime => {
       trustWorktree(configDir, cwd);
 
       const stats = new StreamStats();
-      const proc = await spawnCollect(argv(configDir, session, true), {
+      const proc = await subprocess.collect(argv(configDir, session, true), {
         cwd,
         env: { ...context.env, ...claudeEnv(configDir) },
         input: context.prompt,

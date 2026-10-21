@@ -10,7 +10,7 @@ import {
   type Thread,
   threadKey,
 } from "@achq/core";
-import { errorDetail, errorMessage } from "@achq/utils/errors";
+import { errors } from "@achq/utils/errors";
 import { parseCommand, type Command } from "./command.ts";
 import type { LoadedConfig } from "./config/loader.ts";
 import { failureReply, NOTHING_TO_COMPACT, runFailed, unrunnableAgent } from "./messages.ts";
@@ -71,9 +71,9 @@ export const runTrigger = async (deps: TriggerDeps, run: TriggerRun) => {
     finishSession(deps, run, agent.name);
     await reply(client, thread.ref, result.error ? runFailed(result.error, mention) : result.reply, log);
   } catch (e) {
-    agentLog(errorDetail(e));
+    agentLog(errors.detail(e));
     finishSession(deps, run, agent.name);
-    await reply(client, thread.ref, failureReply(errorMessage(e)), log);
+    await reply(client, thread.ref, failureReply(errors.message(e)), log);
   }
 };
 

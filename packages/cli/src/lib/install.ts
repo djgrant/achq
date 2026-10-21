@@ -1,6 +1,5 @@
-import type { CodeHostProvider, RepoManifest, Resource } from "@achq/core";
-import { plan } from "@achq/core";
-import { plural } from "@achq/utils/text";
+import { type CodeHostProvider, plan, type RepoManifest, type Resource } from "@achq/core";
+import { text } from "@achq/utils/text";
 import { openInBrowser } from "./browser.ts";
 import { planLines } from "./changes.ts";
 import { cliContext } from "./context.ts";
@@ -15,7 +14,7 @@ const resourcesFor = (action: InstallAction, codeHost: CodeHostProvider, repo: s
 /** When nothing would change, e.g. `app is already installed on a/b` or `app isn't installed on a/b`. */
 const alreadyMessage = (action: InstallAction, names: string[], repo: string) => {
   const n = names.length;
-  const state = action === "install" ? `${plural(n, "is", "are")} already installed` : `${plural(n, "isn't", "aren't")} installed`;
+  const state = action === "install" ? `${text.plural(n, "is", "are")} already installed` : `${text.plural(n, "isn't", "aren't")} installed`;
   return `${names.join(", ")} ${state} on ${repo}`;
 };
 

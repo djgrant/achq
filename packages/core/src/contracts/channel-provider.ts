@@ -1,4 +1,4 @@
-import type { Data } from "../resources/data.ts";
+import type { Json } from "@achq/utils/json";
 import type { SelectorData } from "../resources/config.ts";
 import type { SourceSettings } from "../wire/protocol.ts";
 
@@ -36,7 +36,7 @@ type ChannelEventBase = {
   /** The message the event is about, as a `Message.id` from `ChannelClient.messages`, when it's one. */
   message?: string;
   /** Anything else the channel needs later, e.g. the comment ID to react to. */
-  detail: { [key: string]: Data };
+  detail: { [key: string]: Json };
 };
 
 export type Thread = {
@@ -66,7 +66,7 @@ export type Credential = {
   /** ISO time. */
   expiresAt: string;
   /** What it covers, for the policy provider or channel that minted it. e.g. `{ source, repos, permissions }`. */
-  scope: { [key: string]: Data };
+  scope: { [key: string]: Json };
 };
 
 /** For the container's runner: minted by the channel it names. */

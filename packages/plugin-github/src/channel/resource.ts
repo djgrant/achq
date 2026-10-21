@@ -6,6 +6,7 @@ import { GITHUB_ENV } from "../lib/constants.ts";
 import { appSlug, manifestFlow } from "../lib/manifest.ts";
 import { APP_EVENTS, APP_PERMISSIONS, covers } from "../lib/permissions.ts";
 import { ChannelRef } from "./config.ts";
+import type { Vars } from "@achq/utils/env";
 
 export type ChannelInputs = {
   name: string;
@@ -56,7 +57,7 @@ const hookConfig = (url: string, key: string, appId: string | number): HookConfi
 const hookDiffers = (hookUrl: string, hook: HookConfig) =>
   !known(hookUrl) || hook.url !== hookUrl || hook.content_type !== WANTED_HOOK.content_type || hook.insecure_ssl !== WANTED_HOOK.insecure_ssl;
 
-const mergeAppKeys = (env: Record<string, string | undefined>, created: ChannelAttrs[]): AppKeys => ({
+const mergeAppKeys = (env: Vars, created: ChannelAttrs[]): AppKeys => ({
   ...parseApps(env[GITHUB_ENV.apps]),
   ...Object.fromEntries(created.map(({ slug, id, privateKey }) => [slug, { id, privateKey }])),
 });

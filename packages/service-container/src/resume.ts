@@ -1,6 +1,6 @@
 import { type AgentRuntime, threadKey as keyOf, type RuntimeFactory } from "@achq/core";
-import { BUSY, lockedArgv } from "@achq/utils/flock";
-import { forwardSignals, killWhenOrphaned } from "@achq/utils/process";
+import { flock } from "@achq/utils/flock";
+import { subprocess } from "@achq/utils/subprocess";
 import { savedAgentEnv } from "./agent-env.ts";
 import type { LoadedConfig } from "./config/loader.ts";
 import { ORPHAN_CHECK_INTERVAL_MS } from "./constants.ts";
@@ -11,6 +11,7 @@ import type { Paths } from "./paths.ts";
 import { containerContext } from "./runtime-context.ts";
 import { defaultRuntimes } from "./runtimes.ts";
 import { sessionsFor } from "./sessions.ts";
+import type { Vars } from "@achq/utils/env";
 
 export type ResumeOptions = {
   paths: Paths;
@@ -19,7 +20,7 @@ export type ResumeOptions = {
   loadConfig: (commit: string) => Promise<LoadedConfig>;
   container: string;
   runtimes?: Record<string, RuntimeFactory>;
-  env?: Record<string, string | undefined>;
+  env?: Vars;
   /** Defaults to inheriting the terminal. */
   stdio?: ["inherit" | "ignore", "inherit" | "ignore", "inherit" | "ignore"];
   out?: (text: string) => void;
@@ -48,13 +49,13 @@ export const resume = async (opts: ResumeOptions): Promise<number> => {
   const command = await resumeCommandFor(opts, session);
   const threadKey = keyOf(session.state.thread);
   const env = opts.env ?? process.env;
-  const code = await runAttached(lockedArgv(opts.paths.lock(session.workspace, threadKey), command.argv), {
+  const code = await runAttached(flock.lockedArgv(opts.paths.lock(session.workspace, threadKey), command.argv), {
     cwd: opts.paths.worktree(session.workspace, threadKey),
     env: { ...withoutPrivate(env), HOME: opts.paths.home, ...savedAgentEnv(opts.paths.agentEnv), ...command.env },
     stdio: opts.stdio ?? INHERIT,
     keepAwake: keepAwake(env),
   });
-  if (code === BUSY) out(threadBusy(session.workspace));
+  if (code === flock.BUSY) out(threadBusy(session.workspace));
   return code;
 };
 
@@ -82,9 +83,9 @@ const runAttached = async (
 ): Promise<number> => {
   const proc = Bun.spawn(argv, { cwd, env, stdio });
   const stops = [
-    killWhenOrphaned(proc, { intervalMs: ORPHAN_CHECK_INTERVAL_MS, signal: "SIGHUP" }),
+    subprocess.killWhenOrphaned(proc, { intervalMs: ORPHAN_CHECK_INTERVAL_MS, signal: "SIGHUP" }),
     ping ? stayAwake(() => void ping().catch(() => {})) : () => {},
-    forwardSignals(proc, FORWARDED_SIGNALS),
+    subprocess.forwardSignals(proc, FORWARDED_SIGNALS),
   ];
   try {
     return await proc.exited;

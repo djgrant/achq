@@ -9,7 +9,7 @@ import {
   type Status,
 } from "@achq/core";
 import { containerSecret } from "@achq/core/secrets";
-import { errorMessage } from "@achq/utils/errors";
+import { errors } from "@achq/utils/errors";
 import { checkManifest, dockerfileOf } from "./checks.ts";
 import { isSourceFile } from "./config/index.ts";
 import { CONFIG_DIR, CONFIG_ENTRY } from "./constants.ts";
@@ -81,7 +81,7 @@ const mintRepoClient = async ({ ctx, repo }: Run, host: CodeHostProvider): Promi
     if (!credential) throw new Error(`the router minted no ${policy.provider} credential for ${repo}`);
     return host.repo(repo, credential);
   } catch (error) {
-    throw new DeployFailure(`couldn't get a token for ${repo}: ${errorMessage(error)}`);
+    throw new DeployFailure(`couldn't get a token for ${repo}: ${errors.message(error)}`);
   }
 };
 
@@ -97,7 +97,7 @@ const evaluate = async (ctx: DeployerContext, files: Record<string, string>) => 
   try {
     return await ctx.evaluate(files);
   } catch (error) {
-    throw new DeployFailure(`${CONFIG_FILE}: ${errorMessage(error)}`);
+    throw new DeployFailure(`${CONFIG_FILE}: ${errors.message(error)}`);
   }
 };
 
@@ -195,7 +195,7 @@ const writeStatus = async (ctx: DeployerContext, client: RepoClient, record: Sto
   try {
     await client.writeStatus({ ...wireRecord(record), router: ctx.env.routerPublicUrl } satisfies Status);
   } catch (error) {
-    ctx.log(`${record.repo}: couldn't write ACHQ_STATUS: ${errorMessage(error)}`);
+    ctx.log(`${record.repo}: couldn't write ACHQ_STATUS: ${errors.message(error)}`);
   }
 };
 
@@ -205,7 +205,7 @@ const saveRecord = async (run: Run, record: StoredRecord) => {
 };
 
 const reportFailure = async (run: Run, failure: unknown): Promise<DeployOutcome> => {
-  const error = errorMessage(failure);
+  const error = errors.message(failure);
   const warnings = failure instanceof DeployFailure ? failure.warnings : [];
   run.ctx.log(`${run.repo}: deploy failed: ${error}`);
   if (!run.dryRun) await saveRecord(run, failedRecord(run, error, warnings));

@@ -1,8 +1,8 @@
 import { Agent, collectManifest, declared, resetDeclarations, type RepoManifest } from "@achq/core";
-import { serial } from "@achq/utils/async";
+import { async } from "@achq/utils/async";
 
 /** Declarations are shared module state, so one evaluation at a time. */
-const oneAtATime = serial();
+const oneAtATime = async.serial();
 
 export const evaluateBundle = (bundle: string): Promise<{ manifest: RepoManifest; agents: Agent[] }> =>
   oneAtATime(async () => {

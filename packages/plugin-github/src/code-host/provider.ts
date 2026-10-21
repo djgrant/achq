@@ -1,5 +1,5 @@
-import { type CodeHostProvider, type ConfigTree, type Credential, type FileLimits, type InstalledRepo, type RepoClient, type RepoManifest, STATUS_VARIABLE, type Status } from "@achq/core";
-import { GitHub, ghToken, repoKey, type RepoApi, type TreeEntry } from "@achq/utils/gh";
+import { type CodeHostProvider, type ConfigTree, type Credential, type FileLimits, type InstalledRepo, type RepoClient, type RepoManifest, repoName, STATUS_VARIABLE, type Status } from "@achq/core";
+import { GitHub, type RepoApi, type TreeEntry } from "@achq/utils/gh";
 import type { Apps } from "../lib/apps.ts";
 import type { GitHubUrls } from "../lib/client.ts";
 import { configNeeds, configSource } from "../lib/config-needs.ts";
@@ -71,7 +71,7 @@ export class GitHubCodeHostProvider implements CodeHostProvider {
 
   /** You, through your gh login: the CLI's side. Logged in on first use, since the router makes this provider too. */
   private get gh() {
-    return (this.you ??= GitHub.connect({ token: ghToken(), baseUrl: this.urls.api }));
+    return (this.you ??= GitHub.connect({ token: GitHub.cliToken(), baseUrl: this.urls.api }));
   }
 
   /** Through whichever App is installed on the repo: GitHub's policy provider finds it. */
@@ -96,7 +96,7 @@ export class GitHubCodeHostProvider implements CodeHostProvider {
   }
 
   token() {
-    return ghToken();
+    return GitHub.cliToken();
   }
 
   status(repo: string) {
@@ -138,4 +138,4 @@ export class GitHubCodeHostProvider implements CodeHostProvider {
 }
 
 /** Each repo once, compared as GitHub does; the last spelling wins. */
-const dedupe = (repos: string[]) => [...new Map(repos.map((repo) => [repoKey(repo), repo])).values()];
+const dedupe = (repos: string[]) => [...new Map(repos.map((repo) => [repoName.key(repo), repo])).values()];

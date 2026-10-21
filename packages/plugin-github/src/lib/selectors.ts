@@ -1,5 +1,5 @@
 import { type ChannelEvent, EventSelector, type SelectorData, type ThreadRef, ThreadSelector } from "@achq/core";
-import { escapeRegExp } from "@achq/utils/text";
+import { text } from "@achq/utils/text";
 import { CHANNEL } from "./constants.ts";
 
 export type EventSelectorData = {
@@ -45,11 +45,11 @@ export class Issues extends ThreadSelector {
 }
 
 /**
- * Whether `text` mentions `mention` as GitHub would: case-insensitively, and
+ * Whether `body` mentions `mention` as GitHub would: case-insensitively, and
  * not as part of a longer name or address (`@claudette`, `me@claude.ai`).
  */
-export const mentions = (text: string | undefined, mention: string) =>
-  text !== undefined && new RegExp(`(?<![\\w@.-])${escapeRegExp(mention)}(?![\\w-])`, "i").test(text);
+export const mentions = (body: string | undefined, mention: string) =>
+  body !== undefined && new RegExp(`(?<![\\w@.-])${text.escapeRegExp(mention)}(?![\\w-])`, "i").test(body);
 
 export const matchEvent = (selector: SelectorData, event: ChannelEvent): boolean => {
   const s = selector as Partial<EventSelectorData>;

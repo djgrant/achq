@@ -1,5 +1,6 @@
 import type { Agent } from "../resources/config.ts";
 import type { ThreadRef } from "./channel-provider.ts";
+import type { Vars } from "@achq/utils/env";
 
 export type RunContext = {
   thread: ThreadRef;
@@ -41,7 +42,7 @@ export type RuntimeContext = {
   /** The container's startup files' contents, by target path. Part of every session key. */
   containerFiles: Record<string, string>;
   /** The container's environment, without its private variables. A runtime reads its own settings from it, e.g. which binary to run. */
-  env: Record<string, string | undefined>;
+  env: Vars;
 };
 
 export type RuntimeFactory = (agent: Agent, ctx: RuntimeContext) => AgentRuntime;

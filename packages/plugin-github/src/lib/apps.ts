@@ -1,8 +1,10 @@
+import { repoName } from "@achq/core";
 import { implementationSecret } from "@achq/core/secrets";
-import { errorMessage } from "@achq/utils/errors";
-import { GitHub, type Installation, splitRepo, type TokenNarrowing } from "@achq/utils/gh";
+import { errors } from "@achq/utils/errors";
+import { GitHub, type Installation, type TokenNarrowing } from "@achq/utils/gh";
 import { githubUrls } from "./client.ts";
 import { GITHUB_API, GITHUB_ENV } from "./constants.ts";
+import type { Vars } from "@achq/utils/env";
 
 /** The least a token can ask for: enough to prove the installation reaches a repo. */
 const PROBE_PERMISSIONS = { metadata: "read" };
@@ -73,10 +75,10 @@ export class Apps {
    */
   async covers(slug: string, installationId: number, repo: string): Promise<Coverage> {
     try {
-      await this.token(slug, installationId, { repositories: [splitRepo(repo).name], permissions: PROBE_PERMISSIONS });
+      await this.token(slug, installationId, { repositories: [repoName.split(repo).name], permissions: PROBE_PERMISSIONS });
       return { covered: true };
     } catch (error) {
-      return { covered: false, reason: errorMessage(error) };
+      return { covered: false, reason: errors.message(error) };
     }
   }
 
@@ -96,4 +98,4 @@ export class Apps {
 }
 
 /** The Apps `env` configures. */
-export const appsFor = (env: Record<string, string | undefined>) => new Apps(parseApps(env[GITHUB_ENV.apps]), githubUrls(env).api);
+export const appsFor = (env: Vars) => new Apps(parseApps(env[GITHUB_ENV.apps]), githubUrls(env).api);

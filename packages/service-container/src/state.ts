@@ -1,5 +1,5 @@
 import type { ThreadRef } from "@achq/core";
-import { jsonFile, listJsonNamesSync, readJsonSync, writeJsonSync } from "@achq/utils/fs";
+import { disk } from "@achq/utils/disk";
 
 export type SessionState = {
   /** The session key it was started with; a different key means a fresh session. */
@@ -27,13 +27,13 @@ export type ThreadState = {
 };
 
 /** The thread's state, or undefined before it's claimed. */
-export const readState = (file: string): ThreadState | undefined => readJsonSync<ThreadState>(file);
+export const readState = (file: string): ThreadState | undefined => disk.readJsonSync<ThreadState>(file);
 
 /** Atomic, so a crash mid-write leaves the previous state. */
-export const writeState = (file: string, state: ThreadState) => writeJsonSync(file, state, { pretty: true });
+export const writeState = (file: string, state: ThreadState) => disk.writeJsonSync(file, state, { pretty: true });
 
 export const allStates = (dir: string): { file: string; state: ThreadState }[] =>
-  listJsonNamesSync(dir).map((name) => {
-    const file = jsonFile(dir, name);
+  disk.listJsonNamesSync(dir).map((name) => {
+    const file = disk.jsonFile(dir, name);
     return { file, state: readState(file)! };
   });

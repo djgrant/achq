@@ -1,20 +1,21 @@
 import { z } from "zod";
-import { type Data, RESOURCE_NAME, type RepoManifest } from "@achq/core";
-import { duplicates } from "@achq/utils/collections";
+import { RESOURCE_NAME, type RepoManifest } from "@achq/core";
+import type { Json } from "@achq/utils/json";
+import { collections } from "@achq/utils/collections";
 
 const name = z.string().regex(RESOURCE_NAME, "must be lowercase letters, digits and dashes, starting with a letter");
 const text = z.string().max(10_000);
 
-const data: z.ZodType<Data> = z.lazy(() =>
+const data: z.ZodType<Json> = z.lazy(() =>
   z.union([z.string().max(100_000), z.number().refine(Number.isFinite), z.boolean(), z.null(), z.array(data).max(10_000), z.record(z.string(), data)]),
 );
 
-/** Data with a non-empty string under `key`: a selector's `channel`, a policy's `provider`. */
-type Tagged<K extends string> = { [P in K]: string } & { [key: string]: Data };
+/** JSON with a non-empty string under `key`: a selector's `channel`, a policy's `provider`. */
+type Tagged<K extends string> = { [P in K]: string } & { [key: string]: Json };
 
 const MAX_TAG_LENGTH = 100;
 
-const hasTag = (record: Record<string, Data>, key: string) => {
+const hasTag = (record: Record<string, Json>, key: string) => {
   const tag = record[key];
   return typeof tag === "string" && tag.length > 0 && tag.length <= MAX_TAG_LENGTH;
 };
@@ -47,7 +48,7 @@ const parseJson = (json: string): unknown => {
 
 const assertNamesUnique = (manifest: RepoManifest) => {
   for (const kind of KINDS) {
-    const [repeated] = duplicates(manifest[kind].map((r) => r.name));
+    const [repeated] = collections.duplicates(manifest[kind].map((r) => r.name));
     if (repeated !== undefined) throw new Error(`The config's manifest has two ${kind} named "${repeated}"`);
   }
 };

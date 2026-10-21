@@ -1,5 +1,5 @@
-import type { ChannelProvider, ChannelClient, ChannelCredential, ChannelEvent, Credential, Message, SelectorData, SourceSettings, Thread, ThreadRef } from "@achq/core";
-import { GitHub, type Issue, type IssueComment, type ReactionContent, type ReactionTarget, splitRepo, type User } from "@achq/utils/gh";
+import { type ChannelClient, type ChannelCredential, type ChannelEvent, type ChannelProvider, type Credential, type Message, repoName, type SelectorData, type SourceSettings, type Thread, type ThreadRef } from "@achq/core";
+import { GitHub, type Issue, type IssueComment, type ReactionContent, type ReactionTarget, type User } from "@achq/utils/gh";
 import { verify } from "@octokit/webhooks-methods";
 import { type Apps, appWebhookSecret } from "../lib/apps.ts";
 import { botLogin } from "../lib/client.ts";
@@ -35,7 +35,7 @@ export class GitHubChannelProvider implements ChannelProvider {
     if (!REPO.test(repo)) throw new Error(`Not a repo: ${repo}`);
     const installation = await this.apps.installation(source, repo);
     if (!installation) throw new Error(`${source} isn't installed on ${repo}`);
-    const token = await this.apps.token(source, installation.id, { repositories: [splitRepo(repo).name], permissions: CLIENT_PERMISSIONS });
+    const token = await this.apps.token(source, installation.id, { repositories: [repoName.split(repo).name], permissions: CLIENT_PERMISSIONS });
     return {
       channel: CHANNEL,
       value: token.token,

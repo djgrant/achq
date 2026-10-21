@@ -5,6 +5,7 @@ import { inRoot } from "./config/path.ts";
 import { withoutPrivate } from "./env.ts";
 import { resolveFiles } from "./files.ts";
 import { runnerPrompt } from "./runner-prompt.ts";
+import type { Vars } from "@achq/utils/env";
 
 type Container = RepoManifest["containers"][number];
 
@@ -15,7 +16,7 @@ export const runtimeContext = (root: string, rest: Omit<RuntimeContext, "readFil
 });
 
 /** What runtimes get in this container: its HOME, achq's prompt, `container`'s startup files, and `env` without private variables. */
-export const containerContext = (config: LoadedConfig, home: string, env: Record<string, string | undefined>, container: Container | undefined): RuntimeContext =>
+export const containerContext = (config: LoadedConfig, home: string, env: Vars, container: Container | undefined): RuntimeContext =>
   runtimeContext(config.root, {
     home,
     runnerPrompt: runnerPrompt(),

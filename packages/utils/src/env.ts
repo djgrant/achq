@@ -1,9 +1,18 @@
-export type Env = Record<string, string | undefined>;
+/** Variables by name, as `process.env` has them. */
+export type Vars = Record<string, string | undefined>;
 
-export const optionalEnv = (env: Env, name: string): string | undefined => env[name] || undefined;
+/** Settings read from variables. An empty one is as good as unset. */
+export class Env {
+  constructor(readonly vars: Vars) {}
 
-export const requireEnv = (env: Env, name: string, hint = ""): string => {
-  const value = optionalEnv(env, name);
-  if (value === undefined) throw new Error(`Missing ${name} in the environment.${hint ? ` ${hint}` : ""}`);
-  return value;
-};
+  optional(name: string): string | undefined {
+    return this.vars[name] || undefined;
+  }
+
+  /** Throws naming what's missing, and `hint` on how to set it. */
+  require(name: string, hint = ""): string {
+    const value = this.optional(name);
+    if (value === undefined) throw new Error(`Missing ${name} in the environment.${hint ? ` ${hint}` : ""}`);
+    return value;
+  }
+}
