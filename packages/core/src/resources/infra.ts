@@ -1,7 +1,6 @@
 import { GENERATED, type Input, type Output } from "../engine/values.ts";
 import { DEPLOYER_PORT, ROUTER_PUBLIC_PORT } from "../wire/constants.ts";
-import { declared, resetDeclarations } from "./declarations.ts";
-import { type Context, Resource } from "./resource.ts";
+import { type Context, declared, Resource, resetDeclarations } from "./resource.ts";
 
 /** A variable's value: a string, another resource's output, or generated once and then kept. */
 export type EnvValue = Input<string> | typeof GENERATED;

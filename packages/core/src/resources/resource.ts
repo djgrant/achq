@@ -1,9 +1,18 @@
+import type { Vars } from "@achq/utils/env";
 import type { Change } from "../engine/plan.ts";
 import { hasUnknown, type Inputs, Output, type Planned, UNKNOWN, type Unknown } from "../engine/values.ts";
-import { declare } from "./declarations.ts";
-import type { Vars } from "@achq/utils/env";
 
 export const RESOURCE_NAME = /^[a-z][a-z0-9-]{0,30}$/;
+
+/** The resources the config being evaluated has declared so far. */
+let declarations: Resource[] = [];
+
+/** Starts afresh, for evaluating another config in the same process. */
+export const resetDeclarations = () => {
+  declarations = [];
+};
+
+export const declared = () => [...declarations];
 
 /** What planning and applying give a resource. */
 export type Context = {
@@ -38,7 +47,7 @@ export abstract class Resource {
     this.parent = options.parent;
     if (this.parent || options.declared === false) return;
     if (!RESOURCE_NAME.test(name)) throw new Error(`Resource name "${name}" must be lowercase letters, digits and dashes, starting with a letter`);
-    declare(this);
+    declarations.push(this);
   }
 
   /** What it's made of. Called once, when it's planned, so parts can still be declared until then. */

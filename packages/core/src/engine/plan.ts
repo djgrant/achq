@@ -1,6 +1,6 @@
-import { type Context, ManagedResource, type Resource } from "../resources/resource.ts";
 import { graph } from "@achq/utils/graph";
 import { json } from "@achq/utils/json";
+import { type Context, ManagedResource, type Resource } from "../resources/resource.ts";
 import { dependencies, hasUnknown, type Input, type Outputs, resolve, type Unknown } from "./values.ts";
 
 /** A planned change, for printing. Variable changes name the variables, never their values. */
@@ -18,74 +18,52 @@ export type Applied = {
   changed(resource: ManagedResource): boolean;
 };
 
-type Step = { props: unknown; current: unknown; changes: unknown[]; planned: unknown };
+type Step = { resource: ManagedResource; props: unknown; current: unknown; changes: unknown[]; planned: unknown };
 
+const label = (r: Resource): string => (r.parent ? `${label(r.parent)}/${r.name}` : r.name);
+
+const dependsOn = (r: ManagedResource) => [...dependencies(r.props), ...r.after];
+
+/** What `resource` is now, and what applying `props` would change. */
 const readAndCompare = async (resource: ManagedResource, props: unknown, ctx: Context): Promise<Step> => {
   const current = await resource.read(props, ctx);
   const changes = resource.diff(props, current, ctx);
-  return { props, current, changes, planned: resource.planned(props, current, changes) };
+  return { resource, props, current, changes, planned: resource.planned(props, current, changes) };
 };
-
-type PlannedStep = { resource: ManagedResource; step: Step };
-
-const describeChanges = ({ resource, step }: PlannedStep) => step.changes.map((c) => resource.describe(c, step.props));
-
-const warningsOf = ({ resource, step: { props, current } }: PlannedStep) => (current !== undefined && resource.check ? resource.check(props, current) : []);
 
 /** Plans `resources`, their children and everything they depend on. Reads, never writes. */
 export const plan = async (resources: Resource[], ctx: Context): Promise<Plan> => {
-  const order = sorted(managed(resources, ctx));
+  // Each resource's children are asked for once.
+  const reached = graph.reachable(resources, (r) => [...(r instanceof ManagedResource ? dependsOn(r) : []), ...r.children(ctx)]);
   const outputs: Outputs = new Map();
-  const steps: PlannedStep[] = [];
-  for (const resource of order) {
+  const steps: Step[] = [];
+  for (const resource of graph.topoSort(reached.filter((r) => r instanceof ManagedResource), dependsOn, label)) {
     const step = await readAndCompare(resource, resolve(resource.props, outputs), ctx);
-    steps.push({ resource, step });
+    steps.push(step);
     outputs.set(resource, step.planned);
   }
 
   return {
-    changes: steps.flatMap(describeChanges),
-    warnings: steps.flatMap(warningsOf),
+    changes: steps.flatMap(({ resource, props, changes }) => changes.map((c) => resource.describe(c, props))),
+    warnings: steps.flatMap(({ resource, props, current }) => (current !== undefined && resource.check ? resource.check(props, current) : [])),
     value: (input) => resolve(input, outputs),
-    apply: () => applyPlan(steps, ctx),
+    apply: async () => {
+      const live: Outputs = new Map();
+      const changed = new Set<ManagedResource>();
+      for (const planned of steps) {
+        const { resource } = planned;
+        const props = resolve(resource.props, live);
+        // Once what a resource depends on is applied, its props have to be known.
+        if (hasUnknown(props)) {
+          const vague = dependencies(resource.props).filter((d) => hasUnknown(live.get(d))).map(label);
+          throw new Error(`${label(resource)}: an input is still unknown after applying what it depends on (${vague.join(", ")})`);
+        }
+        // Applying what it depends on can change its props, and so what it has to change.
+        const step = json.deepEqual(props, planned.props) ? planned : await readAndCompare(resource, props, ctx);
+        live.set(resource, step.changes.length ? await resource.apply(props, step.current, step.changes, ctx) : step.planned);
+        if (step.changes.length) changed.add(resource);
+      }
+      return { value: (input) => resolve(input, live), changed: (r) => changed.has(r) };
+    },
   };
 };
-
-const applyPlan = async (steps: PlannedStep[], ctx: Context): Promise<Applied> => {
-  const live: Outputs = new Map();
-  const changed = new Set<ManagedResource>();
-  for (const planned of steps) {
-    const { resource } = planned;
-    const props = resolve(resource.props, live);
-    assertKnown(resource, props, live);
-    const step = await replanIfChanged(planned, props, ctx);
-    live.set(resource, await applyStep(resource, props, step, ctx));
-    if (step.changes.length) changed.add(resource);
-  }
-  return { value: (input) => resolve(input, live), changed: (r) => changed.has(r) };
-};
-
-/** Once what a resource depends on is applied, its props have to be known. */
-const assertKnown = (resource: ManagedResource, props: unknown, live: Outputs) => {
-  if (!hasUnknown(props)) return;
-  const vague = dependencies(resource.props).filter((d) => hasUnknown(live.get(d))).map(label);
-  throw new Error(`${label(resource)}: an input is still unknown after applying what it depends on (${vague.join(", ")})`);
-};
-
-const replanIfChanged = async ({ resource, step: planned }: PlannedStep, props: unknown, ctx: Context): Promise<Step> =>
-  json.deepEqual(props, planned.props) ? planned : readAndCompare(resource, props, ctx);
-
-const applyStep = async (resource: ManagedResource, props: unknown, { current, changes, planned }: Step, ctx: Context): Promise<unknown> =>
-  changes.length ? resource.apply(props, current, changes, ctx) : planned;
-
-const label = (r: Resource): string => (r.parent ? `${label(r.parent)}/${r.name}` : r.name);
-
-const dependsOn = (r: ManagedResource): ManagedResource[] => [...dependencies(r.props), ...r.after];
-
-const plannedWith = (r: Resource, ctx: Context): Resource[] => [...(r instanceof ManagedResource ? dependsOn(r) : []), ...r.children(ctx)];
-
-/** Each resource's children are asked for once. */
-const managed = (resources: Resource[], ctx: Context) =>
-  graph.reachable(resources, (r) => plannedWith(r, ctx)).filter((r): r is ManagedResource => r instanceof ManagedResource);
-
-const sorted = (resources: ManagedResource[]) => graph.topoSort(resources, dependsOn, label);

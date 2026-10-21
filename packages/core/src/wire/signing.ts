@@ -26,8 +26,6 @@ export const verifySigned = (secret: string, method: string, path: string, body:
   return crypto.safeEqual(signed, signature(secret, method, path, timestamp, body));
 };
 
-const bodyHeaders = (body: string | undefined): Record<string, string> => (body === undefined ? {} : { "content-type": "application/json" });
-
 /** Sign each attempt afresh: a retry can outlast the timestamp's window. */
 export const signedRequestInit = (
   secret: string,
@@ -39,7 +37,7 @@ export const signedRequestInit = (
   method,
   body,
   signal,
-  headers: { ...headers, ...bodyHeaders(body), ...signedHeaders(secret, method, signedPath(url), body ?? "", now) },
+  headers: { ...headers, ...(body !== undefined && { "content-type": "application/json" }), ...signedHeaders(secret, method, signedPath(url), body ?? "", now) },
 });
 
 /** The signature covers `url`'s path and query. */

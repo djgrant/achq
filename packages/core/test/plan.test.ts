@@ -1,7 +1,7 @@
 import { beforeEach, expect, test } from "bun:test";
 import { type Change, plan } from "../src/engine/plan.ts";
 import { all, type Input, type Inputs, known, type Planned, UNKNOWN } from "../src/engine/values.ts";
-import { declared, resetDeclarations } from "../src/resources/declarations.ts";
+import { declared, resetDeclarations } from "../src/resources/resource.ts";
 import { type Context, ManagedResource, Resource, type ResourceOptions } from "../src/resources/resource.ts";
 
 type Db = { rows: Map<string, Row>; reads: string[]; writes: string[] };

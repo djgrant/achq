@@ -1,8 +1,7 @@
 import { collections } from "@achq/utils/collections";
 import { type Json, json } from "@achq/utils/json";
-import { declared } from "./declarations.ts";
 import { Agent, Container, Policy, type PolicyData, type SelectorData, Trigger, Workspace } from "./config.ts";
-import type { Resource } from "./resource.ts";
+import { declared, type Resource } from "./resource.ts";
 
 /**
  * What a repo's config evaluates to: every resource as plain data. Resources
@@ -19,19 +18,13 @@ export type RepoManifest = {
 
 type ResourceClass<T extends Resource> = abstract new (...args: any[]) => T;
 
-/** A resource's identity within a config: names are unique per kind. */
-const resourceId = (r: Resource) => `${r.kind}:${r.name}`;
-
-const assertUniqueNames = (resources: Resource[]) => {
-  const [repeated] = collections.duplicates(resources.map(resourceId));
-  if (!repeated) return;
-  const r = resources.find((x) => resourceId(x) === repeated)!;
-  throw new Error(`Two ${r.kind}s are named "${r.name}"`);
-};
-
 /** Turns the declared resources into a manifest, checking names and references. */
 export const collectManifest = (resources: Resource[] = declared()): RepoManifest => {
-  assertUniqueNames(resources);
+  // Names are unique per kind.
+  const id = (r: Resource) => `${r.kind}:${r.name}`;
+  const [repeated] = collections.duplicates(resources.map(id));
+  const named = resources.find((r) => id(r) === repeated);
+  if (named) throw new Error(`Two ${named.kind}s are named "${named.name}"`);
   const ofKind = <T extends Resource>(type: ResourceClass<T>) => resources.filter((r): r is T => r instanceof type);
   /** `r`'s name, for `from` to refer to it by. It has to be declared in this config. */
   const refName = (r: Resource, from: string) => {
