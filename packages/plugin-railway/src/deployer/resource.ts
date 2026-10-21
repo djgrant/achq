@@ -1,5 +1,5 @@
 import * as core from "@achq/core";
-import type { Context, EnvValues, Output, Resource } from "@achq/core";
+import type { Context, EnvValues, Output } from "@achq/core";
 import { Env } from "@achq/utils/env";
 import { CONTAINER_PROVIDER, RAILWAY_ENV } from "../lib/constants.ts";
 import { hostServiceName, privateUrl } from "../lib/names.ts";
@@ -45,7 +45,7 @@ export class Deployer extends core.Deployer {
     return this.parts.variables(values);
   }
 
-  children(ctx: Context): Resource[] {
+  children(ctx: Context) {
     return this.parts.children(ctx);
   }
 }

@@ -1,20 +1,13 @@
 import { type Change, type Context, GENERATED, known, ManagedResource, type Planned, UNKNOWN } from "@achq/core";
 import { collections } from "@achq/utils/collections";
-import type { At } from "./project.ts";
+import type { ServiceAt } from "@achq/utils/railway";
 import { serviceAt } from "./railway.ts";
 
 type Declared = Record<string, string | typeof GENERATED>;
-type Props = { at: At & { serviceId: string }; service: string; values: Declared };
+type Props = { at: ServiceAt; service: string; values: Declared };
 type Current = Record<string, string>;
 /** The variables to set. Unknown values differ from anything. */
 type Set = Record<string, string>;
-
-/** Extra variables on the service are left alone. */
-export const variablesDiff = (want: Record<string, string>, have: Record<string, string>) => Object.keys(want).filter((key) => have[key] !== want[key]);
-
-/** `values` with each GENERATED one made: as `current` has it, or else a new secret. */
-const resolveGenerated = (values: Declared, current: Current, newSecret: () => string): Record<string, string> =>
-  collections.mapValues(values, (value, key) => (value === GENERATED ? (current[key] ?? newSecret()) : value));
 
 /** Each declared variable's value once `set` is set over `current`: undefined for one in neither. */
 const valuesAfter = (values: Declared, current: Current, set: Set = {}): Record<string, string | undefined> =>
@@ -28,10 +21,11 @@ export class Variables extends ManagedResource<Props, Current, Current, Set> {
   }
 
   diff({ values }: Props, current: Current = {}, ctx: Context): Set[] {
-    // A generated value is made here, once, so what's printed is what's set.
-    const want = resolveGenerated(values, current, ctx.newSecret);
-    const differ = variablesDiff(want, current);
-    return differ.length ? [collections.filterKeys(want, (key) => differ.includes(key))] : [];
+    // A generated value is made here, once, so what's printed is what's set: as `current` has it, or else a new secret.
+    const want = collections.mapValues(values, (value, key) => (value === GENERATED ? (current[key] ?? ctx.newSecret()) : value));
+    // Extra variables on the service are left alone.
+    const set = collections.filterKeys(want, (key) => current[key] !== want[key]);
+    return Object.keys(set).length ? [set] : [];
   }
 
   describe(set: Set, { service }: Props): Change {

@@ -1,5 +1,5 @@
 import * as core from "@achq/core";
-import { type Context, ENV, type EnvValues, GENERATED, type Output, type Resource } from "@achq/core";
+import { type Context, ENV, type EnvValues, GENERATED, type Output } from "@achq/core";
 import { CONTAINER_PROVIDER } from "../lib/constants.ts";
 import { hostServiceName, privateUrl } from "../lib/names.ts";
 import { Project } from "../lib/project.ts";
@@ -38,7 +38,7 @@ export class Router extends core.Router {
     return this.parts.variables(values);
   }
 
-  children(ctx: Context): Resource[] {
+  children(ctx: Context) {
     return [this.project, ...this.parts.children(ctx)];
   }
 }

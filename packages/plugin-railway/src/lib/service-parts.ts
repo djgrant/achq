@@ -1,9 +1,9 @@
-import { ACHQ_SOURCE, all, type Context, ENV, type EnvValues, type Input, type ManagedResource, type Output, type Service as AchqService } from "@achq/core";
+import { ACHQ_SOURCE, all, CONTAINER_PORT, type ContainerSpec, type Context, ENV, type EnvValues, type Input, type ManagedResource, type Service as AchqService } from "@achq/core";
 import { collections } from "@achq/utils/collections";
-import type { InstanceSettings } from "@achq/utils/railway";
-import { BUN_IMAGE, VOLUME } from "./constants.ts";
+import type { InstanceSettings, ProjectAt } from "@achq/utils/railway";
+import { BRANCH, BUN_IMAGE, VOLUME } from "./constants.ts";
 import { Deployment, fingerprint } from "./deployment.ts";
-import { hostServiceName } from "./names.ts";
+import { containerServiceName, hostServiceName } from "./names.ts";
 import { Service } from "./service.ts";
 import { Variables } from "./variables.ts";
 
@@ -42,29 +42,21 @@ const INSTALL = [
   `}`,
 ];
 
-const runEntry = (entry: string) => [`const entry = await import(dir + "/${entry}");`, `if (typeof entry.main === "function") await entry.main();`];
-
 /**
  * Runs `entry` (e.g. `packages/service-router/src/main.ts`) from achq at
  * ACHQ_REF. The script must not contain single quotes, because Railway splits
  * the command like a shell.
  */
 export const startCommand = (entry: string) => {
-  const script = [...LOCATE, ...DOWNLOAD, ...INSTALL, ...runEntry(entry)].join(" ");
+  const run = [`const entry = await import(dir + "/${entry}");`, `if (typeof entry.main === "function") await entry.main();`];
+  const script = [...LOCATE, ...DOWNLOAD, ...INSTALL, ...run].join(" ");
   return `bun -e '${script}'`;
 };
 
 /** A group of variables, or how to make it when it's planned. */
 type Values = EnvValues | ((ctx: Context) => EnvValues);
 
-/** Its settings' key order is part of the deploy's fingerprint: reordering them redeploys. */
-const settings = (service: AchqService): InstanceSettings => ({
-  source: { image: BUN_IMAGE },
-  startCommand: startCommand(service.entry),
-  healthcheckPath: "/",
-  sleepApplication: service.sleeps,
-});
-
+/** One of achq's own services as Railway resources: its service, its groups of variables, and its deploy. */
 export class ServiceParts {
   readonly name: string;
   readonly service: Service;
@@ -82,7 +74,8 @@ export class ServiceParts {
     private readonly own: { variables?: (ctx: Context) => EnvValues; wait: boolean },
   ) {
     this.name = hostServiceName(owner.name);
-    this.settings = settings(owner);
+    // Its settings' key order is part of the deploy's fingerprint: reordering them redeploys.
+    this.settings = { source: { image: BUN_IMAGE }, startCommand: startCommand(owner.entry), healthcheckPath: "/", sleepApplication: owner.sleeps };
     this.service = new Service(
       "service",
       { at, name: this.name, settings: this.settings, volume: VOLUME, ...(owner.public && { publicPort: owner.port }), env: true },
@@ -92,7 +85,7 @@ export class ServiceParts {
     this.first = this.group((ctx) => ({ ...own.variables?.(ctx), [ENV.dataDir]: VOLUME, PORT: String(owner.port) }));
   }
 
-  variables(values: Values): Output<Record<string, string>> {
+  variables(values: Values) {
     return this.group(values).outputs();
   }
 
@@ -105,35 +98,66 @@ export class ServiceParts {
     return variables;
   }
 
-  children(ctx: Context): ManagedResource[] {
-    return (this.made ??= this.make(ctx));
-  }
-
-  private make(ctx: Context): ManagedResource[] {
-    this.resolveDeclaredGroups(ctx);
-    this.assertNoSharedVariables();
-    const groups = this.groups.map((g) => g.variables);
-    const deploy = new Deployment(
-      "deploy",
-      { at: this.at, service: this.name, fingerprint: deployFingerprint(this.settings, groups), wait: this.own.wait },
-      { parent: this.owner },
-    );
-    return [this.service, ...groups, deploy];
-  }
-
-  private resolveDeclaredGroups(ctx: Context) {
+  /** Made once, when it's planned: no group of variables can be declared after. */
+  children(ctx: Context) {
+    if (this.made) return this.made;
     for (const group of this.groups) {
       if (typeof group.declared === "function") Object.assign(group.values, group.declared(ctx));
     }
-  }
-
-  /** Two groups setting one variable would undo each other on every apply. */
-  private assertNoSharedVariables() {
+    // Two groups setting one variable would undo each other on every apply.
     const shared = collections.duplicates(this.groups.flatMap(({ values }) => Object.keys(values)));
     if (shared.length) throw new Error(`${this.name}: ${shared.join(", ")} declared in two groups of variables`);
+    const groups = this.groups.map((g) => g.variables);
+    // Over every group's variables as one map, as it hashed before variables came in groups.
+    const variables = all(groups.map((g) => g.outputs())).map((maps): Record<string, string> => Object.assign({}, ...maps));
+    const deploy = new Deployment(
+      "deploy",
+      { at: this.at, service: this.name, fingerprint: variables.map((v) => fingerprint({ settings: this.settings, variables: v })), wait: this.own.wait },
+      { parent: this.owner },
+    );
+    return (this.made = [this.service, ...groups, deploy]);
   }
 }
 
-/** The deploy's fingerprint: over its settings and every group's variables as one map, as it hashed before variables came in groups. */
-const deployFingerprint = (settings: InstanceSettings, groups: Variables[]) =>
-  all(groups.map((g) => g.outputs())).map((maps) => fingerprint({ settings, variables: Object.assign({}, ...maps) }));
+/**
+ * One Railway service per repo and container: private, sleeping when idle,
+ * and its variables. Not its deploy: the deployer starts its builds.
+ */
+export const containerService = (container: ContainerSpec, at: ProjectAt) => {
+  const name = containerServiceName(container.repo, container.name);
+  const service = new Service(
+    name,
+    {
+      at,
+      name,
+      settings: {
+        // Setting a Dockerfile path is what makes Railway build with Docker.
+        dockerfilePath: container.dockerfile,
+        healthcheckPath: "/",
+        // Sleeps when idle; the router wakes it over the private network.
+        sleepApplication: true,
+      },
+      volume: VOLUME,
+      // Once connected, Railway would deploy every push to the branch. The deployer starts builds itself.
+      autoDeploy: false,
+    },
+    { declared: false },
+  );
+  const variables = new Variables(
+    "variables",
+    {
+      at: { ...at, serviceId: service.out("serviceId") },
+      service: name,
+      values: {
+        ...container.env,
+        [BRANCH]: container.branch,
+        [ENV.dataDir]: VOLUME,
+        PORT: String(CONTAINER_PORT),
+        // Railway sleeps a service 5–10 minutes after its last outbound packet, and private traffic counts.
+        [ENV.keepAwakeUrl]: `${container.env[ENV.routerUrl]}/`,
+      },
+    },
+    { parent: service },
+  );
+  return [service, variables];
+};
