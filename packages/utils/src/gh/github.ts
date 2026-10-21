@@ -7,8 +7,19 @@ import type { Vars } from "../env.ts";
 import { subprocess } from "../subprocess.ts";
 import type { AppSettings, HookConfig, Installation, Permissions, ReactionContent, ReactionTarget, TokenNarrowing, UserInstallation } from "./types.ts";
 
+/** GitHub's message says what went wrong, not which call: each error names its method, path and status too. */
+const describeErrors = (octokit: Core) => {
+  octokit.hook.error("request", (error) => {
+    if (error instanceof RequestError) {
+      const { pathname, search } = new URL(error.request.url);
+      error.message = `GitHub ${error.request.method} ${pathname}${search}: ${error.status} ${error.message}`;
+    }
+    throw error;
+  });
+};
+
 /** Without a request log: a 404 is often an answer, not an error to print. */
-const Octokit = Core.plugin(restEndpointMethods, paginateRest);
+const Octokit = Core.plugin(restEndpointMethods, paginateRest, describeErrors);
 type Octokit = InstanceType<typeof Octokit>;
 
 const USER_AGENT = "achq";

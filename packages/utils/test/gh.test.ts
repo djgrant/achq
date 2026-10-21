@@ -102,6 +102,13 @@ describe("a repo's variables, issues and access", () => {
     expect(requests.filter((r) => r.method !== "GET").map((r) => r.method)).toEqual(["PATCH", "POST", "PATCH"]);
   });
 
+  test("a refusal names the call: its method, path and status, then GitHub's message", async () => {
+    routes["POST /repos/o/r/issues/7/comments"] = () => Response.json({ message: "Validation Failed", documentation_url: "https://docs.github.com/x" }, { status: 422 });
+    const error = await repo.comment(7, "hi").catch((e) => e);
+    expect(error).toMatchObject({ status: 422 });
+    expect(error.message).toBe("GitHub POST /repos/o/r/issues/7/comments: 422 Validation Failed - https://docs.github.com/x");
+  });
+
   test("upsertVariable throws for refusals other than a 404", async () => {
     routes["PATCH /repos/o/r/actions/variables/V"] = () => Response.json({ message: "forbidden" }, { status: 403 });
     await expect(repo.upsertVariable("V", "1")).rejects.toMatchObject({ status: 403 });
