@@ -2,7 +2,7 @@ import { afterEach, beforeEach, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { loadConfig, runUnderEnv } from "../src/lib/config.ts";
+import { envFrom, loadConfig } from "../src/lib/config.ts";
 
 let tmp: string;
 beforeEach(() => {
@@ -26,9 +26,15 @@ test("a config that isn't one says what's wrong", async () => {
   expect(loadConfig(tmp)).rejects.toThrow("env");
 });
 
-test("achq runs under the env command, from the config's directory, with its args intact", async () => {
-  const out = path.join(tmp, "out");
-  const code = await runUnderEnv({ env: "env FOO=bar", dir: tmp }, ["sh", "-c", `echo "$FOO $ACHQ_UNDER_ENV $PWD $1" > ${out}; exit 3`, "_", "two words"]);
-  expect(code).toBe(3);
-  expect(fs.readFileSync(out, "utf8").trim()).toBe(`bar 1 ${tmp} two words`);
+test("achq takes on the env command's environment, set from the config's directory", async () => {
+  const env = await envFrom({ env: "env FOO=bar HERE=$(pwd -P)", dir: tmp });
+  expect([env.FOO, env.HERE]).toEqual(["bar", tmp]);
+});
+
+test("the environment arrives when the env command swallows what it runs prints, as op run's masking may", async () => {
+  expect((await envFrom({ env: "env FOO=bar sh -c '\"$@\" > /dev/null' _", dir: tmp })).FOO).toBe("bar");
+});
+
+test("an env command that fails says so", async () => {
+  expect(envFrom({ env: "false", dir: tmp })).rejects.toThrow("`false` failed (exit 1)");
 });

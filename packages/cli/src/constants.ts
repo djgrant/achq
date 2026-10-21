@@ -9,8 +9,6 @@ export const CLI_ENV = {
   callerCwd: "ACHQ_CALLER_CWD",
   /** Set to keep stacks on every error. */
   debug: "ACHQ_DEBUG",
-  /** Set once achq is running under its config's `env` command, so it doesn't again. */
-  underEnv: "ACHQ_UNDER_ENV",
 } as const;
 
 /** The paths in achq whose latest commit is the version the router and deployer run. */
