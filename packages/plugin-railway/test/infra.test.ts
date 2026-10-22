@@ -46,7 +46,7 @@ const declare = (ref = "a", appId = "7") => {
   return { router, deployer, resources: [router, deployer] };
 };
 
-const summary = (changes: { op: string; target: string; detail: string }[]) => changes.map((c) => `${c.op} ${c.target} ${c.detail}`);
+const summary = (changes: { op: string; target: string; what: string; detail?: string }[]) => changes.map((c) => `${c.op} ${c.target} ${c.what}${c.detail ? ` ${c.detail}` : ""}`);
 
 const url = "https://achq-router-production.up.railway.app";
 

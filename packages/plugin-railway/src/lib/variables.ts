@@ -29,7 +29,7 @@ export class Variables extends ManagedResource<Props, Current, Current, Set> {
   }
 
   describe(set: Set, { service }: Props): Change {
-    return { op: "~", target: service, detail: `variables ${Object.keys(set).join(", ")}` };
+    return { op: "~", target: service, what: "variables", detail: Object.keys(set).join(", ") };
   }
 
   planned({ values }: Props, current: Current = {}, changes: Set[]): Planned<Current> {

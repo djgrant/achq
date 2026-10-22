@@ -100,19 +100,19 @@ export class Service extends ManagedResource<ServiceProps, ServiceState, Service
   describe(change: ServiceChange, { name, volume, publicPort }: ServiceProps): Change {
     switch (change.kind) {
       case "service":
-        return { op: "+", target: name, detail: "service" };
+        return { op: "+", target: name, what: "service" };
       case "settings":
-        return { op: "~", target: name, detail: `settings ${change.fields.join(", ")}` };
+        return { op: "~", target: name, what: "settings", detail: change.fields.join(", ") };
       case "volume":
-        return { op: "+", target: name, detail: `volume ${volume}` };
+        return { op: "+", target: name, what: "volume", detail: volume };
       case "hostname":
-        return { op: "~", target: name, detail: `private hostname ${change.from} → ${name}` };
+        return { op: "~", target: name, what: "private hostname", detail: `${change.from} → ${name}` };
       case "drop-domain":
-        return { op: "-", target: name, detail: `public domain ${change.domain}` };
+        return { op: "-", target: name, what: "public domain", detail: change.domain };
       case "add-domain":
-        return { op: "+", target: name, detail: `public domain → :${publicPort}` };
+        return { op: "+", target: name, what: "public domain", detail: `→ :${publicPort}` };
       case "auto-deploy":
-        return { op: "-", target: name, detail: "automatic deploys" };
+        return { op: "-", target: name, what: "automatic deploys" };
     }
   }
 

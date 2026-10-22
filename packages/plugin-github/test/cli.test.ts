@@ -111,7 +111,7 @@ const installing = async (installed: boolean, opts: { open?: boolean } = {}) => 
   return { planned: await plan(resources, ctx), log, opened };
 };
 
-const summary = (changes: Change[]) => changes.map((c) => `${c.op} ${c.target} ${c.detail}`);
+const summary = (changes: Change[]) => changes.map((c) => `${c.op} ${c.target} ${c.what}${c.detail ? ` ${c.detail}` : ""}`);
 const writes = () => fake.calls.filter((c) => !c.startsWith("GET "));
 
 const orgInstall = (repos: string[], selection: "all" | "selected" = "selected") => [
@@ -123,7 +123,7 @@ test("install adds the repo to the App's installation on its owner", async () =>
   fake.app = FULL;
   fake.installations = orgInstall(["notationlabs/other"]);
   const { planned } = await installing(true);
-  expect(summary(planned.changes)).toEqual(["+ notation-achq on notationlabs/yieldstar"]);
+  expect(summary(planned.changes)).toEqual(["+ notation-achq repo notationlabs/yieldstar"]);
   expect(planned.warnings).toEqual([]);
   expect(writes()).toEqual([]);
 
@@ -145,7 +145,7 @@ test("install changes nothing when the repo is already in the installation, or i
 test("install with no installation on the owner opens GitHub's install page, on the env's web URL", async () => {
   fake.app = FULL;
   const { planned, log, opened } = await installing(true);
-  expect(summary(planned.changes)).toEqual(["+ notation-achq on notationlabs, opens GitHub to install it"]);
+  expect(summary(planned.changes)).toEqual(["+ notation-achq installation on notationlabs, opens GitHub to install it"]);
   await planned.apply();
   expect(opened).toEqual([`${web()}/apps/notation-achq/installations/new`]);
   expect(log).toEqual([`notation-achq isn't installed on notationlabs yet. Install it on ${REPO} at ${web()}/apps/notation-achq/installations/new`]);
@@ -165,14 +165,14 @@ test("install fails before installing when the App lacks the events or permissio
 test("a private App's 404 skips the App comparison, with a warning", async () => {
   fake.installations = orgInstall([]);
   const { planned } = await installing(true);
-  expect(summary(planned.changes)).toEqual(["+ notation-achq on notationlabs/yieldstar"]);
+  expect(summary(planned.changes)).toEqual(["+ notation-achq repo notationlabs/yieldstar"]);
   expect(planned.warnings).toEqual(["notation-achq is private, so GitHub won't show its settings; skipping the App check"]);
 });
 
 test("uninstall removes the repo from the installation, and never reads the App", async () => {
   fake.installations = orgInstall([REPO, "notationlabs/other"]);
   const { planned, log } = await installing(false);
-  expect(summary(planned.changes)).toEqual(["- notation-achq on notationlabs/yieldstar"]);
+  expect(summary(planned.changes)).toEqual(["- notation-achq repo notationlabs/yieldstar"]);
   expect(planned.warnings).toEqual([]);
   await planned.apply();
   expect(writes()).toEqual(["DELETE /user/installations/2/repositories/777"]);

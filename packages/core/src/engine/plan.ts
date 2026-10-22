@@ -3,8 +3,12 @@ import { json } from "@achq/utils/json";
 import { type Context, ManagedResource, type Resource } from "../resources/resource.ts";
 import { dependencies, hasUnknown, type Input, type Outputs, resolve, type Unknown } from "./values.ts";
 
-/** A planned change, for printing: what it changes, e.g. a service, and how. Variable changes name the variables, never their values. */
-export type Change = { op: "+" | "~" | "-"; target: string; detail: string };
+/**
+ * A planned change, for printing: its target, e.g. a service; what of it, e.g.
+ * the service or its volume; and any detail. Variable changes name the
+ * variables, never their values.
+ */
+export type Change = { op: "+" | "~" | "-"; target: string; what: string; detail?: string };
 
 export type Plan = {
   changes: Change[];

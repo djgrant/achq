@@ -25,7 +25,7 @@ export class Project extends ManagedResource<Props, ProjectAt, ProjectAt, "creat
   }
 
   describe(_: "create", { name }: Props): Change {
-    return { op: "+", target: name, detail: "railway project" };
+    return { op: "+", target: name, what: "railway project" };
   }
 
   planned(_: Props, current: ProjectAt | undefined): Planned<ProjectAt> {

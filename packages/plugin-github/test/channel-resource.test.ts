@@ -82,7 +82,7 @@ class RouterService extends ManagedResource<Service, true, Omit<Service, "exists
   readonly kind = "service";
   read = async ({ exists }: Service) => (exists ? (true as const) : undefined);
   diff = (_: Service, current: true | undefined) => (current ? [] : ["create" as const]);
-  describe = (): Change => ({ op: "+", target: "router", detail: "service" });
+  describe = (): Change => ({ op: "+", target: "router", what: "service" });
   planned = ({ url, key, env }: Service, current: true | undefined): Planned<Omit<Service, "exists">> => ({ url: current ? url : UNKNOWN, key, env });
   apply = async ({ url, key, env }: Service) => ({ url, key, env });
 }
@@ -121,7 +121,7 @@ const infra = (stored: object, router: Partial<Service> = {}) => {
   return { router: r, channel: new Channel("personal", { name: "djgrant-claude", router: r }) };
 };
 
-const summary = (changes: Change[]) => changes.map((c) => `${c.op} ${c.target} ${c.detail}`);
+const summary = (changes: Change[]) => changes.map((c) => `${c.op} ${c.target} ${c.what}${c.detail ? ` ${c.detail}` : ""}`);
 
 test("a channel's comparison is pure: it takes what was read and says what differs", () => {
   const { router } = infra({});
@@ -130,7 +130,7 @@ test("a channel's comparison is pure: it takes what was read and says what diffe
   expect(channel.slug).toBe("notation-achq");
 
   const create = channel.diff(props, undefined);
-  expect(create.map((c) => channel.describe(c, props))).toEqual([{ op: "+", target: "Notation ACHQ (notationlabs)", detail: "github channel, opens GitHub to create its App" }]);
+  expect(create.map((c) => channel.describe(c, props))).toEqual([{ op: "+", target: "Notation ACHQ (notationlabs)", what: "github channel", detail: "opens GitHub to create its App" }]);
   expect(channel.planned(props, undefined)).toEqual({ slug: UNKNOWN, id: UNKNOWN, privateKey: UNKNOWN });
 
   const known = { ...props, stored: { id: "1", privateKey: "k" } };
@@ -144,10 +144,10 @@ test("a channel's comparison is pure: it takes what was read and says what diffe
   ]);
 
   const drifted = { ...current, hook: { ...current.hook, insecure_ssl: "1" } };
-  expect(channel.diff(known, drifted).map((c) => channel.describe(c, known))).toEqual([{ op: "~", target: "notation-achq", detail: `webhook → ${HOOK}` }]);
+  expect(channel.diff(known, drifted).map((c) => channel.describe(c, known))).toEqual([{ op: "~", target: "notation-achq", what: "webhook", detail: `→ ${HOOK}` }]);
   // A new router's URL isn't known yet, so it differs from whatever the webhook has.
   const unknown = { ...known, hookUrl: UNKNOWN as never };
-  expect(channel.diff(unknown, current).map((c) => channel.describe(c, unknown))).toEqual([{ op: "~", target: "notation-achq", detail: "webhook → the router's URL" }]);
+  expect(channel.diff(unknown, current).map((c) => channel.describe(c, unknown))).toEqual([{ op: "~", target: "notation-achq", what: "webhook", detail: "→ the router's URL" }]);
 });
 
 test("a new channel plans as a create without calling GitHub, then is created with its webhook secret", async () => {
@@ -156,7 +156,7 @@ test("a new channel plans as a create without calling GitHub, then is created wi
   const ctx = context(log);
   const keys = router.apps(ctx);
   const planned = await plan([channel], ctx);
-  expect(summary(planned.changes)).toEqual(["+ djgrant-claude github channel, opens GitHub to create its App"]);
+  expect(summary(planned.changes)).toEqual(["+ djgrant-claude github channel opens GitHub to create its App"]);
   expect(planned.value(keys)).toBe(UNKNOWN);
   expect(calls).toEqual([]);
 

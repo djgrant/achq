@@ -128,20 +128,20 @@ const deps = (log: string[] = []): UpDeps => ({
 
 /** What `achq infra up` plans for an infra that doesn't exist yet. */
 const FRESH = [
-  "  +  achq            railway project",
-  "  +  achq-router     service",
-  "  +  achq-router     volume /data",
-  "  +  achq-router     public domain → :8080",
-  "  ~  achq-router     variables AGENT_WEBHOOK_KEY, DATA_DIR, PORT",
-  "  +  djgrant-claude  github channel, opens GitHub to create its App",
-  "  ~  achq-router     variables ACHQ_GITHUB_APPS",
-  "  ~  achq-router     variables ACHQ_DEPLOYER_URL, ACHQ_REF",
-  "  ~  achq-router     deploy",
-  "  +  achq-deployer   service",
-  "  +  achq-deployer   volume /data",
-  "  ~  achq-deployer   variables RAILWAY_API_TOKEN, ACHQ_RAILWAY_PROJECT_ID, ACHQ_RAILWAY_ENVIRONMENT_ID, DATA_DIR, PORT",
-  "  ~  achq-deployer   variables AGENT_WEBHOOK_KEY, ACHQ_ROUTER_URL, ACHQ_ROUTER_PUBLIC_URL, ACHQ_OWNERS, ACHQ_CONTAINER_ENV, ACHQ_REF, ACHQ_CONTAINER_PROVIDER",
-  "  ~  achq-deployer   deploy",
+  "  + achq            railway project",
+  "  + achq-router     service",
+  "  + achq-router     volume           /data",
+  "  + achq-router     public domain    → :8080",
+  "  ~ achq-router     variables        AGENT_WEBHOOK_KEY, DATA_DIR, PORT",
+  "  + djgrant-claude  github channel   opens GitHub to create its App",
+  "  ~ achq-router     variables        ACHQ_GITHUB_APPS",
+  "  ~ achq-router     variables        ACHQ_DEPLOYER_URL, ACHQ_REF",
+  "  ~ achq-router     deploy",
+  "  + achq-deployer   service",
+  "  + achq-deployer   volume           /data",
+  "  ~ achq-deployer   variables        RAILWAY_API_TOKEN, ACHQ_RAILWAY_PROJECT_ID, ACHQ_RAILWAY_ENVIRONMENT_ID, DATA_DIR, PORT",
+  "  ~ achq-deployer   variables        AGENT_WEBHOOK_KEY, ACHQ_ROUTER_URL, ACHQ_ROUTER_PUBLIC_URL, ACHQ_OWNERS, ACHQ_CONTAINER_ENV, ACHQ_REF, ACHQ_CONTAINER_PROVIDER",
+  "  ~ achq-deployer   deploy",
 ];
 
 const scan = (dir: string): string[] =>
@@ -222,7 +222,7 @@ test("a second up changes nothing, keeps the key, and fixes a webhook URL that d
   hook.url = "https://old.example/webhook";
   const drift: string[] = [];
   await up(infra(), { prune: false, dryRun: true }, deps(drift));
-  expect(drift).toContain(`  ~  djgrant-claude  webhook → ${ROUTER_URL}/webhook`);
+  expect(drift).toContain(`  ~ djgrant-claude  webhook  → ${ROUTER_URL}/webhook`);
   expect(hook.url).toBe("https://old.example/webhook"); // dry run
   expect(syncs.at(-1)).toEqual({ body: { prune: false, dryRun: true }, signed: true });
 
@@ -236,7 +236,7 @@ test("a changed achq ref shows as variables and a deploy, and a dry run applies 
   fake.mutations.length = 0;
   const log: string[] = [];
   await up(infra(), { prune: false, dryRun: true }, { ...deps(log), achqRef: async () => "def456" });
-  expect(log.slice(0, 4)).toEqual(["  ~  achq-router    variables ACHQ_REF", "  ~  achq-router    deploy", "  ~  achq-deployer  variables ACHQ_REF", "  ~  achq-deployer  deploy"]);
+  expect(log.slice(0, 4)).toEqual(["  ~ achq-router    variables  ACHQ_REF", "  ~ achq-router    deploy", "  ~ achq-deployer  variables  ACHQ_REF", "  ~ achq-deployer  deploy"]);
   expect(fake.mutations).toEqual([]);
 });
 

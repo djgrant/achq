@@ -36,7 +36,7 @@ export class Deployment extends ManagedResource<Props, State, Outputs, "deploy">
   }
 
   describe(_: "deploy", { service }: Props): Change {
-    return { op: "~", target: service, detail: "deploy" };
+    return { op: "~", target: service, what: "deploy" };
   }
 
   planned({ fingerprint }: Props): Planned<Outputs> {
