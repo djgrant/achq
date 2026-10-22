@@ -30,11 +30,11 @@ export default achq(() => {
 ```
 
 - **Router**: receives events and wakes the deployer and containers.
-- **Deployer**: creates and updates containers, in its router's Railway project.
+- **Deployer**: creates and updates containers, in its router's project on their container provider.
 - **A GitHub channel** is a GitHub App, bound to the router. GitHub is both a channel and a policy provider (see Primitives). The App's webhook points at the router, and the router holds the App's key to check deliveries and mint tokens. The App's installations decide which repos the deployer serves.
 - **Contracts**: GitHub implements three of core's contracts, each registered on its own: a `ChannelProvider` (events, threads, replies; the router also gets its sources from it), a `PolicyProvider` (turns policies into credentials), and a `CodeHostProvider` (reads `.achq/`, writes the status, gives the clone URL; the router uses it to check `/wake` and to list the repos installed, the CLI for the repo commands, and to install and uninstall a repo). Installation isn't a contract of its own: it's a repo's lifecycle on its code host, set up for achq or not. For GitHub, a repo is installed when the config's App is installed on it. The router gets them with the key, the container without secrets. The infra's channels are resources `achq infra up` plans. Claude implements `AgentProvider` (`ClaudeAgentProvider`): the runtime, and the variables every container needs. Configs declare its agents as `claude.Agent`, from `achq/claude`. The services and CLI find each one by id in `achq/registry`.
-- **The container provider**: the router and deployer name the container provider they run on (`containerProvider`), and the deployer puts containers on the same one. A plugin provides the router and deployer as resources for `achq infra up`, and implements core's `ContainerProvider` for the deployer, with a shell into containers for `achq container ssh` and `resume`. achq's services and CLI only use that contract, and pick an implementation by id. Only Railway is built for now. Putting the router, deployer and containers on different container providers needs bindings this design assumes away: reaching containers without a private network, and waking them through the container provider's API.
-- **`owners`**: the deployer only serves repos owned by these accounts. A public App can be installed by anyone, and without this a stranger's install would get a container on your Railway account running on your Claude token.
+- **The container provider**: the router and deployer name the container provider they run on (`containerProvider`), and the deployer puts containers on the same one. A plugin provides the router and deployer as resources for `achq infra up`, and implements core's `ContainerProvider` for the deployer, with a shell into containers for `achq container ssh` and `resume`. achq's services and CLI only use that contract, and pick an implementation by id. Railway and Cloudflare are built. A container provider offers what the contract's comments ask: a DATA_DIR that outlives restarts and sleep, URLs only achq's services reach (`privateUrl`, and the one `ensure` returns) that wake what they reach, and sleeping when idle unless kept awake. Railway has a private network and volumes for them; Cloudflare makes them itself (see On Cloudflare). Putting the router, deployer and containers on different container providers needs bindings this design assumes away: reaching one provider's services from another's, and waking them through the container provider's API.
+- **`owners`**: the deployer only serves repos owned by these accounts. A public App can be installed by anyone, and without this a stranger's install would get a container on your account running on your Claude token.
 
 ### A repo
 
@@ -164,7 +164,7 @@ In the container, the config runs natively (step 4), in the runner's process. Th
 | Service | Exposure | Holds | Does |
 |---|---|---|---|
 | Router | Public, always on | `AGENT_WEBHOOK_KEY`, App private keys, router config | Receives every App's webhooks, filters them, forwards them; mints installation tokens for containers |
-| Deployer | Private, sleeps when idle; the router wakes it | Railway token, Claude token | Evaluates repo config, creates and updates containers |
+| Deployer | Private, sleeps when idle; the router wakes it | Container provider token, Claude token | Evaluates repo config, creates and updates containers |
 | Container | Private, sleeps when idle | Claude token, its current credentials | Runs agents |
 
 ## Webhooks
@@ -175,12 +175,12 @@ In the container, the config runs natively (step 4), in the runner's process. Th
 
 ## Router config
 
-- The deployer pushes the router's config to an endpoint signed with `AGENT_WEBHOOK_KEY`. The router stores it on a small volume, so it changes without a redeploy.
+- The deployer pushes the router's config to an endpoint signed with `AGENT_WEBHOOK_KEY`. The router stores it, on a small volume or in the store its container provider gives it, so it changes without a redeploy.
 - The config says which repos are deployed, and each repo's triggers and workspaces. The router drops everything else, so it doesn't wake containers that would ignore the event. The container checks again.
 
 ## Persisted events
 
-The router writes every event it accepts to its volume before answering GitHub, so a crash or restart doesn't lose it.
+The router writes every event it accepts to its store before answering GitHub, so a crash or restart doesn't lose it. The store is files under DATA_DIR, or, when its container provider sets `ACHQ_STORE_URL` because DATA_DIR doesn't keep a write the moment it's made, a JSON store over HTTP there.
 
 - Each accepted delivery is written to `inbox/<delivery-id>.json`, then forwarded. It's deleted once its target answers.
 - On startup the router replays everything left in `inbox/`.
@@ -192,7 +192,7 @@ The router writes every event it accepts to its volume before answering GitHub, 
 ## App keys
 
 - An App is added by declaring its channel in the ACHQ infra. `up` notices it has no credentials and runs GitHub's manifest flow.
-- `up` writes the App's private key straight to the router's Railway variables. It never touches the local machine. The ACHQ infra's local environment only needs the Railway token and the Claude token.
+- `up` writes the App's private key straight to the router's variables. It never touches the local machine. The ACHQ infra's local environment only needs the container provider's credentials and the Claude token.
 - Anything else that needs an App key goes through the router's signed endpoint.
 
 ## Credentials
@@ -200,7 +200,7 @@ The router writes every event it accepts to its volume before answering GitHub, 
 How GitHub's credentials work. Other channels and policy providers follow the same pattern where they can.
 
 - Containers never hold App private keys. They ask the router for credentials for their policies.
-- The token endpoint listens on a second port with no public domain, so only the private network reaches it.
+- The token endpoint listens on a second port the public can't reach, so only achq's own services do: over Railway's private network, or on Cloudflare through Workers that carry the account's internal key.
 - A container proves its identity with a secret derived from `AGENT_WEBHOOK_KEY` and its repo and container name. The router only mints credentials for that container's policies.
 - Tokens last an hour. A container fetches one when it starts, then refreshes in the background when 30 minutes remain, so a failed refresh retries for half an hour before anything breaks. A stored token with more than 30 minutes left is reused on wake.
 - The token is stored on the container's volume at `/data/github/` (mode `600`). Claude can read it, which is acceptable because it's scoped to the container's policies and expires within an hour.
@@ -226,7 +226,7 @@ The App owns the whole lifecycle, including keeping a repo's deployment in line 
 - The App subscribes to `push`. The router forwards to the deployer pushes to a deployed repo's default branch that touch `.achq/`. A push payload's commit list is capped for very large pushes (2048 commits, per GitHub's webhook docs), so a push that hits the cap is forwarded whatever it touches.
 - The deployer compares the `.achq/` tree at the new head with the one it last deployed. If it's the same, it stops.
 - Otherwise it evaluates the config again and compares the resulting manifest with the deployed one. It redeploys only what changed: a container whose image or policies changed is rebuilt; router config is updated for triggers and workspaces.
-- The deployer starts builds itself; Railway's auto-deploy is turned off. A container is only rebuilt when it's new, or its image path or Dockerfile changed.
+- The deployer starts builds itself; the container provider's own deploys on push are off: Railway's auto-deploy, and on Cloudflare the build trigger's path filters, which match nothing. A container is only rebuilt when it's new, or its image path or Dockerfile changed.
 - Everything else in the config reaches containers without a rebuild: the router forwards each event with the commit its config came from, and the container loads that commit's `.achq/` from its mirror (cached per commit).
 - Containers removed from the config are handled like uninstalls: kept asleep, deleted only by `achq infra up --prune`.
 - The outcome goes to `ACHQ_STATUS`.
@@ -272,6 +272,28 @@ Installing is done to a repo, from its settings or with `achq repo install`, not
 
 These replace `app`, `deploy` and `destroy`. `--repo` takes `owner/name` or a URL, and defaults to the repo `git remote get-url origin` names in the current directory.
 
+## On Cloudflare
+
+`cloudflare.Router` and `cloudflare.Deployer` put the infra on a Cloudflare account, and the deployer puts containers there too. Cloudflare has neither volumes nor a private network, so the plugin makes what the contract needs out of what it has. Nothing in core's contracts changed for it.
+
+```ts
+const router = new cloudflare.Router("router", { project: "achq" });
+new cloudflare.Deployer("deployer", { router, owners: ["djgrant"], sshKeys: ["ssh-ed25519 AAAA… me@laptop"] });
+```
+
+- **A Worker per service and container.** Each is the same Worker, achq's (`plugin-cloudflare/worker/`), with one Durable Object that runs its container under the `durable_object` scheduling policy. Its `ACHQ_SERVICE` variable says what it is: its port, whether it's public, whether it sleeps, its image. Worker names are the account's, so each is its project's: `achq-router`, `achq-notationlabs-yieldstar-dev`. Containers run on `standard-1`: `lite` is too small for a 2 GB image.
+- **The router and deployer** run Cloudflare's own image, `cloudflare/debian-trixie`, so nothing is built for them. Their start command installs Bun under DATA_DIR on the first start, then runs achq at ACHQ_REF, as on Railway. `achq infra up` deploys them with Wrangler from your checkout, with their variables as secrets.
+- **Reaching each other.** A service's `privateUrl(port)` is `http://<port>.<worker>.achq.internal`: Cloudflare only intercepts a container's HTTP on port 80, so the port is in the hostname. The Worker intercepts its container's requests to `*.achq.internal` and sends them to the target Worker's workers.dev URL with the account's internal key (derived from `AGENT_WEBHOOK_KEY`; containers never see it) and the port. A Worker passes a request to its container's port only with the key; without it, only to its public port, which only the router has. Workers fetch each other with `global_fetch_strictly_public`.
+- **Persistence.** A container's disk only outlives a stop in a snapshot, and Cloudflare snapshots only when asked, so the Durable Object drives every stop that keeps anything: it snapshots, then stops. It snapshots a long run every 30 minutes too; a crash or a stop Cloudflare makes itself loses what changed since, which is accepted. It restores the latest snapshot on start (about 1.5 seconds).
+- **A new image.** A snapshot only restores onto the image it was taken of, and silently boots the old image otherwise. So when a container's Worker has a new image, its next start runs the old snapshot with nothing but a shell, archives `/data` to the project's R2 bucket through `archive.achq.internal`, starts the new image the same way, restores the archive, snapshots that and starts from it. The archive is also made daily, and restored when a snapshot won't start: snapshots expire 30 days after their last restore.
+- **The router's store.** The router writes an event before it answers GitHub; a snapshot per webhook takes 5 seconds or more, and anything after the last snapshot is lost in a crash. So the router keeps its inbox, config and claims in its Durable Object's storage, which keeps a write once it's answered: the plugin sets `ACHQ_STORE_URL` to `http://store.achq.internal`, which the Worker answers from that storage. It's a small seam in the router, provider-neutral (a JSON store over HTTP, or files under DATA_DIR without one), because nothing inside the provider can make a file write durable the moment it's made. The deployer and containers stay on DATA_DIR: what they lose in a crash, the router's replay and the next run redo.
+- **Variables.** A Worker's secrets can't be read back, and a service's variables (its `env`, the router's generated key, the Apps' keys) have to be. So each Worker's variables are kept as JSON in the project's KV namespace, read and written through the API, which sees its own writes; that's what's set, readable with the token, as Railway's variables are. What runs gets them as Worker secrets: the router's and deployer's with each deploy, a container's set by the deployer. A hash of what was last deployed is kept beside them, so a change redeploys.
+- **Sleep.** The Durable Object's alarm looks at its container every minute. The deployer and containers sleep after 10 minutes without a request in flight or a fetch of `ACHQ_KEEP_AWAKE_URL` (`awake.achq.internal`, which their own Worker answers): it snapshots and stops them, and the next request starts them. The router doesn't sleep: its alarm starts it again if it stops. A new Worker version restarts the router and deployer with their new variables; a container picks up its new variables or image when it next starts, as on Railway, where its variables wait for its next deploy.
+- **Builds.** Workers Builds builds each container from its repo: a trigger on its Worker, connected to the repo by GitHub's ids, which the deployer reads with a token the router mints. The trigger's build command fetches achq's Worker at ACHQ_REF and writes the Worker's config, which points `images.app` at the container's Dockerfile, from a variable; its deploy command is `npx -y wrangler@4 deploy`, not exactly `npx wrangler deploy`, which would have Builds open pull requests on the repo. Its path filters match nothing, so pushes don't build; the deployer starts builds and waits for them (1.5 to 3 minutes, with no layer cache), throwing with the end of the log if one fails, or if it deployed no Worker version, which happens when Wrangler pushed the image but the Worker upload failed.
+- **Browser flows.** What only you can do, `achq infra up` opens your browser to, then waits for, as it does to create an App: installing Cloudflare's GitHub App ("Cloudflare Workers and Pages", which Builds clones with) on each of the deployer's owners, checked with your `gh` login; and creating a Workers Builds token in the dashboard when the account has none. The API can't say whether a token still works, so the deployer keeps the one it has while the account lists it, and otherwise takes the newest.
+- **Settings.** `CLOUDFLARE_ACCOUNT_ID`, and `CLOUDFLARE_API_TOKEN`: a user token (Builds' API takes no other) that can edit Workers Scripts, Workers KV Storage, Workers R2 Storage, Containers and Workers Builds Configuration. The infra commands check that Cloudflare takes it. Only the CLI and the deployer have it.
+- **Shell.** `achq container ssh` and `resume` use `wrangler containers ssh` on the container's running instance, as you're signed in to Wrangler, with one of the deployer's `sshKeys`. A shell there doesn't get the container's environment, so the Durable Object writes it to `/run/achq/env` when it starts the container, and the command runs with it.
+
 ## Not yet verified
 
 Every part has run together in one process (`packages/test-e2e/test/e2e.test.ts`) against a fake GitHub, a fake container provider and a fake `claude`. Not yet run for real:
@@ -279,6 +301,7 @@ Every part has run together in one process (`packages/test-e2e/test/e2e.test.ts`
 - Railway: turning off auto-deploy with `serviceInstanceAutoDeployUpdate`, the router and deployer start command, sleeping and waking over the private network.
 - GitHub: the manifest flow and `PATCH /app/hook/config` on a new App, minting with `actions_variables`, installing with `gh`'s token.
 - The container image: `install.sh`, the `perl`-based lock, Claude Code's `--effort` and `CLAUDE_CONFIG_DIR`.
+- Cloudflare, all of it beyond the API calls the spikes made: the achq Worker in Cloudflare's runtime (its intercepts, `ctx.exports`, its alarm, snapshot restore failing as a stopped container), Wrangler deploying a `durable_object` container with no images for `cloudflare/debian-trixie`, Bun from npm in that image, one Worker fetching another's workers.dev URL, Worker secrets surviving a Builds deploy over a placeholder, the build command's archive path, the dashboard and GitHub pages the browser flows open, `GET /user/installations` with a `gh` token, and `wrangler containers instances --json`.
 
 ## Deferred
 
