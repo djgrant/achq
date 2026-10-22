@@ -152,11 +152,13 @@ export const up = async ({ router, deployer, resources }: InfraResources, option
   if (!planned.changes.length) log("  up to date");
   for (const line of planLines(planned)) log(`  ${line}`);
 
-  // A new router's URL is only known once it's made.
+  // On some providers a new router's URL is known before it's made, so a dry run asks whether the router exists: it has variables.
   const read = options.dryRun ? planned : await planned.apply();
   const url = read.value(router.url);
   const key = read.value(router.key);
-  if (!known(url) || !known(key)) {
+  const existing = planned.value(router.env);
+  const exists = !options.dryRun || (known(existing) && Object.keys(existing).length > 0);
+  if (!known(url) || !known(key) || !exists) {
     log("  sync: skipped until the router exists");
     return undefined;
   }
