@@ -152,7 +152,7 @@ test("a channel's comparison is pure: it takes what was read and says what diffe
     hook: { url: HOOK, content_type: "json", insecure_ssl: "0" },
     settings: settingsUrl,
     keys: known.stored,
-    from: "router" as const,
+    onRouter: true,
   };
   expect(channel.diff(known, current)).toEqual([]);
   expect(channel.planned(known, current)).toEqual({ slug: "notation-achq", id: "1", privateKey: "k" });
@@ -248,7 +248,7 @@ test("two channels with one slug are refused", () => {
 describe("with a vault", () => {
   const ITEM = "GitHub App djgrant-claude";
 
-  test("a new App's key goes to the vault as well as the router", async () => {
+  test("a new App's key goes to the vault, and to the router from there", async () => {
     const vault = memoryVault();
     const { router, channel } = infra({});
     const ctx = context([], true, vault);
@@ -258,15 +258,11 @@ describe("with a vault", () => {
     expect(JSON.parse(applied.value(keys) as string)).toEqual(STORED);
   });
 
-  test("a vault that fails doesn't lose the App: its key still goes to the router", async () => {
-    const log: string[] = [];
+  test("a vault that fails stops up before the router gets the key, saying how to make another", async () => {
     const vault: Vault = { read: async () => undefined, write: async () => Promise.reject(new Error("not signed in")) };
-    const { router, channel } = infra({});
-    const ctx = context(log, true, vault);
-    const keys = router.apps(ctx);
-    const applied = await (await plan([channel], ctx)).apply();
-    expect(log).toContain("  ! couldn't keep djgrant-claude's key in the vault: not signed in");
-    expect(JSON.parse(applied.value(keys) as string)).toEqual(STORED);
+    const { channel } = infra({});
+    const planned = await plan([channel], context([], true, vault));
+    await expect(planned.apply()).rejects.toThrow(/couldn't keep its key in the vault \(not signed in\)\. Generate a new private key/);
   });
 
   test("a router without the App's key gets it from the vault, known when planned, with the webhook moved to it and signed with its secret", async () => {
@@ -285,14 +281,15 @@ describe("with a vault", () => {
     expect(calls.some((c) => c.path.startsWith("/app-manifests"))).toBe(false);
   });
 
-  test("a router's key the vault lacks goes into it, and then nothing changes", async () => {
-    hook = { url: HOOK, content_type: "json", insecure_ssl: "0" };
+  test("a key only the router has is refused, never copied into the vault", async () => {
     const vault = memoryVault();
-    const planned = await plan([infra(STORED).channel], context([], false, vault));
-    expect(summary(planned.changes)).toEqual(["+ djgrant-claude app key in the vault"]);
-    await planned.apply();
-    expect(vault.items.get(ITEM)).toEqual({ app_id: "4242", private_key: pem });
-    expect(calls.some((c) => c.method === "PATCH")).toBe(false);
+    await expect(plan([infra(STORED).channel], context([], false, vault))).rejects.toThrow(`The router has djgrant-claude's key but the vault doesn't: add it to the vault as "${ITEM}"`);
+    expect(vault.items.size).toBe(0);
+  });
+
+  test("a router with the vault's key changes nothing", async () => {
+    hook = { url: HOOK, content_type: "json", insecure_ssl: "0" };
+    const vault = memoryVault(new Map([[ITEM, { app_id: "4242", private_key: pem }]]));
     expect((await plan([infra(STORED).channel], context([], false, vault))).changes).toEqual([]);
   });
 
