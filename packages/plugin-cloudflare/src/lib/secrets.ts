@@ -1,7 +1,7 @@
 import { type Change, type Context, hasUnknown, known, ManagedResource, type Planned, UNKNOWN } from "@achq/core";
 import { collections } from "@achq/utils/collections";
 import { crypto } from "@achq/utils/crypto";
-import { cloudflareFromEnv } from "./cloudflare.ts";
+import { connect } from "./cloudflare.ts";
 import { KV_KEYS } from "./names.ts";
 
 type Props = {
@@ -29,7 +29,8 @@ export class Secrets extends ManagedResource<Props, State, Outputs, "set"> {
 
   async read({ namespaceId, worker, tag }: Props, ctx: Context) {
     if (!known(namespaceId) || !known(tag)) return undefined;
-    return { set: await cloudflareFromEnv(ctx.env).kv.get(namespaceId, KV_KEYS.deployed(worker)) };
+    const cf = await connect(ctx.env);
+    return { set: await cf.kv.get(namespaceId, KV_KEYS.deployed(worker)) };
   }
 
   diff({ secrets }: Props, current: State | undefined): "set"[] {
@@ -45,7 +46,7 @@ export class Secrets extends ManagedResource<Props, State, Outputs, "set"> {
   }
 
   async apply({ namespaceId, worker, secrets }: Props, _current: State | undefined, _changes: "set"[], ctx: Context) {
-    const cf = cloudflareFromEnv(ctx.env);
+    const cf = await connect(ctx.env);
     for (const [name, value] of Object.entries(secrets)) await cf.workers.putSecret(worker, name, value);
     const set = fingerprint(secrets);
     await cf.kv.put(namespaceId, KV_KEYS.deployed(worker), set);

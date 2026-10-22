@@ -39,7 +39,10 @@ const fakeBox = (images: Record<string, string> = { app: "img-1" }) => {
       box.running = false;
       box.destroyed++;
     },
-    exec: async (command: string[]) => {
+    /** The environment each command ran with. */
+    execEnvs: [] as (Record<string, string> | undefined)[],
+    exec: async (command: string[], env?: Record<string, string>) => {
+      box.execEnvs.push(env);
       const script = command.join(" ");
       if (script.includes("tar -czpf")) {
         box.execs.push("archive");
@@ -167,4 +170,13 @@ test("a service restarts with its Worker's new config, and one that doesn't slee
 
 test("a container's environment is written for shells as exports, quoted", () => {
   expect(envFile({ A: "it's", B: "x y" })).toBe(`export A='it'\\''s'\nexport B='x y'\n`);
+});
+
+test("the deployer's token reaches its container but not the environment written for its shells", async () => {
+  const box = fakeBox();
+  const deployer = { ...containerSettings, image: MANAGED_IMAGE };
+  const lifecycle = new Lifecycle({ settings: deployer, env: { A: "1" }, secrets: { ACHQ_CLOUDFLARE_DEPLOYER_TOKEN: "t" }, config: "c", box: box as unknown as Box, memory: fakeMemory(), sleep: async () => {}, log: () => {} });
+  await lifecycle.serve(3000, forward);
+  expect(box.starts[0]!.env).toEqual({ A: "1", ACHQ_CLOUDFLARE_DEPLOYER_TOKEN: "t" });
+  expect(box.execEnvs).toEqual([{ ACHQ_ENV_FILE: envFile({ A: "1" }) }]);
 });

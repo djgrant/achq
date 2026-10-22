@@ -21,6 +21,8 @@ export type Context = {
   log(line: string): void;
   /** Opens `url` in your browser to `what`, e.g. to create an App. Only the CLI can, and only while applying. */
   open?(url: string, what: string): Promise<void>;
+  /** Asks you for a secret, e.g. a token you just made in the browser `open` opened, without echoing what you type. Only the CLI can, and only while applying. */
+  prompt?(message: string): Promise<string>;
   /** Where `achq infra up` keeps secrets it makes, to reuse them on other routers and machines: the vault `achq.config.ts` names, if it names one. Only the CLI has one. */
   vault?: Vault;
   /** Makes a GENERATED value. */

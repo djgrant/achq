@@ -1,4 +1,4 @@
-import { CONTAINER_PORT, type ContainerSpec, ENV } from "@achq/core";
+import { CONTAINER_PORT, type ContainerSpec, ENV, type Input } from "@achq/core";
 import { APP_IMAGE, DATA_DIR, INTERNAL_HOSTS, type WorkerSettings } from "../../worker/settings.ts";
 import { BuildTrigger, CONTAINER_MAIN } from "./build-trigger.ts";
 import { internalKey } from "./cloudflare.ts";
@@ -16,7 +16,8 @@ export type ContainerPlace = {
   namespaceId: string;
   bucket: string;
   workersDev: string;
-  buildToken: string;
+  /** Unknown while planning, if it's yet to be registered. */
+  buildToken: Input<string>;
   sshKeys: string[];
   /** AGENT_WEBHOOK_KEY, which each Worker's internal key derives from. */
   key: string;

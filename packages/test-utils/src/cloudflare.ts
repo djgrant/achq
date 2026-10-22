@@ -31,20 +31,30 @@ export type FakeCloudflare = {
   applications: { id: string; name: string }[];
   /** `METHOD /path` of each request that changes something, without the account prefix. */
   mutations: string[];
+  /** Every request: `METHOD /path`, without the account prefix, and the token it carried. */
+  requests: { call: string; token: string }[];
+  /** API tokens Cloudflare takes, by their secret: each one's id. `cf-token` is a user token that can do all achq does. */
+  apiTokens: Map<string, string>;
+  /** What Wrangler's OAuth sign-in gives `wrangler auth token`: it reaches the account, but not Workers Builds or `/user/tokens/verify`. */
+  oauthToken: string;
+  /** Makes registering an API token as a Builds token fail, as it might. */
+  registerFails: boolean;
   /** How the next build ends, and what its log says. */
   nextBuild: { outcome: string; log: string[]; deploysVersion: boolean };
   /** A namespace's values, by title. */
   kv(title: string): Map<string, string> | undefined;
+  /** Each Worker the fake Wrangler deployed, and how it was signed in: with CLOUDFLARE_API_TOKEN, or its own OAuth sign-in. */
+  wranglerDeploys: { name: string; auth: string }[];
   /** What the fake Wrangler sends, as Wrangler's deploy would. */
   wranglerDeploy(config: any, secrets: Record<string, string>): void;
   stop(): void;
 };
 
 const ok = (result: unknown) => Response.json({ success: true, errors: [], result });
-const fail = (status: number, message: string) => Response.json({ success: false, errors: [{ code: status, message }], result: null }, { status });
+const fail = (status: number, message: string, code = status) => Response.json({ success: false, errors: [{ code, message }], result: null }, { status });
 
 /** Cloudflare's API, for one account, as the plugin calls it. `subdomain` is the account's workers.dev subdomain, if it has one. */
-export const startFakeCloudflare = (seed: { accountId?: string; subdomain?: string; tokens?: BuildToken[] } = {}): FakeCloudflare => {
+export const startFakeCloudflare = (seed: { accountId?: string; subdomain?: string; tokens?: BuildToken[]; otherAccounts?: string[] } = {}): FakeCloudflare => {
   let next = 1;
   const id = (prefix: string) => `${prefix}-${next++}`;
   const accountId = seed.accountId ?? "acct";
@@ -57,6 +67,10 @@ export const startFakeCloudflare = (seed: { accountId?: string; subdomain?: stri
   const builds = new Map<string, FakeBuild>();
   const applications: { id: string; name: string }[] = [];
   const mutations: string[] = [];
+  const requests: FakeCloudflare["requests"] = [];
+  const apiTokens = new Map([["cf-token", "tok-user"]]);
+  const oauthToken = "cf-oauth";
+  const accounts = [accountId, ...(seed.otherAccounts ?? [])].map((id) => ({ id, name: `${id}'s account` }));
   const subdomain = "subdomain" in seed ? seed.subdomain : "acme";
 
   const workerNamed = (name: string) => {
@@ -82,6 +96,11 @@ export const startFakeCloudflare = (seed: { accountId?: string; subdomain?: stri
     builds,
     applications,
     mutations,
+    requests,
+    apiTokens,
+    oauthToken,
+    registerFails: false,
+    wranglerDeploys: [],
     nextBuild: { outcome: "success", log: ["Cloning repository...", "Success: Deploy command completed"], deploysVersion: true },
     kv: (title) => [...namespaces.values()].find((n) => n.title === title)?.values,
     wranglerDeploy(config, secrets) {
@@ -95,11 +114,18 @@ export const startFakeCloudflare = (seed: { accountId?: string; subdomain?: stri
     stop: () => server.stop(true),
   };
 
-  const route = async (method: string, path: string, query: URLSearchParams, req: Request): Promise<Response> => {
-    if (path === "/user/tokens/verify") return ok({ status: "active" });
+  const route = async (method: string, path: string, query: URLSearchParams, req: Request, token: string): Promise<Response> => {
+    const oauth = token === oauthToken;
+    // As Cloudflare answers an OAuth sign-in's token: it isn't an API token.
+    if (path === "/user/tokens/verify") return oauth ? fail(401, "Invalid API Token", 1000) : ok({ id: apiTokens.get(token), status: "active" });
+    if (path === "/accounts") return ok(accounts);
     const prefix = `/accounts/${accountId}`;
     if (!path.startsWith(prefix)) return fail(403, "Authentication error");
     const p = path.slice(prefix.length);
+    requests.push({ call: `${method} ${p}`, token });
+    if (p === "") return ok(accounts[0]);
+    // Workers Builds doesn't take an OAuth sign-in's token.
+    if (oauth && p.startsWith("/builds/")) return fail(403, "Authentication error", 10000);
     if (method !== "GET") mutations.push(`${method} ${p}`);
     let m: RegExpMatchArray | null;
 
@@ -119,6 +145,10 @@ export const startFakeCloudflare = (seed: { accountId?: string; subdomain?: stri
         return ok({ id: name });
       }
       if (method === "DELETE") return workers.delete(name) ? ok(null) : fail(404, "Worker not found");
+    }
+    if ((m = p.match(/^\/workers\/scripts\/([^/]+)\/secrets$/)) && method === "GET") {
+      const worker = workers.get(decodeURIComponent(m[1]!));
+      return worker ? ok(Object.keys(worker.secrets).map((name) => ({ name, type: "secret_text" }))) : fail(404, "Worker not found");
     }
     if ((m = p.match(/^\/workers\/scripts\/([^/]+)\/secrets$/)) && method === "PUT") {
       const worker = workers.get(decodeURIComponent(m[1]!));
@@ -174,6 +204,14 @@ export const startFakeCloudflare = (seed: { accountId?: string; subdomain?: stri
     }
 
     // ── Builds ──
+    if (p === "/builds/tokens" && method === "POST") {
+      const body = (await req.json()) as { build_token_name: string; build_token_secret: string; cloudflare_token_id: string };
+      if (fake.registerFails) return fail(400, "Unable to create build token");
+      if (apiTokens.get(body.build_token_secret) !== body.cloudflare_token_id) return fail(400, "The token's secret and id don't match");
+      const token = { build_token_uuid: id("bt"), build_token_name: body.build_token_name, cloudflare_token_id: body.cloudflare_token_id };
+      tokens.push(token);
+      return ok(token);
+    }
     if (p === "/builds/tokens") return ok(tokens);
     if (p === "/builds/repos/connections" && method === "PUT") {
       const body = (await req.json()) as RepoConnection;
@@ -245,12 +283,14 @@ export const startFakeCloudflare = (seed: { accountId?: string; subdomain?: stri
     async fetch(req) {
       const url = new URL(req.url);
       if (url.pathname === "/__wrangler" && req.method === "POST") {
-        const { config, secrets } = (await req.json()) as { config: any; secrets: Record<string, string> };
+        const { config, secrets, auth } = (await req.json()) as { config: any; secrets: Record<string, string>; auth: string };
+        fake.wranglerDeploys.push({ name: config.name, auth });
         fake.wranglerDeploy(config, secrets);
         return new Response("deployed");
       }
-      if (req.headers.get("authorization") !== "Bearer cf-token") return fail(401, "Invalid API Token");
-      return route(req.method, url.pathname.replace(/^\/client\/v4/, ""), url.searchParams, req);
+      const token = req.headers.get("authorization")?.replace(/^Bearer /, "") ?? "";
+      if (!apiTokens.has(token) && token !== oauthToken) return fail(401, "Invalid API Token", 1000);
+      return route(req.method, url.pathname.replace(/^\/client\/v4/, ""), url.searchParams, req, token);
     },
   });
   fake.url = `http://localhost:${server.port}/client/v4`;
@@ -258,11 +298,13 @@ export const startFakeCloudflare = (seed: { accountId?: string; subdomain?: stri
 };
 
 /**
- * A `wrangler` that sends what `deploy --config <file> --secrets-file <file>`
- * would deploy to `fake`, or fails when `fails` is set: the command to run it,
- * for ACHQ_CLOUDFLARE_WRANGLER.
+ * A `wrangler` for the fake, signed in to it with OAuth unless `signedIn` is
+ * false: `deploy --config <file> --secrets-file <file>` sends what it would
+ * deploy to `fake` (failing when `fails` is set), and `auth token --json`
+ * prints the token, CLOUDFLARE_API_TOKEN's if that's set, as Wrangler does.
+ * Returns the command to run it, for ACHQ_CLOUDFLARE_WRANGLER.
  */
-export const fakeWrangler = (fake: FakeCloudflare, { fails = false } = {}) => {
+export const fakeWrangler = (fake: FakeCloudflare, { fails = false, signedIn = true } = {}) => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "achq-fake-wrangler-"));
   const script = path.join(dir, "wrangler.ts");
   const base = fake.url.replace(/\/client\/v4$/, "");
@@ -270,9 +312,19 @@ export const fakeWrangler = (fake: FakeCloudflare, { fails = false } = {}) => {
     script,
     `const args = process.argv.slice(2);
 const read = (flag) => JSON.parse(require("node:fs").readFileSync(args[args.indexOf(flag) + 1], "utf8"));
+const token = process.env.CLOUDFLARE_API_TOKEN;
+const notSignedIn = () => { console.error("✘ [ERROR] Not logged in. Please run \`wrangler login\` to authenticate."); process.exit(1); };
+if (args[0] === "auth" && args[1] === "token") {
+  if (!args.includes("--json")) console.log(" ⛅️ wrangler 4.152.0");
+  if (token) console.log(args.includes("--json") ? JSON.stringify({ type: "api_token", token }) : token);
+  else if (${signedIn}) console.log(args.includes("--json") ? JSON.stringify({ type: "oauth", token: ${JSON.stringify(fake.oauthToken)} }) : ${JSON.stringify(fake.oauthToken)});
+  else notSignedIn();
+  process.exit(0);
+}
 if (${fails}) { console.error("✘ [ERROR] A request to the Cloudflare API failed."); process.exit(1); }
-if (!process.env.CLOUDFLARE_API_TOKEN || !process.env.CLOUDFLARE_ACCOUNT_ID) { console.error("no credentials"); process.exit(1); }
-await fetch(${JSON.stringify(`${base}/__wrangler`)}, { method: "POST", body: JSON.stringify({ config: read("--config"), secrets: read("--secrets-file") }) });
+if (!token && !${signedIn}) notSignedIn();
+if (!process.env.CLOUDFLARE_ACCOUNT_ID) { console.error("no account"); process.exit(1); }
+await fetch(${JSON.stringify(`${base}/__wrangler`)}, { method: "POST", body: JSON.stringify({ config: read("--config"), secrets: read("--secrets-file"), auth: token ? "token" : "oauth" }) });
 console.log("Deployed " + read("--config").name);
 `,
   );

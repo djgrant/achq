@@ -7,7 +7,8 @@ import { Env, type Vars } from "@achq/utils/env";
 import { subprocess } from "@achq/utils/subprocess";
 import { text } from "@achq/utils/text";
 import { COMPATIBILITY, SERVICE_CLASS, type WorkerSettings } from "../../worker/settings.ts";
-import { CLOUDFLARE_ENV, LOG_TAIL_LINES, WRANGLER } from "./constants.ts";
+import { wranglerCommand } from "./cloudflare.ts";
+import { CLOUDFLARE_ENV, LOG_TAIL_LINES } from "./constants.ts";
 
 /** The achq Worker's source in this checkout, which the CLI deploys the router and deployer from. */
 export const WORKER_DIR = path.join(import.meta.dir, "../../worker");
@@ -61,22 +62,23 @@ export type WorkerConfig = ReturnType<typeof workerConfig>;
 export const packed = (value: string) => gzipSync(value, { level: 9 }).toString("base64");
 
 /**
- * Deploys `config` with Wrangler, its secrets with it, from a directory of its
- * own. `main` is taken as absolute. Throws with the end of Wrangler's output.
+ * Deploys `config` with Wrangler to `accountId`, its secrets with it, from a
+ * directory of its own: with CLOUDFLARE_API_TOKEN if `env` has one, or else
+ * as Wrangler's signed in. `main` is taken as absolute. Throws with the end of
+ * Wrangler's output.
  */
-export const wranglerDeploy = async (env: Vars, config: WorkerConfig, secrets: Record<string, string>) => {
-  const vars = new Env(env);
+export const wranglerDeploy = async (env: Vars, accountId: string, config: WorkerConfig, secrets: Record<string, string>) => {
+  const token = new Env(env).optional(CLOUDFLARE_ENV.token);
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "achq-wrangler-"));
   try {
     const configFile = path.join(dir, "wrangler.json");
     const secretsFile = path.join(dir, "secrets.json");
     fs.writeFileSync(configFile, JSON.stringify(config, null, 2));
     fs.writeFileSync(secretsFile, JSON.stringify(secrets), { mode: 0o600 });
-    const command = vars.optional(CLOUDFLARE_ENV.wrangler)?.split(" ") ?? WRANGLER;
-    const { ok, stdout, stderr } = await subprocess.collect([...command, "deploy", "--config", configFile, "--secrets-file", secretsFile], {
-      cwd: dir,
-      env: { ...process.env, CLOUDFLARE_API_TOKEN: vars.require(CLOUDFLARE_ENV.token), CLOUDFLARE_ACCOUNT_ID: vars.require(CLOUDFLARE_ENV.accountId) },
-    });
+    const wranglerEnv: Vars = { ...process.env, [CLOUDFLARE_ENV.accountId]: accountId };
+    if (token) wranglerEnv[CLOUDFLARE_ENV.token] = token;
+    else delete wranglerEnv[CLOUDFLARE_ENV.token];
+    const { ok, stdout, stderr } = await subprocess.collect([...wranglerCommand(env), "deploy", "--config", configFile, "--secrets-file", secretsFile], { cwd: dir, env: wranglerEnv });
     if (!ok) throw new Error(`Wrangler couldn't deploy ${config.name}:\n${text.tailLines(`${stdout}\n${stderr}`, LOG_TAIL_LINES).join("\n")}`);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });

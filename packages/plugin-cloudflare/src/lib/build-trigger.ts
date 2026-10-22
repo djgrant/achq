@@ -1,6 +1,6 @@
 import { ACHQ_SOURCE, type Change, type Context, hasUnknown, type Inputs, known, ManagedResource, type Planned, type ResourceOptions, UNKNOWN } from "@achq/core";
 import type { Trigger, TriggerSettings } from "@achq/utils/cloudflare";
-import { cloudflareFromEnv } from "./cloudflare.ts";
+import { connect } from "./cloudflare.ts";
 import type { RepoIds } from "./repo-ids.ts";
 import { packed, type WorkerConfig } from "./wrangler.ts";
 
@@ -86,7 +86,7 @@ export class BuildTrigger extends ManagedResource<Props, State, Outputs, Trigger
 
   async read({ tag, repo }: Props, ctx: Context) {
     if (!known(tag)) return undefined;
-    const cf = cloudflareFromEnv(ctx.env);
+    const cf = await connect(ctx.env);
     const triggers = await cf.builds.triggers(tag);
     const trigger = triggers.find((t) => sameRepo(t, repo));
     const stale = triggers.filter((t) => t !== trigger).map((t) => t.trigger_uuid);
@@ -120,7 +120,7 @@ export class BuildTrigger extends ManagedResource<Props, State, Outputs, Trigger
   }
 
   async apply(props: Props, current: State | undefined, changes: TriggerChange[], ctx: Context) {
-    const cf = cloudflareFromEnv(ctx.env);
+    const cf = await connect(ctx.env);
     const variables = variablesOf(props);
     for (const [name, value] of Object.entries(variables)) {
       if (value.length > MAX_VARIABLE_BYTES) throw new Error(`${props.worker}'s ${name} is ${value.length} bytes; Workers Builds takes at most ${MAX_VARIABLE_BYTES}`);

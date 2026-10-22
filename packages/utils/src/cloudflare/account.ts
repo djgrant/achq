@@ -1,4 +1,4 @@
-import type { Build, BuildLogPage, BuildToken, ContainerApplication, KvNamespaceSummary, RepoConnection, Trigger, TriggerSettings, TriggerVariable, WorkerSummary, WorkerVersion } from "./types.ts";
+import type { AccountSummary, Build, BuildLogPage, BuildToken, ContainerApplication, KvNamespaceSummary, RepoConnection, TokenStatus, Trigger, TriggerSettings, TriggerVariable, WorkerSecret, WorkerSummary, WorkerVersion } from "./types.ts";
 import { CLOUDFLARE_API, CloudflareTransport } from "./transport.ts";
 
 /** The most a list asks for in one page. */
@@ -9,8 +9,13 @@ const RECENT_VERSIONS = 20;
 /** Names go into paths encoded. */
 const enc = encodeURIComponent;
 
-/** One Cloudflare account, as an API token reaches it. Reads nothing until asked. */
+/** One Cloudflare account, as a token reaches it: an API token, or an OAuth sign-in's. Reads nothing until asked. */
 export class Cloudflare {
+  /** The accounts `token` can reach. */
+  static accounts(token: string, endpoint = CLOUDFLARE_API) {
+    return new CloudflareTransport(token, endpoint).call<AccountSummary[]>("GET", "/accounts", { query: { per_page: PAGE } });
+  }
+
   readonly transport: CloudflareTransport;
   readonly workers: Workers;
   readonly kv: Kv;
@@ -32,9 +37,14 @@ export class Cloudflare {
     this.containers = new Containers(this.transport, account);
   }
 
-  /** Whether the token is one Cloudflare takes: its status, e.g. "active". */
-  async verifyToken() {
-    return (await this.transport.call<{ status: string }>("GET", "/user/tokens/verify")).status;
+  /** An API token's id, and whether Cloudflare takes it: its status, e.g. "active". An OAuth sign-in's token isn't one, and fails. */
+  verifyToken() {
+    return this.transport.call<TokenStatus>("GET", "/user/tokens/verify");
+  }
+
+  /** The account, as the token sees it: fails if it can't. */
+  account() {
+    return this.transport.call<AccountSummary>("GET", `/accounts/${this.accountId}`);
   }
 }
 
@@ -64,6 +74,11 @@ class Workers {
   /** Deletes the Worker, and its Durable Objects with it. */
   async delete(name: string) {
     await this.t.find("DELETE", `${this.account}/workers/scripts/${enc(name)}`, { query: { force: "true" } });
+  }
+
+  /** Its secrets' names: their values can't be read back. */
+  secrets(worker: string) {
+    return this.t.call<WorkerSecret[]>("GET", `${this.account}/workers/scripts/${enc(worker)}/secrets`);
   }
 
   /** Sets a secret, which deploys a new version of the Worker with it. */
@@ -159,6 +174,11 @@ class Builds {
 
   tokens() {
     return this.t.call<BuildToken[]>("GET", `${this.account}/builds/tokens`, { query: { per_page: PAGE } });
+  }
+
+  /** Registers an API token, by its secret and its id, as a token Workers Builds deploys with. */
+  registerToken(name: string, secret: string, tokenId: string) {
+    return this.t.call<BuildToken>("POST", `${this.account}/builds/tokens`, { json: { build_token_name: name, build_token_secret: secret, cloudflare_token_id: tokenId } });
   }
 
   /** Creates or updates the connection to a repo, by its ids. Returns its uuid. */

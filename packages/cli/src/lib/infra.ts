@@ -21,7 +21,8 @@ export type InfraResources = {
 
 export type RouterAccess = { base: string; key: string };
 
-export type UpOptions = Required<SyncRequest>;
+/** The sync's options, and whether to replace the deployer's own token, where it has one. */
+export type UpOptions = Required<SyncRequest> & { rotateDeployerToken?: boolean };
 
 export type UpDeps = {
   /** What the resources read their settings and credentials from. */
@@ -31,6 +32,8 @@ export type UpDeps = {
   achqRef: () => Promise<string>;
   /** Opens `url` in your browser to `what`, e.g. to create an App. */
   open: (url: string, what: string) => Promise<void>;
+  /** Asks you for a secret without echoing it, e.g. a token you made in the browser. */
+  prompt?: (message: string) => Promise<string>;
   /** Where it keeps secrets it makes for reuse, e.g. Apps' keys, if `achq.config.ts` names one. */
   vault?: Vault;
   /** Rewrites the router's public URL for the sync; tests point it at a fake. */
@@ -125,7 +128,8 @@ export const adminRequest = async <T>(router: RouterAccess, method: string, path
 
 export const up = async ({ router, deployer, resources }: InfraResources, options: UpOptions, deps: UpDeps) => {
   const { log } = deps;
-  const ctx = cliContext({ env: deps.env, log, open: deps.open, vault: deps.vault, newSecret: deps.newSecret, sleep: deps.sleep });
+  const ctx = cliContext({ env: deps.env, log, open: deps.open, prompt: deps.prompt, vault: deps.vault, newSecret: deps.newSecret, sleep: deps.sleep });
+  if (options.rotateDeployerToken) deployer.rotateToken();
   // What achq itself gives the router and deployer: how they reach each other, and what they run.
   const ref = await deps.achqRef();
   router.variables({
@@ -157,5 +161,6 @@ export const up = async ({ router, deployer, resources }: InfraResources, option
     return undefined;
   }
   const base = deps.routerUrl ? deps.routerUrl(url) : url;
-  return adminRequest<SyncResult>({ base, key }, "POST", "/admin/sync", options);
+  const sync: SyncRequest = { prune: options.prune, dryRun: options.dryRun };
+  return adminRequest<SyncResult>({ base, key }, "POST", "/admin/sync", sync);
 };

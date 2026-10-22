@@ -53,6 +53,14 @@ export abstract class Deployer extends Service {
   readonly public = false;
   readonly sleeps = true;
   abstract readonly inputs: { router: Router; owners: string[] };
+
+  /**
+   * Has the next apply replace the token the deployer reaches its container
+   * provider with, where it has one of its own rather than a copy of yours:
+   * `achq infra up --rotate-deployer-token`. Cloudflare's has its own. Railway's
+   * gets yours on every run, so it has nothing to replace.
+   */
+  rotateToken(): void {}
 }
 
 export type Infra = { resources: Resource[] };

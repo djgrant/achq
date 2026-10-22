@@ -15,6 +15,9 @@ export const INTERNAL_HOSTS = {
   archive: `archive.${INTERNAL_DOMAIN}`,
 } as const;
 
+/** The deployer's own Cloudflare token: a secret only its Worker has, which its container gets and its shells don't. */
+export const DEPLOYER_TOKEN = "ACHQ_CLOUDFLARE_DEPLOYER_TOKEN";
+
 /** One Worker hop to another carries the account's internal key, and the port it's for. */
 export const HEADERS = { key: "x-achq-internal-key", port: "x-achq-port" } as const;
 

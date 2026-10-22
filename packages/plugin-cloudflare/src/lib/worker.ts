@@ -1,5 +1,5 @@
 import { type Change, type Context, known, ManagedResource, type Planned, UNKNOWN } from "@achq/core";
-import { cloudflareFromEnv } from "./cloudflare.ts";
+import { connect } from "./cloudflare.ts";
 import { COMPATIBILITY } from "../../worker/settings.ts";
 import { KV_KEYS, publicUrl } from "./names.ts";
 
@@ -27,7 +27,7 @@ export class Worker extends ManagedResource<Props, State, Outputs, "create"> {
   readonly kind = "cloudflare-worker";
 
   async read({ name, env }: Props, ctx: Context) {
-    const cf = cloudflareFromEnv(ctx.env);
+    const cf = await connect(ctx.env);
     const found = await cf.workers.get(name);
     if (!found) return undefined;
     if (!env) return { tag: found.id };
@@ -48,7 +48,7 @@ export class Worker extends ManagedResource<Props, State, Outputs, "create"> {
   }
 
   async apply({ name, workersDev, env }: Props, _current: State | undefined, _changes: "create"[], ctx: Context) {
-    const cf = cloudflareFromEnv(ctx.env);
+    const cf = await connect(ctx.env);
     await cf.workers.upload(name, PLACEHOLDER, COMPATIBILITY.date);
     const made = await cf.workers.get(name);
     if (!made) throw new Error(`Cloudflare didn't make Worker ${name}`);

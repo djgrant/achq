@@ -39,3 +39,50 @@ export const clean =
       throw error;
     }
   };
+
+const ENTER = ["\r", "\n"];
+const CTRL_C = "\u0003";
+const CTRL_D = "\u0004";
+const BACKSPACE = ["\u007f", "\b"];
+
+/**
+ * Asks for a secret on the terminal, e.g. a token you just made, without
+ * echoing it. Without a terminal, reads a line from stdin.
+ */
+export const readSecret = async (message: string): Promise<string> => {
+  const stdin = process.stdin;
+  process.stdout.write(`  ${message}: `);
+  if (!stdin.isTTY) {
+    let line = "";
+    for await (line of console) break;
+    process.stdout.write("\n");
+    return line;
+  }
+  stdin.setRawMode(true);
+  stdin.resume();
+  stdin.setEncoding("utf8");
+  try {
+    return await new Promise<string>((resolve, reject) => {
+      let typed = "";
+      const onData = (chunk: string) => {
+        for (const char of chunk) {
+          if (ENTER.includes(char) || char === CTRL_D) {
+            stdin.off("data", onData);
+            return resolve(typed);
+          }
+          if (char === CTRL_C) {
+            stdin.off("data", onData);
+            return reject(new Error("Cancelled"));
+          }
+          if (BACKSPACE.includes(char)) typed = typed.slice(0, -1);
+          else typed += char;
+        }
+      };
+      stdin.on("data", onData);
+    });
+  } finally {
+    stdin.setRawMode(false);
+    stdin.pause();
+    process.stdout.write("\n");
+  }
+};

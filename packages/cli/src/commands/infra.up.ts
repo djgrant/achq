@@ -8,15 +8,16 @@ import { ACHQ_CODE_PATHS } from "../constants.ts";
 import { formatSync } from "../lib/format.ts";
 import { loadConfig } from "../lib/config.ts";
 import { agentEnvCheck, configVault, infraChecks, loadInfra, up } from "../lib/infra.ts";
-import { clean } from "../lib/terminal.ts";
+import { clean, readSecret } from "../lib/terminal.ts";
 import { needInfra } from "../lib/workdir.ts";
 
 export const command = defineCommand({
   label: "Deploy the infra",
-  examples: ["achq infra up --dry-run", "achq infra up", "achq infra up --prune"],
+  examples: ["achq infra up --dry-run", "achq infra up", "achq infra up --prune", "achq infra up --rotate-deployer-token"],
   context: {
     prune: { from: "flag", schema: z.boolean().default(false), description: "Delete uninstalled repos' containers" },
     dryRun: { from: "flag", schema: z.boolean().default(false), description: "Preview changes" },
+    rotateDeployerToken: { from: "flag", schema: z.boolean().default(false), description: "Replace the deployer's own token, where it has one" },
   },
   pre: async () => [...(await infraChecks(needInfra(), process.env)), agentEnvCheck(process.env)],
   run: clean(async (_r, { context }) => {
@@ -24,7 +25,7 @@ export const command = defineCommand({
     // Where the router and deployer's code comes from: achq's own repo, on its code host.
     const source = codeHostProviderNamed(ACHQ_SOURCE.host).create(process.env);
     const env = new Env(process.env);
-    const result = await up(infra, { prune: context.prune, dryRun: context.dryRun }, {
+    const result = await up(infra, { prune: context.prune, dryRun: context.dryRun, rotateDeployerToken: context.rotateDeployerToken }, {
       env: process.env,
       // What every container gets: each agent runtime's variables, from your shell.
       containerEnv: Object.fromEntries(agentEnv().map(({ name, hint }) => [name, env.require(name, hint)])),
@@ -33,6 +34,7 @@ export const command = defineCommand({
         console.log(`  opening ${url} to ${what}…`);
         subprocess.openUrl(url);
       },
+      prompt: readSecret,
       vault: configVault(await loadConfig(), process.env),
       log: (line) => console.log(line),
     });

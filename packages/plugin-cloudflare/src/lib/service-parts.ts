@@ -75,7 +75,8 @@ export class ServiceParts {
   constructor(
     private readonly owner: AchqService,
     private readonly project: { name: string; resource: Project },
-    private readonly own: { variables?: (ctx: Context) => EnvValues; wait: boolean; sshKeys?: string[] },
+    /** `deployAfter`: what its deploy follows, e.g. a secret it starts with, asked for when it's planned. */
+    private readonly own: { variables?: (ctx: Context) => EnvValues; wait: boolean; sshKeys?: string[]; deployAfter?: () => ManagedResource[] },
   ) {
     this.name = serviceWorkerName(project.name, owner.name);
     this.namespaceId = project.resource.out("namespaceId");
@@ -135,7 +136,7 @@ export class ServiceParts {
     const deploy = new Deployment(
       "deploy",
       { namespaceId: this.namespaceId, config, variables, ...(this.own.wait && { wait: this.worker.out("url") }) },
-      { parent: this.owner },
+      { parent: this.owner, after: this.own.deployAfter?.() },
     );
     return (this.made = [this.worker, ...groups, deploy]);
   }

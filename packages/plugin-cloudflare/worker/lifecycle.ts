@@ -98,7 +98,9 @@ export type LifecycleDeps = {
   settings: WorkerSettings;
   /** Its variables. */
   env: Record<string, string>;
-  /** A hash of `settings` and `env`. */
+  /** Variables it starts with that its shells don't get, e.g. the deployer's token. */
+  secrets?: Record<string, string>;
+  /** A hash of `settings`, `env` and `secrets`. */
   config: string;
   box: Box;
   memory: Memory;
@@ -246,8 +248,8 @@ export class Lifecycle {
 
   /** Starts it to run `image`, from it or a snapshot of it. False if it isn't running once started, as when its snapshot can't be restored. */
   private async boot(from: StartFrom, image: string) {
-    const { box, memory, settings, env, config } = this.deps;
-    box.start({ ...from, env, ...(settings.entrypoint && { entrypoint: settings.entrypoint }), instance: settings.instance });
+    const { box, memory, settings, env, secrets, config } = this.deps;
+    box.start({ ...from, env: { ...env, ...secrets }, ...(settings.entrypoint && { entrypoint: settings.entrypoint }), instance: settings.instance });
     await box.intercept();
     await box.setInactivityTimeout(INACTIVITY_MS);
     if (!box.running) return false;

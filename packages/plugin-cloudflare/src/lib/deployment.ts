@@ -2,7 +2,7 @@ import { type Change, type Context, ENV, hasUnknown, known, ManagedResource, typ
 import { async } from "@achq/utils/async";
 import { collections } from "@achq/utils/collections";
 import { crypto } from "@achq/utils/crypto";
-import { cloudflareFromEnv, internalKey } from "./cloudflare.ts";
+import { connect, internalKey } from "./cloudflare.ts";
 import { ANSWER_POLL_INTERVAL_MS, ANSWER_TIMEOUT_MS } from "./constants.ts";
 import { KV_KEYS } from "./names.ts";
 import { type WorkerConfig, workerSourceHash, wranglerDeploy } from "./wrangler.ts";
@@ -46,7 +46,8 @@ export class Deployment extends ManagedResource<Props, State, Outputs, "deploy">
 
   async read({ namespaceId, config }: Props, ctx: Context) {
     if (!known(namespaceId)) return undefined;
-    return { deployed: await cloudflareFromEnv(ctx.env).kv.get(namespaceId, KV_KEYS.deployed(config.name)) };
+    const cf = await connect(ctx.env);
+    return { deployed: await cf.kv.get(namespaceId, KV_KEYS.deployed(config.name)) };
   }
 
   diff({ config, variables }: Props, current: State | undefined): "deploy"[] {
@@ -62,10 +63,11 @@ export class Deployment extends ManagedResource<Props, State, Outputs, "deploy">
   }
 
   async apply({ namespaceId, config, variables, wait }: Props, _current: State | undefined, _changes: "deploy"[], ctx: Context) {
-    await wranglerDeploy(ctx.env, config, workerSecrets(config.name, variables));
+    const cf = await connect(ctx.env);
+    await wranglerDeploy(ctx.env, cf.accountId, config, workerSecrets(config.name, variables));
     const deployed = fingerprint(config, variables);
     // Recorded once it's deployed, so an interrupted run deploys next time.
-    await cloudflareFromEnv(ctx.env).kv.put(namespaceId, KV_KEYS.deployed(config.name), deployed);
+    await cf.kv.put(namespaceId, KV_KEYS.deployed(config.name), deployed);
     if (!wait) return { fingerprint: deployed };
 
     ctx.log(`  waiting for the ${this.parent?.kind ?? config.name} to answer…`);

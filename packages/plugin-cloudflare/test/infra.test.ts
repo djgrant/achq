@@ -3,7 +3,7 @@ import * as core from "@achq/core";
 import { achq, type Change, type Context, type Output, plan } from "@achq/core";
 import { type FakeCloudflare, fakeWrangler, startFakeCloudflare } from "@achq/test-utils/cloudflare";
 import { Deployer, Router } from "../src/infra.ts";
-import { internalKey } from "../src/lib/cloudflare.ts";
+import { deployerTokenPage, forgetSignIn, internalKey } from "../src/lib/cloudflare.ts";
 import { startCommand } from "../src/lib/service-parts.ts";
 
 let fake: FakeCloudflare;
@@ -13,13 +13,20 @@ let installedOn: string[];
 let logs: string[];
 let opened: { url: string; what: string }[];
 let onOpen: () => void;
+/** What you paste when asked, in turn. */
+let pasted: string[];
+let asked: string[];
 let ctx: Context;
 /** Whether the router's workers.dev URL answers yet. */
 let answering: boolean;
 let fetchSpy: ReturnType<typeof spyOn>;
 
 beforeEach(() => {
-  fake = startFakeCloudflare({ tokens: [{ build_token_uuid: "bt-old", build_token_name: "Workers Builds - 2025" }, { build_token_uuid: "bt-new", build_token_name: "Workers Builds - 2026" }] });
+  fake = startFakeCloudflare();
+  // The token you make in the dashboard for the deployer.
+  fake.apiTokens.set("cf-deployer", "tok-deployer");
+  pasted = ["cf-deployer"];
+  asked = [];
   installedOn = ["djgrant"];
   github = Bun.serve({
     port: 0,
@@ -33,9 +40,8 @@ beforeEach(() => {
   onOpen = () => {};
   answering = true;
   ctx = {
+    // Signed in to Wrangler, with no token or account set.
     env: {
-      CLOUDFLARE_API_TOKEN: "cf-token",
-      CLOUDFLARE_ACCOUNT_ID: fake.accountId,
       CLOUDFLARE_API_URL: fake.url,
       ACHQ_CLOUDFLARE_WRANGLER: fakeWrangler(fake),
       GH_TOKEN: "gh-token",
@@ -46,6 +52,10 @@ beforeEach(() => {
     open: async (url, what) => {
       opened.push({ url, what });
       onOpen();
+    },
+    prompt: async (message) => {
+      asked.push(message);
+      return pasted.shift() ?? "";
     },
     newSecret: () => "generated-key",
     sleep: async () => {},
@@ -59,6 +69,7 @@ beforeEach(() => {
   }) as typeof fetch);
 });
 afterEach(() => {
+  forgetSignIn();
   fetchSpy.mockRestore();
   fake.stop();
   github.stop(true);
@@ -92,9 +103,8 @@ test("a new project plans in one pass and writes nothing, with the router's URL 
     "~ achq-router variables ACHQ_DEPLOYER_URL, ACHQ_REF",
     "~ achq-router deploy",
     "+ achq-deployer worker",
-    "~ achq-deployer build token the account's newest",
-    "~ achq-deployer variables CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID, ACHQ_CLOUDFLARE_PROJECT, ACHQ_CLOUDFLARE_NAMESPACE, ACHQ_CLOUDFLARE_BUCKET, ACHQ_CLOUDFLARE_WORKERS_DEV, ACHQ_CLOUDFLARE_SSH_KEYS, DATA_DIR, PORT",
-    "~ achq-deployer variables ACHQ_CLOUDFLARE_BUILD_TOKEN",
+    "+ achq-deployer deployer token opens Cloudflare to create it, then asks for it",
+    "~ achq-deployer variables CLOUDFLARE_ACCOUNT_ID, ACHQ_CLOUDFLARE_PROJECT, ACHQ_CLOUDFLARE_NAMESPACE, ACHQ_CLOUDFLARE_BUCKET, ACHQ_CLOUDFLARE_WORKERS_DEV, ACHQ_CLOUDFLARE_SSH_KEYS, DATA_DIR, PORT",
     "~ achq-deployer variables AGENT_WEBHOOK_KEY, ACHQ_ROUTER_PUBLIC_URL, ACHQ_ROUTER_URL, ACHQ_REF",
     "~ achq-deployer deploy",
   ]);
@@ -108,7 +118,21 @@ test("a new project plans in one pass and writes nothing, with the router's URL 
   const applied = await planned.apply();
   expect(applied.value(router.url)).toBe(url);
   expect(applied.value(router.env)).toEqual({});
-  expect(logs).toEqual(["  waiting for the router to answer…"]);
+  const page = deployerTokenPage(fake.accountId);
+  expect(logs).toEqual([
+    "  waiting for the router to answer…",
+    `  The deployer needs a Cloudflare API token of its own. Create it with what's filled in, then paste it here. It's kept only as the deployer's secret: ${page}`,
+  ]);
+  expect(opened).toEqual([{ url: page, what: "create the deployer's Cloudflare token" }]);
+  expect(asked).toEqual(["The deployer's Cloudflare token"]);
+
+  // All of it as you're signed in to Wrangler, but for checking the pasted token can read the account; and none of it Workers Builds: that's the deployer's.
+  expect(fake.requests.filter((r) => r.token !== "cf-oauth")).toEqual([{ call: "GET ", token: "cf-deployer" }]);
+  expect(fake.requests.filter((r) => r.call.includes("/builds/"))).toEqual([]);
+  expect(fake.wranglerDeploys).toEqual([
+    { name: "achq-router", auth: "oauth" },
+    { name: "achq-deployer", auth: "oauth" },
+  ]);
 
   // Its variables, readable in the project's namespace.
   const kv = fake.kv("achq")!;
@@ -122,13 +146,11 @@ test("a new project plans in one pass and writes nothing, with the router's URL 
   });
   const deployerVariables = JSON.parse(kv.get("services/achq-deployer")!);
   expect(deployerVariables).toMatchObject({
-    CLOUDFLARE_API_TOKEN: "cf-token",
     CLOUDFLARE_ACCOUNT_ID: fake.accountId,
     ACHQ_CLOUDFLARE_PROJECT: "achq",
     ACHQ_CLOUDFLARE_NAMESPACE: [...fake.namespaces.keys()][0],
     ACHQ_CLOUDFLARE_BUCKET: "achq",
     ACHQ_CLOUDFLARE_WORKERS_DEV: "acme.workers.dev",
-    ACHQ_CLOUDFLARE_BUILD_TOKEN: "bt-new",
     ACHQ_CLOUDFLARE_SSH_KEYS: `["ssh-ed25519 AAAA me"]`,
     AGENT_WEBHOOK_KEY: "generated-key",
     ACHQ_ROUTER_PUBLIC_URL: url,
@@ -160,12 +182,17 @@ test("a new project plans in one pass and writes nothing, with the router's URL 
   expect(deployerWorker.config.vars.ACHQ_SERVICE).toMatchObject({ port: 3000, sleeps: true });
   expect(deployerWorker.config.vars.ACHQ_SERVICE.publicPort).toBeUndefined();
   expect(deployerWorker.secrets.ACHQ_INTERNAL_KEY).toBe(internalKey("generated-key"));
+  // The deployer gets no copy of your sign-in, and its own token only as its Worker's secret: not in its variables, or anywhere in the namespace.
+  expect(deployerVariables.CLOUDFLARE_API_TOKEN).toBeUndefined();
+  expect(deployerWorker.secrets.ACHQ_CLOUDFLARE_DEPLOYER_TOKEN).toBe("cf-deployer");
+  expect(JSON.stringify([...kv.entries()])).not.toContain("cf-deployer");
+  expect(JSON.stringify([...kv.entries()])).not.toContain("cf-oauth");
 
   const again = declare();
   const unchanged = await plan(again.resources, ctx);
   expect(unchanged.changes).toEqual([]);
   expect(unchanged.value(again.router.env)).toMatchObject({ AGENT_WEBHOOK_KEY: "generated-key", PORT: "8080" });
-  expect(unchanged.value(again.deployer.env)).toMatchObject({ ACHQ_CLOUDFLARE_BUILD_TOKEN: "bt-new" });
+  expect(unchanged.value(again.deployer.env)).toMatchObject({ ACHQ_CLOUDFLARE_PROJECT: "achq" });
 });
 
 test("once applied, nothing changes until an input does, and then only what depends on it", async () => {
@@ -179,18 +206,37 @@ test("once applied, nothing changes until an input does, and then only what depe
   expect(JSON.parse(fake.workers.get("achq-router")!.secrets.ACHQ_ENV!).ACHQ_REF).toBe("b");
 });
 
-test("the deployer keeps its build token while the account lists it; an account with none gets one through the dashboard", async () => {
+test("a pasted token that won't do is asked for again, and rotating makes a new one", async () => {
+  // Wrangler's own token isn't an API token, and one Cloudflare doesn't know is turned down.
+  pasted = [fake.oauthToken, "typo", "cf-deployer"];
   await (await plan(declare().resources, ctx)).apply();
-  fake.tokens.push({ build_token_uuid: "bt-newer", build_token_name: "Workers Builds - 2027" });
+  expect(asked).toHaveLength(3);
+  expect(logs.filter((l) => l.startsWith("  !"))).toEqual([
+    "  ! Cloudflare turned that token down (Cloudflare GET /user/tokens/verify: 401 Invalid API Token (1000)). Paste it again.",
+    "  ! Cloudflare turned that token down (Cloudflare GET /user/tokens/verify: 401 Invalid API Token (1000)). Paste it again.",
+  ]);
+  expect(fake.workers.get("achq-deployer")!.secrets.ACHQ_CLOUDFLARE_DEPLOYER_TOKEN).toBe("cf-deployer");
   expect((await plan(declare().resources, ctx)).changes).toEqual([]);
 
-  fake.tokens.length = 0;
-  const planned = await plan(declare().resources, ctx);
-  expect(summary(planned.changes)).toEqual(["+ achq-deployer build token opens Cloudflare to create one", "~ achq-deployer variables ACHQ_CLOUDFLARE_BUILD_TOKEN", "~ achq-deployer deploy"]);
-  onOpen = () => fake.tokens.push({ build_token_uuid: "bt-made", build_token_name: "Workers Builds - now" });
+  const rotated = declare();
+  rotated.deployer.rotateToken();
+  const planned = await plan(rotated.resources, ctx);
+  expect(summary(planned.changes)).toEqual(["~ achq-deployer deployer token opens Cloudflare to create a new one, then asks for it"]);
+  fake.apiTokens.set("cf-deployer-2", "tok-deployer-2");
+  pasted = ["cf-deployer-2"];
   await planned.apply();
-  expect(opened).toEqual([{ url: `https://dash.cloudflare.com/${fake.accountId}/workers/services/view/achq-deployer/production/settings`, what: "create a Workers Builds token" }]);
-  expect(JSON.parse(fake.kv("achq")!.get("services/achq-deployer")!).ACHQ_CLOUDFLARE_BUILD_TOKEN).toBe("bt-made");
+  expect(fake.workers.get("achq-deployer")!.secrets.ACHQ_CLOUDFLARE_DEPLOYER_TOKEN).toBe("cf-deployer-2");
+
+  pasted = ["typo", "typo", "typo"];
+  const again = declare();
+  again.deployer.rotateToken();
+  await expect((await plan(again.resources, ctx)).apply()).rejects.toThrow("Cloudflare turned that token down");
+  expect(fake.workers.get("achq-deployer")!.secrets.ACHQ_CLOUDFLARE_DEPLOYER_TOKEN).toBe("cf-deployer-2");
+});
+
+test("without a browser and a terminal to paste into, the deployer's token can't be made", async () => {
+  const { prompt: _, ...withoutPrompt } = ctx;
+  await expect((await plan(declare().resources, withoutPrompt)).apply()).rejects.toThrow("The deployer's Cloudflare token is made in your browser and pasted here, which only `achq infra up` can do");
 });
 
 test("an owner without Cloudflare's GitHub App gets it through GitHub's install page", async () => {

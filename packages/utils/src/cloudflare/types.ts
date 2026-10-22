@@ -1,3 +1,10 @@
+export type AccountSummary = { id: string; name: string };
+
+/** What `/user/tokens/verify` says of an API token. */
+export type TokenStatus = { id: string; status: string };
+
+export type WorkerSecret = { name: string; type: string };
+
 /** A Worker, by the new Workers API: its `id` is the script tag a Builds trigger names. */
 export type WorkerSummary = { id: string; name: string };
 

@@ -9,7 +9,7 @@
 import { DurableObject, type DurableObjectState, type R2Bucket, WorkerEntrypoint } from "cloudflare:workers";
 import { type Box, Lifecycle, type Memory } from "./lifecycle.ts";
 import { inbound, outbound, storeRequest, workerUrl } from "./routes.ts";
-import { DATA_DIR, HEADERS, INTERNAL_DOMAIN, SERVICE_INSTANCE, type WorkerSettings } from "./settings.ts";
+import { DATA_DIR, DEPLOYER_TOKEN, HEADERS, INTERNAL_DOMAIN, SERVICE_INSTANCE, type WorkerSettings } from "./settings.ts";
 
 type Env = {
   /** What it is: written into its config by achq. */
@@ -18,6 +18,8 @@ type Env = {
   ACHQ_ENV: string;
   /** What achq's Workers prove themselves to each other with: a secret. */
   ACHQ_INTERNAL_KEY: string;
+  /** The deployer's own Cloudflare token: a secret only the deployer's Worker has. */
+  [DEPLOYER_TOKEN]?: string;
   ARCHIVE: R2Bucket;
 };
 
@@ -66,6 +68,8 @@ export class Service extends DurableObject<Env> {
     if (!container) throw new Error("This Worker has no container");
     const settings = env.ACHQ_SERVICE;
     const variables = JSON.parse(env.ACHQ_ENV || "{}") as Record<string, string>;
+    const token = env[DEPLOYER_TOKEN];
+    const secrets: Record<string, string> = token ? { [DEPLOYER_TOKEN]: token } : {};
     const box: Box = {
       get running() {
         return container.running;
@@ -100,6 +104,7 @@ export class Service extends DurableObject<Env> {
     this.lifecycle = new Lifecycle({
       settings,
       env: { ...variables, DATA_DIR },
+      secrets,
       get config() {
         return config;
       },
@@ -108,7 +113,8 @@ export class Service extends DurableObject<Env> {
     });
     // A new version of the Worker starts a new object: a service whose config changed restarts with it.
     this.ready = ctx.blockConcurrencyWhile(async () => {
-      config = await sha256(JSON.stringify({ settings, variables, images: container.images }));
+      // A new token restarts the deployer with it.
+      config = await sha256(JSON.stringify({ settings, variables, secrets, images: container.images }));
       if (container.running) await container.setInactivityTimeout(30 * 60_000).catch(() => {});
       if ((await ctx.storage.getAlarm()) === null) await ctx.storage.setAlarm(Date.now());
     });

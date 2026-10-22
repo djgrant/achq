@@ -20,13 +20,13 @@ export const cloudflareContainerProvider: ContainerProviderImplementation = {
     const env = new Env(vars);
     const key = env.require(ENV.key);
     return new CloudflareContainerProvider({
-      token: env.require(CLOUDFLARE_ENV.token),
+      // Its own, from its Worker's secret: never yours.
+      token: env.require(CLOUDFLARE_ENV.deployerToken),
       accountId: env.require(CLOUDFLARE_ENV.accountId),
       project: env.require(CLOUDFLARE_ENV.project),
       namespaceId: env.require(CLOUDFLARE_ENV.namespace),
       bucket: env.require(CLOUDFLARE_ENV.bucket),
       workersDev: env.require(CLOUDFLARE_ENV.workersDev),
-      buildToken: env.require(CLOUDFLARE_ENV.buildToken),
       sshKeys: JSON.parse(env.optional(CLOUDFLARE_ENV.sshKeys) ?? "[]"),
       key,
       repoIds: routerRepoIds({ routerUrl: env.require(ENV.routerUrl), key, githubApi: env.optional("GITHUB_API_URL") }),

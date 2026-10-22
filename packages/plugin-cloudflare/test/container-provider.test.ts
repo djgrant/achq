@@ -30,14 +30,14 @@ const spec = {
 const worker = "achq-notationlabs-yieldstar-dev";
 
 const options = () => ({
-  token: "cf-token",
+  // Its own token, which you made: never yours.
+  token: "cf-deployer",
   accountId: fake.accountId,
   endpoint: fake.url,
   project: "achq",
   namespaceId,
   bucket: "achq",
   workersDev: "acme.workers.dev",
-  buildToken: "bt-1",
   sshKeys: ["ssh-ed25519 AAAA me@laptop"],
   key: "webhook-key",
   repoIds: async (repo: string) => {
@@ -45,14 +45,24 @@ const options = () => ({
     return { provider_type: "github" as const, provider_account_id: "11", provider_account_name: "NotationLabs", repo_id: "22", repo_name: "yieldstar" };
   },
   sleep: async () => {},
+  log: (line: string) => logs.push(line),
 });
 
+let logs: string[];
+
+/** The Builds token registered for the deployer's own. */
+const registeredToken = () => fake.tokens.find((t) => t.cloudflare_token_id === "tok-deployer")?.build_token_uuid;
+
 beforeEach(async () => {
+  // One made in the dashboard.
   fake = startFakeCloudflare({ tokens: [{ build_token_uuid: "bt-1", build_token_name: "Workers Builds" }] });
+  fake.apiTokens.set("cf-deployer", "tok-deployer");
+  logs = [];
   namespaceId = await new Cloudflare("cf-token", fake.accountId, fake.url).kv.createNamespace("achq");
   fake.buckets.set("achq", new Map());
   host = new CloudflareContainerProvider(options());
   fake.mutations.length = 0;
+  fake.requests.length = 0;
   looked.length = 0;
 });
 afterEach(() => fake.stop());
@@ -73,6 +83,8 @@ test("ensure makes a placeholder Worker, its variables and secrets, and a trigge
   expect(fake.mutations).toEqual([]);
 
   expect(await host.ensure(spec)).toEqual({ url: `http://3000.${worker}.achq.internal` });
+  // Its own token, registered with Workers Builds by its id.
+  expect(fake.tokens.at(-1)).toMatchObject({ build_token_name: "achq-deployer", cloudflare_token_id: "tok-deployer" });
   const made = fake.workers.get(worker)!;
   expect(made.source).toContain("not deployed yet");
   const variables = { ...spec.env, DATA_DIR: "/data", PORT: "3000", ACHQ_KEEP_AWAKE_URL: "http://awake.achq.internal/" };
@@ -85,7 +97,7 @@ test("ensure makes a placeholder Worker, its variables and secrets, and a trigge
   const trigger = [...fake.triggers.values()][0]!;
   expect(trigger).toMatchObject({
     external_script_id: made.id,
-    build_token_uuid: "bt-1",
+    build_token_uuid: registeredToken(),
     branch_includes: ["main"],
     // Pushes match no path, so only the deployer builds.
     path_includes: ["achq-never-matches/**"],
@@ -118,6 +130,29 @@ test("ensure makes a placeholder Worker, its variables and secrets, and a trigge
   expect(await host.plan(spec)).toEqual([]);
   await host.ensure(spec);
   expect(fake.mutations).toEqual([]);
+});
+
+test("the deployer registers its token with Workers Builds once, and keeps it", async () => {
+  await host.ensure(spec);
+  const uuid = registeredToken()!;
+  // Another deployer process, as after a restart.
+  await new CloudflareContainerProvider(options()).ensure({ ...spec, name: "docs", env: { ...spec.env, ACHQ_CONTAINER: "docs" } });
+  expect(fake.tokens.filter((t) => t.cloudflare_token_id === "tok-deployer")).toHaveLength(1);
+  expect([...fake.triggers.values()].map((t) => t.build_token_uuid)).toEqual([uuid, uuid]);
+  // All of it with its own token.
+  expect(new Set(fake.requests.map((r) => r.token))).toEqual(new Set(["cf-deployer"]));
+});
+
+test("if Workers Builds won't register its token, the deployer builds with the account's newest; with none, it says where to make one", async () => {
+  fake.registerFails = true;
+  await host.ensure(spec);
+  expect([...fake.triggers.values()][0]!.build_token_uuid).toBe("bt-1");
+  expect(logs).toEqual(["Workers Builds wouldn't take the deployer's token (Cloudflare POST /accounts/acct/builds/tokens: 400 Unable to create build token (400)); building with Workers Builds"]);
+
+  fake.tokens.length = 0;
+  await expect(new CloudflareContainerProvider(options()).ensure(spec)).rejects.toThrow(
+    `and the account has no other. Make one at https://dash.cloudflare.com/acct/workers/services/view/${worker}/production/settings`,
+  );
 });
 
 test("ensure sets only what changed: a variable and its secrets, or the branch", async () => {
@@ -184,21 +219,22 @@ test("only builds repos on GitHub, at a known achq commit", async () => {
 
 test("the deployer makes it from its environment", async () => {
   expect(cloudflareContainerProvider.id).toBe("cloudflare");
-  expect(cloudflareContainerProvider.privateEnv).toEqual(["CLOUDFLARE_API_TOKEN"]);
-  expect(() => cloudflareContainerProvider.create({ AGENT_WEBHOOK_KEY: "k", CLOUDFLARE_API_TOKEN: "t" })).toThrow("Missing CLOUDFLARE_ACCOUNT_ID");
+  expect(cloudflareContainerProvider.privateEnv).toEqual(["CLOUDFLARE_API_TOKEN", "ACHQ_CLOUDFLARE_DEPLOYER_TOKEN"]);
+  // Its own token, never yours.
+  expect(() => cloudflareContainerProvider.create({ AGENT_WEBHOOK_KEY: "k", CLOUDFLARE_API_TOKEN: "t" })).toThrow("Missing ACHQ_CLOUDFLARE_DEPLOYER_TOKEN");
+  expect(() => cloudflareContainerProvider.create({ AGENT_WEBHOOK_KEY: "k", ACHQ_CLOUDFLARE_DEPLOYER_TOKEN: "t" })).toThrow("Missing CLOUDFLARE_ACCOUNT_ID");
   const made = cloudflareContainerProvider.create({
     AGENT_WEBHOOK_KEY: "webhook-key",
     ACHQ_ROUTER_URL: "http://8081.achq-router.achq.internal",
-    CLOUDFLARE_API_TOKEN: "cf-token",
+    ACHQ_CLOUDFLARE_DEPLOYER_TOKEN: "cf-deployer",
     CLOUDFLARE_ACCOUNT_ID: fake.accountId,
     CLOUDFLARE_API_URL: fake.url,
     ACHQ_CLOUDFLARE_PROJECT: "achq",
     ACHQ_CLOUDFLARE_NAMESPACE: namespaceId,
     ACHQ_CLOUDFLARE_BUCKET: "achq",
     ACHQ_CLOUDFLARE_WORKERS_DEV: "acme.workers.dev",
-    ACHQ_CLOUDFLARE_BUILD_TOKEN: "bt-1",
   }) as CloudflareContainerProvider;
-  expect(made.options).toMatchObject({ project: "achq", namespaceId, buildToken: "bt-1", sshKeys: [], key: "webhook-key" });
+  expect(made.options).toMatchObject({ token: "cf-deployer", project: "achq", namespaceId, sshKeys: [], key: "webhook-key" });
   expect(await made.list()).toEqual([]);
 });
 

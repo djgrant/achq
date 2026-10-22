@@ -279,3 +279,12 @@ test("with a vault, a new App's key is kept in it too, and a new router gets it 
     op.stop();
   }
 });
+
+test("--rotate-deployer-token asks the deployer to replace its token, and isn't part of the sync", async () => {
+  const resources = infra();
+  let rotated = 0;
+  resources.deployer.rotateToken = () => void rotated++;
+  await up(resources, { prune: false, dryRun: false, rotateDeployerToken: true }, deps());
+  expect(rotated).toBe(1);
+  expect(syncs.at(-1)!.body).toEqual({ prune: false, dryRun: false });
+});

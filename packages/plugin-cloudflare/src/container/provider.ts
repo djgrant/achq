@@ -1,4 +1,4 @@
-import { type Context, type ContainerProvider, type ContainerShell, type ContainerSpec, ENV, plan } from "@achq/core";
+import { type Context, type ContainerProvider, type ContainerShell, type ContainerSpec, ENV, Output, plan, UNKNOWN } from "@achq/core";
 import { async } from "@achq/utils/async";
 import { BUILD_STOPPED, BUILD_SUCCEEDED, CLOUDFLARE_API, Cloudflare } from "@achq/utils/cloudflare";
 import { crypto } from "@achq/utils/crypto";
@@ -7,17 +7,20 @@ import { text } from "@achq/utils/text";
 import { ENV_FILE } from "../../worker/lifecycle.ts";
 import { SERVICE_CLASS } from "../../worker/settings.ts";
 import { BUILD_POLL_INTERVAL_MS, BUILD_TIMEOUT_MS, BUILDS_GITHUB_APP, CLOUDFLARE_ENV, CONTAINER_PROVIDER, LOG_TAIL_LINES, SOURCE_HOST, WRANGLER } from "../lib/constants.ts";
+import { buildToken, registered } from "../lib/build-token.ts";
 import { type ContainerPlace, containerParts } from "../lib/container-parts.ts";
 import { archiveKey, containerUrl, containerWorkerName, KV_KEYS } from "../lib/names.ts";
 import type { RepoIds } from "../lib/repo-ids.ts";
 
-export type CloudflareContainerProviderOptions = ContainerPlace & {
+/** Where it puts containers, and its own token, which it builds them with too. */
+export type CloudflareContainerProviderOptions = Omit<ContainerPlace, "buildToken"> & {
   token: string;
   accountId: string;
   repoIds: RepoIds;
   /** Cloudflare's API, for tests. */
   endpoint?: string;
   sleep?: (ms: number) => Promise<void>;
+  log?: (line: string) => void;
 };
 
 const SECRET_BYTES = 32;
@@ -28,6 +31,8 @@ const cloneHint = (repo: string) => `If it couldn't clone ${repo}, install Cloud
 export class CloudflareContainerProvider implements ContainerProvider {
   readonly cf: Cloudflare;
   private readonly ctx: Context;
+  /** Its Workers Builds token, found or registered once. */
+  private buildToken?: Promise<string>;
 
   constructor(readonly options: CloudflareContainerProviderOptions) {
     const endpoint = options.endpoint ?? CLOUDFLARE_API;
@@ -45,18 +50,29 @@ export class CloudflareContainerProvider implements ContainerProvider {
   }
 
   /** Not its build: `deploy` starts those. */
-  private parts(spec: ContainerSpec) {
-    return containerParts(spec, this.options, this.options.repoIds);
+  private async parts(spec: ContainerSpec) {
+    return containerParts(spec, { ...this.options, buildToken: await this.ownBuildToken(spec) }, this.options.repoIds);
   }
 
+  /** Its Workers Builds token, registered the first time it's asked for. */
+  private ownBuildToken(spec: ContainerSpec) {
+    return (this.buildToken ??= buildToken(this.cf, this.options.token, this.worker(spec.repo, spec.name), this.options.log ?? ((line) => console.log(line))).catch((e) => {
+      this.buildToken = undefined;
+      throw e;
+    }));
+  }
+
+  /** What `ensure` would change. Registers nothing: a token yet to be registered is unknown. */
   async plan(spec: ContainerSpec) {
-    return (await plan(this.parts(spec).resources, this.ctx)).changes;
+    const { own } = await registered(this.cf);
+    const parts = containerParts(spec, { ...this.options, buildToken: own ?? new Output<string>([], () => UNKNOWN) }, this.options.repoIds);
+    return (await plan(parts.resources, this.ctx)).changes;
   }
 
   async ensure(spec: ContainerSpec) {
     // Workers Builds builds only from its source host.
     if (spec.host !== SOURCE_HOST) throw new Error(`Cloudflare builds containers from ${SOURCE_HOST} repos, not ${spec.host}`);
-    const { name, resources } = this.parts(spec);
+    const { name, resources } = await this.parts(spec);
     await (await plan(resources, this.ctx)).apply();
     return { url: containerUrl(name) };
   }

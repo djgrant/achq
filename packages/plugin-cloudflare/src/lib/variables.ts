@@ -1,6 +1,6 @@
 import { type Change, type Context, GENERATED, known, ManagedResource, type Planned, UNKNOWN } from "@achq/core";
 import { collections } from "@achq/utils/collections";
-import { cloudflareFromEnv } from "./cloudflare.ts";
+import { connect } from "./cloudflare.ts";
 
 type Declared = Record<string, string | typeof GENERATED>;
 /** `key` is where they're kept in the project's namespace; `target` names them in a plan. */
@@ -15,7 +15,8 @@ const valuesAfter = (values: Declared, current: Current, set: Set = {}): Record<
 
 /** Reads a Worker's variables, as JSON in the project's namespace: none until it has some. */
 export const readVariables = async (ctx: Context, namespaceId: string, key: string): Promise<Current> => {
-  const stored = await cloudflareFromEnv(ctx.env).kv.get(namespaceId, key);
+  const cf = await connect(ctx.env);
+  const stored = await cf.kv.get(namespaceId, key);
   return stored ? JSON.parse(stored) : {};
 };
 
@@ -50,7 +51,8 @@ export class Variables extends ManagedResource<Props, Current, Current, Set> {
   async apply({ namespaceId, key, values }: Props, current: Current = {}, [set]: Set[], ctx: Context) {
     // Several groups share the one record, so it's read again and merged.
     const stored = await readVariables(ctx, namespaceId, key);
-    await cloudflareFromEnv(ctx.env).kv.put(namespaceId, key, JSON.stringify({ ...stored, ...set }));
+    const cf = await connect(ctx.env);
+    await cf.kv.put(namespaceId, key, JSON.stringify({ ...stored, ...set }));
     // Every declared variable is either set now or already was.
     return valuesAfter(values, current, set) as Current;
   }
