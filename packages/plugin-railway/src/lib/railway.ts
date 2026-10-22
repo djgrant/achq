@@ -22,10 +22,7 @@ export const tokenCheck = (vars: Vars): Check => ({
         throw e instanceof RailwayError ? new RailwayError(`Railway turned down ${RAILWAY_ENV.token} (${e.message})`) : e;
       });
   },
-  remediation: [
-    `achq reads ${RAILWAY_ENV.token} from its environment; \`railway login\` doesn't set it.`,
-    `${TOKEN_HINT} Put it where your environment comes from, e.g. what your achq.config.ts's \`env\` command reads.`,
-  ],
+  remediation: [`Set ${RAILWAY_ENV.token} to a token from https://railway.com/account/tokens`],
 });
 
 /** Reads nothing. */

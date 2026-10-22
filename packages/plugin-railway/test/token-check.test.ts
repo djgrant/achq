@@ -18,7 +18,7 @@ test("a token Railway turns down fails the check, naming the variable, with what
   stops.push(() => server.stop(true));
   const tokenCheck = check({ RAILWAY_API_TOKEN: "expired", RAILWAY_API_URL: server.url.href });
   await expect(tokenCheck.check()).rejects.toThrow("Railway turned down RAILWAY_API_TOKEN (Railway: Not Authorized)");
-  expect(tokenCheck.remediation?.join("\n")).toContain("`railway login` doesn't set it");
+  expect(tokenCheck.remediation?.join("\n")).toContain("https://railway.com/account/tokens");
 });
 
 test("a missing token fails the check", async () => {
