@@ -1,4 +1,4 @@
-import { type CodeHostProvider, type ContainerProvider, type DeployerEnvelope, type FileLimits, type RepoManifest, repoName, type SyncRequest, type SyncResult } from "@achq/core";
+import { type CodeHostProvider, type ContainerProvider, type Stores, type DeployerEnvelope, type FileLimits, type RepoManifest, repoName, type SyncRequest, type SyncResult } from "@achq/core";
 import { async } from "@achq/utils/async";
 import { HttpError } from "@achq/utils/http";
 import { type Evaluate, evaluateConfig } from "./config/evaluate.ts";
@@ -27,7 +27,8 @@ export type DeployerDeps = {
   router: RouterClient;
   codeHostProviders: Record<string, CodeHostProvider>;
   owners: string[];
-  dataDir: string;
+  /** Where it keeps its records: its container provider's store. */
+  stores: Stores;
   evaluate?: Evaluate;
   now?: () => Date;
   env: DeployerEnv;
@@ -46,7 +47,7 @@ type ActionOptions = { dryRun?: boolean };
 export const createDeployer = (deps: DeployerDeps) => {
   const ctx: DeployerContext = {
     ...deps,
-    store: createStore(deps.dataDir),
+    store: createStore(deps.stores),
     evaluate: deps.evaluate ?? ((files) => evaluateConfig(files)),
     now: deps.now ?? (() => new Date()),
     log: deps.log ?? ((line) => console.log(line)),

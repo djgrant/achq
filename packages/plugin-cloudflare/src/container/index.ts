@@ -1,12 +1,20 @@
-import { type ContainerProvider, type ContainerShell, ENV, type Implementation } from "@achq/core";
+import { type ContainerProviderImplementation, ENV } from "@achq/core";
 import { Env } from "@achq/utils/env";
+import { HttpJsonStore } from "@achq/utils/http";
+import { INTERNAL_HOSTS } from "../../worker/settings.ts";
 import { CLOUDFLARE_ENV, CONTAINER_PROVIDER, PRIVATE_ENV } from "../lib/constants.ts";
 import { tokenCheck } from "../lib/cloudflare.ts";
 import { routerRepoIds } from "../lib/repo-ids.ts";
 import { CloudflareContainerProvider, cloudflareShell } from "./provider.ts";
 
-/** Containers as Workers on the deployer's account, each built from its repo by Workers Builds, reached in a shell with `wrangler containers ssh`. */
-export const cloudflareContainerProvider: Implementation<ContainerProvider> & { shell: ContainerShell } = {
+/**
+ * Containers as Workers on the deployer's account, each built from its repo by
+ * Workers Builds, reached in a shell with `wrangler containers ssh`. The router
+ * and deployer keep what they store in their Durable Object's storage, which
+ * keeps a write once it's answered, reached from their container at
+ * `store.achq.internal`: their disk only outlives a stop in a snapshot.
+ */
+export const cloudflareContainerProvider: ContainerProviderImplementation = {
   id: CONTAINER_PROVIDER,
   create: (vars) => {
     const env = new Env(vars);
@@ -28,4 +36,5 @@ export const cloudflareContainerProvider: Implementation<ContainerProvider> & { 
   privateEnv: PRIVATE_ENV,
   checks: (vars) => [tokenCheck(vars)],
   shell: cloudflareShell,
+  store: (_vars, collection) => new HttpJsonStore(`http://${INTERNAL_HOSTS.store}/${collection}`),
 };

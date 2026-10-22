@@ -88,7 +88,7 @@ test("a new project plans in one pass and writes nothing, with the router's URL 
     "+ achq kv namespace",
     "+ achq r2 bucket",
     "+ achq-router worker",
-    "~ achq-router variables AGENT_WEBHOOK_KEY, ACHQ_STORE_URL, DATA_DIR, PORT",
+    "~ achq-router variables AGENT_WEBHOOK_KEY, DATA_DIR, PORT",
     "~ achq-router variables ACHQ_DEPLOYER_URL, ACHQ_REF",
     "~ achq-router deploy",
     "+ achq-deployer worker",
@@ -115,7 +115,6 @@ test("a new project plans in one pass and writes nothing, with the router's URL 
   const routerVariables = JSON.parse(kv.get("services/achq-router")!);
   expect(routerVariables).toEqual({
     AGENT_WEBHOOK_KEY: "generated-key",
-    ACHQ_STORE_URL: "http://store.achq.internal",
     DATA_DIR: "/data",
     PORT: "8080",
     ACHQ_DEPLOYER_URL: "http://3000.achq-deployer.achq.internal",

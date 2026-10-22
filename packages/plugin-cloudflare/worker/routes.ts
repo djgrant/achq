@@ -30,7 +30,7 @@ export const outbound = (hostname: string): Outbound => {
 /** Another Worker's public URL for a path. */
 export const workerUrl = (worker: string, settings: WorkerSettings, pathAndQuery: string) => `https://${worker}.${settings.workersDev}${pathAndQuery}`;
 
-/** The JSON store, as the router reaches it at ENV.storeUrl: `/<collection>` lists, `/<collection>/<name>` is one value. */
+/** The JSON store, as the router and deployer reach it at `store.achq.internal`: `/<collection>` lists, `/<collection>/<name>` is one value. */
 export interface StoreMemory {
   get(key: string): Promise<string | undefined>;
   put(key: string, value: string): Promise<void>;

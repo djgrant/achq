@@ -1,7 +1,4 @@
-import { join } from "node:path";
-import { type ChannelProvider, type CodeHostProvider, type PolicyProvider, repoName, type RouterRepoConfig } from "@achq/core";
-import { JsonDirStore, type JsonStore } from "@achq/utils/disk";
-import { HttpJsonStore } from "@achq/utils/http";
+import { type ChannelProvider, type CodeHostProvider, type PolicyProvider, repoName, type RouterRepoConfig, type Stores } from "@achq/core";
 import { ATTEMPT_TIMEOUT_MS, DELAYS } from "./constants.ts";
 import type { Claims, FailedEntry, InboxEntry } from "./deliveries.ts";
 
@@ -13,9 +10,8 @@ export type RouterDeps = {
   codeHostProviders: Record<string, CodeHostProvider>;
   /** AGENT_WEBHOOK_KEY. */
   key: string;
-  dataDir: string;
-  /** Where to keep what the router stores, instead of under `dataDir`, when its container provider sets ENV.storeUrl. */
-  storeUrl?: string;
+  /** Where it keeps what outlives a crash: its container provider's store. */
+  stores: Stores;
   deployerUrl: string;
   fetch?: typeof fetch;
   delays?: number[];
@@ -28,10 +24,6 @@ export type RouterDeps = {
 export const repoFile = (repo: string) => repoName.key(repo).replace("/", "__");
 export const repoFromFile = (name: string) => name.replace("__", "/");
 
-/** A collection of what the router keeps: files under `dataDir`, or at `storeUrl` when there's one. */
-const collection = <T>(deps: RouterDeps, name: string): JsonStore<T> =>
-  deps.storeUrl ? new HttpJsonStore<T>(`${deps.storeUrl.replace(/\/+$/, "")}/${name}`) : new JsonDirStore<T>(join(deps.dataDir, name));
-
 export const createContext = (deps: RouterDeps) => ({
   ...deps,
   fetch: deps.fetch ?? fetch,
@@ -39,14 +31,14 @@ export const createContext = (deps: RouterDeps) => ({
   attemptTimeout: deps.attemptTimeout ?? ATTEMPT_TIMEOUT_MS,
   now: deps.now ?? Date.now,
   log: deps.log ?? ((line: string) => console.log(line)),
-  /** What outlives a restart. */
+  /** What outlives a crash. */
   store: {
-    repos: collection<RouterRepoConfig>(deps, "repos"),
-    claims: collection<Claims>(deps, "claims"),
+    repos: deps.stores<RouterRepoConfig>("repos"),
+    claims: deps.stores<Claims>("claims"),
     /** Accepted deliveries some target hasn't answered yet, by delivery ID. */
-    inbox: collection<InboxEntry>(deps, "inbox"),
+    inbox: deps.stores<InboxEntry>("inbox"),
     /** Deliveries some target never answered, by delivery ID. */
-    failed: collection<FailedEntry>(deps, "failed"),
+    failed: deps.stores<FailedEntry>("failed"),
   },
   /** Router config and claims, by `repoName.key`. Loaded on start, written through to the store. */
   repos: new Map<string, RouterRepoConfig>(),

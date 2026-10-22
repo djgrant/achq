@@ -6,8 +6,6 @@ import { createDeployer } from "./deployer.ts";
 import { routerClient } from "./router-client.ts";
 import { deployerHandler } from "./server.ts";
 
-const DEFAULT_DATA_DIR = "/data";
-
 /** Bun's longest: a deploy that builds images can keep `/sync` busy for minutes. */
 const IDLE_TIMEOUT_S = 255;
 
@@ -15,12 +13,13 @@ export const main = () => {
   const env = new Env(process.env);
   const key = env.require(ENV.key);
   const routerUrl = env.require(ENV.routerUrl);
+  const containerProvider = containerProviderNamed(env.require(ENV.containerProvider));
   const deployer = createDeployer({
-    containerProvider: containerProviderNamed(env.require(ENV.containerProvider)).create(env.vars),
+    containerProvider: containerProvider.create(env.vars),
     router: routerClient({ url: routerUrl, key }),
     codeHostProviders: Object.fromEntries(CODE_HOST_PROVIDERS.map((h) => [h.id, h.create(env.vars)])),
     owners: text.commaList(env.require(ENV.owners)),
-    dataDir: env.optional(ENV.dataDir) ?? DEFAULT_DATA_DIR,
+    stores: (collection) => containerProvider.store(env.vars, collection),
     env: {
       containerEnv: JSON.parse(env.require(ENV.containerEnv)),
       privateEnv: privateEnv(),

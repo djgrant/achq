@@ -132,7 +132,7 @@ const FRESH = [
   "  + achq-router     service",
   "  + achq-router     volume           /data",
   "  + achq-router     public domain    → :8080",
-  "  ~ achq-router     variables        6",
+  "  ~ achq-router     variables        7",
   "  + djgrant-claude  github channel   opens GitHub to create its App",
   "  ~ achq-router     deploy",
   "  + achq-deployer   service",
@@ -173,6 +173,8 @@ test("up creates everything, puts the App's key only in the router's variables, 
   expect(key).toMatch(/^[0-9a-f]{64}$/);
   expect(JSON.parse(router.variables.ACHQ_GITHUB_APPS)).toEqual({ "djgrant-claude": { id: "4242", privateKey: pem } });
   expect(router.variables.ACHQ_DEPLOYER_URL).toBe("http://achq-deployer.railway.internal:3000");
+  // Its store is its container provider's.
+  expect(router.variables.ACHQ_CONTAINER_PROVIDER).toBe("railway");
   expect(router.domains).toHaveLength(1);
   expect(router.settings.sleepApplication).toBe(false);
   expect(deployer.domains).toEqual([]);

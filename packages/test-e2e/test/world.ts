@@ -14,6 +14,7 @@ import { createRouter } from "@achq/router";
 import { fakeClaude } from "@achq/test-utils/fake-claude";
 import { FakeGitHub, makeApp } from "@achq/test-utils/github";
 import { makeOrigin } from "@achq/test-utils/origin";
+import { dirStores } from "@achq/test-utils/stores";
 import { tempDir } from "@achq/test-utils/temp-dir";
 import { privateEnv } from "achq/registry";
 import { APP_EVENTS, APP_ID, APP_PERMISSIONS, BOT, DJ, githubSends, INSTALLATION, KEY, MALLORY, OWNER, REPO, SLUG } from "./github-sends.ts";
@@ -236,7 +237,7 @@ export const startWorld = async () => {
     channelProviders: [githubChannelProvider.create(githubEnv)],
     policyProviders: [githubPolicyProvider.create(githubEnv)],
     key: KEY,
-    dataDir: routerDir,
+    stores: dirStores(routerDir),
     deployerUrl,
     delays: [20, 50, 100, 200],
     attemptTimeout: 30_000,
@@ -268,7 +269,7 @@ export const startWorld = async () => {
     containerProvider,
     router: routerClient({ url: routerPrivate, key: KEY }),
     owners: [OWNER],
-    dataDir: path.join(root, "deployer"),
+    stores: dirStores(path.join(root, "deployer")),
     codeHostProviders,
     env: { containerEnv: { CLAUDE_CODE_OAUTH_TOKEN: "claude-oauth-token" }, privateEnv: privateEnv(), key: KEY, routerUrl: routerPrivate, routerPublicUrl: routerPublic, ref: "e2e" },
     log: (line) => logs.push(`deployer: ${line}`),

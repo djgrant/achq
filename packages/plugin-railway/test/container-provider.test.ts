@@ -1,4 +1,7 @@
 import { afterEach, beforeEach, expect, test } from "bun:test";
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
 import { type FakeRailway, startFakeRailway } from "@achq/test-utils/railway";
 import { railwayContainerProvider } from "../src/container/index.ts";
 import { RailwayContainerProvider } from "../src/container/provider.ts";
@@ -142,4 +145,13 @@ test("the deployer makes it from its environment: the token and the project", as
   });
   expect(await made.ensure(spec)).toEqual({ url: "http://notationlabs-yieldstar-dev.railway.internal:3000" });
   expect(fake.service("notationlabs-yieldstar-dev")).toBeDefined();
+});
+
+test("the router and deployer keep what they store as files on their volume, under DATA_DIR, readable by them alone", async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "achq-railway-store-"));
+  const store = railwayContainerProvider.store<{ n: number }>({ DATA_DIR: dir }, "inbox");
+  await store.write("d-1", { n: 1 });
+  expect(await store.all()).toEqual([{ n: 1 }]);
+  expect(fs.statSync(path.join(dir, "inbox", "d-1.json")).mode & 0o777).toBe(0o600);
+  expect(() => railwayContainerProvider.store({}, "inbox")).toThrow("Missing DATA_DIR");
 });

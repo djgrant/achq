@@ -31,12 +31,7 @@ export const ENV = {
   ref: "ACHQ_REF",
   /** Where a service or container keeps what outlives a restart. Its container provider sets it. */
   dataDir: "DATA_DIR",
-  /**
-   * Where the router keeps its inbox, config and claims instead of DATA_DIR: a JSON store over HTTP. A container
-   * provider sets it when DATA_DIR doesn't outlive a crash as soon as it's written, as a webhook's inbox entry must.
-   */
-  storeUrl: "ACHQ_STORE_URL",
-  /** The `ContainerProvider` the deployer puts containers on, by id. */
+  /** The container provider the router and deployer run on, by id: where they keep what they store, and where the deployer puts containers. */
   containerProvider: "ACHQ_CONTAINER_PROVIDER",
 } as const;
 

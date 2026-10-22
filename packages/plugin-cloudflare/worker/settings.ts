@@ -7,7 +7,7 @@ export const INTERNAL_DOMAIN = "achq.internal";
 
 /** Hostnames under INTERNAL_DOMAIN that a container's own Worker answers, rather than another Worker. */
 export const INTERNAL_HOSTS = {
-  /** A JSON store in the Worker's Durable Object: ENV.storeUrl. */
+  /** A JSON store in the Worker's Durable Object: the container provider's store, for the router and deployer. */
   store: `store.${INTERNAL_DOMAIN}`,
   /** Fetched while the container works, so its Worker doesn't put it to sleep: ENV.keepAwakeUrl. */
   awake: `awake.${INTERNAL_DOMAIN}`,

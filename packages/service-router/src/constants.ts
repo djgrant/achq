@@ -7,5 +7,3 @@ export const ATTEMPT_TIMEOUT_MS = 30_000;
 export const REPO = /^[\w.-]+\/[\w.-]+$/;
 /** A route's `/repos/<owner>/<repo>`, in the same characters. */
 export const REPO_PATH = "/repos/:owner{[\\w.-]+}/:name{[\\w.-]+}";
-
-export const DEFAULT_DATA_DIR = "./data";

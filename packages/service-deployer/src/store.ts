@@ -1,15 +1,14 @@
-import { join } from "node:path";
-import { type DeployRecord, type RepoManifest, repoName } from "@achq/core";
+import { type DeployRecord, type RepoManifest, repoName, type Stores } from "@achq/core";
 import { async } from "@achq/utils/async";
-import { disk, JsonDirStore } from "@achq/utils/disk";
+import { disk } from "@achq/utils/disk";
 
 /** How many delivery IDs are remembered as handled: the newest. */
 const MAX_DELIVERIES = 5000;
 
-/** The deployer's files are its own: they hold every repo's deploy state. */
-const PRIVATE_FILE_MODE = 0o600;
+/** The one value in the `deliveries` collection: the IDs handled. */
+const HANDLED = "handled";
 
-/** A file name can't start with `.` or be empty. */
+/** A name can't start with `.` or be empty: it may be a file's. */
 const UNSAFE_START = /^\.|^$/;
 
 /** What a container was last deployed from: a change to either means a rebuild. */
@@ -26,11 +25,12 @@ export const wireRecord = ({ deployed: _deployed, ...record }: StoredRecord): De
 /** A failed deploy of a name that's no repo's is recorded too, so this takes any string. */
 export const recordName = (repo: string) => disk.safeFileName(repoName.key(repo).replace("/", "__")).replace(UNSAFE_START, "_");
 
-export const createStore = (dataDir: string) => {
-  const records = new JsonDirStore<StoredRecord>(join(dataDir, "records"), { pretty: true, mode: PRIVATE_FILE_MODE });
-  const deliveriesFile = join(dataDir, "deliveries.json");
+/** In its container provider's store: a record per repo, and the deliveries it's handled. */
+export const createStore = (stores: Stores) => {
+  const records = stores<StoredRecord>("records");
+  const handled = stores<string[]>("deliveries");
   let deliveries: string[] | undefined;
-  const loadDeliveries = async () => (deliveries ??= (await disk.readJson<string[]>(deliveriesFile)) ?? []);
+  const loadDeliveries = async () => (deliveries ??= (await handled.read(HANDLED)) ?? []);
   // One list, shared by every caller, so writes go in order: an older list can't land after a newer one.
   const inOrder = async.serial();
 
@@ -45,7 +45,7 @@ export const createStore = (dataDir: string) => {
       if (list.includes(delivery)) return;
       list.push(delivery);
       if (list.length > MAX_DELIVERIES) list.splice(0, list.length - MAX_DELIVERIES);
-      await inOrder(() => disk.writeJson(deliveriesFile, list, { mode: PRIVATE_FILE_MODE }));
+      await inOrder(() => handled.write(HANDLED, list));
     },
   };
 };

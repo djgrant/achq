@@ -1,5 +1,4 @@
 import { Hono } from "hono";
-import type { JsonStore } from "./disk.ts";
 import { errors } from "./errors.ts";
 
 /** How much of an error response's body goes into an error message: enough to read, not a whole HTML page. */
@@ -50,7 +49,7 @@ const NOT_FOUND = 404;
  * `PUT` and `DELETE` `base/<name>` read, write and remove one. A write is kept
  * once it's answered. Names are path segments, so they're encoded.
  */
-export class HttpJsonStore<T> implements JsonStore<T> {
+export class HttpJsonStore<T> {
   constructor(
     readonly base: string,
     private readonly fetcher: typeof fetch = fetch,

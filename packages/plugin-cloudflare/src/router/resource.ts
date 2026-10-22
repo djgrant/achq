@@ -1,6 +1,5 @@
 import * as core from "@achq/core";
 import { type Context, ENV, type EnvValues, GENERATED, type Output } from "@achq/core";
-import { INTERNAL_HOSTS } from "../../worker/settings.ts";
 import { CONTAINER_PROVIDER } from "../lib/constants.ts";
 import { privateUrl, serviceWorkerName } from "../lib/names.ts";
 import { Project } from "../lib/project.ts";
@@ -10,8 +9,8 @@ import { ServiceParts } from "../lib/service-parts.ts";
  * The router, as a Worker named after `project`, e.g. `achq-router`: public,
  * always on. It owns the project, whose namespace and bucket its deployer and
  * the containers share. It keeps its inbox, config and claims in its Durable
- * Object's storage, which keeps a write as soon as it's answered: a snapshot
- * per webhook would be too slow. Applying waits until it answers.
+ * Object's storage, as the container provider's store does for achq's
+ * services. Applying waits until it answers.
  */
 export class Router extends core.Router {
   readonly containerProvider = CONTAINER_PROVIDER;
@@ -28,7 +27,7 @@ export class Router extends core.Router {
     super(name);
     this.project = new Project("project", { name: inputs.project }, { parent: this });
     this.parts = new ServiceParts(this, { name: inputs.project, resource: this.project }, {
-      variables: () => ({ [ENV.key]: GENERATED, [ENV.storeUrl]: `http://${INTERNAL_HOSTS.store}` }),
+      variables: () => ({ [ENV.key]: GENERATED }),
       wait: true,
     });
     this.url = this.parts.worker.out("url");

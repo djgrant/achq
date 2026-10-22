@@ -201,3 +201,18 @@ test("the deployer makes it from its environment", async () => {
   expect(made.options).toMatchObject({ project: "achq", namespaceId, buildToken: "bt-1", sshKeys: [], key: "webhook-key" });
   expect(await made.list()).toEqual([]);
 });
+
+test("the router and deployer keep what they store in their Durable Object, which their Worker answers at store.achq.internal", async () => {
+  const requests: string[] = [];
+  const real = globalThis.fetch;
+  globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+    requests.push(`${init?.method ?? "GET"} ${String(input)}`);
+    return new Response(null, { status: 204 });
+  }) as typeof fetch;
+  try {
+    await cloudflareContainerProvider.store({}, "inbox").write("d-1", { n: 1 });
+  } finally {
+    globalThis.fetch = real;
+  }
+  expect(requests).toEqual(["PUT http://store.achq.internal/inbox/d-1"]);
+});

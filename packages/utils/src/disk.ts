@@ -151,20 +151,8 @@ export const disk = {
   },
 };
 
-/** JSON values by name: files in a directory (JsonDirStore), or a store over HTTP (HttpJsonStore). */
-export interface JsonStore<T> {
-  read(name: string): Promise<T | undefined>;
-  write(name: string, value: T): Promise<void>;
-  /** Removing a missing name is fine. */
-  remove(name: string): Promise<void>;
-  /** Every stored name, sorted. */
-  list(): Promise<string[]>;
-  /** Every stored value, in name order. */
-  all(): Promise<T[]>;
-}
-
 /** JSON files in `dir`, one per name, created on the first write. Names must be safe file names (see `disk.safeFileName`); others throw. */
-export class JsonDirStore<T> implements JsonStore<T> {
+export class JsonDirStore<T> {
   /** One write or removal of a name at a time, in the order asked for. */
   private inOrder = async.keyedQueue();
 

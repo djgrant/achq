@@ -13,6 +13,7 @@ import { githubCodeHostProvider } from "@achq/github/code-host";
 import { FakeGitHub } from "@achq/test-utils/deployer/github";
 import { FakeRouter } from "@achq/test-utils/deployer/router";
 import { MemoryContainerProvider } from "@achq/test-utils/deployer/container-provider";
+import { dirStores } from "@achq/test-utils/stores";
 import { routerClient } from "../src/router-client.ts";
 import { deployerHandler } from "../src/server.ts";
 
@@ -56,7 +57,7 @@ const makeDeployer = (options: { owners?: string[] } = {}) =>
     containerProvider,
     router: routerClient({ url: router.url, key: KEY }),
     owners: options.owners ?? ["NotationLabs", "djgrant"],
-    dataDir,
+    stores: dirStores(dataDir),
     ...githubDeps(),
     evaluate: (files) => {
       evaluations++;
@@ -190,7 +191,7 @@ describe("install", () => {
       containerProvider,
       router: routerClient({ url: router.url, key: KEY }),
       owners: ["notationlabs"],
-      dataDir,
+      stores: dirStores(dataDir),
       ...githubDeps(),
       evaluate: (files) => evaluateConfig(files, { timeoutMs: 200 }),
       env: ENV,
@@ -271,7 +272,7 @@ describe("config changes", () => {
       ...githubDeps(),
       codeHostProviders: { ...githubDeps().codeHostProviders, mirror: github2 },
       owners: ["notationlabs"],
-      dataDir,
+      stores: dirStores(dataDir),
       env: ENV,
       log: () => {},
     });
@@ -416,7 +417,7 @@ describe("deliveries", () => {
       containerProvider,
       router: routerClient({ url: router.url, key: KEY }),
       owners: ["notationlabs"],
-      dataDir,
+      stores: dirStores(dataDir),
       ...githubDeps(),
       evaluate: async (files) => {
         most = Math.max(most, ++active);

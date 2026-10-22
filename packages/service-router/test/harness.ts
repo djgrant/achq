@@ -2,10 +2,11 @@ import { afterEach, expect } from "bun:test";
 import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { ContainerEnvelope, DeployerEnvelope, PolicyData, SelectorData, PolicyProvider, ChannelProvider, ChannelEvent, CodeHostProvider, RouterRepoConfig } from "@achq/core";
+import type { ContainerEnvelope, DeployerEnvelope, PolicyData, SelectorData, PolicyProvider, ChannelProvider, ChannelEvent, CodeHostProvider, RouterRepoConfig, Stores } from "@achq/core";
 import { adminSecret, containerSecret } from "@achq/core/secrets";
 import { signedRequestInit, verifySigned } from "@achq/core/signing";
 import { crypto } from "@achq/utils/crypto";
+import { dirStores } from "@achq/test-utils/stores";
 import { createRouter } from "../src/router.ts";
 
 export const key = "test-key";
@@ -147,16 +148,16 @@ export const fakeDeployer = () => {
   return fake;
 };
 
-export type Boot = { dir?: string; deployer?: string; delays?: number[]; storeUrl?: string };
+/** `stores` is its container provider's store: by default, files under `dir`. */
+export type Boot = { dir?: string; deployer?: string; delays?: number[]; stores?: Stores };
 
-export const boot = async ({ dir = mkdtempSync(join(tmpdir(), "achq-router-")), deployer = "http://localhost:1", delays = [0, 0], storeUrl }: Boot = {}) => {
+export const boot = async ({ dir = mkdtempSync(join(tmpdir(), "achq-router-")), deployer = "http://localhost:1", delays = [0, 0], stores = dirStores(dir) }: Boot = {}) => {
   const router = createRouter({
     channelProviders: [testChannel],
     policyProviders: [testPolicyProvider],
     codeHostProviders: { test: testHost },
     key,
-    dataDir: dir,
-    storeUrl,
+    stores,
     deployerUrl: deployer,
     delays,
     log: () => {},
