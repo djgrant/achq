@@ -6,7 +6,8 @@ import { agentEnv, codeHostProviderNamed } from "achq/registry";
 import { z } from "zod";
 import { ACHQ_CODE_PATHS } from "../constants.ts";
 import { formatSync } from "../lib/format.ts";
-import { agentEnvCheck, infraChecks, loadInfra, up } from "../lib/infra.ts";
+import { loadConfig } from "../lib/config.ts";
+import { agentEnvCheck, configVault, infraChecks, loadInfra, up } from "../lib/infra.ts";
 import { clean } from "../lib/terminal.ts";
 import { needInfra } from "../lib/workdir.ts";
 
@@ -32,6 +33,7 @@ export const command = defineCommand({
         console.log(`  opening ${url} to ${what}…`);
         subprocess.openUrl(url);
       },
+      vault: configVault(await loadConfig(), process.env),
       log: (line) => console.log(line),
     });
     if (result) for (const line of formatSync(result, context.dryRun)) console.log(`  sync: ${line}`);

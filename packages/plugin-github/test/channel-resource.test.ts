@@ -1,9 +1,10 @@
-import { afterEach, beforeEach, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { createPublicKey, createVerify, generateKeyPairSync } from "node:crypto";
 import {
   type Change,
   type Context,
   type EnvValue,
+  type Vault,
   type EnvValues,
   ManagedResource,
   Output,
@@ -44,6 +45,8 @@ beforeEach(() => {
       if (req.method === "POST" && url.pathname === "/app-manifests/the-code/conversions") {
         return Response.json({ id: 4242, slug: "djgrant-claude", pem, html_url: "https://github.com/apps/djgrant-claude" });
       }
+      // As GitHub answers a JWT signed with a key it doesn't know.
+      if ((url.pathname === "/app" || url.pathname === "/app/hook/config") && !calls.at(-1)!.jwtOk) return Response.json({ message: "A JSON web token could not be decoded" }, { status: 401 });
       if (url.pathname === "/app/hook/config") {
         if (req.method === "PATCH") Object.assign(hook, await req.json());
         return Response.json({ ...hook, secret: "********" });
@@ -67,10 +70,18 @@ const open = async (page: string, what: string) => {
   expect((await fetch(`${manifest.redirect_url}?code=the-code&state=${state}`)).ok).toBe(true);
 };
 
-const context = (log: string[] = [], withOpen = true): Context => ({
+/** A vault in memory: its items by name. */
+const memoryVault = (items = new Map<string, Record<string, string>>()): Vault & { items: typeof items } => ({
+  items,
+  read: async (item) => items.get(item),
+  write: async (item, fields) => void items.set(item, fields),
+});
+
+const context = (log: string[] = [], withOpen = true, vault?: Vault): Context => ({
   env: { GITHUB_API_URL: web(), GITHUB_WEB_URL: web() },
   log: (line) => log.push(line),
   ...(withOpen && { open }),
+  ...(vault && { vault }),
   newSecret: () => "secret",
   sleep: async () => {},
 });
@@ -135,7 +146,14 @@ test("a channel's comparison is pure: it takes what was read and says what diffe
 
   const known = { ...props, stored: { id: "1", privateKey: "k" } };
   const settingsUrl = "https://github.com/organizations/notationlabs/settings/apps/notation-achq/permissions";
-  const current = { events: ["issues", "push"], permissions: { ...PERMISSIONS, contents: "read" }, hook: { url: HOOK, content_type: "json", insecure_ssl: "0" }, settings: settingsUrl };
+  const current = {
+    events: ["issues", "push"],
+    permissions: { ...PERMISSIONS, contents: "read" },
+    hook: { url: HOOK, content_type: "json", insecure_ssl: "0" },
+    settings: settingsUrl,
+    keys: known.stored,
+    from: "router" as const,
+  };
   expect(channel.diff(known, current)).toEqual([]);
   expect(channel.planned(known, current)).toEqual({ slug: "notation-achq", id: "1", privateKey: "k" });
   expect(channel.check(known, current)).toEqual([
@@ -225,4 +243,67 @@ test("one ACHQ_GITHUB_APPS group per router holds the App of every channel decla
 test("two channels with one slug are refused", () => {
   const { router } = infra({});
   expect(() => new Channel("again", { name: "DJGrant Claude", router })).toThrow("Two channels are named djgrant-claude");
+});
+
+describe("with a vault", () => {
+  const ITEM = "GitHub App djgrant-claude";
+
+  test("a new App's key goes to the vault as well as the router", async () => {
+    const vault = memoryVault();
+    const { router, channel } = infra({});
+    const ctx = context([], true, vault);
+    const keys = router.apps(ctx);
+    const applied = await (await plan([channel], ctx)).apply();
+    expect(vault.items.get(ITEM)).toEqual({ app_id: "4242", private_key: pem });
+    expect(JSON.parse(applied.value(keys) as string)).toEqual(STORED);
+  });
+
+  test("a vault that fails doesn't lose the App: its key still goes to the router", async () => {
+    const log: string[] = [];
+    const vault: Vault = { read: async () => undefined, write: async () => Promise.reject(new Error("not signed in")) };
+    const { router, channel } = infra({});
+    const ctx = context(log, true, vault);
+    const keys = router.apps(ctx);
+    const applied = await (await plan([channel], ctx)).apply();
+    expect(log).toContain("  ! couldn't keep djgrant-claude's key in the vault: not signed in");
+    expect(JSON.parse(applied.value(keys) as string)).toEqual(STORED);
+  });
+
+  test("a router without the App's key gets it from the vault, known when planned, with the webhook moved to it and signed with its secret", async () => {
+    hook = { url: "https://old-router.example/webhook", content_type: "json", insecure_ssl: "0", secret: "old" };
+    const vault = memoryVault(new Map([[ITEM, { app_id: "4242", private_key: pem }]]));
+    const { router, channel } = infra({});
+    const ctx = context([], false, vault);
+    const keys = router.apps(ctx);
+    const planned = await plan([channel], ctx);
+    expect(summary(planned.changes)).toEqual(["~ djgrant-claude app key from the vault, and its webhook to this router"]);
+    expect(planned.value(keys)).toBe(appsVariable(STORED));
+    expect(calls.every((c) => c.method === "GET")).toBe(true);
+
+    await planned.apply();
+    expect(hook).toEqual({ url: HOOK, content_type: "json", insecure_ssl: "0", secret: appWebhookSecret(KEY, "4242") });
+    expect(calls.some((c) => c.path.startsWith("/app-manifests"))).toBe(false);
+  });
+
+  test("a router's key the vault lacks goes into it, and then nothing changes", async () => {
+    hook = { url: HOOK, content_type: "json", insecure_ssl: "0" };
+    const vault = memoryVault();
+    const planned = await plan([infra(STORED).channel], context([], false, vault));
+    expect(summary(planned.changes)).toEqual(["+ djgrant-claude app key in the vault"]);
+    await planned.apply();
+    expect(vault.items.get(ITEM)).toEqual({ app_id: "4242", private_key: pem });
+    expect(calls.some((c) => c.method === "PATCH")).toBe(false);
+    expect((await plan([infra(STORED).channel], context([], false, vault))).changes).toEqual([]);
+  });
+
+  test("a vault's key GitHub turns down is as good as none: the App is made again", async () => {
+    const { privateKey: other } = generateKeyPairSync("rsa", { modulusLength: 2048, privateKeyEncoding: { type: "pkcs8", format: "pem" }, publicKeyEncoding: { type: "spki", format: "pem" } });
+    const log: string[] = [];
+    const vault = memoryVault(new Map([[ITEM, { app_id: "4242", private_key: other }]]));
+    const planned = await plan([infra({}).channel], context(log, true, vault));
+    expect(summary(planned.changes)).toEqual(["+ djgrant-claude github channel opens GitHub to create its App"]);
+    expect(log).toEqual(["  ! GitHub turned down djgrant-claude's key from the vault (401), so it's made again"]);
+    await planned.apply();
+    expect(vault.items.get(ITEM)).toEqual({ app_id: "4242", private_key: pem });
+  });
 });

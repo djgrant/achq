@@ -1,12 +1,13 @@
 import * as path from "node:path";
-import { type Check, type Context, Deployer, DEPLOYER_PORT, ENV, type Infra, known, plan, type Resource, Router, ROUTER_PRIVATE_PORT, type SyncRequest, type SyncResult } from "@achq/core";
+import { type Check, type Context, Deployer, type Vault, DEPLOYER_PORT, ENV, type Infra, known, plan, type Resource, Router, ROUTER_PRIVATE_PORT, type SyncRequest, type SyncResult } from "@achq/core";
 import { adminSecret } from "@achq/core/secrets";
 import { signedFetch } from "@achq/core/signing";
 import { collections } from "@achq/utils/collections";
 import { crypto } from "@achq/utils/crypto";
 import { Env, type Vars } from "@achq/utils/env";
 import { HttpError } from "@achq/utils/http";
-import { agentEnv, containerProviderNamed, INFRA_MODULES } from "achq/registry";
+import { agentEnv, containerProviderNamed, INFRA_MODULES, vaultProviderNamed } from "achq/registry";
+import type { CliConfig } from "./config.ts";
 import { planLines } from "./format.ts";
 
 const SECRET_BYTES = 32;
@@ -30,6 +31,8 @@ export type UpDeps = {
   achqRef: () => Promise<string>;
   /** Opens `url` in your browser to `what`, e.g. to create an App. */
   open: (url: string, what: string) => Promise<void>;
+  /** Where it keeps secrets it makes for reuse, e.g. Apps' keys, if `achq.config.ts` names one. */
+  vault?: Vault;
   /** Rewrites the router's public URL for the sync; tests point it at a fake. */
   routerUrl?: (publicUrl: string) => string;
   log: (line: string) => void;
@@ -83,6 +86,10 @@ export const checkInfra = ({ resources }: Infra): InfraResources => {
   return { router, deployer, resources };
 };
 
+/** The vault `achq.config.ts` names, if it names one. */
+export const configVault = (config: Pick<CliConfig, "vault"> | undefined, env: Vars) =>
+  config?.vault ? vaultProviderNamed(config.vault.provider).create(env).vault(config.vault.name) : undefined;
+
 /** What to make sure of before reaching the infra in `file`: what its container provider checks, e.g. that Railway takes your token. */
 export const infraChecks = async (file: string, env: Vars) => {
   const { deployer } = await loadInfra(file);
@@ -118,7 +125,7 @@ export const adminRequest = async <T>(router: RouterAccess, method: string, path
 
 export const up = async ({ router, deployer, resources }: InfraResources, options: UpOptions, deps: UpDeps) => {
   const { log } = deps;
-  const ctx = cliContext({ env: deps.env, log, open: deps.open, newSecret: deps.newSecret, sleep: deps.sleep });
+  const ctx = cliContext({ env: deps.env, log, open: deps.open, vault: deps.vault, newSecret: deps.newSecret, sleep: deps.sleep });
   // What achq itself gives the router and deployer: how they reach each other, and what they run.
   const ref = await deps.achqRef();
   router.variables({

@@ -9,7 +9,8 @@ import { verifySigned } from "@achq/core/signing";
 import * as github from "@achq/github/infra";
 import { type FakeRailway, startFakeRailway } from "@achq/test-utils/railway";
 import * as railway from "@achq/railway/infra";
-import { checkInfra, cliContext, routerAccess, up, type UpDeps } from "../src/lib/infra.ts";
+import { fakeOp } from "@achq/test-utils/op";
+import { checkInfra, cliContext, configVault, routerAccess, up, type UpDeps } from "../src/lib/infra.ts";
 
 const { privateKey: pem, publicKey } = generateKeyPairSync("rsa", { modulusLength: 2048, privateKeyEncoding: { type: "pkcs8", format: "pem" }, publicKeyEncoding: { type: "spki", format: "pem" } });
 const pemBody = pem.split("\n")[5]; // a line from the middle of the key
@@ -246,4 +247,35 @@ test("`achq infra status` finds the router's URL and key by planning it, and cha
   fake.mutations.length = 0;
   expect(await routerAccess(infra(), ctx())).toEqual({ base: ROUTER_URL, key: fake.service("achq-router")!.variables.AGENT_WEBHOOK_KEY });
   expect(fake.mutations).toEqual([]);
+});
+
+test("with a vault, a new App's key is kept in it too, and a new router gets it from there without making the App again", async () => {
+  const op = fakeOp();
+  try {
+    const vault = configVault({ vault: { provider: "1password", name: "Infra" } }, { ACHQ_1PASSWORD_OP: op.bin });
+    await up(infra(), { prune: false, dryRun: false }, { ...deps(), vault });
+    const [item] = op.items();
+    expect(item).toMatchObject({ vault: "Infra", title: "GitHub App djgrant-claude", archived: false });
+    expect(Object.fromEntries(item!.fields.map((f) => [f.label, f.value]))).toEqual({ app_id: "4242", private_key: pem });
+    // Nothing on op's command line, or on disk, has the key.
+    expect(JSON.stringify(op.calls())).not.toContain(pemBody);
+    expect(scan(tmp)).toEqual([]);
+
+    // Another router, as on a new account.
+    fake.stop();
+    fake = startFakeRailway();
+    hook.secret = "the old router's";
+    const log: string[] = [];
+    const noBrowser = async () => {
+      throw new Error("the App shouldn't be made again");
+    };
+    await up(infra(), { prune: false, dryRun: false }, { ...deps(log), open: noBrowser, vault });
+    expect(log).toContain("  ~ djgrant-claude  app key          from the vault, and its webhook to this router");
+    const router = fake.service("achq-router")!;
+    expect(JSON.parse(router.variables.ACHQ_GITHUB_APPS)).toEqual({ "djgrant-claude": { id: "4242", privateKey: pem } });
+    expect(hook.secret).toBe(appWebhookSecret(router.variables.AGENT_WEBHOOK_KEY, 4242));
+    expect(ghCalls.filter((c) => c.path.startsWith("/app-manifests"))).toHaveLength(1);
+  } finally {
+    op.stop();
+  }
 });

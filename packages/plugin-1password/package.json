@@ -1,0 +1,16 @@
+{
+  "name": "@achq/1password",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./vault": "./src/vault/index.ts"
+  },
+  "dependencies": {
+    "@achq/core": "workspace:*",
+    "@achq/utils": "workspace:*"
+  },
+  "devDependencies": {
+    "@achq/test-utils": "workspace:*"
+  }
+}

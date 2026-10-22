@@ -1,4 +1,5 @@
 import type { Vars } from "@achq/utils/env";
+import type { Vault } from "../contracts/vault-provider.ts";
 import type { Change } from "../engine/plan.ts";
 import { hasUnknown, type Inputs, Output, type Planned, UNKNOWN, type Unknown } from "../engine/values.ts";
 
@@ -20,6 +21,8 @@ export type Context = {
   log(line: string): void;
   /** Opens `url` in your browser to `what`, e.g. to create an App. Only the CLI can, and only while applying. */
   open?(url: string, what: string): Promise<void>;
+  /** Where `achq infra up` keeps secrets it makes, to reuse them on other routers and machines: the vault `achq.config.ts` names, if it names one. Only the CLI has one. */
+  vault?: Vault;
   /** Makes a GENERATED value. */
   newSecret(): string;
   sleep(ms: number): Promise<void>;

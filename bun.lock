@@ -13,6 +13,7 @@
       "name": "achq",
       "version": "0.1.0",
       "dependencies": {
+        "@achq/1password": "workspace:*",
         "@achq/claude": "workspace:*",
         "@achq/cloudflare": "workspace:*",
         "@achq/core": "workspace:*",
@@ -52,6 +53,17 @@
         "@achq/utils": "workspace:*",
         "hono": "^4.13.13",
         "zod": "^4.3.6",
+      },
+    },
+    "packages/plugin-1password": {
+      "name": "@achq/1password",
+      "version": "0.1.0",
+      "dependencies": {
+        "@achq/core": "workspace:*",
+        "@achq/utils": "workspace:*",
+      },
+      "devDependencies": {
+        "@achq/test-utils": "workspace:*",
       },
     },
     "packages/plugin-claude": {
@@ -193,6 +205,8 @@
     "@pokit/core@0.6.0": "patches/@pokit%2Fcore@0.6.0.patch",
   },
   "packages": {
+    "@achq/1password": ["@achq/1password@workspace:packages/plugin-1password"],
+
     "@achq/claude": ["@achq/claude@workspace:packages/plugin-claude"],
 
     "@achq/cli": ["@achq/cli@workspace:packages/cli"],

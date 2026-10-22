@@ -8,6 +8,8 @@ import { callerCwd, repoRoot } from "./workdir.ts";
 const Config = z.object({
   /** A command prefix that puts secrets in the environment, e.g. `op run --env-file=.env --`. achq takes on the environment it sets. */
   env: z.string().optional(),
+  /** Where `achq infra up` keeps GitHub Apps' private keys, to give them to another router: a vault provider by id, and its vault's name. */
+  vault: z.object({ provider: z.string(), name: z.string() }).optional(),
 });
 
 export type CliConfig = z.infer<typeof Config> & { dir: string };

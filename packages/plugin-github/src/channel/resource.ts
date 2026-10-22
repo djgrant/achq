@@ -1,6 +1,6 @@
 import { all, type Change, type Context, known, ManagedResource, type Planned, type Router, UNKNOWN } from "@achq/core";
 import { type AppSettings, GitHub, type HookConfig } from "@achq/utils/gh";
-import { type AppKeys, appsVariable, appWebhookSecret, parseApps } from "../lib/apps.ts";
+import { type AppKeys, appsVariable, appWebhookSecret, parseApps, vaultedApp } from "../lib/apps.ts";
 import { GITHUB_ENV, githubUrls } from "../lib/constants.ts";
 import { appSlug, manifestFlow } from "../lib/manifest.ts";
 import { APP_EVENTS, APP_PERMISSIONS, lacking } from "../lib/permissions.ts";
@@ -25,13 +25,21 @@ export type ChannelProps = {
   stored?: AppKeys[string];
 };
 
-/** `settings` is where you change what achq can't. */
-export type ChannelState = AppSettings & { hook: HookConfig; settings: string };
+/**
+ * `settings` is where you change what achq can't. `keys` are the App's, from
+ * the router, or else the vault (`from`). `vaulted` is whether the vault has
+ * them, when there's a vault.
+ */
+export type ChannelState = AppSettings & { hook: HookConfig; settings: string; keys: AppKeys[string]; from: "router" | "vault"; vaulted?: boolean };
 
 /** The slug is GitHub's, which can differ from the one its name makes. */
 export type ChannelAttrs = { slug: string; id: string; privateKey: string };
 
-export type ChannelChange = { kind: "create" } | { kind: "webhook" };
+/** `restore`: the router gets the App's key from the vault. `vault`: the vault gets the router's. */
+export type ChannelChange = { kind: "create" } | { kind: "webhook" } | { kind: "restore" } | { kind: "vault" };
+
+/** GitHub's answer to a JWT signed with a key it doesn't take, or for an App that's gone. */
+const TURNED_DOWN = [401, 404];
 
 const WANTED_HOOK = { content_type: "json", insecure_ssl: "0" } as const;
 
@@ -84,21 +92,46 @@ export class Channel extends ManagedResource<ChannelProps, ChannelState, Channel
     return new ChannelRef(slug);
   }
 
+  /**
+   * The App as its key reaches it: the router's, or, for a router without it,
+   * the vault's, so an App made for one router can be given to another. A
+   * vault's key GitHub turns down is as good as none.
+   */
   async read({ slug, org, stored }: ChannelProps, ctx: Context): Promise<ChannelState | undefined> {
-    if (!stored) return undefined;
+    const vaulted = ctx.vault ? vaultedApp.keys(await ctx.vault.read(vaultedApp.item(slug))) : undefined;
+    const keys = stored ?? vaulted;
+    if (!keys) return undefined;
     const { api, web } = githubUrls(ctx.env);
-    const app = GitHub.connectAsApp(stored.id, stored.privateKey, { baseUrl: api });
-    const [settings, hook] = await Promise.all([app.app(), app.hookConfig()]);
+    const app = GitHub.connectAsApp(keys.id, keys.privateKey, { baseUrl: api });
+    let settings: AppSettings, hook: HookConfig;
+    try {
+      [settings, hook] = await Promise.all([app.app(), app.hookConfig()]);
+    } catch (e) {
+      const status = (e as { status?: number }).status;
+      if (stored || !TURNED_DOWN.includes(status!)) throw e;
+      ctx.log(`  ! GitHub turned down ${slug}'s key from the vault (${status}), so it's made again`);
+      return undefined;
+    }
     const permissionsPage = org ? `${web}/organizations/${org}/settings/apps/${slug}/permissions` : `${web}/settings/apps/${slug}/permissions`;
-    return { events: settings.events, permissions: settings.permissions, hook, settings: permissionsPage };
+    return {
+      events: settings.events,
+      permissions: settings.permissions,
+      hook,
+      settings: permissionsPage,
+      keys,
+      from: stored ? "router" : "vault",
+      ...(ctx.vault && { vaulted: vaulted !== undefined }),
+    };
   }
 
   diff({ hookUrl }: ChannelProps, current: ChannelState | undefined): ChannelChange[] {
     if (!current) return [{ kind: "create" }];
+    // A router given the key from the vault has its own webhook secret, so the webhook is written with it.
+    if (current.from === "vault") return [{ kind: "restore" }];
     // The secret isn't compared: GitHub doesn't show it, so it's written with every change.
     const { hook } = current;
     const differs = !known(hookUrl) || hook.url !== hookUrl || hook.content_type !== WANTED_HOOK.content_type || hook.insecure_ssl !== WANTED_HOOK.insecure_ssl;
-    return differs ? [{ kind: "webhook" }] : [];
+    return [...(differs ? [{ kind: "webhook" } as const] : []), ...(current.vaulted === false ? [{ kind: "vault" } as const] : [])];
   }
 
   describe(change: ChannelChange, { slug, name, org, hookUrl }: ChannelProps): Change {
@@ -107,6 +140,10 @@ export class Channel extends ManagedResource<ChannelProps, ChannelState, Channel
         return { op: "+", target: `${name}${org ? ` (${org})` : ""}`, what: "github channel", detail: "opens GitHub to create its App" };
       case "webhook":
         return { op: "~", target: slug, what: "webhook", detail: `→ ${known(hookUrl) ? hookUrl : "the router's URL"}` };
+      case "restore":
+        return { op: "~", target: slug, what: "app key", detail: "from the vault, and its webhook to this router" };
+      case "vault":
+        return { op: "+", target: slug, what: "app key", detail: "in the vault" };
     }
   }
 
@@ -116,15 +153,19 @@ export class Channel extends ManagedResource<ChannelProps, ChannelState, Channel
     return problems.map((problem) => `${slug} ${problem}: change it at ${current.settings}`);
   }
 
-  planned({ slug, stored }: ChannelProps, current: ChannelState | undefined): Planned<ChannelAttrs> {
-    return current && stored ? { slug, ...stored } : { slug: UNKNOWN, id: UNKNOWN, privateKey: UNKNOWN };
+  planned({ slug }: ChannelProps, current: ChannelState | undefined): Planned<ChannelAttrs> {
+    return current ? { slug, ...current.keys } : { slug: UNKNOWN, id: UNKNOWN, privateKey: UNKNOWN };
   }
 
-  async apply({ slug, name, org, hookUrl, key, stored }: ChannelProps, _: ChannelState | undefined, changes: ChannelChange[], ctx: Context): Promise<ChannelAttrs> {
+  async apply({ slug, name, org, hookUrl, key }: ChannelProps, current: ChannelState | undefined, changes: ChannelChange[], ctx: Context): Promise<ChannelAttrs> {
     const { api, web } = githubUrls(ctx.env);
-    if (changes.some((c) => c.kind === "webhook")) {
-      await GitHub.connectAsApp(stored!.id, stored!.privateKey, { baseUrl: api }).setHookConfig(hookConfig(hookUrl, key, stored!.id));
-      return { slug, ...stored! };
+    if (current) {
+      const { keys } = current;
+      if (changes.some((c) => c.kind === "webhook" || c.kind === "restore")) {
+        await GitHub.connectAsApp(keys.id, keys.privateKey, { baseUrl: api }).setHookConfig(hookConfig(hookUrl, key, keys.id));
+      }
+      if (changes.some((c) => c.kind === "vault")) await ctx.vault!.write(vaultedApp.item(slug), vaultedApp.fields(keys));
+      return { slug, ...keys };
     }
     const open = ctx.open;
     if (!open) throw new Error(`Creating GitHub App ${name} opens your browser, which only \`achq infra up\` can do`);
@@ -133,6 +174,9 @@ export class Channel extends ManagedResource<ChannelProps, ChannelState, Channel
     await GitHub.connectAsApp(String(created.id), created.pem, { baseUrl: api }).setHookConfig(hookConfig(hookUrl, key, created.id));
     if (created.slug !== slug) ctx.log(`  ! GitHub named it ${created.slug}: set the App's name to "${created.slug}" in the infra`);
     ctx.log(`  created ${created.html_url}`);
-    return { slug: created.slug ?? slug, id: String(created.id), privateKey: created.pem };
+    const made = { slug: created.slug ?? slug, id: String(created.id), privateKey: created.pem };
+    // Kept for another router. The App exists now whatever the vault says, so its key still goes to this router.
+    await ctx.vault?.write(vaultedApp.item(made.slug), vaultedApp.fields(made)).catch((e: Error) => ctx.log(`  ! couldn't keep ${made.slug}'s key in the vault: ${e.message}`));
+    return made;
   }
 }

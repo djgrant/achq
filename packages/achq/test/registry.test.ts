@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { Channel } from "@achq/github/infra";
 import * as cloudflare from "@achq/cloudflare/infra";
 import { Router } from "@achq/railway/infra";
-import { agentEnv, CHANNEL_PROVIDERS, channelProviderNamed, CONTAINER_PROVIDERS, containerProviderNamed, findContainerProvider, INFRA_MODULES, privateEnv, CODE_HOST_PROVIDERS, codeHostProviderNamed, POLICY_PROVIDERS } from "../src/registry.ts";
+import { agentEnv, CHANNEL_PROVIDERS, channelProviderNamed, CONTAINER_PROVIDERS, containerProviderNamed, findContainerProvider, INFRA_MODULES, privateEnv, CODE_HOST_PROVIDERS, codeHostProviderNamed, POLICY_PROVIDERS, vaultProviderNamed } from "../src/registry.ts";
 
 test("finds each implementation by id, and names what it knows when it can't", () => {
   expect(channelProviderNamed("github")).toBe(CHANNEL_PROVIDERS[0]!);
@@ -13,6 +13,8 @@ test("finds each implementation by id, and names what it knows when it can't", (
   expect(findContainerProvider(undefined)).toBeUndefined();
   expect(findContainerProvider("railway")?.shell).toBeDefined();
   expect(containerProviderNamed("cloudflare").shell).toBeDefined();
+  expect(vaultProviderNamed("1password").id).toBe("1password");
+  expect(() => vaultProviderNamed("keychain")).toThrow(`achq doesn't know the vault provider "keychain"; it knows 1password`);
 });
 
 test("privateEnv is every implementation's, once each", () => {

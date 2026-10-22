@@ -21,6 +21,15 @@ export const parseApps = (json: string | undefined): AppKeys => {
   return Object.fromEntries(parsed.map(([slug, app]) => [slug, { id: String(app.id), privateKey: app.privateKey }]));
 };
 
+/** An App's key in a vault: its item, and its fields. */
+export const vaultedApp = {
+  item: (slug: string) => `GitHub App ${slug}`,
+  fields: ({ id, privateKey }: AppKeys[string]) => ({ app_id: id, private_key: privateKey }),
+  /** Undefined unless the item has both. */
+  keys: (fields: Record<string, string> | undefined): AppKeys[string] | undefined =>
+    fields?.app_id && fields.private_key ? { id: fields.app_id, privateKey: fields.private_key } : undefined,
+};
+
 /** ACHQ_GITHUB_APPS' JSON, stable, so the same Apps always make the same variable. */
 export const appsVariable = (apps: AppKeys) => JSON.stringify(Object.fromEntries(Object.entries(apps).sort(([a], [b]) => a.localeCompare(b))));
 

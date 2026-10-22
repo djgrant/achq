@@ -1,6 +1,7 @@
+import { onePasswordVaultProvider } from "@achq/1password/vault";
 import { claudeAgentProvider } from "@achq/claude/agent";
 import { cloudflareContainerProvider } from "@achq/cloudflare/container";
-import type { AgentProvider, ChannelProvider, CodeHostProvider, ContainerProviderImplementation, Implementation, PolicyProvider } from "@achq/core";
+import type { AgentProvider, ChannelProvider, CodeHostProvider, ContainerProviderImplementation, Implementation, PolicyProvider, VaultProvider } from "@achq/core";
 import { githubChannelProvider } from "@achq/github/channel";
 import { githubPolicyProvider } from "@achq/github/policy";
 import { githubCodeHostProvider } from "@achq/github/code-host";
@@ -12,6 +13,8 @@ export const POLICY_PROVIDERS: Implementation<PolicyProvider>[] = [githubPolicyP
 export const CODE_HOST_PROVIDERS: Implementation<CodeHostProvider>[] = [githubCodeHostProvider];
 export const CONTAINER_PROVIDERS: ContainerProviderImplementation[] = [railwayContainerProvider, cloudflareContainerProvider];
 export const AGENT_PROVIDERS: AgentProvider[] = [claudeAgentProvider];
+/** Where `achq infra up` can keep secrets for reuse, as `achq.config.ts` names one. */
+export const VAULT_PROVIDERS: Implementation<VaultProvider>[] = [onePasswordVaultProvider];
 
 const lookup =
   <T extends { id: string }>(kind: string, all: T[]) =>
@@ -25,6 +28,7 @@ export const channelProviderNamed = lookup("channel provider", CHANNEL_PROVIDERS
 export const policyProviderNamed = lookup("policy provider", POLICY_PROVIDERS);
 export const codeHostProviderNamed = lookup("code host provider", CODE_HOST_PROVIDERS);
 export const containerProviderNamed = lookup("container provider", CONTAINER_PROVIDERS);
+export const vaultProviderNamed = lookup("vault provider", VAULT_PROVIDERS);
 /** For a location's `containerProvider`, which may name a provider this build doesn't have. */
 export const findContainerProvider = (id: string | undefined) => CONTAINER_PROVIDERS.find((h) => h.id === id);
 

@@ -192,7 +192,12 @@ The router writes every event it accepts to its store before answering GitHub, s
 ## App keys
 
 - An App is added by declaring its channel in the ACHQ infra. `up` notices it has no credentials and runs GitHub's manifest flow.
-- `up` writes the App's private key straight to the router's variables. It never touches the local machine. The ACHQ infra's local environment only needs the container provider's credentials and the Claude token.
+- `up` writes the App's private key to the router's variables, and, when `achq.config.ts` names a vault (`vault: { provider: "1password", name: "<vault>" }`), to the vault too, as the item `GitHub App <slug>`.
+- A router without an App's key gets it from the vault: `up` reads it there and puts it on the router, and points the App's webhook at that router, with its secret, instead of running the manifest flow again. A key the router has and the vault lacks is put in the vault. A vault key GitHub turns down counts as none.
+- Why: an App outlives its router. Keeping its key only on the router meant an App could never move to another router (e.g. `djgrant-claude` from a Railway router to a Cloudflare one), and a second machine couldn't run `up` for it. The infra already runs under `op run`, so the vault is one it's signed in to, and the key passes through your machine only on its way between the vault and the router, never written to disk except as the template `op` reads, readable by you alone and removed at once.
+- Without a vault, nothing changes: the key goes straight to the router and never touches the local machine.
+- The vault is a contract of core's (`VaultProvider`: items by name, each a set of fields), so achq names no vendor; 1Password's, through `op`, is the one built.
+- An App moved to another router stops reaching the one it left: it has one webhook.
 - Anything else that needs an App key goes through the router's signed endpoint.
 
 ## Credentials

@@ -21,6 +21,11 @@ test("a config names the command to run under, and where it is", async () => {
   expect(await loadConfig(tmp)).toEqual({ env: "env FOO=bar", dir: tmp });
 });
 
+test("a config can name a vault, by its provider and its name", async () => {
+  writeConfig(`export default { vault: { provider: "1password", name: "Infra" } };`);
+  expect(await loadConfig(tmp)).toEqual({ vault: { provider: "1password", name: "Infra" }, dir: tmp });
+});
+
 test("a config that isn't one says what's wrong", async () => {
   writeConfig(`export default { env: 1 };`);
   expect(loadConfig(tmp)).rejects.toThrow("env");
