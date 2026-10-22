@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, expect, spyOn, test } from "bun:test";
 import { createHash } from "node:crypto";
 import * as core from "@achq/core";
-import { achq, type Context, type Output, plan, UNKNOWN } from "@achq/core";
+import { achq, type Change, type Context, type Output, plan, UNKNOWN } from "@achq/core";
 import { type FakeRailway, startFakeRailway } from "@achq/test-utils/railway";
 import { Deployer, Router } from "../src/infra.ts";
 import { Railway } from "@achq/utils/railway";
@@ -46,7 +46,7 @@ const declare = (ref = "a", appId = "7") => {
   return { router, deployer, resources: [router, deployer] };
 };
 
-const summary = (changes: { op: string; target: string; what: string; detail?: string }[]) => changes.map((c) => `${c.op} ${c.target} ${c.what}${c.detail ? ` ${c.detail}` : ""}`);
+const summary = (changes: Change[]) => changes.map((c) => [`${c.op} ${c.target} ${c.what}`, c.detail ?? c.names?.join(", ")].filter(Boolean).join(" "));
 
 const url = "https://achq-router-production.up.railway.app";
 

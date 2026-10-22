@@ -5,10 +5,10 @@ import { dependencies, hasUnknown, type Input, type Outputs, resolve, type Unkno
 
 /**
  * A planned change, for printing: its target, e.g. a service; what of it, e.g.
- * the service or its volume; and any detail. Variable changes name the
- * variables, never their values.
+ * the service or its volume; and any detail, or the names of what it changes,
+ * e.g. variables, never their values.
  */
-export type Change = { op: "+" | "~" | "-"; target: string; what: string; detail?: string };
+export type Change = { op: "+" | "~" | "-"; target: string; what: string; detail?: string; names?: string[] };
 
 export type Plan = {
   changes: Change[];

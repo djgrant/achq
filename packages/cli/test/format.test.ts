@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
-import { failedSection, formatReplay, infraStatusTable } from "../src/lib/format.ts";
+import type { Change } from "@achq/core";
+import { failedSection, formatReplay, infraStatusTable, planLines } from "../src/lib/format.ts";
 
 test("the infra status lists installed and deployed repos, with errors underneath", () => {
   const table = infraStatusTable(
@@ -47,5 +48,22 @@ test("replay says what it sent again and what it dropped", () => {
   expect(formatReplay({ replayed: ["d-1", "d-2"], dropped: ["d-3"] })).toEqual([
     "Replaying 2 deliveries: d-1, d-2. `achq infra status` shows any that fail again.",
     "Dropped 1 delivery whose repo or container is gone: d-3",
+  ]);
+});
+
+test("a plan collapses changes that do the same to the same target, counting the variables they set", () => {
+  const changes: Change[] = [
+    { op: "+", target: "achq-router", what: "service" },
+    { op: "~", target: "achq-router", what: "variables", names: ["PORT", "DATA_DIR"] },
+    { op: "+", target: "djgrant-claude", what: "github channel", detail: "opens GitHub to create its App" },
+    { op: "~", target: "achq-router", what: "variables", names: ["ACHQ_REF", "PORT"] },
+    { op: "~", target: "achq-deployer", what: "variables", names: ["ACHQ_REF"] },
+  ];
+  expect(planLines({ changes, warnings: ["careful"] })).toEqual([
+    "+ achq-router     service",
+    "~ achq-router     variables       3",
+    "+ djgrant-claude  github channel  opens GitHub to create its App",
+    "~ achq-deployer   variables       1",
+    "! careful",
   ]);
 });

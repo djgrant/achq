@@ -1,4 +1,4 @@
-import { type DeployRecord, type FailedDelivery, type InstalledRepo, type Plan, type ReplayResult, repoName, type Status, type SyncResult, threadKey } from "@achq/core";
+import { type Change, type DeployRecord, type FailedDelivery, type InstalledRepo, type Plan, type ReplayResult, repoName, type Status, type SyncResult, threadKey } from "@achq/core";
 import { text } from "@achq/utils/text";
 
 const SHORT_SHA_LENGTH = 7;
@@ -10,9 +10,24 @@ const containerNames = (containers: { name: string }[] | undefined) => (containe
 /** `1 delivery`, `2 deliveries`. */
 const deliveries = (n: number) => `${n} ${text.plural(n, "delivery", "deliveries")}`;
 
-/** Each change on a line, in columns: its target, what of it, and any detail. */
+/** Changes that do the same to the same target as one, where the first was, with their details and names together. */
+const collapse = (changes: Change[]) => {
+  const rows = new Map<string, { change: Change; details: Set<string>; names: Set<string> }>();
+  for (const c of changes) {
+    const key = JSON.stringify([c.op, c.target, c.what]);
+    const row = rows.get(key) ?? { change: c, details: new Set(), names: new Set() };
+    if (c.detail) row.details.add(c.detail);
+    for (const name of c.names ?? []) row.names.add(name);
+    rows.set(key, row);
+  }
+  return [...rows.values()];
+};
+
+/** Each change on a line, in columns: its target, what of it, and any detail, or how many names it changes. */
 export const planLines = ({ changes, warnings }: Pick<Plan, "changes" | "warnings">) => [
-  ...text.alignedTable(changes.map((c) => [`${c.op} ${c.target}`, c.what, c.detail ?? ""])),
+  ...text.alignedTable(
+    collapse(changes).map(({ change, details, names }) => [`${change.op} ${change.target}`, change.what, [...details, ...(names.size ? [String(names.size)] : [])].join(", ")]),
+  ),
   ...warnings.map((w) => `! ${w}`),
 ];
 

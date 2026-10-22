@@ -69,7 +69,7 @@ test("ensure removes a public domain and fixes the private hostname, and only ch
   fake.mutations.length = 0;
 
   const changes = await host.plan({ ...spec, env: { ...spec.env, CLAUDE_CODE_OAUTH_TOKEN: "new" } });
-  expect(changes.map((c) => `${c.op} ${c.target} ${c.what} ${c.detail}`)).toEqual([
+  expect(changes.map((c) => `${c.op} ${c.target} ${c.what} ${c.detail ?? c.names}`)).toEqual([
     "~ notationlabs-yieldstar-dev private hostname old-name → notationlabs-yieldstar-dev",
     "- notationlabs-yieldstar-dev public domain leaked.up.railway.app",
     "~ notationlabs-yieldstar-dev variables CLAUDE_CODE_OAUTH_TOKEN", // names, never values
