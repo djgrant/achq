@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     "./async": "./src/async.ts",
+    "./cloudflare": "./src/cloudflare/index.ts",
     "./collections": "./src/collections.ts",
     "./crypto": "./src/crypto.ts",
     "./disk": "./src/disk.ts",
