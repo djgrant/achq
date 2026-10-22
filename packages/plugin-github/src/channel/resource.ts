@@ -104,9 +104,9 @@ export class Channel extends ManagedResource<ChannelProps, ChannelState, Channel
   describe(change: ChannelChange, { slug, name, org, hookUrl }: ChannelProps): Change {
     switch (change.kind) {
       case "create":
-        return { op: "+", target: `github channel ${name}${org ? ` (${org})` : ""}`, detail: "opens GitHub to create its App" };
+        return { op: "+", target: `${name}${org ? ` (${org})` : ""}`, detail: "github channel, opens GitHub to create its App" };
       case "webhook":
-        return { op: "~", target: `${slug} webhook`, detail: `→ ${known(hookUrl) ? hookUrl : "the router's URL"}` };
+        return { op: "~", target: slug, detail: `webhook → ${known(hookUrl) ? hookUrl : "the router's URL"}` };
     }
   }
 

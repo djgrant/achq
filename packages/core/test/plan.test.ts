@@ -30,7 +30,7 @@ class Store extends ManagedResource<{ value: string }, Row, Row, "create" | "upd
     return !current ? ["create" as const] : current.value !== props.value ? ["update" as const] : [];
   }
   describe(change: "create" | "update", props: { value: string }): Change {
-    return change === "create" ? { op: "+", target: this.name } : { op: "~", target: this.name, detail: known(props.value) ? props.value : "(known after apply)" };
+    return change === "create" ? { op: "+", target: this.name, detail: "row" } : { op: "~", target: this.name, detail: `row → ${known(props.value) ? props.value : "(known after apply)"}` };
   }
   planned(props: { value: string }, current: Row | undefined): Planned<Row> {
     return { id: current?.id ?? UNKNOWN, value: props.value };
@@ -58,7 +58,7 @@ class Group extends Resource {
 }
 
 const seed = (name: string, value: string) => db.rows.set(name, { id: `id-${name}`, value });
-const summary = (changes: Change[]) => changes.map((c) => `${c.op} ${c.target}${c.detail ? ` ${c.detail}` : ""}`);
+const summary = (changes: Change[]) => changes.map((c) => `${c.op} ${c.target} ${c.detail}`);
 
 test("plan reads every resource and writes nothing; apply writes only what differs; then nothing changes", async () => {
   seed("same", "v");
@@ -68,7 +68,7 @@ test("plan reads every resource and writes nothing; apply writes only what diffe
   const planned = await plan(resources(), ctx);
   expect(db.reads).toEqual(["same", "stale", "fresh"]);
   expect(db.writes).toEqual([]);
-  expect(summary(planned.changes)).toEqual(["~ stale new", "+ fresh"]);
+  expect(summary(planned.changes)).toEqual(["~ stale row → new", "+ fresh row"]);
 
   await planned.apply();
   expect(db.writes).toEqual(["stale", "fresh"]);
@@ -102,7 +102,7 @@ test("what a resource depends on brings its children, asked for once however man
   const a = new Parent("a", "v");
   const planned = await plan([new Store("b", a.out("id")), new Store("c", a.out("id"))], ctx);
   expect(a.asked).toBe(1);
-  expect(summary(planned.changes)).toEqual(["+ a", "+ b", "+ part", "+ c"]);
+  expect(summary(planned.changes)).toEqual(["+ a row", "+ b row", "+ part row", "+ c row"]);
 });
 
 test("a cycle throws, naming it with each resource's parent", async () => {
@@ -138,7 +138,7 @@ test("once applied an output is known, and what took it is read and compared aga
   const a = new Store("a", "v");
   const b = new Store("b", a.out("id"));
   const planned = await plan([a, b], ctx);
-  expect(summary(planned.changes)).toEqual(["+ a", "~ b (known after apply)"]);
+  expect(summary(planned.changes)).toEqual(["+ a row", "~ b row → (known after apply)"]);
 
   const applied = await planned.apply();
   expect(applied.value(a.out("id"))).toBe("id-a");
@@ -188,7 +188,7 @@ test("children are asked for once per plan, even when reachable twice, and are p
   outer.parts = [shared];
   const planned = await plan([outer, shared], ctx);
   expect(shared.asked).toBe(1);
-  expect(summary(planned.changes)).toEqual(["+ part"]);
+  expect(summary(planned.changes)).toEqual(["+ part row"]);
   await plan([outer], ctx);
   expect(shared.asked).toBe(2);
 });

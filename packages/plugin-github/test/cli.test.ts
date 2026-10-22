@@ -111,7 +111,7 @@ const installing = async (installed: boolean, opts: { open?: boolean } = {}) => 
   return { planned: await plan(resources, ctx), log, opened };
 };
 
-const summary = (changes: Change[]) => changes.map((c) => `${c.op} ${c.target}${c.detail ? ` ${c.detail}` : ""}`);
+const summary = (changes: Change[]) => changes.map((c) => `${c.op} ${c.target} ${c.detail}`);
 const writes = () => fake.calls.filter((c) => !c.startsWith("GET "));
 
 const orgInstall = (repos: string[], selection: "all" | "selected" = "selected") => [
@@ -145,7 +145,7 @@ test("install changes nothing when the repo is already in the installation, or i
 test("install with no installation on the owner opens GitHub's install page, on the env's web URL", async () => {
   fake.app = FULL;
   const { planned, log, opened } = await installing(true);
-  expect(summary(planned.changes)).toEqual(["+ notation-achq on notationlabs opens GitHub to install it"]);
+  expect(summary(planned.changes)).toEqual(["+ notation-achq on notationlabs, opens GitHub to install it"]);
   await planned.apply();
   expect(opened).toEqual([`${web()}/apps/notation-achq/installations/new`]);
   expect(log).toEqual([`notation-achq isn't installed on notationlabs yet. Install it on ${REPO} at ${web()}/apps/notation-achq/installations/new`]);

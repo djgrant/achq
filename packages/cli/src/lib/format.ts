@@ -10,9 +10,9 @@ const containerNames = (containers: { name: string }[] | undefined) => (containe
 /** `1 delivery`, `2 deliveries`. */
 const deliveries = (n: number) => `${n} ${text.plural(n, "delivery", "deliveries")}`;
 
-/** Each change on a line, its details lined up in a column. */
+/** Each change on a line, in columns: its op, what it changes, and how. */
 export const planLines = ({ changes, warnings }: Pick<Plan, "changes" | "warnings">) => [
-  ...text.alignedTable(changes.map((c) => [`${c.op} ${c.target}`, c.detail ?? ""])),
+  ...text.alignedTable(changes.map((c) => [c.op, c.target, c.detail])),
   ...warnings.map((w) => `! ${w}`),
 ];
 

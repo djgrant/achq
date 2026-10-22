@@ -66,8 +66,8 @@ export class CodeHost extends ManagedResource<CodeHostProps, CodeHostState, {}, 
   }
 
   describe(change: CodeHostChange, { slug, repo }: CodeHostProps): Change {
-    if (change === "open") return { op: "+", target: `${slug} on ${ownerOf(repo)}`, detail: "opens GitHub to install it" };
-    return { op: change === "add" ? "+" : "-", target: `${slug} on ${repo}` };
+    if (change === "open") return { op: "+", target: slug, detail: `on ${ownerOf(repo)}, opens GitHub to install it` };
+    return { op: change === "add" ? "+" : "-", target: slug, detail: `on ${repo}` };
   }
 
   planned() {

@@ -20,9 +20,9 @@ test("a service's comparison is pure: it takes what was read and says what diffe
   };
   const changes = service.diff(props, current);
   expect(changes.map((c) => service.describe(c, props))).toEqual([
-    { op: "~", target: "achq-router settings", detail: "sleepApplication" },
-    { op: "~", target: "achq-router private hostname", detail: "old-name → achq-router" },
-    { op: "-", target: "achq-router public domain", detail: "stale.up.railway.app" },
+    { op: "~", target: "achq-router", detail: "settings sleepApplication" },
+    { op: "~", target: "achq-router", detail: "private hostname old-name → achq-router" },
+    { op: "-", target: "achq-router", detail: "public domain stale.up.railway.app" },
   ]);
   expect(service.planned(props, current, changes)).toEqual({ serviceId: "s", url: "https://keep.up.railway.app" });
 });

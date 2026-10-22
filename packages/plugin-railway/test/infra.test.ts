@@ -46,7 +46,7 @@ const declare = (ref = "a", appId = "7") => {
   return { router, deployer, resources: [router, deployer] };
 };
 
-const summary = (changes: { op: string; target: string; detail?: string }[]) => changes.map((c) => `${c.op} ${c.target}${c.detail ? ` ${c.detail}` : ""}`);
+const summary = (changes: { op: string; target: string; detail: string }[]) => changes.map((c) => `${c.op} ${c.target} ${c.detail}`);
 
 const url = "https://achq-router-production.up.railway.app";
 
@@ -54,15 +54,15 @@ test("a new project plans in one pass and writes nothing, with the router's URL 
   const { router, resources } = declare();
   const planned = await plan(resources, ctx);
   expect(summary(planned.changes)).toEqual([
-    "+ railway project achq",
-    "+ service achq-router",
+    "+ achq railway project",
+    "+ achq-router service",
     "+ achq-router volume /data",
     "+ achq-router public domain → :8080",
     "~ achq-router variables AGENT_WEBHOOK_KEY, DATA_DIR, PORT",
     "~ achq-router variables ACHQ_REF",
     "~ achq-router variables GITHUB_APP_ID",
     "~ achq-router deploy",
-    "+ service achq-deployer",
+    "+ achq-deployer service",
     "+ achq-deployer volume /data",
     "~ achq-deployer variables RAILWAY_API_TOKEN, ACHQ_RAILWAY_PROJECT_ID, ACHQ_RAILWAY_ENVIRONMENT_ID, DATA_DIR, PORT",
     "~ achq-deployer variables AGENT_WEBHOOK_KEY, ACHQ_ROUTER_PUBLIC_URL, ACHQ_ROUTER_URL, ACHQ_REF",
