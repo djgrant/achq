@@ -1,6 +1,6 @@
 /** The router's public port: webhooks, `/wake`, signed admin requests. */
 export const ROUTER_PUBLIC_PORT = 8080;
-/** It has no public domain. Serves credentials and claims to containers, and admin to the deployer. */
+/** Only achq's own services reach it, never the public. Serves credentials and claims to containers, and admin to the deployer. */
 export const ROUTER_PRIVATE_PORT = 8081;
 export const DEPLOYER_PORT = 3000;
 export const CONTAINER_PORT = 3000;
@@ -29,8 +29,13 @@ export const ENV = {
   keepAwakeUrl: "ACHQ_KEEP_AWAKE_URL",
   /** The achq commit a container or service runs. */
   ref: "ACHQ_REF",
-  /** Where a service's or container's volume is. Its container provider sets it. */
+  /** Where a service or container keeps what outlives a restart. Its container provider sets it. */
   dataDir: "DATA_DIR",
+  /**
+   * Where the router keeps its inbox, config and claims instead of DATA_DIR: a JSON store over HTTP. A container
+   * provider sets it when DATA_DIR doesn't outlive a crash as soon as it's written, as a webhook's inbox entry must.
+   */
+  storeUrl: "ACHQ_STORE_URL",
   /** The `ContainerProvider` the deployer puts containers on, by id. */
   containerProvider: "ACHQ_CONTAINER_PROVIDER",
 } as const;

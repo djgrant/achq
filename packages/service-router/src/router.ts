@@ -126,7 +126,7 @@ export const createRouter = (deps: RouterDeps) => {
     await next();
   });
 
-  // Credentials and claims are only for the private network.
+  // Credentials and claims are only for achq's own services, on the port the public can't reach.
   const privateApp = http
     .service(ctx.log)
     .route("/admin", admin)
@@ -152,7 +152,7 @@ export const createRouter = (deps: RouterDeps) => {
   return {
     publicFetch: publicApp.fetch,
     privateFetch: privateApp.fetch,
-    /** Loads config and claims from the volume, then replays the inbox in the background. Call before serving. */
+    /** Loads config and claims from the store, then replays the inbox in the background. Call before serving. */
     start: async () => {
       for (const config of await ctx.store.repos.all()) ctx.repos.set(repoName.key(config.repo), config);
       for (const name of await ctx.store.claims.list()) {

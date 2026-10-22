@@ -147,15 +147,16 @@ export const fakeDeployer = () => {
   return fake;
 };
 
-export type Boot = { dir?: string; deployer?: string; delays?: number[] };
+export type Boot = { dir?: string; deployer?: string; delays?: number[]; storeUrl?: string };
 
-export const boot = async ({ dir = mkdtempSync(join(tmpdir(), "achq-router-")), deployer = "http://localhost:1", delays = [0, 0] }: Boot = {}) => {
+export const boot = async ({ dir = mkdtempSync(join(tmpdir(), "achq-router-")), deployer = "http://localhost:1", delays = [0, 0], storeUrl }: Boot = {}) => {
   const router = createRouter({
     channelProviders: [testChannel],
     policyProviders: [testPolicyProvider],
     codeHostProviders: { test: testHost },
     key,
     dataDir: dir,
+    storeUrl,
     deployerUrl: deployer,
     delays,
     log: () => {},

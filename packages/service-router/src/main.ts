@@ -4,7 +4,7 @@ import { CHANNEL_PROVIDERS, CODE_HOST_PROVIDERS, POLICY_PROVIDERS } from "achq/r
 import { DEFAULT_DATA_DIR } from "./constants.ts";
 import { createRouter } from "./router.ts";
 
-/** Listening on "::" lets private networks over IPv6 reach it. */
+/** Listening on "::" lets private networks over IPv6 reach it, where its container provider has one. */
 const ALL_INTERFACES = "::";
 
 export const main = async () => {
@@ -16,6 +16,7 @@ export const main = async () => {
     key: env.require(ENV.key),
     deployerUrl: env.require(ENV.deployerUrl),
     dataDir: env.optional(ENV.dataDir) ?? DEFAULT_DATA_DIR,
+    storeUrl: env.optional(ENV.storeUrl),
   });
   // Loaded before serving, so no event is routed against an empty config.
   await router.start();

@@ -7,19 +7,22 @@ export type ContainerSpec = {
   dockerfile: string;
   branch: string;
   /**
-   * The variables achq defines. The provider adds its own: PORT, and DATA_DIR since it owns the volume's mount path.
+   * The variables achq defines. The provider adds its own: PORT, and DATA_DIR since it owns where the container's data outlives a restart.
    * The provider may read ACHQ_ROUTER_URL (to keep the container awake) and ACHQ_REPO / ACHQ_CONTAINER (to list containers); these match `repo` and `name`.
    */
   env: Record<string, string>;
 };
 
 export interface ContainerProvider {
-  /** Creates or updates the container's service and volume. Doesn't build. Returns the URL the router reaches it on. */
+  /**
+   * Creates or updates the container, and what keeps its DATA_DIR across restarts and sleep. Doesn't build.
+   * Returns the URL the router reaches it on: one only achq's services reach, which wakes it.
+   */
   ensure(spec: ContainerSpec): Promise<{ url: string }>;
   /** Builds and deploys the container from the head of its branch. */
   deploy(repo: string, name: string): Promise<void>;
   list(): Promise<{ repo: string; name: string }[]>;
-  /** Deletes the service and its volume. Only `achq infra up --prune` calls this. */
+  /** Deletes the container and its data. Only `achq infra up --prune` calls this. */
   remove(repo: string, name: string): Promise<void>;
   /** Where to find it, for the repo CLI (`ssh`, `resume`). Not secret. */
   locate(repo: string, name: string): Promise<Record<string, string>>;

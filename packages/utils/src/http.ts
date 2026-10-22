@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import type { JsonStore } from "./disk.ts";
 import { errors } from "./errors.ts";
 
 /** How much of an error response's body goes into an error message: enough to read, not a whole HTML page. */
@@ -41,3 +42,52 @@ export const http = {
         return c.text("internal error", 500);
       }),
 };
+
+const NOT_FOUND = 404;
+
+/**
+ * JSON values by name at `base`: `GET base` lists the names, sorted; `GET`,
+ * `PUT` and `DELETE` `base/<name>` read, write and remove one. A write is kept
+ * once it's answered. Names are path segments, so they're encoded.
+ */
+export class HttpJsonStore<T> implements JsonStore<T> {
+  constructor(
+    readonly base: string,
+    private readonly fetcher: typeof fetch = fetch,
+  ) {}
+
+  private url(name: string) {
+    return `${this.base}/${encodeURIComponent(name)}`;
+  }
+
+  private async call(method: string, url: string, body?: string) {
+    const res = await this.fetcher(url, { method, body, headers: body === undefined ? undefined : { "content-type": "application/json" } });
+    if (method === "GET" && res.status === NOT_FOUND) return undefined;
+    if (!res.ok) throw new HttpError(res.status, method, new URL(url).pathname, await res.text(), "Store");
+    return res.text();
+  }
+
+  async read(name: string) {
+    const text = await this.call("GET", this.url(name));
+    return text === undefined ? undefined : (JSON.parse(text) as T);
+  }
+
+  async write(name: string, value: T) {
+    await this.call("PUT", this.url(name), JSON.stringify(value));
+  }
+
+  async remove(name: string) {
+    await this.call("DELETE", this.url(name));
+  }
+
+  async list() {
+    const text = await this.call("GET", this.base);
+    return text ? (JSON.parse(text) as string[]) : [];
+  }
+
+  async all() {
+    const values = await Promise.all((await this.list()).map((name) => this.read(name)));
+    // A name removed while listing reads as undefined.
+    return values.filter((v) => v !== undefined) as T[];
+  }
+}
