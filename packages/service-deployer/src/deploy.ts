@@ -1,4 +1,4 @@
-import { type DeployRecord, ENV, type RepoClient, type RepoManifest, repoName, type Status } from "@achq/core";
+import { BrowserActionNeeded, type DeployRecord, ENV, type RepoClient, type RepoManifest, repoName, type Status } from "@achq/core";
 import { containerSecret } from "@achq/core/secrets";
 import { errors } from "@achq/utils/errors";
 import { checkManifest, dockerfileOf } from "./checks.ts";
@@ -136,7 +136,9 @@ export const deploy = async (ctx: DeployerContext, hostId: string, repo: string,
     ctx.log(`${repo}: deploy failed: ${error}`);
     if (!dryRun) {
       // A failed deploy keeps the last one that succeeded, so the next can tell what changed.
-      const record: StoredRecord = { host: hostId, repo, state: "failed", at: ctx.now().toISOString(), error, ...(commit && { commit }) };
+      // What only a person can fix, e.g. a vendor's App missing from the repo, goes with it, for `achq repo install` to open.
+      const action = failure instanceof BrowserActionNeeded ? failure.action : undefined;
+      const record: StoredRecord = { host: hostId, repo, state: "failed", at: ctx.now().toISOString(), error, ...(commit && { commit }), ...(action && { action }) };
       await save({ ...withWarnings(record, warnings), ...(previous?.deployed && { deployed: previous.deployed }) });
     }
     return withWarnings({ repo, outcome: "failed", error }, warnings);

@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { ENV, type FailedDelivery, STATUS_VARIABLE, type RouterRepoConfig, type WakeRequest } from "@achq/core";
+import { ENV, type FailedDelivery, type InstallationRequest, type RepoRequest, STATUS_VARIABLE, type RouterRepoConfig, type WakeRequest } from "@achq/core";
 import { containerSecret } from "@achq/core/secrets";
 import { APP_BOT, BOT, DJ, INSTALLATION, KEY, MALLORY, REPO, type Sent, SLUG } from "./github-sends.ts";
 import { configTs, startWorld, THREAD, type World } from "./world.ts";
@@ -522,6 +522,38 @@ describe("pushes", () => {
     await w.settle();
     expect(w.events("review")).toBe(reviewEvents);
     expect(w.events()).toBe(devEvents + 1);
+  });
+});
+
+describe("the repo CLI, through the router", () => {
+  /** What `achq repo install` sends the router, with your gh token. */
+  const asYou = (path: string, token: string, body: RepoRequest) =>
+    fetch(`${w.routerPublic}${path}`, { method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" }, body: JSON.stringify(body) });
+
+  test("`achq repo install` asks the router whether the App is installed, which only its key can tell, if you can push to the repo", async () => {
+    const ask = { host: "github", repo: REPO, source: SLUG } satisfies InstallationRequest;
+    expect((await asYou("/installation", "gho_mallory", ask)).status).toBe(403);
+    const res = await asYou("/installation", "gho_djgrant", ask);
+    expect(await res.json()).toEqual({ installed: true, url: `https://github.com/organizations/notationlabs/settings/installations/${INSTALLATION}` });
+    expect(w.github.requests.some((r) => r.path.startsWith("/user/installations"))).toBe(false);
+  });
+
+  test("a deploy that fails with something only you can fix says so in ACHQ_STATUS; once you have, the CLI has the router deploy again", async () => {
+    const action = { url: "https://github.com/apps/vendor/installations/new", what: `install vendor on ${REPO}` };
+    w.containerProvider.needsYou = action;
+    const { after, sent } = await w.push({ ".achq/README.md": "How yieldstar uses achq.\n" }, "Say how the repo uses achq");
+    expect(await said(sent)).toEqual(ACCEPTED);
+    await w.settle();
+    expect(status()).toMatchObject({ state: "failed", commit: after, action });
+
+    w.containerProvider.needsYou = undefined;
+    expect((await asYou("/deploy", "gho_mallory", { host: "github", repo: REPO })).status).toBe(403);
+    const res = await asYou("/deploy", "gho_djgrant", { host: "github", repo: REPO });
+    expect([res.status, await res.text()]).toEqual([202, "accepted"]);
+    await w.settle();
+    expect(status()).toMatchObject({ state: "deployed", commit: after });
+    expect(status().action).toBeUndefined();
+    expect((await repos())[0]!.commit).toBe(after);
   });
 });
 

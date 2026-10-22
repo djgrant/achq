@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { STATUS_VARIABLE, type DeployerEnvelope } from "@achq/core";
+import { BrowserActionNeeded, STATUS_VARIABLE, type DeployerEnvelope } from "@achq/core";
 import { adminSecret, containerSecret } from "@achq/core/secrets";
 import { signedFetch } from "@achq/core/signing";
 import { evaluateConfig } from "../src/config/evaluate.ts";
@@ -365,6 +365,22 @@ describe("config changes", () => {
     expect(router.repos.get(REPO)!.commit).toBe(commit);
     expect(containerProvider.ops("deploy")).toHaveLength(1);
   });
+});
+
+test("a container provider's failure only you can fix, in your browser, goes in ACHQ_STATUS with what to open; the next deploy that works clears it", async () => {
+  github.commit(REPO, repoFiles());
+  const action = { url: "https://github.com/apps/vendor/installations/new", what: `install vendor on ${REPO}` };
+  const ensure = containerProvider.ensure.bind(containerProvider);
+  containerProvider.ensure = async () => {
+    throw new BrowserActionNeeded("the vendor's App can't see the repo", action);
+  };
+  const deployer = makeDeployer();
+  expect((await deployer.deploy("github", REPO)).outcome).toBe("failed");
+  expect(github.variable(REPO, STATUS_VARIABLE)).toMatchObject({ state: "failed", error: "the vendor's App can't see the repo", action });
+
+  containerProvider.ensure = ensure;
+  expect((await deployer.deploy("github", REPO)).outcome).toBe("deployed");
+  expect(github.variable(REPO, STATUS_VARIABLE).action).toBeUndefined();
 });
 
 describe("uninstall", () => {

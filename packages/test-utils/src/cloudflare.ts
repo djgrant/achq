@@ -39,6 +39,8 @@ export type FakeCloudflare = {
   oauthToken: string;
   /** Makes registering an API token as a Builds token fail, as it might. */
   registerFails: boolean;
+  /** Repos (`owner/name`) Cloudflare's GitHub App isn't installed on: connecting one fails as Workers Builds does. */
+  unseen: Set<string>;
   /** How the next build ends, and what its log says. */
   nextBuild: { outcome: string; log: string[]; deploysVersion: boolean };
   /** A namespace's values, by title. */
@@ -100,6 +102,7 @@ export const startFakeCloudflare = (seed: { accountId?: string; subdomain?: stri
     apiTokens,
     oauthToken,
     registerFails: false,
+    unseen: new Set(),
     wranglerDeploys: [],
     nextBuild: { outcome: "success", log: ["Cloning repository...", "Success: Deploy command completed"], deploysVersion: true },
     kv: (title) => [...namespaces.values()].find((n) => n.title === title)?.values,
@@ -215,6 +218,10 @@ export const startFakeCloudflare = (seed: { accountId?: string; subdomain?: stri
     if (p === "/builds/tokens") return ok(tokens);
     if (p === "/builds/repos/connections" && method === "PUT") {
       const body = (await req.json()) as RepoConnection;
+      // What Workers Builds answers when its GitHub App can't see the repo.
+      if (fake.unseen.has(`${body.provider_account_name}/${body.repo_name}`)) {
+        return fail(404, "The project is linked to a repository that no longer exists or is not accessible. Please reconnect the repository.", 8000012);
+      }
       let connection = connections.find((c) => c.repo_id === body.repo_id);
       if (!connection) connections.push((connection = { ...body, repo_connection_uuid: id("conn") }));
       Object.assign(connection, body);

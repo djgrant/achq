@@ -10,10 +10,8 @@ export type Permissions = Record<string, string>;
 export type AppSettings = { events: string[]; permissions: Permissions };
 
 /** An App's installation on an account, as the App sees it. An enterprise account has no login: it's "". */
-export type Installation = { id: number; account: { login: string }; permissions: Permissions; suspended_at: string | null };
-
-/** An installation your login can see. */
-export type UserInstallation = Installation & { app_slug: string; account: { type: string }; repository_selection: "all" | "selected" };
+/** `account.type` is `User` or `Organization`. */
+export type Installation = { id: number; app_slug: string; account: { login: string; type: string }; permissions: Permissions; repository_selection: "all" | "selected"; suspended_at: string | null };
 
 /** What an installation token is narrowed to: repo names (not owner/name) and permissions. */
 export type TokenNarrowing = { repositories?: string[]; permissions?: Permissions };

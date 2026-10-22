@@ -70,7 +70,7 @@ export const createDeployer = (deps: DeployerDeps) => {
           if (!(error instanceof HttpError && error.status === NOT_FOUND)) throw error;
         });
         // Containers and volumes are kept, asleep. Reinstalling brings it all back.
-        await ctx.store.put({ ...previous, error: undefined, warnings: undefined, host, repo, state: "uninstalled", at: ctx.now().toISOString() });
+        await ctx.store.put({ ...previous, error: undefined, warnings: undefined, action: undefined, host, repo, state: "uninstalled", at: ctx.now().toISOString() });
         ctx.log(`${repo}: uninstalled`);
       }),
   };

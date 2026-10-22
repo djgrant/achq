@@ -11,5 +11,6 @@ export * from "./contracts/code-host-provider.ts";
 export * from "./contracts/container-provider.ts";
 export * from "./contracts/agent-provider.ts";
 export * from "./contracts/vault-provider.ts";
+export * from "./contracts/browser-action.ts";
 export * from "./wire/constants.ts";
 export type * from "./wire/protocol.ts";

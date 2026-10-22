@@ -24,7 +24,7 @@ beforeAll(() => {
   const env = githubEnv(gh.keys(), gh.url);
   api = { provider: githubPolicyProvider.create(env), channel: githubChannelProvider.create(env), codeHost: githubCodeHostProvider.create(env) };
   gh.installations.push(
-    { id: 77, app: appA.slug, account: "notationlabs", permissions: appA.permissions, repos: ["notationlabs/yieldstar", "notationlabs/shared"] },
+    { id: 77, app: appA.slug, account: "notationlabs", accountType: "Organization", permissions: appA.permissions, repos: ["notationlabs/yieldstar", "notationlabs/shared"] },
     { id: 88, app: appA.slug, account: "djgrant", permissions: { contents: "read", metadata: "read" }, repos: ["djgrant/notes"] },
     { id: 99, app: appB.slug, account: "djgrant", permissions: appB.permissions, repos: ["djgrant/site", "djgrant/notes"] },
     { id: 66, app: appB.slug, account: "frozen", permissions: appB.permissions, repos: ["frozen/x"], suspended: true },
@@ -111,6 +111,23 @@ describe("mint", () => {
 
   test("fails when an App isn't installed on a policy's repo", async () => {
     await expect(api.provider.mint([policy({ contents: "read" }, "elsewhere/x")], "notationlabs/yieldstar")).rejects.toThrow(/isn't installed on elsewhere\/x/);
+  });
+});
+
+describe("an App's installation on a repo, for the repo CLI", () => {
+  test("says whether the App reaches the repo, and links the installation's settings, as the App: your gh token can't list installations", async () => {
+    gh.requests.length = 0;
+    expect(await api.codeHost.installation("notationlabs/yieldstar", appA.slug)).toEqual({ installed: true, url: "https://github.com/organizations/notationlabs/settings/installations/77" });
+    // Installed on the owner, but not on this repo.
+    expect(await api.codeHost.installation("notationlabs/other", appA.slug)).toEqual({ installed: false, url: "https://github.com/organizations/notationlabs/settings/installations/77" });
+    expect(await api.codeHost.installation("djgrant/site", appA.slug)).toEqual({ installed: false, url: "https://github.com/settings/installations/88" });
+    expect(gh.requests.some((r) => r.path.startsWith("/user/"))).toBe(false);
+  });
+
+  test("on an owner without it, links the App's install page; a suspended one doesn't count; another App is unknown", async () => {
+    expect(await api.codeHost.installation("elsewhere/x", appA.slug)).toEqual({ installed: false, url: "https://github.com/apps/notation-achq/installations/new" });
+    expect(await api.codeHost.installation("frozen/x", appB.slug)).toEqual({ installed: false, url: "https://github.com/settings/installations/66" });
+    expect(await api.codeHost.installation("notationlabs/yieldstar", "stranger-app")).toBeUndefined();
   });
 });
 

@@ -1,6 +1,7 @@
-import { ACHQ_SOURCE, type Change, type Context, hasUnknown, type Inputs, known, ManagedResource, type Planned, type ResourceOptions, UNKNOWN } from "@achq/core";
-import type { Trigger, TriggerSettings } from "@achq/utils/cloudflare";
+import { ACHQ_SOURCE, BrowserActionNeeded, type Change, type Context, hasUnknown, type Inputs, known, ManagedResource, type Planned, type ResourceOptions, UNKNOWN } from "@achq/core";
+import { CloudflareError, type Trigger, type TriggerSettings } from "@achq/utils/cloudflare";
 import { connect } from "./cloudflare.ts";
+import { BUILDS_GITHUB_APP, BUILDS_GITHUB_APP_INSTALL_URL, REPO_UNSEEN } from "./constants.ts";
 import type { RepoIds } from "./repo-ids.ts";
 import { packed, type WorkerConfig } from "./wrangler.ts";
 
@@ -129,7 +130,9 @@ export class BuildTrigger extends ManagedResource<Props, State, Outputs, Trigger
     for (const change of changes) {
       if (change.kind === "create") {
         for (const stale of current?.stale ?? []) await cf.builds.deleteTrigger(stale);
-        const connection = await cf.builds.connect(await this.repoIds(props.repo));
+        const connection = await cf.builds.connect(await this.repoIds(props.repo)).catch((error) => {
+          throw unseen(error) ? cantSee(props.repo, error) : error;
+        });
         trigger = (await cf.builds.createTrigger(props.tag, connection, settingsOf(props))).trigger_uuid;
         await cf.builds.setVariables(trigger, varsFor(variables));
       } else if (change.kind === "settings") await cf.builds.updateTrigger(trigger!, settingsOf(props));
@@ -138,5 +141,15 @@ export class BuildTrigger extends ManagedResource<Props, State, Outputs, Trigger
     return { trigger: trigger! };
   }
 }
+
+/** Whether Workers Builds couldn't connect a repo because its GitHub App can't see it. */
+const unseen = (error: unknown) => error instanceof CloudflareError && (error.codes.includes(REPO_UNSEEN) || error.status === 404);
+
+/** Only Cloudflare can tell that its App can't see a repo, and only you can install it there. */
+const cantSee = (repo: string, error: CloudflareError) =>
+  new BrowserActionNeeded(`Workers Builds can't see ${repo}: install Cloudflare's GitHub App (${BUILDS_GITHUB_APP}) on it, then deploy again. ${error.message}`, {
+    url: BUILDS_GITHUB_APP_INSTALL_URL,
+    what: `install ${BUILDS_GITHUB_APP} on ${repo}`,
+  });
 
 const varsFor = (variables: Record<string, string>) => Object.fromEntries(Object.entries(variables).map(([name, value]) => [name, { value, is_secret: false }]));

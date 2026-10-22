@@ -6,6 +6,8 @@ export type FakeInstallation = {
   id: number;
   app: string;
   account: string;
+  /** `User` unless it's an organization. */
+  accountType?: "User" | "Organization";
   permissions: Record<string, string>;
   /** Every repo of the account the installation covers. */
   repos: string[];
@@ -196,6 +198,12 @@ export class FakeGitHub {
       return notFound();
     }
 
+    // ── As a user ──
+    // gh's token is an OAuth App's, and GitHub lists a user's installations, and their repos, only to a GitHub App's user token.
+    if (path.startsWith("/user/installations")) {
+      return json({ message: "You must authenticate with an access token authorized to a GitHub App in order to list installations", documentation_url: "https://docs.github.com/rest/apps/installations#list-app-installations-accessible-to-the-user-access-token", status: "403" }, 403);
+    }
+
     // ── As an installation ──
     const token = this.token(auth);
     if (path === "/installation/repositories" && method === "GET") {
@@ -309,7 +317,8 @@ export class FakeGitHub {
   private installationJson(i: FakeInstallation) {
     return {
       id: i.id,
-      account: { login: i.account },
+      app_slug: i.app,
+      account: { login: i.account, type: i.accountType ?? "User" },
       permissions: i.permissions,
       repository_selection: "selected",
       suspended_at: i.suspended ? "2026-01-01T00:00:00Z" : null,

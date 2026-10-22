@@ -8,8 +8,8 @@ import { startCommand } from "../src/lib/service-parts.ts";
 
 let fake: FakeCloudflare;
 let github: ReturnType<typeof Bun.serve>;
-/** The owners Cloudflare's GitHub App is installed on. */
-let installedOn: string[];
+/** What reached GitHub, which answers gh's token as it does: it can't list installations. */
+let githubCalls: string[];
 let logs: string[];
 let opened: { url: string; what: string }[];
 let onOpen: () => void;
@@ -27,13 +27,16 @@ beforeEach(() => {
   fake.apiTokens.set("cf-deployer", "tok-deployer");
   pasted = ["cf-deployer"];
   asked = [];
-  installedOn = ["djgrant"];
+  githubCalls = [];
   github = Bun.serve({
     port: 0,
-    fetch: (req) =>
-      new URL(req.url).pathname === "/user/installations"
-        ? Response.json({ total_count: installedOn.length, installations: installedOn.map((login, i) => ({ id: i + 1, app_slug: "cloudflare-workers-and-pages", account: { login, type: "User" }, repository_selection: "all" })) })
-        : new Response("not found", { status: 404 }),
+    fetch: (req) => {
+      const { pathname } = new URL(req.url);
+      githubCalls.push(`${req.method} ${pathname}`);
+      return pathname.startsWith("/user/installations")
+        ? Response.json({ message: "You must authenticate with an access token authorized to a GitHub App in order to list installations" }, { status: 403 })
+        : new Response("not found", { status: 404 });
+    },
   });
   logs = [];
   opened = [];
@@ -120,6 +123,7 @@ test("a new project plans in one pass and writes nothing, with the router's URL 
   expect(applied.value(router.env)).toEqual({});
   const page = deployerTokenPage(fake.accountId);
   expect(logs).toEqual([
+    "  Workers Builds clones repos with Cloudflare's GitHub App: install it on djgrant, on the repos achq serves, at https://github.com/apps/cloudflare-workers-and-pages/installations/new",
     "  waiting for the router to answer…",
     `  The deployer needs a Cloudflare API token of its own. Create it with what's filled in, then paste it here. It's kept only as the deployer's secret: ${page}`,
   ]);
@@ -239,14 +243,13 @@ test("without a browser and a terminal to paste into, the deployer's token can't
   await expect((await plan(declare().resources, withoutPrompt)).apply()).rejects.toThrow("The deployer's Cloudflare token is made in your browser and pasted here, which only `achq infra up` can do");
 });
 
-test("an owner without Cloudflare's GitHub App gets it through GitHub's install page", async () => {
-  installedOn = [];
+test("Cloudflare's GitHub App isn't checked, which only Cloudflare can do: up reminds you to install it, and asks GitHub nothing", async () => {
   const planned = await plan(declare().resources, ctx);
-  expect(summary(planned.changes)).toContain("+ cloudflare-workers-and-pages installation on djgrant, opens GitHub to install it");
-  onOpen = () => installedOn.push("DJGrant");
+  expect(summary(planned.changes).filter((c) => c.includes("cloudflare-workers-and-pages"))).toEqual([]);
   await planned.apply();
-  expect(opened[0]).toEqual({ url: "https://github.test/apps/cloudflare-workers-and-pages/installations/new", what: "install cloudflare-workers-and-pages on djgrant" });
-  expect((await plan(declare().resources, ctx)).changes).toEqual([]);
+  expect(logs).toContain("  Workers Builds clones repos with Cloudflare's GitHub App: install it on djgrant, on the repos achq serves, at https://github.com/apps/cloudflare-workers-and-pages/installations/new");
+  expect(opened.map((o) => o.what)).not.toContain("install cloudflare-workers-and-pages on djgrant");
+  expect(githubCalls).toEqual([]);
 });
 
 test("applying waits for the router to answer, and fails if Wrangler does or it never answers", async () => {

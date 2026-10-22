@@ -91,6 +91,8 @@ export const testHost: CodeHostProvider = {
     throw new Error("not on the router");
   },
   installed: async () => [{ host: "test", repo }],
+  // `app` is installed on `repo`; the router has no other source.
+  installation: async (forRepo, source) => (source === "app" ? { installed: forRepo === repo, url: `https://test.example/settings/${source}` } : undefined),
 };
 
 export const servers: { stop: (force?: boolean) => unknown }[] = [];
@@ -180,6 +182,9 @@ export const boot = async ({ dir = mkdtempSync(join(tmpdir(), "achq-router-")), 
       const body = JSON.stringify(event);
       return fetch(`${pub}/webhook`, { method: "POST", body, headers: { "x-test-source": "app", "x-test-signature": crypto.hmacHex(secret, body) } });
     },
+    /** A public endpoint for the repo CLI, with your code host token. */
+    asYou: (path: string, body: object, token?: string) =>
+      fetch(`${pub}${path}`, { method: "POST", body: JSON.stringify(body), headers: { "content-type": "application/json", ...(token && { authorization: `Bearer ${token}` }) } }),
     wake: (body: object, token?: string) =>
       fetch(`${pub}/wake`, { method: "POST", body: JSON.stringify(body), headers: { "content-type": "application/json", ...(token && { authorization: `Bearer ${token}` }) } }),
   };

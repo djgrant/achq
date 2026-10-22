@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import type { Change } from "@achq/core";
-import { failedSection, formatReplay, infraStatusTable, planLines } from "../src/lib/format.ts";
+import { failedSection, formatReplay, formatStatus, infraStatusTable, planLines } from "../src/lib/format.ts";
 
 test("the infra status lists installed and deployed repos, with errors underneath", () => {
   const table = infraStatusTable(
@@ -65,5 +65,13 @@ test("a plan collapses changes that do the same to the same target, counting the
     "+ djgrant-claude  github channel  opens GitHub to create its App",
     "~ achq-deployer   variables       1",
     "! careful",
+  ]);
+});
+
+test("a status says what only you can fix, and where", () => {
+  const action = { url: "https://github.com/apps/cloudflare-workers-and-pages/installations/new", what: "install cloudflare-workers-and-pages on a/b" };
+  expect(formatStatus({ host: "github", repo: "a/b", state: "failed", at: "2026-10-17T10:00:00Z", error: "Workers Builds can't see a/b", router: "https://r", action })).toEqual([
+    "failed at 2026-10-17T10:00:00Z: Workers Builds can't see a/b",
+    `to fix: install cloudflare-workers-and-pages on a/b, at ${action.url}`,
   ]);
 });

@@ -27,3 +27,7 @@ export const githubUrls = (env: Vars): GitHubUrls => ({ api: env[GITHUB_ENV.api]
 
 /** Variables that only exist on the router, or that an App's own tooling sets. */
 export const PRIVATE_ENV = [GITHUB_ENV.apps, "GITHUB_APP_PRIVATE_KEY", "GITHUB_WEBHOOK_SECRET", "GITHUB_APP_ID"];
+
+/** How often `achq repo uninstall` asks the router whether you've removed the repo on GitHub, and how long it waits for you. */
+export const FLOW_POLL_INTERVAL_MS = 5000;
+export const FLOW_TIMEOUT_MS = 15 * 60_000;

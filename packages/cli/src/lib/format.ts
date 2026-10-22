@@ -50,6 +50,7 @@ export const formatStatus = (status: Status) => {
   const containers = containerNames(status.containers);
   if (containers.length) lines.push(`containers: ${containers.join(", ")}`);
   for (const w of status.warnings ?? []) lines.push(`! ${w}`);
+  if (status.action) lines.push(`to fix: ${status.action.what}, at ${status.action.url}`);
   return lines;
 };
 

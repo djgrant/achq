@@ -2,7 +2,7 @@ import { expect } from "bun:test";
 import { $ } from "bun";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { ContainerProvider, ContainerSpec } from "@achq/core";
+import { type BrowserAction, BrowserActionNeeded, type ContainerProvider, type ContainerSpec } from "@achq/core";
 import { adminSecret } from "@achq/core/secrets";
 import { signedFetch } from "@achq/core/signing";
 import { createAgent, type Runner, readState } from "@achq/container";
@@ -93,6 +93,9 @@ class TestContainerProvider implements ContainerProvider {
   /** Runners of containers that restarted, never to act again: their runs hang until the e2e ends. */
   private crashed: Runner[] = [];
 
+  /** Set, it fails `ensure` with what only you can fix in your browser, as Cloudflare's does for a repo its GitHub App can't see. */
+  needsYou?: BrowserAction;
+
   constructor(private local: (spec: ContainerSpec) => Record<string, string>) {}
 
   private id = (repo: string, name: string) => `${repo.toLowerCase()}/${name}`;
@@ -109,6 +112,7 @@ class TestContainerProvider implements ContainerProvider {
   }
 
   async ensure(spec: ContainerSpec) {
+    if (this.needsYou) throw new BrowserActionNeeded(`the container provider can't see ${spec.repo}`, this.needsYou);
     this.specs.push(spec);
     const id = this.id(spec.repo, spec.name);
     let hosted = this.containers.get(id);
@@ -216,7 +220,7 @@ export const startWorld = async () => {
   github.expiresAt = () => new Date(Date.now() + 60 * 60_000).toISOString();
   github.userTokens.set("gho_djgrant", { login: DJ.user.login, push: [REPO] });
   github.userTokens.set("gho_mallory", { login: MALLORY.user.login, push: [] });
-  github.installations.push({ id: INSTALLATION, app: SLUG, account: OWNER, permissions: app.permissions, repos: [REPO] });
+  github.installations.push({ id: INSTALLATION, app: SLUG, account: OWNER, accountType: "Organization", permissions: app.permissions, repos: [REPO] });
   github.addRepo(REPO, repo.origin);
   // Issues DJ opened before the App was installed.
   const issue = (number: number, title: string, body: string, labels: string[]) =>

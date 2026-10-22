@@ -40,6 +40,15 @@ export const clean =
     }
   };
 
+/** Whether there's someone at a terminal to ask. */
+export const interactive = () => Boolean(process.stdin.isTTY && process.stdout.isTTY);
+
+/** Waits for you to press Enter, e.g. once you've done what the browser was opened to. */
+export const waitForEnter = async (message: string) => {
+  process.stdout.write(`${message} `);
+  for await (const _ of console) break;
+};
+
 const ENTER = ["\r", "\n"];
 const CTRL_C = "\u0003";
 const CTRL_D = "\u0004";

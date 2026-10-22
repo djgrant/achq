@@ -2,11 +2,12 @@ import { http } from "../http.ts";
 
 export const CLOUDFLARE_API = "https://api.cloudflare.com/client/v4";
 
-/** Cloudflare turned a request down, or answered with something that isn't its API. `status` is the HTTP status. */
+/** Cloudflare turned a request down, or answered with something that isn't its API. `status` is the HTTP status; `codes`, the codes of Cloudflare's errors. */
 export class CloudflareError extends Error {
   constructor(
     message: string,
     readonly status: number,
+    readonly codes: number[] = [],
   ) {
     super(message);
   }
@@ -55,7 +56,7 @@ export class CloudflareTransport {
     }
     if (!res.ok || !envelope.success) {
       const errors = envelope.errors?.map((e) => `${e.message} (${e.code})`).join("; ") ?? "";
-      throw new CloudflareError(`Cloudflare ${method} ${path}: ${res.status} ${errors}`.trimEnd(), res.status);
+      throw new CloudflareError(`Cloudflare ${method} ${path}: ${res.status} ${errors}`.trimEnd(), res.status, envelope.errors?.map((e) => e.code) ?? []);
     }
     return envelope.result;
   }

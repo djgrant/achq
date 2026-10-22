@@ -2,7 +2,7 @@ import type { PolicyData } from "../resources/config.ts";
 import type { RepoManifest } from "../resources/repo-manifest.ts";
 import type { ManagedResource } from "../resources/resource.ts";
 import type { Credential } from "./channel-provider.ts";
-import type { InstalledRepo, Status } from "../wire/protocol.ts";
+import type { InstalledRepo, RepoInstallation, Status } from "../wire/protocol.ts";
 
 /** A repo's `owner/name`. Code hosts compare them case-insensitively, and so does achq. */
 export const repoName = {
@@ -68,4 +68,11 @@ export interface CodeHostProvider {
   uninstall(repo: string, manifest: RepoManifest): ManagedResource[];
   /** Router: the repos currently set up. */
   installed(): Promise<InstalledRepo[]>;
+  /**
+   * Router, for `POST /installation`: whether `source` (a config's, e.g. a
+   * GitHub App's slug) is installed on `repo`, and where you'd change that.
+   * Undefined for a source the router doesn't have. Only the router can tell:
+   * on GitHub it takes the App's key.
+   */
+  installation(repo: string, source: string): Promise<RepoInstallation | undefined>;
 }

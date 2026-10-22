@@ -1,6 +1,7 @@
 import { json } from "@achq/utils/json";
 import { z } from "zod";
 import type { ChannelCredential, ChannelEvent, ThreadRef } from "../contracts/channel-provider.ts";
+import type { BrowserAction } from "../contracts/browser-action.ts";
 import type { PolicyCredential } from "../contracts/policy-provider.ts";
 import type { PolicyData, SelectorData } from "../resources/config.ts";
 
@@ -33,8 +34,16 @@ export const RouterRepoConfig = z.object({
 });
 export type RouterRepoConfig = z.infer<typeof RouterRepoConfig>;
 
-export const WakeRequest = z.object({ host: z.string(), repo: z.string(), container: z.string() });
+/** A repo, on the `CodeHostProvider` `host`: what the router's public endpoints for the repo CLI take, with your code host token as the bearer. */
+export const RepoRequest = z.object({ host: z.string(), repo: z.string() });
+export type RepoRequest = z.infer<typeof RepoRequest>;
+
+export const WakeRequest = RepoRequest.extend({ container: z.string() });
 export type WakeRequest = z.infer<typeof WakeRequest>;
+
+/** Whether `source`, e.g. a GitHub App's slug, is installed on the repo: `POST /installation`. */
+export const InstallationRequest = RepoRequest.extend({ source: z.string() });
+export type InstallationRequest = z.infer<typeof InstallationRequest>;
 
 /** Who a container says it is. Its signature proves it. */
 export const CredentialsRequest = z.object({ repo: z.string(), container: z.string() });
@@ -71,6 +80,13 @@ export type CredentialsResponse = {
 
 export type InstalledRepo = { host: string; repo: string };
 
+/**
+ * A source's installation on a repo, as the router's code host sees it: whether
+ * it covers the repo, and the page where you change that, e.g. a GitHub App's
+ * install page, or its installation's settings, where you choose its repos.
+ */
+export type RepoInstallation = { installed: boolean; url: string };
+
 /** What a source (e.g. a GitHub App) is set up to send and allow, for checks. */
 export type SourceSettings = { channel: string; source: string; events: string[]; permissions: Record<string, string> };
 
@@ -90,6 +106,8 @@ export type DeployRecord = {
   /** Per container: where to find it, from `ContainerProvider.locate`. */
   containers?: { name: string; location: Record<string, string> }[];
   warnings?: string[];
+  /** What only you can do to fix a failed deploy, in your browser. `achq repo install` opens it, then deploys again. */
+  action?: BrowserAction;
 };
 
 /** The ACHQ_STATUS repository variable's JSON. */

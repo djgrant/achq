@@ -1,8 +1,7 @@
 import * as core from "@achq/core";
 import { type Context, type EnvValues, Output } from "@achq/core";
-import { CLOUDFLARE_ENV, CONTAINER_PROVIDER } from "../lib/constants.ts";
+import { BUILDS_GITHUB_APP_INSTALL_URL, CLOUDFLARE_ENV, CONTAINER_PROVIDER } from "../lib/constants.ts";
 import { DeployerToken } from "../lib/deployer-token.ts";
-import { BuildsGitHubApp } from "../lib/github-app.ts";
 import { privateUrl, serviceWorkerName } from "../lib/names.ts";
 import { ServiceParts } from "../lib/service-parts.ts";
 import { Router } from "../router/resource.ts";
@@ -21,15 +20,15 @@ export type DeployerInputs = {
 /**
  * The deployer, as a Worker in its router's project: private, sleeping when
  * idle. It builds containers with Workers Builds, with a token of its own
- * that you make once, and Cloudflare's GitHub App on every owner it serves.
- * It never gets your sign-in.
+ * that you make once, and Cloudflare's GitHub App on the repos it serves,
+ * which only Cloudflare can tell is there: a repo it can't see fails its
+ * deploy with the App's install page. It never gets your sign-in.
  */
 export class Deployer extends core.Deployer {
   readonly containerProvider = CONTAINER_PROVIDER;
   readonly env: Output<Record<string, string>>;
   private readonly parts: ServiceParts;
   private readonly token: DeployerToken;
-  private readonly apps: BuildsGitHubApp[];
   private rotating = false;
 
   constructor(
@@ -61,7 +60,6 @@ export class Deployer extends core.Deployer {
       { worker, tag: this.parts.worker.out("tag"), replace: new Output([], () => this.rotating) },
       { parent: this, after: [this.parts.worker] },
     );
-    this.apps = inputs.owners.map((owner) => new BuildsGitHubApp(`github-app-${owner.toLowerCase()}`, { owner }, { parent: this }));
   }
 
   rotateToken() {
@@ -78,6 +76,8 @@ export class Deployer extends core.Deployer {
   }
 
   children(ctx: Context) {
-    return [...this.apps, this.token, ...this.parts.children(ctx)];
+    // Your gh login can't tell whether the App is installed, so this is only a reminder.
+    ctx.log(`  Workers Builds clones repos with Cloudflare's GitHub App: install it on ${this.inputs.owners.join(", ")}, on the repos achq serves, at ${BUILDS_GITHUB_APP_INSTALL_URL}`);
+    return [this.token, ...this.parts.children(ctx)];
   }
 }

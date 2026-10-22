@@ -6,7 +6,7 @@ import { subprocess } from "@achq/utils/subprocess";
 import { text } from "@achq/utils/text";
 import { ENV_FILE } from "../../worker/lifecycle.ts";
 import { SERVICE_CLASS } from "../../worker/settings.ts";
-import { BUILD_POLL_INTERVAL_MS, BUILD_TIMEOUT_MS, BUILDS_GITHUB_APP, CLOUDFLARE_ENV, CONTAINER_PROVIDER, LOG_TAIL_LINES, SOURCE_HOST, WRANGLER } from "../lib/constants.ts";
+import { BUILD_POLL_INTERVAL_MS, BUILD_TIMEOUT_MS, BUILDS_GITHUB_APP_INSTALL_URL, CLOUDFLARE_ENV, CONTAINER_PROVIDER, LOG_TAIL_LINES, SOURCE_HOST, WRANGLER } from "../lib/constants.ts";
 import { buildToken, registered } from "../lib/build-token.ts";
 import { type ContainerPlace, containerParts } from "../lib/container-parts.ts";
 import { archiveKey, containerUrl, containerWorkerName, KV_KEYS } from "../lib/names.ts";
@@ -26,7 +26,7 @@ export type CloudflareContainerProviderOptions = Omit<ContainerPlace, "buildToke
 const SECRET_BYTES = 32;
 
 /** What a build's failure says to check first, when its log doesn't. */
-const cloneHint = (repo: string) => `If it couldn't clone ${repo}, install Cloudflare's GitHub App on it: https://github.com/apps/${BUILDS_GITHUB_APP}/installations/new`;
+const cloneHint = (repo: string) => `If it couldn't clone ${repo}, install Cloudflare's GitHub App on it: ${BUILDS_GITHUB_APP_INSTALL_URL}`;
 
 export class CloudflareContainerProvider implements ContainerProvider {
   readonly cf: Cloudflare;

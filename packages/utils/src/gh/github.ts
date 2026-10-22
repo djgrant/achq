@@ -5,7 +5,7 @@ import { restEndpointMethods, type RestEndpointMethodTypes } from "@octokit/plug
 import { RequestError } from "@octokit/request-error";
 import type { Vars } from "../env.ts";
 import { subprocess } from "../subprocess.ts";
-import type { AppSettings, HookConfig, Installation, Permissions, ReactionContent, ReactionTarget, TokenNarrowing, UserInstallation } from "./types.ts";
+import type { AppSettings, HookConfig, Installation, Permissions, ReactionContent, ReactionTarget, TokenNarrowing } from "./types.ts";
 
 /** GitHub's message says what went wrong, not which call: each error names its method, path and status too. */
 const describeErrors = (octokit: Core) => {
@@ -34,7 +34,7 @@ type RawInstallation = RestEndpointMethodTypes["apps"]["getRepoInstallation"]["r
 /** GitHub's schema lists fewer permissions than a token can ask for, e.g. not `actions_variables`. */
 type TokenPermissions = RestEndpointMethodTypes["apps"]["createInstallationAccessToken"]["parameters"]["permissions"];
 
-const installationOf = (raw: RawInstallation): UserInstallation => ({
+const installationOf = (raw: RawInstallation): Installation => ({
   id: raw.id,
   app_slug: raw.app_slug,
   account: raw.account && "login" in raw.account ? { login: raw.account.login, type: raw.account.type } : { login: "", type: "Enterprise" },
@@ -130,25 +130,6 @@ export class GitHub {
 
   installationRepos() {
     return this.octokit.paginate(this.octokit.rest.apps.listReposAccessibleToInstallation, { per_page: PAGE_SIZE });
-  }
-
-  // ── As a user ──
-
-  async userInstallations(): Promise<UserInstallation[]> {
-    return (await this.octokit.paginate(this.octokit.rest.apps.listInstallationsForAuthenticatedUser, { per_page: PAGE_SIZE })).map(installationOf);
-  }
-
-  userInstallationRepos(installationId: number) {
-    return this.octokit.paginate(this.octokit.rest.apps.listInstallationReposForAuthenticatedUser, { installation_id: installationId, per_page: PAGE_SIZE });
-  }
-
-  /** Adds a repo to a selected-repos installation. The same route serves user and org installations; it needs admin on the repo. */
-  async addToInstallation(installationId: number, repoId: number) {
-    await this.octokit.rest.apps.addRepoToInstallationForAuthenticatedUser({ installation_id: installationId, repository_id: repoId });
-  }
-
-  async removeFromInstallation(installationId: number, repoId: number) {
-    await this.octokit.rest.apps.removeRepoFromInstallationForAuthenticatedUser({ installation_id: installationId, repository_id: repoId });
   }
 }
 

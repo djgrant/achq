@@ -17,6 +17,8 @@ export const ACHQ_CODE_PATHS = ["packages", "package.json", "bun.lock"];
 /** How long `achq repo install` waits for the deploy's result, and how often it looks. */
 export const STATUS_TIMEOUT_MS = 180_000;
 export const STATUS_INTERVAL_MS = 5000;
+/** How many times `achq repo install` opens what a failed deploy says only you can fix, and deploys again. */
+export const FIX_ATTEMPTS = 3;
 
 /** The terminal's variables, passed on to the container's shell, which may set only TERM=xterm. */
 export const TERMINAL_ENV = ["TERM", "COLORTERM", "TERM_PROGRAM", "TERM_PROGRAM_VERSION"];

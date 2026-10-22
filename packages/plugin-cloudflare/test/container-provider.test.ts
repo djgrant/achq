@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, expect, test } from "bun:test";
+import { BrowserActionNeeded } from "@achq/core";
 import { gunzipSync } from "node:zlib";
 import { type FakeCloudflare, startFakeCloudflare } from "@achq/test-utils/cloudflare";
 import { Cloudflare } from "@achq/utils/cloudflare";
@@ -66,6 +67,21 @@ beforeEach(async () => {
   looked.length = 0;
 });
 afterEach(() => fake.stop());
+
+test("a repo Cloudflare's GitHub App can't see fails ensure with what only you can do: install the App, at its install page", async () => {
+  fake.unseen.add("NotationLabs/yieldstar");
+  const failure = await host.ensure(spec).catch((e) => e);
+  expect(failure).toBeInstanceOf(BrowserActionNeeded);
+  expect(failure.action).toEqual({ url: "https://github.com/apps/cloudflare-workers-and-pages/installations/new", what: "install cloudflare-workers-and-pages on NotationLabs/yieldstar" });
+  expect(failure.message).toContain("Workers Builds can't see NotationLabs/yieldstar");
+  expect(failure.message).toContain("(8000012)");
+  expect(fake.triggers.size).toBe(0);
+
+  // Once it's installed, the same ensure connects it.
+  fake.unseen.clear();
+  await host.ensure(spec);
+  expect(fake.triggers.size).toBe(1);
+});
 
 /** The container Worker's config, as its build writes it from its trigger's variable. */
 const builtConfig = () => {

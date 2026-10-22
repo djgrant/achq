@@ -79,9 +79,9 @@ export const LOG_TAIL_LINES = 30;
 
 /** Workers Builds builds containers from their repos through its GitHub App. */
 export const SOURCE_HOST = "github";
-/** Cloudflare's GitHub App, which Workers Builds clones repos with. */
+/** Cloudflare's GitHub App, "Cloudflare Workers and Pages", which Workers Builds clones repos with. */
 export const BUILDS_GITHUB_APP = "cloudflare-workers-and-pages";
-
-/** How often a browser flow checks whether it's done, and how long it waits for you. */
-export const FLOW_POLL_INTERVAL_MS = 5000;
-export const FLOW_TIMEOUT_MS = 15 * 60_000;
+/** Where you install it: only Cloudflare can tell whether it sees a repo, when the deployer connects the repo to Workers Builds. */
+export const BUILDS_GITHUB_APP_INSTALL_URL = `https://github.com/apps/${BUILDS_GITHUB_APP}/installations/new`;
+/** What Workers Builds answers connecting a repo its GitHub App can't see: "The project is linked to a repository that no longer exists". */
+export const REPO_UNSEEN = 8000012;

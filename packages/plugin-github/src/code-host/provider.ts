@@ -1,5 +1,6 @@
-import { type CodeHostProvider, type ConfigTree, type Credential, type FileLimits, type RepoClient, type RepoManifest, repoName, STATUS_VARIABLE, type Status } from "@achq/core";
+import { type CodeHostProvider, type ConfigTree, type Credential, type FileLimits, type InstallationRequest, type RepoClient, type RepoInstallation, type RepoManifest, repoName, STATUS_VARIABLE, type Status } from "@achq/core";
 import type { Vars } from "@achq/utils/env";
+import { http } from "@achq/utils/http";
 import { type CommitSummary, GitHub, type RepoApi } from "@achq/utils/gh";
 import { text } from "@achq/utils/text";
 import type { Apps } from "../lib/apps.ts";
@@ -89,7 +90,20 @@ export class GitHubCodeHostProvider implements CodeHostProvider {
 
   private codeHost(repo: string, manifest: RepoManifest, installed: boolean) {
     const slug = configSource(manifest);
-    return new CodeHost({ slug, repo, installed, needs: configNeeds(manifest, slug) });
+    return new CodeHost({ slug, repo, installed, needs: configNeeds(manifest, slug) }, (r, source) => this.askRouter(r, source));
+  }
+
+  /** Whether the App is installed on the repo, from the router ACHQ_STATUS names, which checks you can push to it. Undefined without one. */
+  private async askRouter(repo: string, slug: string): Promise<RepoInstallation | undefined> {
+    const router = (await this.status(repo))?.router;
+    if (!router) return undefined;
+    const res = await fetch(`${router}/installation`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${this.token()}`, "content-type": "application/json" },
+      body: JSON.stringify({ host: CODE_HOST, repo, source: slug } satisfies InstallationRequest),
+    });
+    await http.expectOk(res, `The router at ${router} couldn't say whether ${slug} is installed on ${repo}`);
+    return (await res.json()) as RepoInstallation;
   }
 
   /** The repos every App's installations cover. Suspended installations are skipped: they can't mint tokens. */
@@ -108,6 +122,19 @@ export class GitHubCodeHostProvider implements CodeHostProvider {
     // Each repo once, compared as GitHub does; the last spelling wins.
     const repos = new Map(perApp.flat().map((repo) => [repoName.key(repo), repo]));
     return [...repos.values()].map((repo) => ({ host: CODE_HOST, repo }));
+  }
+
+  /** As the App: its installation on the repo's owner, if any, and whether it reaches the repo. A suspended one doesn't. */
+  async installation(repo: string, slug: string): Promise<RepoInstallation | undefined> {
+    if (!this.apps.has(slug)) return undefined;
+    const { web } = this.urls;
+    const { owner } = repoName.split(repo);
+    const found = (await this.apps.asApp(slug).installations()).find((i) => GitHub.sameLogin(i.account.login, owner));
+    if (!found) return { installed: false, url: `${web}/apps/${slug}/installations/new` };
+    const { id, account } = found;
+    // Where you choose its repos.
+    const url = account.type === "Organization" ? `${web}/organizations/${account.login}/settings/installations/${id}` : `${web}/settings/installations/${id}`;
+    return { installed: !found.suspended_at && (await this.apps.covers(slug, id, repo)).covered, url };
   }
 }
 
