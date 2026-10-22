@@ -1,0 +1,178 @@
+import { type Context, type ContainerProvider, type ContainerShell, type ContainerSpec, ENV, plan } from "@achq/core";
+import { async } from "@achq/utils/async";
+import { BUILD_STOPPED, BUILD_SUCCEEDED, CLOUDFLARE_API, Cloudflare } from "@achq/utils/cloudflare";
+import { crypto } from "@achq/utils/crypto";
+import { subprocess } from "@achq/utils/subprocess";
+import { text } from "@achq/utils/text";
+import { ENV_FILE } from "../../worker/lifecycle.ts";
+import { SERVICE_CLASS } from "../../worker/settings.ts";
+import { BUILD_POLL_INTERVAL_MS, BUILD_TIMEOUT_MS, BUILDS_GITHUB_APP, CLOUDFLARE_ENV, CONTAINER_PROVIDER, LOG_TAIL_LINES, SOURCE_HOST, WRANGLER } from "../lib/constants.ts";
+import { type ContainerPlace, containerParts } from "../lib/container-parts.ts";
+import { archiveKey, containerUrl, containerWorkerName, KV_KEYS } from "../lib/names.ts";
+import type { RepoIds } from "../lib/repo-ids.ts";
+
+export type CloudflareContainerProviderOptions = ContainerPlace & {
+  token: string;
+  accountId: string;
+  repoIds: RepoIds;
+  /** Cloudflare's API, for tests. */
+  endpoint?: string;
+  sleep?: (ms: number) => Promise<void>;
+};
+
+const SECRET_BYTES = 32;
+
+/** What a build's failure says to check first, when its log doesn't. */
+const cloneHint = (repo: string) => `If it couldn't clone ${repo}, install Cloudflare's GitHub App on it: https://github.com/apps/${BUILDS_GITHUB_APP}/installations/new`;
+
+export class CloudflareContainerProvider implements ContainerProvider {
+  readonly cf: Cloudflare;
+  private readonly ctx: Context;
+
+  constructor(readonly options: CloudflareContainerProviderOptions) {
+    const endpoint = options.endpoint ?? CLOUDFLARE_API;
+    this.cf = new Cloudflare(options.token, options.accountId, endpoint);
+    this.ctx = {
+      env: { [CLOUDFLARE_ENV.token]: options.token, [CLOUDFLARE_ENV.accountId]: options.accountId, [CLOUDFLARE_ENV.endpoint]: endpoint },
+      log: () => {},
+      newSecret: () => crypto.randomHex(SECRET_BYTES),
+      sleep: options.sleep ?? ((ms) => Bun.sleep(ms)),
+    };
+  }
+
+  private worker(repo: string, name: string) {
+    return containerWorkerName(this.options.project, repo, name);
+  }
+
+  /** Not its build: `deploy` starts those. */
+  private parts(spec: ContainerSpec) {
+    return containerParts(spec, this.options, this.options.repoIds);
+  }
+
+  async plan(spec: ContainerSpec) {
+    return (await plan(this.parts(spec).resources, this.ctx)).changes;
+  }
+
+  async ensure(spec: ContainerSpec) {
+    // Workers Builds builds only from its source host.
+    if (spec.host !== SOURCE_HOST) throw new Error(`Cloudflare builds containers from ${SOURCE_HOST} repos, not ${spec.host}`);
+    const { name, resources } = this.parts(spec);
+    await (await plan(resources, this.ctx)).apply();
+    return { url: containerUrl(name) };
+  }
+
+  /** Builds the branch's head with the Worker's trigger, waiting for it to deploy. A build that fails throws with the end of its log. */
+  async deploy(repo: string, name: string) {
+    const worker = this.worker(repo, name);
+    const found = await this.cf.workers.get(worker);
+    if (!found) throw new Error(`No Cloudflare Worker ${worker}; ensure it first`);
+    const [trigger] = await this.cf.builds.triggers(found.id);
+    const branch = trigger?.branch_includes[0];
+    if (!trigger || !branch) throw new Error(`${worker} has no build trigger; ensure it first`);
+
+    const started = await this.cf.builds.start(trigger.trigger_uuid, branch);
+    const build = await async.pollUntil(
+      () => this.cf.builds.get(started.build_uuid),
+      (b) => b.status === BUILD_STOPPED,
+      { intervalMs: BUILD_POLL_INTERVAL_MS, timeoutMs: BUILD_TIMEOUT_MS, sleep: this.ctx.sleep },
+    );
+    if (!build) throw new Error(`${worker}'s build ${started.build_uuid} hasn't finished after ${BUILD_TIMEOUT_MS / 60_000} minutes`);
+    if (build.build_outcome !== BUILD_SUCCEEDED) {
+      const tail = text.tailLines((await this.cf.builds.log(build.build_uuid)).join("\n"), LOG_TAIL_LINES).join("\n");
+      throw new Error(`${worker}'s build ${build.build_outcome ?? "failed"}:\n${tail}\n${cloneHint(repo)}`);
+    }
+    // Wrangler pushes the image before it uploads the Worker, so a build can succeed in pushing one that never went live.
+    if (!(await this.image(worker, build.build_uuid))) throw new Error(`${worker}'s build ${build.build_uuid} deployed no version with a container image`);
+  }
+
+  /** The image the build deployed: its Worker version's, found among the latest by the build that made it. */
+  async image(worker: string, build: string) {
+    const versions = await this.cf.workers.versions(worker);
+    const builds = await this.cf.builds.forVersions(versions.map((v) => v.id));
+    const version = Object.entries(builds).find(([, b]) => b.build_uuid === build)?.[0];
+    if (!version) return undefined;
+    const { containers = [] } = await this.cf.workers.version(worker, version);
+    return containers.find((c) => c.class_name === SERVICE_CLASS)?.images.app;
+  }
+
+  /** The repo and container of each Worker the deployer made, from the variables it keeps for them. */
+  async list() {
+    const { namespaceId } = this.options;
+    const keys = await this.cf.kv.keys(namespaceId, KV_KEYS.containers);
+    const containers = await Promise.all(
+      keys.map(async (key) => {
+        const stored = await this.cf.kv.get(namespaceId, key);
+        const variables = stored ? (JSON.parse(stored) as Record<string, string>) : {};
+        const repo = variables[ENV.repo];
+        const name = variables[ENV.container];
+        return repo && name ? { repo, name } : undefined;
+      }),
+    );
+    return containers.filter((c) => c !== undefined);
+  }
+
+  /** Its trigger, its container application, its Worker with its Durable Object and snapshots, its archive, and what's kept for it. */
+  async remove(repo: string, name: string) {
+    const worker = this.worker(repo, name);
+    const found = await this.cf.workers.get(worker);
+    if (found) for (const trigger of await this.cf.builds.triggers(found.id)) await this.cf.builds.deleteTrigger(trigger.trigger_uuid);
+    const application = await this.cf.containers.application(worker);
+    if (application) await this.cf.containers.deleteApplication(application.id);
+    if (found) await this.cf.workers.delete(worker);
+    await this.cf.r2.deleteObject(this.options.bucket, archiveKey(worker));
+    for (const key of [KV_KEYS.container(worker), KV_KEYS.deployed(worker)]) await this.cf.kv.delete(this.options.namespaceId, key);
+  }
+
+  /** Its container application, whose running instance `wrangler containers ssh` connects to. Known once its first build has deployed. */
+  async locate(repo: string, name: string) {
+    const worker = this.worker(repo, name);
+    const application = await this.cf.containers.application(worker);
+    return { containerProvider: CONTAINER_PROVIDER, account: this.options.accountId, worker, ...(application && { application: application.id }) };
+  }
+}
+
+// ── The shell, on your machine ──
+
+/** Runs the command with the container's environment, which `ssh` doesn't pass on; without one, a login shell. */
+const withEnv = (command: string[]) => [
+  "sh",
+  "-c",
+  command.length ? `set -a; . ${ENV_FILE}; exec "$@"` : `set -a; . ${ENV_FILE}; command -v bash >/dev/null && exec bash -l; exec sh -l`,
+  "sh",
+  ...command,
+];
+
+const wrangler = (location: Record<string, string>, args: string[]) => ({
+  argv: [...WRANGLER, ...args],
+  env: { ...process.env, CLOUDFLARE_ACCOUNT_ID: location.account! },
+});
+
+/** The application's running instance: a Durable Object runs one. */
+const runningInstance = async (location: Record<string, string>) => {
+  const { argv, env } = wrangler(location, ["containers", "instances", location.application!, "--json"]);
+  const { ok, stdout, stderr } = await subprocess.collect(argv, { env });
+  if (!ok) throw new Error(`Couldn't list ${location.worker}'s instances: ${stderr.trim() || stdout.trim()}`);
+  const instances = JSON.parse(stdout.slice(stdout.indexOf("["))) as { id: string; state?: string }[];
+  const running = instances.find((i) => i.state === "running") ?? instances[0];
+  if (!running) throw new Error(`${location.worker} has no running instance`);
+  return running.id;
+};
+
+const sshArgs = (instance: string, command: string[], tty: boolean) => ["containers", "ssh", instance, ...(tty ? ["--tty"] : []), "--", ...withEnv(command)];
+
+/** Through Wrangler, as you're signed in to it, with a key the deployer put in the container's `authorized_keys`. */
+export const cloudflareShell: ContainerShell = {
+  reachable: (location) => Boolean(location.account && location.application && location.worker),
+
+  async open(location, command) {
+    const { argv, env } = wrangler(location, sshArgs(await runningInstance(location), command, true));
+    return Bun.spawn(argv, { env, stdio: ["inherit", "inherit", "inherit"] }).exited;
+  },
+
+  async run(location, command) {
+    const { argv, env } = wrangler(location, sshArgs(await runningInstance(location), command, false));
+    const { ok, stdout, stderr } = await subprocess.collect(argv, { env });
+    if (!ok) throw new Error(`${command.join(" ")} failed in ${location.worker}: ${stderr.trim() || stdout.trim()}`);
+    return stdout;
+  },
+};

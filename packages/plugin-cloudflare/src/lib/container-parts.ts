@@ -1,0 +1,68 @@
+import { CONTAINER_PORT, type ContainerSpec, ENV } from "@achq/core";
+import { APP_IMAGE, DATA_DIR, INTERNAL_HOSTS, type WorkerSettings } from "../../worker/settings.ts";
+import { BuildTrigger, CONTAINER_MAIN } from "./build-trigger.ts";
+import { internalKey } from "./cloudflare.ts";
+import { INSTANCE } from "./constants.ts";
+import { containerWorkerName, KV_KEYS } from "./names.ts";
+import type { RepoIds } from "./repo-ids.ts";
+import { Secrets } from "./secrets.ts";
+import { Variables } from "./variables.ts";
+import { Worker } from "./worker.ts";
+import { workerConfig } from "./wrangler.ts";
+
+/** Where the deployer puts containers, from its own variables. */
+export type ContainerPlace = {
+  project: string;
+  namespaceId: string;
+  bucket: string;
+  workersDev: string;
+  buildToken: string;
+  sshKeys: string[];
+  /** AGENT_WEBHOOK_KEY, which each Worker's internal key derives from. */
+  key: string;
+};
+
+/**
+ * One Worker per repo and container, sleeping when idle, built from the repo
+ * by its Builds trigger: the Worker, its variables, kept readable in the
+ * namespace and set as its secrets, and its trigger. Not its build: the
+ * deployer starts those.
+ */
+export const containerParts = (spec: ContainerSpec, place: ContainerPlace, repoIds: RepoIds) => {
+  const name = containerWorkerName(place.project, spec.repo, spec.name);
+  const ref = spec.env[ENV.ref];
+  if (!ref) throw new Error(`${spec.repo}'s ${spec.name} has no ${ENV.ref}: the achq Worker its build deploys is taken from that commit`);
+  const worker = new Worker(name, { name, workersDev: place.workersDev }, { declared: false });
+  const values = {
+    ...spec.env,
+    [ENV.dataDir]: DATA_DIR,
+    PORT: String(CONTAINER_PORT),
+    // Its Worker puts it to sleep once nothing has reached it, or been fetched from here, for a while.
+    [ENV.keepAwakeUrl]: `http://${INTERNAL_HOSTS.awake}/`,
+  };
+  const variables = new Variables("variables", { namespaceId: place.namespaceId, key: KV_KEYS.container(name), target: name, values }, { parent: worker });
+  const secrets = new Secrets(
+    "secrets",
+    { namespaceId: place.namespaceId, worker: name, tag: worker.out("tag"), secrets: { ACHQ_ENV: JSON.stringify(values), ACHQ_INTERNAL_KEY: internalKey(place.key) } },
+    { parent: worker, after: [variables] },
+  );
+  const settings: WorkerSettings = {
+    name,
+    port: CONTAINER_PORT,
+    sleeps: true,
+    restartOnChange: false,
+    image: APP_IMAGE,
+    instance: INSTANCE,
+    workersDev: place.workersDev,
+  };
+  // The Dockerfile's path is from the repo's root, where the build writes the config.
+  const images = { [APP_IMAGE]: { dockerfile: `./${spec.dockerfile}`, build_context: "." } };
+  const config = workerConfig(settings, { main: CONTAINER_MAIN, bucket: place.bucket, images, sshKeys: place.sshKeys });
+  const trigger = new BuildTrigger(
+    "build",
+    { worker: name, tag: worker.out("tag"), repo: spec.repo, branch: spec.branch, buildToken: place.buildToken, config, ref },
+    { parent: worker },
+    repoIds,
+  );
+  return { name, resources: [worker, variables, secrets, trigger] };
+};

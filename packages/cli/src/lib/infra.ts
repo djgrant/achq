@@ -68,7 +68,7 @@ export const checkInfra = ({ resources }: Infra): InfraResources => {
   const router = collections.only(resources.filter((r) => r instanceof Router));
   const deployer = collections.only(resources.filter((r) => r instanceof Deployer));
   if (!router || !deployer) throw new Error("The infra must declare one router and one deployer");
-  // They reach each other over their container provider's private network.
+  // They reach each other through what their container provider offers: a private network, or its own routing.
   if (router.containerProvider !== deployer.containerProvider) {
     throw new Error(`The router runs on ${router.containerProvider} and the deployer on ${deployer.containerProvider}; they must share a container provider`);
   }

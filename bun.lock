@@ -14,6 +14,7 @@
       "version": "0.1.0",
       "dependencies": {
         "@achq/claude": "workspace:*",
+        "@achq/cloudflare": "workspace:*",
         "@achq/core": "workspace:*",
         "@achq/github": "workspace:*",
         "@achq/railway": "workspace:*",
@@ -55,6 +56,17 @@
     },
     "packages/plugin-claude": {
       "name": "@achq/claude",
+      "version": "0.1.0",
+      "dependencies": {
+        "@achq/core": "workspace:*",
+        "@achq/utils": "workspace:*",
+      },
+      "devDependencies": {
+        "@achq/test-utils": "workspace:*",
+      },
+    },
+    "packages/plugin-cloudflare": {
+      "name": "@achq/cloudflare",
       "version": "0.1.0",
       "dependencies": {
         "@achq/core": "workspace:*",
@@ -184,6 +196,8 @@
     "@achq/claude": ["@achq/claude@workspace:packages/plugin-claude"],
 
     "@achq/cli": ["@achq/cli@workspace:packages/cli"],
+
+    "@achq/cloudflare": ["@achq/cloudflare@workspace:packages/plugin-cloudflare"],
 
     "@achq/container": ["@achq/container@workspace:packages/service-container"],
 

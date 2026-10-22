@@ -1,4 +1,5 @@
 import { claudeAgentProvider } from "@achq/claude/agent";
+import { cloudflareContainerProvider } from "@achq/cloudflare/container";
 import type { AgentProvider, ChannelProvider, ContainerProvider, ContainerShell, Implementation, CodeHostProvider, PolicyProvider } from "@achq/core";
 import { githubChannelProvider } from "@achq/github/channel";
 import { githubPolicyProvider } from "@achq/github/policy";
@@ -9,7 +10,7 @@ import * as infra from "./infra.ts";
 export const CHANNEL_PROVIDERS: Implementation<ChannelProvider>[] = [githubChannelProvider];
 export const POLICY_PROVIDERS: Implementation<PolicyProvider>[] = [githubPolicyProvider];
 export const CODE_HOST_PROVIDERS: Implementation<CodeHostProvider>[] = [githubCodeHostProvider];
-export const CONTAINER_PROVIDERS: (Implementation<ContainerProvider> & { shell: ContainerShell })[] = [railwayContainerProvider];
+export const CONTAINER_PROVIDERS: (Implementation<ContainerProvider> & { shell: ContainerShell })[] = [railwayContainerProvider, cloudflareContainerProvider];
 export const AGENT_PROVIDERS: AgentProvider[] = [claudeAgentProvider];
 
 const lookup =

@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@achq/claude": "workspace:*",
+    "@achq/cloudflare": "workspace:*",
     "@achq/core": "workspace:*",
     "@achq/github": "workspace:*",
     "@achq/railway": "workspace:*"

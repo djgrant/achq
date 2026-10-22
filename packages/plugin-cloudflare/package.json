@@ -1,0 +1,17 @@
+{
+  "name": "@achq/cloudflare",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./infra": "./src/infra.ts",
+    "./container": "./src/container/index.ts"
+  },
+  "dependencies": {
+    "@achq/core": "workspace:*",
+    "@achq/utils": "workspace:*"
+  },
+  "devDependencies": {
+    "@achq/test-utils": "workspace:*"
+  }
+}
