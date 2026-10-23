@@ -39,7 +39,7 @@ const options = () => ({
   namespaceId,
   bucket: "achq",
   workersDev: "acme.workers.dev",
-  sshKeys: ["ssh-ed25519 AAAA me@laptop"],
+  sshKeys: ["ssh-ed25519 AAAA achq container ssh"],
   key: "webhook-key",
   repoIds: async (repo: string) => {
     looked.push(repo);
@@ -136,7 +136,8 @@ test("ensure makes a placeholder Worker, its variables and secrets, and a trigge
         class_name: "Service",
         scheduling_policy: "durable_object",
         images: { app: { dockerfile: "./.achq/Dockerfile", build_context: "." } },
-        authorized_keys: [{ name: "achq-1", public_key: "ssh-ed25519 AAAA me@laptop" }],
+        // Without its comment, which Cloudflare refuses with spaces in it.
+        authorized_keys: [{ name: "achq-1", public_key: "ssh-ed25519 AAAA" }],
       },
     ],
   });

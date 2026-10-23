@@ -50,7 +50,8 @@ export const workerConfig = (settings: WorkerSettings, { main, bucket, images, s
       // The Durable Object starts, snapshots and stops it.
       scheduling_policy: "durable_object",
       ...(images && { images }),
-      ...(sshKeys.length && { authorized_keys: sshKeys.map((key, i) => ({ name: `achq-${i + 1}`, public_key: key })) }),
+      // Without its comment, which Cloudflare refuses if it has spaces: only the key's type and the key.
+      ...(sshKeys.length && { authorized_keys: sshKeys.map((key, i) => ({ name: `achq-${i + 1}`, public_key: key.trim().split(/\s+/).slice(0, 2).join(" ") })) }),
     },
   ],
   exports: { [SERVICE_CLASS]: { type: "durable-object", storage: "sqlite" } },
