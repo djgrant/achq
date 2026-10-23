@@ -128,6 +128,8 @@ export class Lifecycle {
   private lastActivity?: number;
   /** One start at a time, shared by whoever asks while it's going. */
   private starting?: Promise<void>;
+  /** When it last started, until it first answers. */
+  private bootedAt?: number;
 
   constructor(private readonly deps: LifecycleDeps) {
     this.now = deps.now ?? Date.now;
@@ -170,7 +172,12 @@ export class Lifecycle {
 
   private async waitUntilAnswering(port: number) {
     for (let waited = 0; waited <= READY_TIMEOUT_MS; waited += READY_POLL_MS) {
-      if (await this.deps.box.answers(port)) return true;
+      if (await this.deps.box.answers(port)) {
+        // What its command took to get going, e.g. downloading and installing achq.
+        if (this.bootedAt !== undefined) this.log(`${this.deps.settings.name}: answering ${(this.now() - this.bootedAt) / 1000}s after it started`);
+        this.bootedAt = undefined;
+        return true;
+      }
       if (!this.deps.box.running) return false;
       await this.sleep(READY_POLL_MS);
     }
@@ -250,8 +257,11 @@ export class Lifecycle {
   /** Starts it to run `image`, from it or a snapshot of it. False if it isn't running once started, as when its snapshot can't be restored. */
   private async boot(from: StartFrom, image: string) {
     const { box, memory, settings, env, secrets, config } = this.deps;
-    box.start({ ...from, env: { ...env, ...secrets }, ...(settings.entrypoint && { entrypoint: settings.entrypoint }), instance: settings.instance });
-    await box.intercept();
+    await this.timed("containerSnapshot" in from ? "starting from its snapshot" : "starting from its image", async () => {
+      box.start({ ...from, env: { ...env, ...secrets }, ...(settings.entrypoint && { entrypoint: settings.entrypoint }), instance: settings.instance });
+      await box.intercept();
+    });
+    this.bootedAt = this.now();
     await box.setInactivityTimeout(INACTIVITY_MS);
     if (!box.running) return false;
     // A shell's environment, for `achq container ssh`.
@@ -270,7 +280,7 @@ export class Lifecycle {
 
   /** Snapshots it, recording the snapshot against `image`, the one it runs: by default, the one it was started with. */
   private async save(image?: string) {
-    const snapshot = await this.deps.box.snapshot(this.deps.settings.name);
+    const snapshot = await this.timed("snapshotting", () => this.deps.box.snapshot(this.deps.settings.name));
     const saved: Saved = { id: snapshot.id, image: image ?? (await this.deps.memory.get<string>(KEYS.running)) ?? this.image, at: this.now() };
     await this.deps.memory.put(KEYS.snapshot, saved);
     return saved;
@@ -282,7 +292,7 @@ export class Lifecycle {
   }
 
   private async run(script: string, what: string) {
-    const { exitCode, stderr } = await this.deps.box.exec(["sh", "-c", script]);
+    const { exitCode, stderr } = await this.timed(what, () => this.deps.box.exec(["sh", "-c", script]));
     if (exitCode !== 0) throw new Error(`${this.deps.settings.name}: ${what} failed: ${stderr.trim()}`);
   }
 
@@ -291,7 +301,15 @@ export class Lifecycle {
     const { box } = this.deps;
     if (!box.running) return;
     await this.save();
-    await box.destroy();
+    await this.timed("stopping", () => box.destroy());
+  }
+
+  /** Does `work`, logging how long it took, so a slow start shows which step was slow. */
+  private async timed<T>(what: string, work: () => Promise<T>) {
+    const started = this.now();
+    const result = await work();
+    this.log(`${this.deps.settings.name}: ${what} took ${(this.now() - started) / 1000}s`);
+    return result;
   }
 
   /**

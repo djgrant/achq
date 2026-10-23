@@ -19,12 +19,14 @@ const LOCATE = [
   `const fs = require("node:fs");`,
   `const ref = process.env.ACHQ_REF;`,
   `if (!ref) throw new Error("Missing ACHQ_REF");`,
-  `const dir = "${DATA_DIR}/achq/" + ref;`,
+  `const root = "${DATA_DIR}/achq";`,
+  `const dir = root + "/" + ref;`,
 ];
 
 /** Downloads and unpacks it beside `dir`, then renames it into place, so an interrupted download is never taken for a finished one. */
 const DOWNLOAD = [
   `if (!fs.existsSync(dir)) {`,
+  `  const started = Date.now();`,
   `  const res = await fetch("${ACHQ_SOURCE.archive}" + ref);`,
   `  if (!res.ok) throw new Error("achq " + ref + ": " + res.status);`,
   `  const tmp = dir + ".tmp";`,
@@ -35,13 +37,16 @@ const DOWNLOAD = [
   `  if (!tar.success) throw new Error("tar: " + tar.stderr);`,
   `  fs.rmSync(tmp + ".tgz");`,
   `  fs.renameSync(tmp, dir);`,
+  `  console.log("achq " + ref.slice(0, 7) + ": downloaded in " + (Date.now() - started) / 1000 + "s");`,
   `}`,
 ];
 
 const INSTALL = [
   `if (!fs.existsSync(dir + "/node_modules")) {`,
+  `  const started = Date.now();`,
   `  const install = Bun.spawnSync(["bun", "install", "--production", "--frozen-lockfile"], { cwd: dir, stdout: "inherit", stderr: "inherit" });`,
   `  if (!install.success) throw new Error("bun install failed");`,
+  `  console.log("achq " + ref.slice(0, 7) + ": installed in " + (Date.now() - started) / 1000 + "s");`,
   `}`,
 ];
 
