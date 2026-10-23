@@ -28,10 +28,11 @@ const IDLE_ENTRYPOINT = ["sleep", "infinity"];
 /** Where the container's environment is written, for shells: `wrangler containers ssh` doesn't pass it on. */
 export const ENV_FILE = "/run/achq/env";
 
-/** Uploads /data as a gzipped tar to the container's archive, with curl or else Node. */
+/** Uploads /data as a gzipped tar to the container's archive, with curl or else Node: empty, if it never ran. */
 const ARCHIVE_SCRIPT = [
   "set -e",
   "f=/tmp/achq-data.tar.gz",
+  `mkdir -p ${DATA_DIR}`,
   `tar -czpf "$f" --numeric-owner -C / ${DATA_DIR.slice(1)}`,
   `if command -v curl >/dev/null; then curl -fsS -T "$f" "http://${INTERNAL_HOSTS.archive}/"`,
   `else F="$f" node -e 'fetch("http://${INTERNAL_HOSTS.archive}/", { method: "PUT", body: require("fs").readFileSync(process.env.F) }).then((r) => process.exit(r.ok ? 0 : 1))'; fi`,
