@@ -85,8 +85,8 @@ export const plan = async (resources: Resource[], ctx: Context): Promise<Plan> =
 export type Teardown = {
   /** What it deletes, in order. */
   changes: Change[];
-  /** What it leaves because it's protected. */
-  protected: { target: string; what: string }[];
+  /** What it leaves because it's protected, and where you delete each yourself, if it says. */
+  protected: { target: string; what: string; page?: string }[];
   apply(): Promise<void>;
 };
 
@@ -96,7 +96,9 @@ export const teardown = async (resources: Resource[], ctx: Context): Promise<Tea
   const doomed = existing.filter(({ resource }) => !resource.protect && resource.destroy);
   return {
     changes: doomed.map(({ resource }) => ({ op: "-" as const, target: label(resource), what: resource.kind })),
-    protected: existing.filter(({ resource }) => resource.protect).map(({ resource }) => ({ target: label(resource), what: resource.kind })),
+    protected: existing
+      .filter(({ resource }) => resource.protect)
+      .map(({ resource, props, current }) => ({ target: label(resource), what: resource.kind, ...(resource.deletePage && { page: resource.deletePage(props, current, ctx) }) })),
     apply: async () => {
       for (const { resource, props, current } of doomed) await resource.destroy!(props, current, ctx);
     },

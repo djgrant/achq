@@ -2,7 +2,7 @@ import { defineCommand } from "@pokit/core";
 import { z } from "zod";
 import { loadConfig } from "../lib/config.ts";
 import { configVault, down, infraChecks, loadInfra } from "../lib/infra.ts";
-import { clean, confirm } from "../lib/terminal.ts";
+import { clean, confirm, openInBrowser } from "../lib/terminal.ts";
 import { needInfra } from "../lib/workdir.ts";
 
 export const command = defineCommand({
@@ -17,6 +17,7 @@ export const command = defineCommand({
     await down(await loadInfra(needInfra()), { dryRun: context.dryRun }, {
       env: process.env,
       confirm: async (message) => context.yes || (await confirm(message)),
+      open: openInBrowser,
       vault: configVault(await loadConfig(), process.env),
       log: (line) => console.log(line),
     });

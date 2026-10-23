@@ -6,7 +6,8 @@ import { subprocess } from "@achq/utils/subprocess";
 import { text } from "@achq/utils/text";
 import { CLOUDFLARE_ENV, CONTAINER_PROVIDER, DEPLOYER_TOKEN_NAME, DEPLOYER_TOKEN_PERMISSIONS, LOG_TAIL_LINES, WRANGLER, WRANGLER_TOKEN_REUSE_MS } from "./constants.ts";
 
-const TOKENS_PAGE = "https://dash.cloudflare.com/profile/api-tokens";
+/** Where your API tokens are made and deleted. */
+export const TOKENS_PAGE = "https://dash.cloudflare.com/profile/api-tokens";
 const ACTIVE = "active";
 const SIGN_IN = "npx wrangler login";
 

@@ -51,6 +51,10 @@ const hookConfig = (url: string, key: string, appId: string | number): HookConfi
 
 const routerChannels = new WeakMap<Router, Map<string, Channel>>();
 
+/** One of an App's settings pages, e.g. `permissions`, under its owner's settings. */
+const appPage = (web: string, org: string | undefined, slug: string, page: string) =>
+  org ? `${web}/organizations/${org}/settings/apps/${slug}/${page}` : `${web}/settings/apps/${slug}/${page}`;
+
 export class Channel extends ManagedResource<ChannelProps, ChannelState, ChannelAttrs, ChannelChange> {
   readonly kind = "github-channel";
   readonly slug: string;
@@ -118,12 +122,11 @@ export class Channel extends ManagedResource<ChannelProps, ChannelState, Channel
       ctx.log(`  ! GitHub turned down ${slug}'s key from the vault (${status}), so it's made again`);
       return undefined;
     }
-    const permissionsPage = org ? `${web}/organizations/${org}/settings/apps/${slug}/permissions` : `${web}/settings/apps/${slug}/permissions`;
     return {
       events: settings.events,
       permissions: settings.permissions,
       hook,
-      settings: permissionsPage,
+      settings: appPage(web, org, slug, "permissions"),
       keys,
       onRouter: stored?.id === keys.id && stored.privateKey === keys.privateKey,
     };
@@ -154,6 +157,11 @@ export class Channel extends ManagedResource<ChannelProps, ChannelState, Channel
     const lacks = lacking(current, { events: APP_EVENTS, permissions: APP_PERMISSIONS });
     const problems = [...lacks.events.map((e) => `doesn't send ${e}`), ...lacks.permissions.map(([name, level]) => `lacks ${name}: ${level}`)];
     return problems.map((problem) => `${slug} ${problem}: change it at ${current.settings}`);
+  }
+
+  /** Its settings' Advanced page, which deletes it. */
+  deletePage({ slug, org }: ChannelProps, _current: ChannelState, ctx: Context) {
+    return appPage(githubUrls(ctx.env).web, org, slug, "advanced");
   }
 
   planned({ slug }: ChannelProps, current: ChannelState | undefined): Planned<ChannelAttrs> {

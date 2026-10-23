@@ -210,7 +210,7 @@ test("once applied, nothing changes until an input does, and then only what depe
   expect(JSON.parse(fake.workers.get("achq-router")!.secrets.ACHQ_ENV!).ACHQ_REF).toBe("b");
 });
 
-test("teardown deletes the Workers, their containers with them, then the bucket, emptied, and the namespace; the deployer's token is protected", async () => {
+test("teardown deletes the Workers, their containers with them, then the bucket, emptied, and the namespace; the deployer's token is protected, and deleted on your API tokens page", async () => {
   await (await plan(declare().resources, ctx)).apply();
   fake.buckets.get("achq")!.set("achq-router/data.tar.gz", "archive");
   const planned = await teardown(declare().resources, ctx);
@@ -220,7 +220,7 @@ test("teardown deletes the Workers, their containers with them, then the bucket,
     "- router/project/bucket cloudflare-r2-bucket",
     "- router/project/namespace cloudflare-kv-namespace",
   ]);
-  expect(planned.protected).toEqual([{ target: "deployer/deployer-token", what: "cloudflare-deployer-token" }]);
+  expect(planned.protected).toEqual([{ target: "deployer/deployer-token", what: "cloudflare-deployer-token", page: "https://dash.cloudflare.com/profile/api-tokens" }]);
   expect(fake.workers.size).toBe(2);
 
   await planned.apply();

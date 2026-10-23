@@ -220,6 +220,8 @@ export type DownDeps = {
   env: Vars;
   /** Asks you whether to go ahead, once it's shown what it deletes. */
   confirm: (message: string) => Promise<boolean>;
+  /** Opens `url` in your browser to `what`: where you delete what's protected yourself. */
+  open: (url: string, what: string) => Promise<void>;
   vault?: Vault;
   /** Rewrites the router's public URL; tests point it at a fake. */
   routerUrl?: (publicUrl: string) => string;
@@ -231,7 +233,8 @@ export type DownDeps = {
  * Deletes the infra: first the deployer syncs to no repos, uninstalling each
  * and deleting every container, then the router, the deployer and what they
  * share are deleted, each before what it depends on. Shows it all and asks
- * first, then deletes only what it showed. What's protected is listed, and left.
+ * first, then deletes only what it showed. What's protected is listed and
+ * left, and where you delete each yourself is opened.
  */
 export const down = async (infra: InfraResources, { dryRun }: { dryRun: boolean }, deps: DownDeps) => {
   const { log } = deps;
@@ -246,9 +249,12 @@ export const down = async (infra: InfraResources, { dryRun }: { dryRun: boolean 
   // In the order it happens.
   if (synced && !nothing) for (const line of formatSync(synced, true)) log(`  sync: ${line}`);
   for (const line of planLines({ ...planned, warnings: [] })) log(`  ${line}`);
-  if (dryRun || nothing) return;
-  if (!(await deps.confirm("Delete all of this?"))) throw new Error("Nothing was deleted");
-  if (router) for (const line of formatSync(await sync(router, { ...request, expect: synced!.pruned }, ctx), false)) log(`  sync: ${line}`);
-  await planned.apply();
-  log("  deleted");
+  if (dryRun) return;
+  if (!nothing) {
+    if (!(await deps.confirm("Delete all of this?"))) throw new Error("Nothing was deleted");
+    if (router) for (const line of formatSync(await sync(router, { ...request, expect: synced!.pruned }, ctx), false)) log(`  sync: ${line}`);
+    await planned.apply();
+    log("  deleted");
+  }
+  for (const { target, page } of planned.protected) if (page) await deps.open(page, `delete ${target}`);
 };

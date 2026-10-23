@@ -140,4 +140,6 @@ export abstract class ManagedResource<P = any, S = any, O = any, C = any> extend
    * that's gone since it was read succeeds.
    */
   destroy?(props: P, current: S, ctx: Context): Promise<void>;
+  /** For one that's protected: the page where you delete it yourself, which `achq infra down` opens once it's deleted the rest. */
+  deletePage?(props: P, current: S, ctx: Context): string;
 }

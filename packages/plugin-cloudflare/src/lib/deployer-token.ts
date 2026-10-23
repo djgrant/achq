@@ -1,5 +1,5 @@
 import { type Change, type Context, known, ManagedResource } from "@achq/core";
-import { connect, deployerTokenPage, deployerTokenProblem } from "./cloudflare.ts";
+import { connect, deployerTokenPage, deployerTokenProblem, TOKENS_PAGE } from "./cloudflare.ts";
 import { CLOUDFLARE_ENV, TOKEN_ATTEMPTS } from "./constants.ts";
 
 type Props = {
@@ -42,6 +42,11 @@ export class DeployerToken extends ManagedResource<Props, State, {}, TokenChange
 
   planned() {
     return {};
+  }
+
+  /** Your API tokens, where it's the one named after the deployer: only its Worker knows which it is. */
+  deletePage() {
+    return TOKENS_PAGE;
   }
 
   async apply({ worker }: Props, _current: State | undefined, _changes: TokenChange[], ctx: Context) {

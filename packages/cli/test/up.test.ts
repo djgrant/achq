@@ -232,9 +232,13 @@ test("up creates everything, puts the App's key only in the router's variables, 
   expect(fs.existsSync(path.join(import.meta.dir, "../../../secrets.env")) ? fs.readFileSync(path.join(import.meta.dir, "../../../secrets.env"), "utf8") : "").not.toContain(pemBody);
 });
 
+/** The pages `down` opened. */
+let opened: string[] = [];
+
 const downDeps = (log: string[], answer: boolean): DownDeps => {
   const { env, sleep, routerUrl } = deps();
-  return { env, sleep, routerUrl, log: (line) => log.push(line), confirm: async () => answer };
+  opened = [];
+  return { env, sleep, routerUrl, log: (line) => log.push(line), confirm: async () => answer, open: async (url) => void opened.push(url) };
 };
 
 test("down shows what it deletes, the deployer's sync to no repos first, and what's protected; a dry run or a no deletes nothing", async () => {
@@ -249,6 +253,7 @@ test("down shows what it deletes, the deployer's sync to no repos first, and wha
   ]);
   await expect(down(infra(), { dryRun: false }, downDeps([], false))).rejects.toThrow("Nothing was deleted");
   expect(downs.map((d) => d.request.dryRun)).toEqual([true, true]);
+  expect(opened).toEqual([]);
   expect(fake.projects).toHaveLength(1);
 });
 
@@ -262,11 +267,14 @@ test("down has the deployer delete what it showed, then deletes the infra; then 
   ]);
   expect(fake.projects).toEqual([]);
   expect(log.slice(-3)).toEqual(["  sync: uninstalled: djgrant/x", "  sync: pruned: djgrant/x/dev", "  deleted"]);
+  // Where you delete the App yourself.
+  expect(opened).toEqual([`http://localhost:${gh.port}/settings/apps/djgrant-claude/advanced`]);
 
   // With no router, there's no deployer to ask.
   const again: string[] = [];
   await down(infra(), { dryRun: false }, downDeps(again, true));
   expect(again).toEqual(["  nothing to delete"]);
+  expect(opened).toEqual([]);
   expect(downs).toHaveLength(2);
 });
 
