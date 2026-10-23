@@ -1,6 +1,8 @@
 import { BrowserActionNeeded, type DeployRecord, ENV, type RepoClient, type RepoManifest, repoName, type Status } from "@achq/core";
 import { containerSecret } from "@achq/core/secrets";
+import { crypto } from "@achq/utils/crypto";
 import { errors } from "@achq/utils/errors";
+import { json } from "@achq/utils/json";
 import { checkManifest, dockerfileOf } from "./checks.ts";
 import { CONFIG_DIR, CONFIG_ENTRY, isSourceFile } from "./config/evaluate.ts";
 import type { DeployerContext } from "./deployer.ts";
@@ -68,7 +70,9 @@ export const deploy = async (ctx: DeployerContext, hostId: string, repo: string,
     const tree = await client.config();
     commit = tree.commit;
 
-    if (previous?.state === "deployed" && previous.host === hostId && tree.tree && previous.deployed?.tree === tree.tree) {
+    // What the deployer gives every container, e.g. the agents' tokens: hashed, as it holds secrets.
+    const given = crypto.sha256Hex(json.stableStringify({ ...ctx.env.containerEnv, ref: ctx.env.ref, routerUrl: ctx.env.routerUrl, privateEnv: ctx.env.privateEnv }));
+    if (previous?.state === "deployed" && previous.host === hostId && tree.tree && previous.deployed?.tree === tree.tree && previous.deployed.given === given) {
       ctx.log(`${repo}: ${CONFIG_DIR}/ unchanged at ${tree.commit}`);
       return withWarnings({ repo, outcome: "unchanged", manifest: previous.deployed.manifest }, previous.warnings);
     }
@@ -127,7 +131,7 @@ export const deploy = async (ctx: DeployerContext, hostId: string, repo: string,
     for (const c of manifest.containers) containers.push({ name: c.name, location: await ctx.containerProvider.locate(repo, c.name) });
 
     const record: StoredRecord = { host: hostId, repo, state: "deployed", at: ctx.now().toISOString(), commit: tree.commit, containers };
-    await save({ ...withWarnings(record, checked.warnings), deployed: { tree: tree.tree, manifest, images } });
+    await save({ ...withWarnings(record, checked.warnings), deployed: { tree: tree.tree, manifest, images, given } });
     ctx.log(`${repo}: deployed ${tree.commit}`);
     return withWarnings({ repo, outcome: "deployed", manifest }, checked.warnings);
   } catch (failure) {

@@ -14,8 +14,12 @@ const UNSAFE_START = /^\.|^$/;
 /** What a container was last deployed from: a change to either means a rebuild. */
 export type ImageRecord = { dockerfile: string; blob: string };
 
-/** The last deploy that succeeded, kept across later failures and uninstalls. */
-export type DeployedSnapshot = { tree: string; manifest: RepoManifest; images: Record<string, ImageRecord> };
+/**
+ * The last deploy that succeeded, kept across later failures and uninstalls.
+ * `given` is a hash of what the deployer gave its containers, so a change to it
+ * deploys again, as a change to the config does.
+ */
+export type DeployedSnapshot = { tree: string; manifest: RepoManifest; images: Record<string, ImageRecord>; given?: string };
 
 export type StoredRecord = DeployRecord & { deployed?: DeployedSnapshot };
 

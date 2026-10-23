@@ -52,7 +52,7 @@ let evaluations: number;
 let clock: number;
 let logs: string[];
 
-const makeDeployer = (options: { owners?: string[] } = {}) =>
+const makeDeployer = (options: { owners?: string[]; env?: typeof ENV } = {}) =>
   createDeployer({
     containerProvider,
     router: routerClient({ url: router.url, key: KEY }),
@@ -64,7 +64,7 @@ const makeDeployer = (options: { owners?: string[] } = {}) =>
       return evaluateConfig(files);
     },
     now: () => new Date(Date.UTC(2026, 9, 17, 10, 0, clock++)),
-    env: ENV,
+    env: options.env ?? ENV,
     log: (line) => logs.push(line),
   });
 
@@ -283,6 +283,17 @@ describe("config changes", () => {
     router.installed = [{ host: "github", repo: REPO }];
     expect((await deployer.sync()).deployed).toEqual([REPO]);
     expect(containerProvider.services.get(`${REPO}/dev`)!.spec.host).toBe("github");
+  });
+
+  test("a new token for the agents deploys again, with the same .achq tree, and builds nothing", async () => {
+    github.commit(REPO, repoFiles());
+    expect((await makeDeployer().deploy("github", REPO)).outcome).toBe("deployed");
+    const builds = containerProvider.ops().filter((o) => o.op === "deploy").length;
+    const renewed = { ...ENV, containerEnv: { CLAUDE_CODE_OAUTH_TOKEN: "new-token" } };
+    expect((await makeDeployer({ env: renewed }).deploy("github", REPO)).outcome).toBe("deployed");
+    expect(containerProvider.services.get(`${REPO}/dev`)!.spec.env.CLAUDE_CODE_OAUTH_TOKEN).toBe("new-token");
+    expect(containerProvider.ops().filter((o) => o.op === "deploy").length).toBe(builds);
+    expect((await makeDeployer({ env: renewed }).deploy("github", REPO)).outcome).toBe("unchanged");
   });
 
   test("a host achq doesn't know fails without touching anything", async () => {
