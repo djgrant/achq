@@ -5,11 +5,11 @@ import { evaluateConfig } from "@achq/deployer/config";
 import { async } from "@achq/utils/async";
 import { disk } from "@achq/utils/disk";
 import { http } from "@achq/utils/http";
-import { subprocess } from "@achq/utils/subprocess";
 import { text } from "@achq/utils/text";
 import { FIX_ATTEMPTS, STATUS_INTERVAL_MS, STATUS_TIMEOUT_MS } from "../constants.ts";
 import { planLines } from "./format.ts";
 import { cliContext } from "./infra.ts";
+import { openInBrowser } from "./terminal.ts";
 import { needRepo, repoRoot } from "./workdir.ts";
 
 const CONFIG_DIR = ".achq";
@@ -31,7 +31,7 @@ export const planInstall = async (action: "install" | "uninstall") => {
   const { host, repo, codeHost } = needRepo();
   const config = await loadRepoManifest(repoRoot());
   const resources = action === "install" ? codeHost.install(repo, config) : codeHost.uninstall(repo, config);
-  const planned = await plan(resources, cliContext({ env: process.env, log: (line) => console.log(line), open: async (url) => subprocess.openUrl(url) }));
+  const planned = await plan(resources, cliContext({ env: process.env, log: (line) => console.log(line), open: openInBrowser }));
   for (const line of planLines(planned)) console.log(line);
   if (planned.changes.length) return { host, repo, codeHost, apply: () => planned.apply() };
   // e.g. `app is already installed on a/b`, or `app isn't installed on a/b`.

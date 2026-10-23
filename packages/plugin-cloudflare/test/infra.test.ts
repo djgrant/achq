@@ -124,7 +124,8 @@ test("a new project plans in one pass and writes nothing, with the router's URL 
   const page = deployerTokenPage(fake.accountId);
   expect(logs).toEqual([
     "  waiting for the router to answer…",
-    `  The deployer needs a Cloudflare API token of its own. Create it with what's filled in, then paste it here. It's kept only as the deployer's secret: ${page}`,
+    "  The deployer needs a Cloudflare API token of its own. Create it with what's filled in, then paste it here. It's kept only as the deployer's secret.",
+    "  ✔ The token works, and it's the deployer's secret now.",
   ]);
   expect(opened).toEqual([{ url: page, what: "create the deployer's Cloudflare token" }]);
   expect(asked).toEqual(["The deployer's Cloudflare token"]);

@@ -49,13 +49,14 @@ export class DeployerToken extends ManagedResource<Props, State, {}, TokenChange
     if (!open || !prompt) throw new Error("The deployer's Cloudflare token is made in your browser and pasted here, which only `achq infra up` can do");
     const cf = await connect(ctx.env);
     const page = deployerTokenPage(cf.accountId);
-    ctx.log(`  The deployer needs a Cloudflare API token of its own. Create it with what's filled in, then paste it here. It's kept only as the deployer's secret: ${page}`);
+    ctx.log("  The deployer needs a Cloudflare API token of its own. Create it with what's filled in, then paste it here. It's kept only as the deployer's secret.");
     await open(page, "create the deployer's Cloudflare token");
     for (let attempt = 1; ; attempt++) {
       const token = (await prompt("The deployer's Cloudflare token")).trim();
       const problem = token ? await deployerTokenProblem(token, cf.accountId, cf.transport.endpoint) : "No token was pasted";
       if (!problem) {
         await cf.workers.putSecret(worker, CLOUDFLARE_ENV.deployerToken, token);
+        ctx.log("  ✔ The token works, and it's the deployer's secret now.");
         return {};
       }
       if (attempt >= TOKEN_ATTEMPTS) throw new Error(`${problem}. Run \`achq infra up\` again to make another.`);

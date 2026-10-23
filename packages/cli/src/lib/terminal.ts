@@ -1,5 +1,6 @@
 import { markOperational, type Prompter } from "@pokit/core";
 import { CLI_ENV, TERMINAL_ENV } from "../constants.ts";
+import { subprocess } from "@achq/utils/subprocess";
 
 const BUGS = [TypeError, ReferenceError, SyntaxError, RangeError];
 
@@ -54,9 +55,15 @@ const CTRL_C = "\u0003";
 const CTRL_D = "\u0004";
 const BACKSPACE = ["\u007f", "\b"];
 
+/** Opens the URL in your browser, printing it only when that fails: Cloudflare's are long. */
+export const openInBrowser = async (url: string, what: string) => {
+  console.log(`  opening your browser to ${what}…`);
+  if (!subprocess.openUrl(url)) console.log(`  it didn't open, so go to ${url}`);
+};
+
 /**
- * Asks for a secret on the terminal, e.g. a token you just made, without
- * echoing it. Without a terminal, reads a line from stdin.
+ * Asks for a secret on the terminal, e.g. a token you just made, showing a `*`
+ * for each character. Without a terminal, reads a line from stdin.
  */
 export const readSecret = async (message: string): Promise<string> => {
   const stdin = process.stdin;
@@ -83,8 +90,13 @@ export const readSecret = async (message: string): Promise<string> => {
             stdin.off("data", onData);
             return reject(new Error("Cancelled"));
           }
-          if (BACKSPACE.includes(char)) typed = typed.slice(0, -1);
-          else typed += char;
+          if (BACKSPACE.includes(char)) {
+            if (typed) process.stdout.write("\b \b");
+            typed = typed.slice(0, -1);
+          } else {
+            typed += char;
+            process.stdout.write("*");
+          }
         }
       };
       stdin.on("data", onData);
