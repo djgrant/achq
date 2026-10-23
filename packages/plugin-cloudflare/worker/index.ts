@@ -50,6 +50,13 @@ const stripped = (req: Request, port?: number) => {
   return new Request(req, { headers });
 };
 
+/** Over HTTP, as a container takes no HTTPS: the connection to it is already secure. */
+const toContainer = (req: Request) => {
+  const url = new URL(req.url);
+  url.protocol = "http:";
+  return new Request(url.href, stripped(req));
+};
+
 export default {
   async fetch(req: Request, env: Env, ctx: { exports: DurableObjectState["exports"] }) {
     const route = inbound(req.headers, env.ACHQ_SERVICE, (key) => sameKey(key, env.ACHQ_INTERNAL_KEY));
@@ -132,7 +139,7 @@ export class Service extends DurableObject<Env> {
   async fetch(req: Request) {
     await this.ready;
     const port = Number(req.headers.get(HEADERS.port));
-    const response = await this.lifecycle.serve(port, () => this.ctx.container!.getTcpPort(port).fetch(stripped(req)));
+    const response = await this.lifecycle.serve(port, () => this.ctx.container!.getTcpPort(port).fetch(toContainer(req)));
     await this.lookAgain();
     return response;
   }
