@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, expect, spyOn, test } from "bun:test";
 import { createHash } from "node:crypto";
 import * as core from "@achq/core";
-import { achq, type Change, type Context, type Output, plan, UNKNOWN } from "@achq/core";
+import { achq, type Change, type Context, type Output, plan, teardown, UNKNOWN } from "@achq/core";
 import { type FakeRailway, startFakeRailway } from "@achq/test-utils/railway";
 import { Deployer, Router } from "../src/infra.ts";
 import { Railway } from "@achq/utils/railway";
@@ -115,6 +115,16 @@ test("once applied, nothing changes until an input does, and then only what depe
   expect(fake.service("achq-router")!.deployments).toHaveLength(2);
   expect(fake.service("achq-router")!.domains).toHaveLength(1);
   expect(fake.service("achq-router")!.variables.AGENT_WEBHOOK_KEY).toBe("generated-key");
+});
+
+test("teardown deletes the project, and every service and volume in it with it", async () => {
+  await (await plan(declare().resources, ctx)).apply();
+  const planned = await teardown(declare().resources, ctx);
+  expect(planned.changes).toEqual([{ op: "-", target: "achq", what: "railway project", detail: "with every service and volume in it" }]);
+  expect(planned.kept).toEqual([]);
+  await planned.apply();
+  expect(fake.projects).toEqual([]);
+  expect((await teardown(declare().resources, ctx)).changes).toEqual([]);
 });
 
 test("an existing service gets back a missing volume, its own private hostname and exactly one public domain, without redeploying", async () => {

@@ -1,5 +1,5 @@
 import * as path from "node:path";
-import { type Check, type Context, Deployer, type Vault, DEPLOYER_PORT, ENV, type Infra, known, plan, type Resource, Router, ROUTER_PRIVATE_PORT, type SyncRequest, type DeployerVersion, type SyncStarted, type SyncStatus } from "@achq/core";
+import { type Check, type Context, Deployer, type Vault, DEPLOYER_PORT, ENV, type Infra, type JobStarted, type JobStatus, known, plan, type Resource, Router, ROUTER_PRIVATE_PORT, type SyncRequest, type DeployerVersion, type SyncStatus, teardown, type TeardownRequest, type TeardownResult } from "@achq/core";
 import { adminSecret } from "@achq/core/secrets";
 import { signedFetch } from "@achq/core/signing";
 import { async } from "@achq/utils/async";
@@ -8,7 +8,7 @@ import { crypto } from "@achq/utils/crypto";
 import { Env, type Vars } from "@achq/utils/env";
 import { HttpError } from "@achq/utils/http";
 import { agentEnv, containerProviderNamed, INFRA_MODULES, vaultProviderNamed } from "achq/registry";
-import { DEPLOYER_VERSION_TIMEOUT_MS, SYNC_INTERVAL_MS, SYNC_TIMEOUT_MS } from "../constants.ts";
+import { DEPLOYER_VERSION_TIMEOUT_MS, SYNC_INTERVAL_MS, SYNC_TIMEOUT_MS, TEARDOWN_TIMEOUT_MS } from "../constants.ts";
 import type { CliConfig } from "./config.ts";
 import { planLines } from "./format.ts";
 
@@ -109,15 +109,22 @@ export const agentEnvCheck = (env: Vars): Check => ({
   },
 });
 
-/** The router's public URL and AGENT_WEBHOOK_KEY, read from where it runs. Plans the router, so changes nothing. */
-export const routerAccess = async ({ router }: InfraResources, ctx: Context) => {
+/** The router's public URL and AGENT_WEBHOOK_KEY, read from where it runs, or undefined if it isn't there. Plans the router, so changes nothing. */
+const foundRouter = async ({ router }: InfraResources, ctx: Context): Promise<RouterAccess | undefined> => {
   const planned = await plan([router], ctx);
   const env = planned.value(router.env);
   const url = planned.value(router.url);
-  if (!known(env) || !Object.keys(env).length) throw new Error(`There's no router ${router.name}. Run \`achq infra up\`.`);
+  if (!known(env) || !Object.keys(env).length) return undefined;
   const key = env[ENV.key];
   if (!key || !known(url)) throw new Error(`Router ${router.name} isn't set up. Run \`achq infra up\`.`);
   return { base: url, key };
+};
+
+/** As `foundRouter`, but throws if it isn't there. */
+export const routerAccess = async (infra: InfraResources, ctx: Context) => {
+  const found = await foundRouter(infra, ctx);
+  if (!found) throw new Error(`There's no router ${infra.router.name}. Run \`achq infra up\`.`);
+  return found;
 };
 
 /** Throws on anything but 2xx. */
@@ -177,14 +184,68 @@ export const up = async ({ router, deployer, resources }: InfraResources, option
   // A new deployer takes a while to replace the one running, and a sync the old one ran would deploy with what it was given.
   if (!options.dryRun) await deployerRuns({ base, key }, ref, ctx, log);
   const sync: SyncRequest = { prune: options.prune, dryRun: options.dryRun };
-  // It runs on the deployer, and its builds can outlast a request, so it's asked after until it's done.
-  const { id } = await adminRequest<SyncStarted>({ base, key }, "POST", "/admin/sync", sync);
-  const status = await async.pollUntil(
-    () => adminRequest<SyncStatus>({ base, key }, "GET", `/admin/sync/${id}`),
-    (s) => s.state !== "running",
-    { intervalMs: SYNC_INTERVAL_MS, timeoutMs: SYNC_TIMEOUT_MS, sleep: ctx.sleep },
-  );
+  const status = await deployerJob<SyncStatus>({ base, key }, "sync", sync, SYNC_TIMEOUT_MS, ctx);
   if (!status) throw new Error(`The sync hasn't finished after ${SYNC_TIMEOUT_MS / 60_000} minutes; \`achq infra status\` shows each repo's deploy`);
   if (status.state !== "done") throw new Error("The sync failed; the deployer's logs say why");
   return status.result;
+};
+
+/** Starts a job on the deployer, e.g. `sync`, and asks after it until it's done: it can outlast a request. Undefined if it's still running after `timeoutMs`. */
+const deployerJob = async <S extends JobStatus<unknown>>(router: RouterAccess, job: string, request: unknown, timeoutMs: number, ctx: Context) => {
+  const { id } = await adminRequest<JobStarted>(router, "POST", `/admin/${job}`, request);
+  return async.pollUntil(
+    () => adminRequest<S>(router, "GET", `/admin/${job}/${id}`),
+    (s) => s.state !== "running",
+    { intervalMs: SYNC_INTERVAL_MS, timeoutMs, sleep: ctx.sleep },
+  );
+};
+
+export type DownDeps = {
+  env: Vars;
+  /** Asks you whether to go ahead, once it's shown what it deletes. */
+  confirm: (message: string) => Promise<boolean>;
+  vault?: Vault;
+  /** Rewrites the router's public URL; tests point it at a fake. */
+  routerUrl?: (publicUrl: string) => string;
+  log: (line: string) => void;
+  sleep?: (ms: number) => Promise<void>;
+};
+
+/** The containers the deployer deletes, or would: none without a router. */
+const deleteContainers = async (router: RouterAccess | undefined, dryRun: boolean, ctx: Context) => {
+  if (!router) return [];
+  const request: TeardownRequest = { dryRun };
+  const status = await deployerJob<JobStatus<TeardownResult>>(router, "teardown", request, TEARDOWN_TIMEOUT_MS, ctx).catch((e) => {
+    // A router or deployer from before `achq infra down` has no such route.
+    if (e instanceof HttpError && e.status === 404) throw new Error("The deployer can't delete containers yet: run `achq infra up` to update it, then `achq infra down`");
+    throw e;
+  });
+  if (!status) throw new Error(`The deployer hasn't deleted the containers after ${TEARDOWN_TIMEOUT_MS / 60_000} minutes; nothing else was deleted`);
+  if (status.state !== "done") throw new Error("The deployer couldn't delete the containers, and nothing else was deleted; its logs say why");
+  return status.result.removed;
+};
+
+/**
+ * Deletes the infra: first every container, by the deployer, then the router,
+ * the deployer and what they share, each before what it depends on. Shows it
+ * all and asks first. What only you can delete, e.g. a GitHub App, is listed
+ * with where to.
+ */
+export const down = async (infra: InfraResources, { dryRun }: { dryRun: boolean }, deps: DownDeps) => {
+  const { log } = deps;
+  const ctx = cliContext({ env: deps.env, log, vault: deps.vault, sleep: deps.sleep });
+  const found = await foundRouter(infra, ctx);
+  const router = found && { ...found, base: deps.routerUrl ? deps.routerUrl(found.base) : found.base };
+  const containers = await deleteContainers(router, true, ctx);
+  const planned = await teardown(infra.resources, ctx);
+  const changes = [...containers.map((c) => ({ op: "-" as const, target: c, what: "container", detail: "with its data" })), ...planned.changes];
+  if (!changes.length) log("  nothing to delete");
+  for (const line of planLines({ changes, warnings: [] })) log(`  ${line}`);
+  if (!dryRun && changes.length) {
+    if (!(await deps.confirm("Delete all of this?"))) throw new Error("Nothing was deleted");
+    await deleteContainers(router, false, ctx);
+    await planned.apply();
+    log("  deleted");
+  }
+  for (const k of planned.kept) log(`  kept: ${k}`);
 };

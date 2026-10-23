@@ -50,6 +50,11 @@ export class Railway {
     return this.transport.call(OPERATIONS.projectCreate, { input: { name, workspaceId } });
   }
 
+  /** Deletes the project, with every service and volume in it. */
+  async deleteProject(projectId: string) {
+    await this.transport.call(OPERATIONS.projectDelete, { id: projectId });
+  }
+
   async readProject(projectId: string) {
     return snapshotOf(await this.transport.call(OPERATIONS.project, { id: projectId }));
   }

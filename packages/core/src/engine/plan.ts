@@ -35,8 +35,8 @@ const readAndCompare = async (resource: ManagedResource, props: unknown, ctx: Co
   return { resource, props, current, changes, planned: resource.planned(props, current, changes) };
 };
 
-/** Plans `resources`, their children and everything they depend on. Reads, never writes. */
-export const plan = async (resources: Resource[], ctx: Context): Promise<Plan> => {
+/** Reads `resources`, their children and everything they depend on, each after what it depends on. */
+const readAll = async (resources: Resource[], ctx: Context) => {
   // Each resource's children are asked for once.
   const reached = graph.reachable(resources, (r) => [...(r instanceof ManagedResource ? dependsOn(r) : []), ...r.children(ctx)]);
   const outputs: Outputs = new Map();
@@ -46,6 +46,12 @@ export const plan = async (resources: Resource[], ctx: Context): Promise<Plan> =
     steps.push(step);
     outputs.set(resource, step.planned);
   }
+  return { steps, outputs };
+};
+
+/** Plans `resources`, their children and everything they depend on. Reads, never writes. */
+export const plan = async (resources: Resource[], ctx: Context): Promise<Plan> => {
+  const { steps, outputs } = await readAll(resources, ctx);
 
   return {
     changes: steps.flatMap(({ resource, props, changes }) => changes.map((c) => resource.describe(c, props))),
@@ -68,6 +74,30 @@ export const plan = async (resources: Resource[], ctx: Context): Promise<Plan> =
         if (step.changes.length) changed.add(resource);
       }
       return { value: (input) => resolve(input, live), changed: (r) => changed.has(r) };
+    },
+  };
+};
+
+export type Teardown = {
+  /** What it deletes, in order. */
+  changes: Change[];
+  /** What it leaves, which only you can delete. */
+  kept: string[];
+  apply(): Promise<void>;
+};
+
+/** Plans deleting `resources`, their children and everything they depend on that exists: each before what it depends on. Reads, never writes. */
+export const teardown = async (resources: Resource[], ctx: Context): Promise<Teardown> => {
+  const existing = (await readAll(resources, ctx)).steps.filter((s) => s.current !== undefined).reverse();
+  const doomed = existing.flatMap((step) => {
+    const removal = step.resource.destroy && step.resource.removal?.(step.props, step.current);
+    return removal ? [{ ...step, removal }] : [];
+  });
+  return {
+    changes: doomed.map(({ removal }) => removal),
+    kept: existing.flatMap(({ resource, props, current }) => resource.kept?.(props, current) ?? []),
+    apply: async () => {
+      for (const { resource, props, current } of doomed) await resource.destroy!(props, current, ctx);
     },
   };
 };

@@ -1,5 +1,5 @@
 import { beforeEach, expect, test } from "bun:test";
-import { type Change, plan } from "../src/engine/plan.ts";
+import { type Change, plan, teardown } from "../src/engine/plan.ts";
 import { all, type Input, type Inputs, known, type Planned, UNKNOWN } from "../src/engine/values.ts";
 import { declared, resetDeclarations } from "../src/resources/resource.ts";
 import { type Context, ManagedResource, Resource, type ResourceOptions } from "../src/resources/resource.ts";
@@ -43,6 +43,23 @@ class Store extends ManagedResource<{ value: string }, Row, Row, "create" | "upd
   }
   check(_props: { value: string }, current: Row) {
     return [`${this.name} has ${current.value}`];
+  }
+}
+
+/** A Store `achq infra down` deletes, unless it's marked kept, which only you can delete. */
+class Doomed extends Store {
+  removal(): Change {
+    return { op: "-", target: this.name, what: "row" };
+  }
+  async destroy() {
+    db.writes.push(`-${this.name}`);
+    db.rows.delete(this.name);
+  }
+}
+
+class Kept extends Store {
+  kept(_props: { value: string }, current: Row) {
+    return `${this.name}: delete ${current.id} yourself`;
   }
 }
 
@@ -234,4 +251,26 @@ test("a plan's and an apply's values resolve outputs nested in objects and array
   const planned = await plan([old, fresh], ctx);
   expect<unknown>(planned.value(input)).toEqual({ ids: ["id-old", UNKNOWN], value: "w", plain: 1 });
   expect((await planned.apply()).value(input)).toEqual({ ids: ["id-old", "id-fresh"], value: "w", plain: 1 });
+});
+
+test("teardown deletes what exists, each before what it depends on, and lists what only you can delete", async () => {
+  seed("base", "v");
+  seed("top", "v");
+  seed("left", "v");
+  const base = new Doomed("base", "v");
+  const top = new Doomed("top", base.out("id"));
+  const gone = new Doomed("gone", "v");
+  // Goes with what it's part of.
+  const part = new Store("part", "v", { after: [base] });
+  seed("part", "v");
+  const left = new Kept("left", "v");
+
+  const planned = await teardown([top, gone, part, left], ctx);
+  expect(db.writes).toEqual([]);
+  expect(summary(planned.changes)).toEqual(["- top row", "- base row"]);
+  expect(planned.kept).toEqual(["left: delete id-left yourself"]);
+
+  await planned.apply();
+  expect(db.writes).toEqual(["-top", "-base"]);
+  expect([...db.rows.keys()].sort()).toEqual(["left", "part"]);
 });

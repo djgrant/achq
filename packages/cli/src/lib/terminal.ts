@@ -50,6 +50,15 @@ export const waitForEnter = async (message: string) => {
   for await (const _ of console) break;
 };
 
+/** Asks a yes-or-no question: only `y` or `yes` is yes. Without a terminal to ask at, it's no. */
+export const confirm = async (message: string) => {
+  if (!interactive()) return false;
+  process.stdout.write(`  ${message} [y/N] `);
+  let line = "";
+  for await (line of console) break;
+  return ["y", "yes"].includes(line.trim().toLowerCase());
+};
+
 const ENTER = ["\r", "\n"];
 const CTRL_C = "\u0003";
 const CTRL_D = "\u0004";

@@ -145,6 +145,8 @@ export const fakeDeployer = () => {
     if (pathname === "/events") fake.events.push(JSON.parse(body));
     if (pathname === "/sync") return ++fake.syncs < 2 ? new Response("waking", { status: 503 }) : Response.json({ id: "s1" }, { status: 202 });
     if (pathname === "/sync/s1") return Response.json({ state: "done", result: { deployed: [repo], unchanged: [], uninstalled: [], pruned: [], failed: [] } });
+    if (pathname === "/teardown") return Response.json({ id: "t1" }, { status: 202 });
+    if (pathname === "/teardown/t1") return Response.json({ state: "done", result: { removed: [`${repo}/dev`] } });
     if (pathname === "/status") return Response.json([{ repo, state: "deployed" }]);
     return accepted();
   });

@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { BrowserActionNeeded, STATUS_VARIABLE, type DeployerEnvelope } from "@achq/core";
+import { BrowserActionNeeded, STATUS_VARIABLE, type DeployerEnvelope, type TeardownStatus } from "@achq/core";
 import { adminSecret, containerSecret } from "@achq/core/secrets";
 import { signedFetch } from "@achq/core/signing";
 import { evaluateConfig } from "../src/config/evaluate.ts";
@@ -531,6 +531,20 @@ describe("sync", () => {
   });
 });
 
+describe("teardown", () => {
+  test("deletes every container, of any repo, installed or not; a dry run only lists them", async () => {
+    containerProvider.seed("notationlabs/alpha", "dev");
+    containerProvider.seed("notationlabs/gone", "dev");
+    const deployer = makeDeployer();
+    const all = ["notationlabs/alpha/dev", "notationlabs/gone/dev"];
+    expect((await deployer.teardown({ dryRun: true })).removed.sort()).toEqual(all);
+    expect(containerProvider.ops("remove")).toEqual([]);
+    expect((await deployer.teardown()).removed.sort()).toEqual(all);
+    expect(containerProvider.services.size).toBe(0);
+    expect(await deployer.teardown()).toEqual({ removed: [] });
+  });
+});
+
 describe("HTTP", () => {
   test("the deployer's endpoints need an admin signature, and the router client signs its requests", async () => {
     github.commit(REPO, repoFiles());
@@ -553,6 +567,12 @@ describe("HTTP", () => {
       while ((await syncStatus()).state === "running") await Bun.sleep(5);
       expect(await syncStatus()).toMatchObject({ state: "done", result: { unchanged: [REPO] } });
       expect((await signedFetch(adminSecret(KEY), `${base}/sync/nope`, { method: "GET" })).status).toBe(404);
+      const teardown = await signedFetch(adminSecret(KEY), `${base}/teardown`, { method: "POST", body: JSON.stringify({ dryRun: true }) });
+      expect(teardown.status).toBe(202);
+      const teardownId = ((await teardown.json()) as { id: string }).id;
+      const teardownStatus = () => signedFetch(adminSecret(KEY), `${base}/teardown/${teardownId}`, { method: "GET" }).then((r) => r.json() as Promise<TeardownStatus>);
+      while ((await teardownStatus()).state === "running") await Bun.sleep(5);
+      expect(await teardownStatus()).toEqual({ state: "done", result: { removed: [`${REPO}/dev`] } });
       expect((await fetch(`${base}/`)).status).toBe(200);
     } finally {
       server.stop(true);

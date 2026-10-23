@@ -181,6 +181,7 @@ export const startFakeCloudflare = (seed: { accountId?: string; subdomain?: stri
       const per = Number(query.get("per_page") ?? 20);
       return ok([...namespaces.entries()].map(([nsId, n]) => ({ id: nsId, title: n.title })).slice((page - 1) * per, page * per));
     }
+    if ((m = p.match(/^\/storage\/kv\/namespaces\/([^/]+)$/)) && method === "DELETE") return namespaces.delete(m[1]!) ? ok(null) : fail(404, "Namespace not found");
     if ((m = p.match(/^\/storage\/kv\/namespaces\/([^/]+)\/(values\/(.+)|keys)$/))) {
       const ns = namespaces.get(m[1]!);
       if (!ns) return fail(404, "Namespace not found");
@@ -199,6 +200,17 @@ export const startFakeCloudflare = (seed: { accountId?: string; subdomain?: stri
     if (p === "/r2/buckets" && method === "POST") {
       buckets.set(((await req.json()) as { name: string }).name, new Map());
       return ok({});
+    }
+    if ((m = p.match(/^\/r2\/buckets\/([^/]+)$/)) && method === "DELETE") {
+      const bucket = buckets.get(decodeURIComponent(m[1]!));
+      if (!bucket) return fail(404, "The specified bucket does not exist");
+      if (bucket.size) return fail(409, "The bucket you tried to delete is not empty", 10008);
+      buckets.delete(decodeURIComponent(m[1]!));
+      return ok({});
+    }
+    if ((m = p.match(/^\/r2\/buckets\/([^/]+)\/objects$/))) {
+      const bucket = buckets.get(decodeURIComponent(m[1]!));
+      return bucket ? ok([...bucket.keys()].sort().map((key) => ({ key }))) : fail(404, "The specified bucket does not exist");
     }
     if ((m = p.match(/^\/r2\/buckets\/([^/]+)$/))) return buckets.has(decodeURIComponent(m[1]!)) ? ok({ name: m[1] }) : fail(404, "The specified bucket does not exist");
     if ((m = p.match(/^\/r2\/buckets\/([^/]+)\/objects\/(.+)$/)) && method === "DELETE") {

@@ -153,6 +153,7 @@ test("a channel's comparison is pure: it takes what was read and says what diffe
     settings: settingsUrl,
     keys: known.stored,
     onRouter: true,
+    vaulted: false,
   };
   expect(channel.diff(known, current)).toEqual([]);
   expect(channel.planned(known, current)).toEqual({ slug: "notation-achq", id: "1", privateKey: "k" });
@@ -160,6 +161,10 @@ test("a channel's comparison is pure: it takes what was read and says what diffe
     `notation-achq doesn't send issue_comment: change it at ${settingsUrl}`,
     `notation-achq lacks contents: write: change it at ${settingsUrl}`,
   ]);
+  // GitHub can't delete an App, so `achq infra down` says where to.
+  const advanced = settingsUrl.replace(/permissions$/, "advanced");
+  expect(channel.kept(known, current)).toBe(`GitHub App notation-achq: its key goes with the router, so the next \`achq infra up\` makes another. Delete it at ${advanced}`);
+  expect(channel.kept(known, { ...current, vaulted: true })).toBe(`GitHub App notation-achq, whose key the vault keeps for the next router. To be done with it, delete it at ${advanced}, and its key from the vault`);
 
   const drifted = { ...current, hook: { ...current.hook, insecure_ssl: "1" } };
   expect(channel.diff(known, drifted).map((c) => channel.describe(c, known))).toEqual([{ op: "~", target: "notation-achq", what: "webhook", detail: `→ ${HOOK}` }]);

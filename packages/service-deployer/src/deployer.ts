@@ -1,4 +1,4 @@
-import { type CodeHostProvider, type ContainerProvider, type Stores, type DeployerEnvelope, type FileLimits, type RepoManifest, repoName, type SyncRequest, type SyncResult } from "@achq/core";
+import { type CodeHostProvider, type ContainerProvider, type Stores, type DeployerEnvelope, type FileLimits, type RepoManifest, repoName, type SyncRequest, type SyncResult, type TeardownRequest, type TeardownResult } from "@achq/core";
 import { async } from "@achq/utils/async";
 import { HttpError } from "@achq/utils/http";
 import { type Evaluate, evaluateConfig } from "./config/evaluate.ts";
@@ -134,6 +134,18 @@ export const createDeployer = (deps: DeployerDeps) => {
         }
       }
       return result;
+    },
+
+    /** Deletes every container on its container provider, with its data: `achq infra down`, before it deletes the deployer. */
+    teardown: async ({ dryRun = false }: TeardownRequest = {}): Promise<TeardownResult> => {
+      const removed: string[] = [];
+      for (const c of await ctx.containerProvider.list()) {
+        await perRepo(repoName.key(c.repo), async () => {
+          if (!dryRun) await ctx.containerProvider.remove(c.repo, c.name);
+        });
+        removed.push(`${c.repo}/${c.name}`);
+      }
+      return { removed };
     },
 
     /** Every repo's record: what `achq infra status` shows from the infra. */

@@ -62,6 +62,8 @@ export const createRouter = (deps: RouterDeps) => {
     .get("/sources", async (c) => c.json((await Promise.all(ctx.channelProviders.map((channel) => channel.sources()))).flat()))
     .post("/sync", async (c) => toDeployer("POST", "/sync", await c.req.text()))
     .get("/sync/:id", (c) => toDeployer("GET", `/sync/${encodeURIComponent(c.req.param("id"))}`))
+    .post("/teardown", async (c) => toDeployer("POST", "/teardown", await c.req.text()))
+    .get("/teardown/:id", (c) => toDeployer("GET", `/teardown/${encodeURIComponent(c.req.param("id"))}`))
     .get("/status", () => toDeployer("GET", "/status"))
     .get("/deployer", () => toDeployer("GET", "/version"))
     .get("/failed", async (c) => c.json(await listFailed(ctx)))

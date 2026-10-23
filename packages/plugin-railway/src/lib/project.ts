@@ -45,6 +45,14 @@ export class Project extends ManagedResource<Props, ProjectAt, ProjectAt, "creat
     return placeOf(await railway.readProject(projectId));
   }
 
+  removal({ name }: Props): Change {
+    return { op: "-", target: name, what: "railway project", detail: "with every service and volume in it" };
+  }
+
+  async destroy(_: Props, { projectId }: ProjectAt, ctx: Context) {
+    await railwayFromEnv(ctx.env).deleteProject(projectId);
+  }
+
   at() {
     return { projectId: this.out("projectId"), environmentId: this.out("environmentId") };
   }

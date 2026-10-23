@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, expect, spyOn, test } from "bun:test";
 import * as core from "@achq/core";
-import { achq, type Change, type Context, type Output, plan } from "@achq/core";
+import { achq, type Change, type Context, type Output, plan, teardown } from "@achq/core";
 import { type FakeCloudflare, fakeWrangler, startFakeCloudflare } from "@achq/test-utils/cloudflare";
 import { Deployer, Router } from "../src/infra.ts";
 import { deployerTokenPage, forgetSignIn, internalKey } from "../src/lib/cloudflare.ts";
@@ -208,6 +208,28 @@ test("once applied, nothing changes until an input does, and then only what depe
   // Its variables before this run changed them.
   expect(applied.value(b.router.env).ACHQ_REF).toBe("a");
   expect(JSON.parse(fake.workers.get("achq-router")!.secrets.ACHQ_ENV!).ACHQ_REF).toBe("b");
+});
+
+test("teardown deletes the Workers with their containers, then the bucket, emptied, and the namespace; the deployer's token is left to you", async () => {
+  await (await plan(declare().resources, ctx)).apply();
+  fake.buckets.get("achq")!.set("achq-router/data.tar.gz", "archive");
+  const planned = await teardown(declare().resources, ctx);
+  expect(summary(planned.changes)).toEqual([
+    "- achq-deployer worker with its container and Durable Object",
+    "- achq-router worker with its container and Durable Object",
+    "- achq kv namespace and r2 bucket with every container's archive",
+  ]);
+  expect(planned.kept).toEqual(["The deployer's Cloudflare API token, achq-deployer: delete it at https://dash.cloudflare.com/profile/api-tokens"]);
+  expect(fake.workers.size).toBe(2);
+
+  await planned.apply();
+  expect(fake.workers.size).toBe(0);
+  expect(fake.applications).toEqual([]);
+  expect(fake.buckets.size).toBe(0);
+  expect(fake.namespaces.size).toBe(0);
+  const again = await teardown(declare().resources, ctx);
+  expect(again.changes).toEqual([]);
+  expect(again.kept).toEqual([]);
 });
 
 test("a pasted token that won't do is asked for again, and rotating makes a new one", async () => {

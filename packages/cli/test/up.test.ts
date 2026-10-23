@@ -10,7 +10,7 @@ import * as github from "@achq/github/infra";
 import { type FakeRailway, startFakeRailway } from "@achq/test-utils/railway";
 import * as railway from "@achq/railway/infra";
 import { fakeOp } from "@achq/test-utils/op";
-import { checkInfra, cliContext, configVault, routerAccess, up, type UpDeps } from "../src/lib/infra.ts";
+import { checkInfra, cliContext, configVault, down, type DownDeps, routerAccess, up, type UpDeps } from "../src/lib/infra.ts";
 
 const { privateKey: pem, publicKey } = generateKeyPairSync("rsa", { modulusLength: 2048, privateKeyEncoding: { type: "pkcs8", format: "pem" }, publicKeyEncoding: { type: "spki", format: "pem" } });
 const pemBody = pem.split("\n")[5]; // a line from the middle of the key
@@ -35,6 +35,8 @@ let gh: ReturnType<typeof Bun.serve>;
 let routerServer: ReturnType<typeof Bun.serve>;
 let ghCalls: { method: string; path: string; body?: any; jwtOk: boolean }[];
 let syncs: { body: any; signed: boolean }[];
+/** Each teardown the deployer was asked for, and how many Railway projects there were then. */
+let teardowns: { dryRun: boolean; projects: number }[];
 let polls = 0;
 /** How many times the deployer answers as one too old to say what it runs. */
 let oldDeployer = 0;
@@ -56,6 +58,7 @@ beforeEach(() => {
   fake = startFakeRailway();
   ghCalls = [];
   syncs = [];
+  teardowns = [];
   oldDeployer = 0;
   hook = {};
   gh = Bun.serve({
@@ -85,6 +88,12 @@ beforeEach(() => {
       if (!signed) return new Response("bad signature", { status: 401 });
       // The deployer runs what the router was given, as a new one does once it's replaced the old.
       if (url.pathname === "/admin/deployer") return oldDeployer-- > 0 ? new Response("not found", { status: 404 }) : Response.json({ ref: routerVars.ACHQ_REF });
+      // A teardown deletes the one container there is, or says it would.
+      if (url.pathname === "/admin/teardown") {
+        teardowns.push({ dryRun: JSON.parse(body).dryRun, projects: fake.projects.length });
+        return Response.json({ id: "teardown-1" }, { status: 202 });
+      }
+      if (url.pathname === "/admin/teardown/teardown-1") return Response.json({ state: "done", result: { removed: ["djgrant/x/dev"] } });
       // A sync starts, then is asked after: running once, then done.
       if (req.method === "POST") {
         syncs.push({ body: JSON.parse(body), signed });
@@ -216,6 +225,43 @@ test("up creates everything, puts the App's key only in the router's variables, 
   expect(JSON.stringify(fake.projects)).toContain(pemBody);
   expect(scan(tmp)).toEqual([]);
   expect(fs.existsSync(path.join(import.meta.dir, "../../../secrets.env")) ? fs.readFileSync(path.join(import.meta.dir, "../../../secrets.env"), "utf8") : "").not.toContain(pemBody);
+});
+
+const downDeps = (log: string[], answer: boolean): DownDeps => {
+  const { env, sleep, routerUrl } = deps();
+  return { env, sleep, routerUrl, log: (line) => log.push(line), confirm: async () => answer };
+};
+
+test("down shows what it deletes, the deployer's containers first, and what's left to you; a dry run or a no deletes nothing", async () => {
+  await up(infra(), { prune: false, dryRun: false }, deps());
+  const log: string[] = [];
+  await down(infra(), { dryRun: true }, downDeps(log, true));
+  expect(log).toEqual([
+    "  - djgrant/x/dev  container        with its data",
+    "  - achq           railway project  with every service and volume in it",
+    `  kept: GitHub App djgrant-claude: its key goes with the router, so the next \`achq infra up\` makes another. Delete it at http://localhost:${gh.port}/settings/apps/djgrant-claude/advanced`,
+  ]);
+  await expect(down(infra(), { dryRun: false }, downDeps([], false))).rejects.toThrow("Nothing was deleted");
+  expect(teardowns.map((t) => t.dryRun)).toEqual([true, true]);
+  expect(fake.projects).toHaveLength(1);
+});
+
+test("down deletes the containers through the deployer, then the infra; then there's nothing left to delete", async () => {
+  await up(infra(), { prune: false, dryRun: false }, deps());
+  const log: string[] = [];
+  await down(infra(), { dryRun: false }, downDeps(log, true));
+  expect(teardowns).toEqual([
+    { dryRun: true, projects: 1 },
+    { dryRun: false, projects: 1 },
+  ]);
+  expect(fake.projects).toEqual([]);
+  expect(log).toContain("  deleted");
+
+  // With no router, there's no deployer to ask.
+  const again: string[] = [];
+  await down(infra(), { dryRun: false }, downDeps(again, true));
+  expect(again).toEqual(["  nothing to delete"]);
+  expect(teardowns).toHaveLength(2);
 });
 
 test("up waits for the new deployer to replace the old before it syncs", async () => {

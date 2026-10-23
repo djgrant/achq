@@ -111,7 +111,7 @@ The runner posts the agent's final message as a comment. Only messages from user
 | `achq infra up [--prune] [--dry-run] [--rotate-deployer-token]` | Infra | Brings the infra in line with `achq.infra.ts`, then syncs installed repos. `--prune` deletes containers of repos no longer installed. `--rotate-deployer-token` replaces the deployer's own token, where it has one (Cloudflare) |
 | `achq infra status` | Infra | Every repo's last deploy, and failed deliveries |
 | `achq infra replay` | Infra | Sends failed deliveries again |
-| `achq infra down` | Infra | Not implemented yet |
+| `achq infra down [--dry-run] [--yes]` | Infra | Shows what it deletes and asks first: every container, by the deployer, then the router, the deployer and what they share. Lists what only you can delete, e.g. the GitHub App |
 | `achq repo status [--repo]` | Repo | Its `ACHQ_STATUS` |
 | `achq repo install [--dry-run]` | Repo | Checks the config, opens GitHub to install its App on the repo, and waits for the deploy. If the deploy needs something only you can do, e.g. install Cloudflare's GitHub App, it opens that, waits for you, and deploys again |
 | `achq repo uninstall` | Repo | Opens GitHub to remove the repo from its App's installation, and waits until it's gone. Its containers are kept, asleep |

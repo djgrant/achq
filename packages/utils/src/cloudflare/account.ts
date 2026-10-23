@@ -1,5 +1,5 @@
 import type { AccountSummary, Build, BuildLogPage, BuildToken, ContainerApplication, KvNamespaceSummary, RepoConnection, TokenStatus, Trigger, TriggerSettings, TriggerVariable, WorkerSecret, WorkerSummary, WorkerVersion } from "./types.ts";
-import { CLOUDFLARE_API, CloudflareTransport } from "./transport.ts";
+import { CLOUDFLARE_API, CloudflareError, CloudflareTransport } from "./transport.ts";
 
 /** The most a list asks for in one page. */
 const PAGE = 100;
@@ -115,6 +115,11 @@ class Kv {
     return (await this.t.call<KvNamespaceSummary>("POST", `${this.account}/storage/kv/namespaces`, { json: { title } })).id;
   }
 
+  /** Deletes the namespace and every value in it. Deleting a missing one is fine. */
+  async deleteNamespace(namespace: string) {
+    await this.t.find("DELETE", `${this.account}/storage/kv/namespaces/${namespace}`);
+  }
+
   private value(namespace: string, key: string) {
     return `${this.account}/storage/kv/namespaces/${namespace}/values/${enc(key)}`;
   }
@@ -158,6 +163,25 @@ class R2 {
 
   async create(bucket: string) {
     await this.t.call("POST", `${this.account}/r2/buckets`, { json: { name: bucket } });
+  }
+
+  /** Deletes the bucket, which has to be empty. Deleting a missing one is fine. */
+  async delete(bucket: string) {
+    await this.t.find("DELETE", `${this.account}/r2/buckets/${enc(bucket)}`);
+  }
+
+  /** Every object's key. */
+  async keys(bucket: string) {
+    const keys: string[] = [];
+    let cursor: string | undefined;
+    do {
+      const res = await this.t.fetch("GET", `${this.account}/r2/buckets/${enc(bucket)}/objects`, { query: { per_page: PAGE * 10, cursor } });
+      const page = (await res.json()) as { result?: { key: string }[]; result_info?: { cursor?: string; is_truncated?: boolean } };
+      if (!res.ok || !page.result) throw new CloudflareError(`Cloudflare GET r2 bucket ${bucket}'s objects: ${res.status}`, res.status);
+      keys.push(...page.result.map((o) => o.key));
+      cursor = page.result_info?.is_truncated ? page.result_info.cursor : undefined;
+    } while (cursor);
+    return keys;
   }
 
   /** Deleting a missing object is fine. */

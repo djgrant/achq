@@ -61,6 +61,12 @@ export const startFakeRailway = (seed: { workspaces?: string[] } = {}): FakeRail
       projects.push(p);
       return { id: p.id };
     },
+    projectDelete: ({ id: projectId }) => {
+      const at = projects.findIndex((x) => x.id === projectId);
+      if (at < 0) throw new Error("Project not found");
+      projects.splice(at, 1);
+      return true;
+    },
     project: ({ id: projectId }) => {
       const p = projects.find((x) => x.id === projectId);
       if (!p) throw new Error("Project not found");

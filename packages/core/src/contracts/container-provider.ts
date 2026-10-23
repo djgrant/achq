@@ -25,7 +25,7 @@ export interface ContainerProvider {
   /** Builds and deploys the container from the head of its branch. */
   deploy(repo: string, name: string): Promise<void>;
   list(): Promise<{ repo: string; name: string }[]>;
-  /** Deletes the container and its data. Only `achq infra up --prune` calls this. */
+  /** Deletes the container and its data. Only `achq infra up --prune` and `achq infra down` call this. */
   remove(repo: string, name: string): Promise<void>;
   /** Where to find it, for the repo CLI (`ssh`, `resume`). Not secret. */
   locate(repo: string, name: string): Promise<Record<string, string>>;

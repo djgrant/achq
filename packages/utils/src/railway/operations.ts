@@ -47,6 +47,7 @@ export const OPERATIONS = {
     (d) => d.projectCreate.id,
   ),
 
+  projectDelete: op<{ id: string }, void>(`mutation ($id: String!) { projectDelete(id: $id) }`, nothing),
   serviceCreate: op<{ input: { projectId: string; environmentId: string; name: string } }, string>(
     `mutation ($input: ServiceCreateInput!) { serviceCreate(input: $input) { id } }`,
     (d) => d.serviceCreate.id,

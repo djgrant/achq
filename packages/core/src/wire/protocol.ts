@@ -61,6 +61,9 @@ export type ValidateRequest = MintRequest;
 export const SyncRequest = z.object({ prune: z.boolean().optional(), dryRun: z.boolean().optional() });
 export type SyncRequest = z.infer<typeof SyncRequest>;
 
+export const TeardownRequest = z.object({ dryRun: z.boolean().optional() });
+export type TeardownRequest = z.infer<typeof TeardownRequest>;
+
 /** A thread's session, as `achq-agent sessions [n]` prints them (a JSON array, most recently run first) for `achq container resume`. `thread` is e.g. the issue number. */
 export const SessionSummary = z.object({ id: z.string(), thread: z.string(), agent: z.string(), workspace: z.string(), lastRun: z.string() });
 export type SessionSummary = z.infer<typeof SessionSummary>;
@@ -95,11 +98,17 @@ export type SyncResult = { deployed: string[]; unchanged: string[]; uninstalled:
 /** The achq commit the deployer runs: a new one reaches it some time after its Worker is deployed. */
 export type DeployerVersion = { ref: string };
 
-/** What `POST /sync` answers: the sync it started, which `GET /sync/<id>` reports on. */
-export type SyncStarted = { id: string };
+/** What `achq infra down` had the deployer delete: each container, as `<repo>/<name>`. */
+export type TeardownResult = { removed: string[] };
 
-/** A sync's progress: a failed one's error isn't shown, only logged. */
-export type SyncStatus = { state: "running" } | { state: "done"; result: SyncResult } | { state: "failed" };
+/** What `POST /sync` and `POST /teardown` answer: the job they started, which `GET /sync/<id>` and `GET /teardown/<id>` report on. */
+export type JobStarted = { id: string };
+export type SyncStarted = JobStarted;
+
+/** A job's progress: a failed one's error isn't shown, only logged. */
+export type JobStatus<T> = { state: "running" } | { state: "done"; result: T } | { state: "failed" };
+export type SyncStatus = JobStatus<SyncResult>;
+export type TeardownStatus = JobStatus<TeardownResult>;
 
 export type DeployState = "deployed" | "failed" | "uninstalled";
 

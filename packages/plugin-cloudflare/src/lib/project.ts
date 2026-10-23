@@ -45,6 +45,22 @@ export class Project extends ManagedResource<Props, State, Outputs, ProjectChang
     return { accountId: current.accountId, namespaceId: namespaceId!, bucket: name, workersDev: current.workersDev };
   }
 
+  removal({ name }: Props, { namespaceId, bucket }: State): Change | undefined {
+    if (!namespaceId && !bucket) return undefined;
+    const what = [namespaceId && "kv namespace", bucket && "r2 bucket"].filter(Boolean).join(" and ");
+    return { op: "-", target: name, what, ...(bucket && { detail: "with every container's archive" }) };
+  }
+
+  /** After its Workers: the bucket, emptied first, as Cloudflare deletes only an empty one, and the namespace. */
+  async destroy({ name }: Props, { namespaceId, bucket }: State, ctx: Context) {
+    const cf = await connect(ctx.env);
+    if (bucket) {
+      for (const key of await cf.r2.keys(name)) await cf.r2.deleteObject(name, key);
+      await cf.r2.delete(name);
+    }
+    if (namespaceId) await cf.kv.deleteNamespace(namespaceId);
+  }
+
   at() {
     return { accountId: this.out("accountId"), namespaceId: this.out("namespaceId"), bucket: this.out("bucket"), workersDev: this.out("workersDev") };
   }
