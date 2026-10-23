@@ -55,6 +55,8 @@ type Fake = {
   app?: { events: string[]; permissions: Record<string, string> };
   /** What the router says of the App on the repo, one answer per ask; the last repeats. */
   router: { installed: boolean; url: string }[];
+  /** The router ACHQ_STATUS names is torn down, so 404s. */
+  routerGone?: boolean;
   asked: { body: unknown; auth: string | null }[];
   status?: { value: string };
   calls: string[];
@@ -71,6 +73,7 @@ beforeAll(() => {
       fake.calls.push(route);
       let m: RegExpMatchArray | null;
       if (route === "POST /router/installation") {
+        if (fake.routerGone) return new Response("Not Found", { status: 404 });
         fake.asked.push({ body: await req.json(), auth: req.headers.get("authorization") });
         return Response.json(fake.router.length > 1 ? fake.router.shift() : fake.router[0]);
       }
@@ -162,6 +165,18 @@ test("install on a repo that's never been deployed, so has no router to ask, ope
 
   const headless = await installing(true, { open: false });
   await expect(headless.planned.apply()).rejects.toThrow("opens your browser");
+});
+
+test("install on a repo whose router is gone, e.g. its hq moved to another provider, opens GitHub's install page; uninstall says what to do", async () => {
+  fake.app = FULL;
+  routerSays();
+  fake.routerGone = true;
+  const { planned, opened } = await installing(true);
+  expect(summary(planned.changes)).toEqual(["+ notation-achq repo notationlabs/yieldstar, opens GitHub to install it"]);
+  await planned.apply();
+  expect(opened).toEqual([`${web()}/apps/notation-achq/installations/new`]);
+
+  await expect(installing(false)).rejects.toThrow(`No router answers at ${api()}/router`);
 });
 
 test("install fails before installing when the App lacks the events or permissions the config needs", async () => {

@@ -91,11 +91,16 @@ export class GitHubCodeHostProvider implements CodeHostProvider {
 
   private codeHost(repo: string, manifest: RepoManifest, installed: boolean) {
     const slug = configSource(manifest);
-    return new CodeHost({ slug, repo, installed, needs: configNeeds(manifest, slug) }, (r, source) => this.askRouter(r, source));
+    return new CodeHost({ slug, repo, installed, needs: configNeeds(manifest, slug) }, (r, source) => this.askRouter(r, source, installed));
   }
 
-  /** Whether the App is installed on the repo, from the router ACHQ_STATUS names, which checks you can push to it. Undefined without one. */
-  private async askRouter(repo: string, slug: string): Promise<RepoInstallation | undefined> {
+  /**
+   * Whether the App is installed on the repo, from the router ACHQ_STATUS
+   * names, which checks you can push to it. Undefined without one, or, when
+   * installing, when it's gone: the repo moved to another hq, whose deploy
+   * names its own router.
+   */
+  private async askRouter(repo: string, slug: string, installing: boolean): Promise<RepoInstallation | undefined> {
     const router = (await this.status(repo))?.router;
     if (!router) return undefined;
     const res = await fetch(`${router}/installation`, {
@@ -104,6 +109,7 @@ export class GitHubCodeHostProvider implements CodeHostProvider {
       body: JSON.stringify({ host: CODE_HOST, repo, source: slug } satisfies InstallationRequest),
     });
     if (res.status === NOT_FOUND) {
+      if (installing) return undefined;
       throw new Error(`No router answers at ${router}, which ${repo}'s ${STATUS_VARIABLE} names: its hq may have been torn down. Bring it back with \`achq infra up\`, or remove ${slug} from its installation in ${repoName.split(repo).owner}'s settings on GitHub`);
     }
     await http.expectOk(res, `The router at ${router} couldn't say whether ${slug} is installed on ${repo}`);
