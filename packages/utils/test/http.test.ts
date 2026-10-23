@@ -46,3 +46,20 @@ describe("service", () => {
     expect(logged.at(-1)).toStartWith("POST /boom: Error: secret detail");
   });
 });
+
+describe("longAnswer", () => {
+  test("sends spaces until the work settles, then its JSON, which parses", async () => {
+    const res = http.longAnswer(Bun.sleep(30).then(() => ({ done: true })), () => {}, 5);
+    const text = await res.text();
+    expect(text.startsWith(" ")).toBe(true);
+    expect(JSON.parse(text)).toEqual({ done: true });
+  });
+
+  test("answers an error as internal, logging it", async () => {
+    const logged: string[] = [];
+    const res = http.longAnswer(Promise.reject(new Error("secret detail")), (line) => logged.push(line), 5);
+    expect(res.status).toBe(200);
+    expect(JSON.parse(await res.text())).toEqual({ error: "internal error" });
+    expect(logged.join()).toContain("secret detail");
+  });
+});

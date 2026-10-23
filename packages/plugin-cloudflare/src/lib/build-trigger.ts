@@ -35,8 +35,13 @@ const BUILD_COMMAND = [
   `echo "$ACHQ_WRANGLER_CONFIG" | base64 -d | gunzip > ${CONFIG_FILE}`,
 ].join(" && ");
 
-/** Not exactly `npx wrangler deploy`, which has Workers Builds open pull requests on the repo to set Wrangler up. */
-const DEPLOY_COMMAND = `npx -y wrangler@4 deploy --config ${CONFIG_FILE}`;
+/**
+ * Not exactly `npx wrangler deploy`, which has Workers Builds open pull requests
+ * on the repo to set Wrangler up. Run again if it fails: a container's first
+ * deploy can leave its application's settings unapplied, and Wrangler says to.
+ */
+const WRANGLER_DEPLOY = `npx -y wrangler@4 deploy --config ${CONFIG_FILE}`;
+const DEPLOY_COMMAND = `${WRANGLER_DEPLOY} || ${WRANGLER_DEPLOY}`;
 
 /** Pushes match no path, so they don't build: the deployer starts builds itself. */
 const NEVER = { path_includes: ["achq-never-matches/**"], path_excludes: ["*"] };

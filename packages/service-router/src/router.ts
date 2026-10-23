@@ -21,13 +21,13 @@ const DEPLOY_REQUESTS = "achq-deploy";
 export const createRouter = (deps: RouterDeps) => {
   const ctx = createContext(deps);
 
-  /** Forwards a request to the deployer, waking it, and relays its answer: JSON unless it says otherwise. */
+  /** Forwards a request to the deployer, waking it, and relays its answer as it comes: JSON unless it says otherwise. */
   const toDeployer = async (method: string, path: string, body?: string) => {
     const url = `${ctx.deployerUrl}${path}`;
     const result = await reach(ctx.delays, (signal) => fetchSigned(ctx, adminSecret(ctx.key), method, url, body, signal));
     if (!result.ok) return new Response(result.error, { status: 504 });
     const { res } = result;
-    return new Response(await res.text(), { status: res.status, headers: { "content-type": res.headers.get("content-type") ?? "application/json" } });
+    return new Response(res.body, { status: res.status, headers: { "content-type": res.headers.get("content-type") ?? "application/json" } });
   };
 
   // For the deployer and the infra CLI, on both ports, signed with the admin secret.

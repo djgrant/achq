@@ -164,5 +164,8 @@ export const up = async ({ router, deployer, resources }: InfraResources, option
   }
   const base = deps.routerUrl ? deps.routerUrl(url) : url;
   const sync: SyncRequest = { prune: options.prune, dryRun: options.dryRun };
-  return adminRequest<SyncResult>({ base, key }, "POST", "/admin/sync", sync);
+  // Its status is sent before it's done, so a sync that fails says so in its body.
+  const result = await adminRequest<SyncResult | { error: string }>({ base, key }, "POST", "/admin/sync", sync);
+  if ("error" in result) throw new Error(`Router POST /admin/sync: ${result.error}`);
+  return result;
 };

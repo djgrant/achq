@@ -16,6 +16,7 @@ export const deployerHandler = (deployer: Deployer, key: string, log: (line: str
     })
     .post("/sync", zValidator("json", SyncRequest), async (c) => {
       const { prune = false, dryRun = false } = c.req.valid("json");
-      return c.json(await deployer.sync({ prune, dryRun }));
+      // A sync can wait minutes on builds.
+      return http.longAnswer(deployer.sync({ prune, dryRun }), (detail) => log(`deployer POST /sync: ${detail}`));
     })
     .get("/status", async (c) => c.json(await deployer.status())).fetch;
