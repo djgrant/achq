@@ -26,6 +26,8 @@ export type FakeRailway = {
   projects: FakeProject[];
   mutations: string[];
   queries: string[];
+  /** Repos Railway's GitHub App can't see: connecting a service to one fails as Railway's does. */
+  unseenRepos: Set<string>;
   project(name: string): FakeProject | undefined;
   service(name: string): FakeService | undefined;
   stop(): void;
@@ -37,6 +39,7 @@ export const startFakeRailway = (seed: { workspaces?: string[] } = {}): FakeRail
   const projects: FakeProject[] = [];
   const mutations: string[] = [];
   const queries: string[] = [];
+  const unseenRepos = new Set<string>();
   const workspaces = (seed.workspaces ?? ["ws"]).map((w) => ({ id: w, name: w }));
 
   const findService = (serviceId: string) => {
@@ -102,6 +105,7 @@ export const startFakeRailway = (seed: { workspaces?: string[] } = {}): FakeRail
       return true;
     },
     serviceConnect: ({ id: serviceId, input }) => {
+      if (unseenRepos.has(input.repo)) throw new Error("User does not have access to the repo");
       const { service: s } = findService(serviceId);
       s.source = { image: null, repo: input.repo };
       s.branch = input.branch;
@@ -172,6 +176,7 @@ export const startFakeRailway = (seed: { workspaces?: string[] } = {}): FakeRail
     projects,
     mutations,
     queries,
+    unseenRepos,
     project: (name) => projects.find((p) => p.name === name),
     service: (name) => projects.flatMap((p) => p.services).find((s) => s.name === name),
     stop: () => server.stop(true),

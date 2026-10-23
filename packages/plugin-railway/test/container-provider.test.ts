@@ -6,6 +6,7 @@ import { type FakeRailway, startFakeRailway } from "@achq/test-utils/railway";
 import { railwayContainerProvider } from "../src/container/index.ts";
 import { RailwayContainerProvider } from "../src/container/provider.ts";
 import { Railway } from "@achq/utils/railway";
+import { BrowserActionNeeded } from "@achq/core";
 
 let fake: FakeRailway;
 let host: RailwayContainerProvider;
@@ -61,6 +62,18 @@ test("ensure creates a private service with a volume, and a second ensure change
   expect(await host.plan(spec)).toEqual([]);
   await host.ensure(spec);
   expect(fake.mutations.length).toBe(before);
+});
+
+test("a deploy of a repo Railway's GitHub App can't see fails with where to install it, and builds once it can", async () => {
+  await host.ensure(spec);
+  fake.unseenRepos.add(spec.repo);
+  const failure = await host.deploy(spec.repo, "dev").catch((e) => e);
+  expect(failure).toBeInstanceOf(BrowserActionNeeded);
+  expect(failure.action).toEqual({ url: "https://github.com/apps/railway-app/installations/new", what: "install railway-app on NotationLabs/yieldstar" });
+
+  fake.unseenRepos.clear();
+  await host.deploy(spec.repo, "dev");
+  expect(fake.service("notationlabs-yieldstar-dev")!.deployments).toEqual([expect.objectContaining({ status: "SUCCESS" })]);
 });
 
 test("ensure removes a public domain and fixes the private hostname, and only changes what differs", async () => {

@@ -36,6 +36,12 @@ export const DEPLOY_TIMEOUT_MS = 5 * 60_000;
 /** Railway builds a container's service from its repo through its GitHub integration. */
 export const SOURCE_HOST = "github";
 
+/** Railway's GitHub App, which has to be installed on a repo for Railway to build it. */
+export const SOURCE_GITHUB_APP = "railway-app";
+export const SOURCE_GITHUB_APP_INSTALL_URL = `https://github.com/apps/${SOURCE_GITHUB_APP}/installations/new`;
+/** What Railway says when connecting a service to a repo its GitHub App can't see. */
+export const REPO_UNSEEN = "does not have access to the repo";
+
 /** The branch a container's service was last connected to, as `owner/repo@branch`. */
 export const CONNECTED = "ACHQ_CONNECTED";
 export const BRANCH = "ACHQ_BRANCH";

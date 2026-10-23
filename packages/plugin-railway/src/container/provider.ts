@@ -1,8 +1,8 @@
-import { type Context, type ContainerProvider, type ContainerShell, type ContainerSpec, ENV, plan, repoName } from "@achq/core";
+import { BrowserActionNeeded, type Context, type ContainerProvider, type ContainerShell, type ContainerSpec, ENV, plan, repoName } from "@achq/core";
 import { crypto } from "@achq/utils/crypto";
-import { RAILWAY_API, Railway, type RailwayProject } from "@achq/utils/railway";
+import { RAILWAY_API, Railway, RailwayError, type RailwayProject } from "@achq/utils/railway";
 import { subprocess } from "@achq/utils/subprocess";
-import { BRANCH, CONNECTED, CONTAINER_PROVIDER, RAILWAY_ENV, SOURCE_HOST } from "../lib/constants.ts";
+import { BRANCH, CONNECTED, CONTAINER_PROVIDER, RAILWAY_ENV, REPO_UNSEEN, SOURCE_GITHUB_APP, SOURCE_GITHUB_APP_INSTALL_URL, SOURCE_HOST } from "../lib/constants.ts";
 import { containerServiceName, containerUrl } from "../lib/names.ts";
 import { containerService } from "../lib/service-parts.ts";
 
@@ -18,6 +18,13 @@ const SECRET_BYTES = 32;
 
 /** A branch as CONNECTED records it: `owner/repo@branch`. */
 const connection = (repo: string, branch: string) => `${repo}@${branch}`;
+
+/** Only Railway can tell that its App can't see a repo, and only you can install it there. */
+const cantSee = (repo: string, error: RailwayError) =>
+  new BrowserActionNeeded(`Railway can't see ${repo}: install its GitHub App (${SOURCE_GITHUB_APP}) on it, then deploy again. ${error.message}`, {
+    url: SOURCE_GITHUB_APP_INSTALL_URL,
+    what: `install ${SOURCE_GITHUB_APP} on ${repo}`,
+  });
 
 export class RailwayContainerProvider implements ContainerProvider {
   /** The deployer's project, in the environment its containers run in. */
@@ -64,7 +71,9 @@ export class RailwayContainerProvider implements ContainerProvider {
     if (source && repoName.same(source, repo) && variables[CONNECTED] === connection(repo, branch)) return service.deployLatestCommit();
 
     // Connecting builds the branch's head, and turns automatic deploys on, so they're turned off again.
-    await service.connect(repo, branch);
+    await service.connect(repo, branch).catch((error) => {
+      throw error instanceof RailwayError && error.message.includes(REPO_UNSEEN) ? cantSee(repo, error) : error;
+    });
     await service.setAutoDeploy(false);
     await service.setVariables({ [CONNECTED]: connection(repo, branch) });
     // Connecting usually starts a build. If the latest deploy is still the one from before connecting, it didn't, so one is started.
