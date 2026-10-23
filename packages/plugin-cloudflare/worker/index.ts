@@ -140,7 +140,8 @@ export class Service extends DurableObject<Env> {
       box,
       memory,
     });
-    // A new version of the Worker starts a new object: a service whose config changed restarts with it.
+    // A new version of the Worker starts a new object, once the old one steps aside: a service whose config changed restarts with it.
+    console.log(`${settings.name}: started on version ${env.VERSION.id} of its Worker, made ${env.VERSION.timestamp}`);
     this.ready = ctx.blockConcurrencyWhile(async () => {
       // A new token restarts the deployer with it.
       config = await sha256(JSON.stringify({ settings, variables, secrets, images: container.images }));
