@@ -237,9 +237,9 @@ test("down shows what it deletes, the deployer's containers first, and what's pr
   const log: string[] = [];
   await down(infra(), { dryRun: true }, downDeps(log, true));
   expect(log).toEqual([
-    "  - djgrant/x/dev  container        with its data",
-    "  - achq           railway project  with every service and volume in it",
-    "  = personal       github-channel   protected",
+    "  - djgrant/x/dev   container",
+    "  - router/project  railway-project",
+    "  = personal        github-channel   protected",
   ]);
   await expect(down(infra(), { dryRun: false }, downDeps([], false))).rejects.toThrow("Nothing was deleted");
   expect(teardowns.map((t) => t.dryRun)).toEqual([true, true]);

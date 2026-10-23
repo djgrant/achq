@@ -89,12 +89,9 @@ export type Teardown = {
 /** Plans deleting `resources`, their children and everything they depend on that exists: each before what it depends on. Reads, never writes. */
 export const teardown = async (resources: Resource[], ctx: Context): Promise<Teardown> => {
   const existing = (await readAll(resources, ctx)).steps.filter((s) => s.current !== undefined).reverse();
-  const doomed = existing.flatMap((step) => {
-    const removal = !step.resource.protect && step.resource.destroy && step.resource.removal?.(step.props, step.current);
-    return removal ? [{ ...step, removal }] : [];
-  });
+  const doomed = existing.filter(({ resource }) => !resource.protect && resource.destroy);
   return {
-    changes: doomed.map(({ removal }) => removal),
+    changes: doomed.map(({ resource }) => ({ op: "-" as const, target: label(resource), what: resource.kind })),
     protected: existing.filter(({ resource }) => resource.protect).map(({ resource }) => ({ target: label(resource), what: resource.kind })),
     apply: async () => {
       for (const { resource, props, current } of doomed) await resource.destroy!(props, current, ctx);

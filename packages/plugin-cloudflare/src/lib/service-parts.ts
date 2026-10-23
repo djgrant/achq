@@ -79,8 +79,9 @@ export class ServiceParts {
     private readonly own: { variables?: (ctx: Context) => EnvValues; wait: boolean; sshKeys?: string[]; deployAfter?: () => ManagedResource[] },
   ) {
     this.name = serviceWorkerName(project.name, owner.name);
-    this.namespaceId = project.resource.out("namespaceId");
-    this.worker = new Worker("worker", { name: this.name, workersDev: project.resource.out("workersDev"), env: { namespaceId: this.namespaceId } }, { parent: owner });
+    const at = project.resource.at();
+    this.namespaceId = at.namespaceId;
+    this.worker = new Worker("worker", { name: this.name, workersDev: at.workersDev, env: { namespaceId: this.namespaceId } }, { parent: owner });
     this.first = this.group((ctx) => ({ ...own.variables?.(ctx), [ENV.dataDir]: DATA_DIR, PORT: String(owner.port) }));
   }
 

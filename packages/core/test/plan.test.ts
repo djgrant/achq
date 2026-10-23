@@ -48,9 +48,6 @@ class Store extends ManagedResource<{ value: string }, Row, Row, "create" | "upd
 
 /** A Store `achq infra down` can delete. */
 class Doomed extends Store {
-  removal(): Change {
-    return { op: "-", target: this.name, what: "row" };
-  }
   async destroy() {
     db.writes.push(`-${this.name}`);
     db.rows.delete(this.name);
@@ -261,7 +258,7 @@ test("teardown deletes what exists, each before what it depends on, and lists wh
 
   const planned = await teardown([top, gone, part, left], ctx);
   expect(db.writes).toEqual([]);
-  expect(summary(planned.changes)).toEqual(["- top row", "- base row"]);
+  expect(summary(planned.changes)).toEqual(["- top store", "- base store"]);
   expect(planned.protected).toEqual([{ target: "left", what: "store" }]);
 
   await planned.apply();

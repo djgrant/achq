@@ -233,7 +233,7 @@ export const down = async (infra: InfraResources, { dryRun }: { dryRun: boolean 
   const router = found && { ...found, base: deps.routerUrl ? deps.routerUrl(found.base) : found.base };
   const containers = await deleteContainers(router, true, ctx);
   const planned = await teardown(infra.resources, ctx);
-  const changes = [...containers.map((c) => ({ op: "-" as const, target: c, what: "container", detail: "with its data" })), ...planned.changes];
+  const changes = [...containers.map((c) => ({ op: "-" as const, target: c, what: "container" })), ...planned.changes];
   if (!changes.length) log("  nothing to delete");
   for (const line of planLines({ changes, warnings: [], protected: planned.protected })) log(`  ${line}`);
   if (!dryRun && changes.length) {

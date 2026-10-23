@@ -55,10 +55,6 @@ export class Worker extends ManagedResource<Props, State, Outputs, "create"> {
     return { tag: made.id, url: publicUrl(name, workersDev), ...(env && { env: {} }) };
   }
 
-  removal({ name }: Props): Change {
-    return { op: "-", target: name, what: "worker", detail: "with its container and Durable Object" };
-  }
-
   /** Its container application, then the Worker, and its Durable Object with it. */
   async destroy({ name }: Props, _current: State, ctx: Context) {
     const cf = await connect(ctx.env);
