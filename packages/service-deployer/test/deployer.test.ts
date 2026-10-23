@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { BrowserActionNeeded, STATUS_VARIABLE, type DeployerEnvelope, type TeardownStatus } from "@achq/core";
+import { BrowserActionNeeded, STATUS_VARIABLE, type DeployerEnvelope } from "@achq/core";
 import { adminSecret, containerSecret } from "@achq/core/secrets";
 import { signedFetch } from "@achq/core/signing";
 import { evaluateConfig } from "../src/config/evaluate.ts";
@@ -509,6 +509,28 @@ describe("sync", () => {
     expect(await deployer.sync({ prune: true })).toMatchObject({ deployed: [], unchanged: [A], uninstalled: [], pruned: [] });
   });
 
+  test("empty syncs to no repos: it uninstalls each, and with prune deletes every container; expected containers fail it before it changes anything", async () => {
+    github.commit(A, repoFiles());
+    router.installed = [{ host: "github", repo: A }];
+    const deployer = makeDeployer();
+    await deployer.sync();
+    containerProvider.seed("notationlabs/gone", "dev");
+    const all = [`${A}/dev`, "notationlabs/gone/dev"];
+
+    const dry = await deployer.sync({ empty: true, prune: true, dryRun: true });
+    expect({ ...dry, pruned: dry.pruned.sort() }).toEqual({ deployed: [], unchanged: [], uninstalled: [A], pruned: all, failed: [] });
+    expect(containerProvider.ops("remove")).toEqual([]);
+
+    await expect(deployer.sync({ empty: true, prune: true, expect: [`${A}/dev`] })).rejects.toThrow("notationlabs/gone/dev");
+    expect(containerProvider.ops("remove")).toEqual([]);
+    expect(router.repos.has(A.toLowerCase())).toBe(true);
+
+    expect((await deployer.sync({ empty: true, prune: true, expect: all })).pruned.sort()).toEqual(all);
+    expect(containerProvider.services.size).toBe(0);
+    expect(router.repos.size).toBe(0);
+    expect(await deployer.sync({ empty: true, prune: true, expect: all })).toEqual({ deployed: [], unchanged: [], uninstalled: [], pruned: [], failed: [] });
+  });
+
   test("without prune, sync never removes containers", async () => {
     github.commit(A, repoFiles());
     router.installed = [{ host: "github", repo: A }];
@@ -528,20 +550,6 @@ describe("sync", () => {
     expect(router.repos.size).toBe(0);
     expect(github.variable(A, STATUS_VARIABLE)).toBeUndefined();
     expect(await deployer.status()).toEqual([]);
-  });
-});
-
-describe("teardown", () => {
-  test("deletes every container, of any repo, installed or not; a dry run only lists them", async () => {
-    containerProvider.seed("notationlabs/alpha", "dev");
-    containerProvider.seed("notationlabs/gone", "dev");
-    const deployer = makeDeployer();
-    const all = ["notationlabs/alpha/dev", "notationlabs/gone/dev"];
-    expect((await deployer.teardown({ dryRun: true })).removed.sort()).toEqual(all);
-    expect(containerProvider.ops("remove")).toEqual([]);
-    expect((await deployer.teardown()).removed.sort()).toEqual(all);
-    expect(containerProvider.services.size).toBe(0);
-    expect(await deployer.teardown()).toEqual({ removed: [] });
   });
 });
 
@@ -567,12 +575,6 @@ describe("HTTP", () => {
       while ((await syncStatus()).state === "running") await Bun.sleep(5);
       expect(await syncStatus()).toMatchObject({ state: "done", result: { unchanged: [REPO] } });
       expect((await signedFetch(adminSecret(KEY), `${base}/sync/nope`, { method: "GET" })).status).toBe(404);
-      const teardown = await signedFetch(adminSecret(KEY), `${base}/teardown`, { method: "POST", body: JSON.stringify({ dryRun: true }) });
-      expect(teardown.status).toBe(202);
-      const teardownId = ((await teardown.json()) as { id: string }).id;
-      const teardownStatus = () => signedFetch(adminSecret(KEY), `${base}/teardown/${teardownId}`, { method: "GET" }).then((r) => r.json() as Promise<TeardownStatus>);
-      while ((await teardownStatus()).state === "running") await Bun.sleep(5);
-      expect(await teardownStatus()).toEqual({ state: "done", result: { removed: [`${REPO}/dev`] } });
       expect((await fetch(`${base}/`)).status).toBe(200);
     } finally {
       server.stop(true);

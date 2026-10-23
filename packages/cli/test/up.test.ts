@@ -3,7 +3,7 @@ import { generateKeyPairSync, createPublicKey, createVerify } from "node:crypto"
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { achq, type SyncResult } from "@achq/core";
+import { achq, type SyncRequest, type SyncResult } from "@achq/core";
 import { adminSecret, implementationSecret } from "@achq/core/secrets";
 import { verifySigned } from "@achq/core/signing";
 import * as github from "@achq/github/infra";
@@ -35,8 +35,11 @@ let gh: ReturnType<typeof Bun.serve>;
 let routerServer: ReturnType<typeof Bun.serve>;
 let ghCalls: { method: string; path: string; body?: any; jwtOk: boolean }[];
 let syncs: { body: any; signed: boolean }[];
-/** Each teardown the deployer was asked for, and how many Railway projects there were then. */
-let teardowns: { dryRun: boolean; projects: number }[];
+/** Each sync to no repos the deployer was asked for, as `achq infra down` asks, and how many Railway projects there were then. */
+let downs: { request: SyncRequest; projects: number }[];
+/** How many times the deployer answers a sync's ID as one it's lost, restarting. */
+let lost = 0;
+let last: SyncRequest | undefined;
 let polls = 0;
 /** How many times the deployer answers as one too old to say what it runs. */
 let oldDeployer = 0;
@@ -58,7 +61,9 @@ beforeEach(() => {
   fake = startFakeRailway();
   ghCalls = [];
   syncs = [];
-  teardowns = [];
+  downs = [];
+  lost = 0;
+  last = undefined;
   oldDeployer = 0;
   hook = {};
   gh = Bun.serve({
@@ -88,20 +93,20 @@ beforeEach(() => {
       if (!signed) return new Response("bad signature", { status: 401 });
       // The deployer runs what the router was given, as a new one does once it's replaced the old.
       if (url.pathname === "/admin/deployer") return oldDeployer-- > 0 ? new Response("not found", { status: 404 }) : Response.json({ ref: routerVars.ACHQ_REF });
-      // A teardown deletes the one container there is, or says it would.
-      if (url.pathname === "/admin/teardown") {
-        teardowns.push({ dryRun: JSON.parse(body).dryRun, projects: fake.projects.length });
-        return Response.json({ id: "teardown-1" }, { status: 202 });
-      }
-      if (url.pathname === "/admin/teardown/teardown-1") return Response.json({ state: "done", result: { removed: ["djgrant/x/dev"] } });
       // A sync starts, then is asked after: running once, then done.
       if (req.method === "POST") {
-        syncs.push({ body: JSON.parse(body), signed });
+        const request = JSON.parse(body) as SyncRequest;
+        last = request;
+        if (request.empty) downs.push({ request, projects: fake.projects.length });
+        else syncs.push({ body: request, signed });
         polls = 0;
         return Response.json({ id: "sync-1" }, { status: 202 });
       }
-      if (url.pathname !== "/admin/sync/sync-1") return new Response("not found", { status: 404 });
-      const result: SyncResult = { deployed: ["djgrant/x"], unchanged: [], uninstalled: [], pruned: [], failed: [] };
+      if (url.pathname !== "/admin/sync/sync-1" || lost-- > 0) return new Response("not found", { status: 404 });
+      // One to no repos uninstalls the one there is, and deletes its container.
+      const result: SyncResult = last?.empty
+        ? { deployed: [], unchanged: [], uninstalled: ["djgrant/x"], pruned: ["djgrant/x/dev"], failed: [] }
+        : { deployed: ["djgrant/x"], unchanged: [], uninstalled: [], pruned: [], failed: [] };
       return Response.json(++polls < 2 ? { state: "running" } : { state: "done", result });
     },
   });
@@ -232,36 +237,44 @@ const downDeps = (log: string[], answer: boolean): DownDeps => {
   return { env, sleep, routerUrl, log: (line) => log.push(line), confirm: async () => answer };
 };
 
-test("down shows what it deletes, the deployer's containers first, and what's protected; a dry run or a no deletes nothing", async () => {
+test("down shows what it deletes, the deployer's sync to no repos first, and what's protected; a dry run or a no deletes nothing", async () => {
   await up(infra(), { prune: false, dryRun: false }, deps());
   const log: string[] = [];
   await down(infra(), { dryRun: true }, downDeps(log, true));
   expect(log).toEqual([
-    "  - djgrant/x/dev   container",
+    "  sync: would uninstall: djgrant/x",
+    "  sync: would prune: djgrant/x/dev",
     "  - router/project  railway-project",
-    "  = personal        github-channel   protected",
+    "    personal        github-channel   protected",
   ]);
   await expect(down(infra(), { dryRun: false }, downDeps([], false))).rejects.toThrow("Nothing was deleted");
-  expect(teardowns.map((t) => t.dryRun)).toEqual([true, true]);
+  expect(downs.map((d) => d.request.dryRun)).toEqual([true, true]);
   expect(fake.projects).toHaveLength(1);
 });
 
-test("down deletes the containers through the deployer, then the infra; then there's nothing left to delete", async () => {
+test("down has the deployer delete what it showed, then deletes the infra; then there's nothing left to delete", async () => {
   await up(infra(), { prune: false, dryRun: false }, deps());
   const log: string[] = [];
   await down(infra(), { dryRun: false }, downDeps(log, true));
-  expect(teardowns).toEqual([
-    { dryRun: true, projects: 1 },
-    { dryRun: false, projects: 1 },
+  expect(downs).toEqual([
+    { request: { empty: true, prune: true, dryRun: true }, projects: 1 },
+    { request: { empty: true, prune: true, expect: ["djgrant/x/dev"] }, projects: 1 },
   ]);
   expect(fake.projects).toEqual([]);
-  expect(log).toContain("  deleted");
+  expect(log.slice(-3)).toEqual(["  sync: uninstalled: djgrant/x", "  sync: pruned: djgrant/x/dev", "  deleted"]);
 
   // With no router, there's no deployer to ask.
   const again: string[] = [];
   await down(infra(), { dryRun: false }, downDeps(again, true));
   expect(again).toEqual(["  nothing to delete"]);
-  expect(teardowns).toHaveLength(2);
+  expect(downs).toHaveLength(2);
+});
+
+test("a sync the deployer lost, restarting, is started again", async () => {
+  await up(infra(), { prune: false, dryRun: false }, deps());
+  lost = 1;
+  expect((await up(infra(), { prune: false, dryRun: false }, deps()))?.deployed).toEqual(["djgrant/x"]);
+  expect(syncs).toHaveLength(3);
 });
 
 test("up waits for the new deployer to replace the old before it syncs", async () => {

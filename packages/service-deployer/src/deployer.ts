@@ -1,14 +1,16 @@
-import { type CodeHostProvider, type ContainerProvider, type Stores, type DeployerEnvelope, type FileLimits, type RepoManifest, repoName, type SyncRequest, type SyncResult, type TeardownRequest, type TeardownResult } from "@achq/core";
+import { type CodeHostProvider, type ContainerProvider, type Stores, type DeployerEnvelope, type FileLimits, type RepoManifest, repoName, type SyncRequest, type SyncResult } from "@achq/core";
 import { async } from "@achq/utils/async";
 import { HttpError } from "@achq/utils/http";
 import { type Evaluate, evaluateConfig } from "./config/evaluate.ts";
 import { deploy } from "./deploy.ts";
 import type { RouterClient } from "./router-client.ts";
-import { createStore, type Store, wireRecord } from "./store.ts";
+import { createStore, type Store, type StoredRecord, wireRecord } from "./store.ts";
 
 export const DEFAULT_FILE_LIMITS: FileLimits = { maxFiles: 200, maxBytes: 1024 * 1024 };
 
 const NOT_FOUND = 404;
+
+const containerId = (c: { repo: string; name: string }) => `${c.repo}/${c.name}`;
 
 export type DeployerEnv = {
   containerEnv: Record<string, string>;
@@ -58,6 +60,20 @@ export const createDeployer = (deps: DeployerDeps) => {
   const perRepo = async.keyedQueue();
   const inflight = new Set<string>();
 
+  /**
+   * The containers to prune: each whose repo isn't installed, or whose manifest
+   * (this sync's, or else the last deployed) doesn't have it. A repo that has
+   * never deployed has none, so nothing of it goes while it's installed.
+   */
+  const pruned = async (installed: Map<string, unknown>, manifests: Map<string, RepoManifest>, records: StoredRecord[]) => {
+    const deployed = new Map(records.map((r) => [repoName.key(r.repo), r.deployed?.manifest]));
+    return (await ctx.containerProvider.list()).filter((c) => {
+      const key = repoName.key(c.repo);
+      const manifest = manifests.get(key) ?? deployed.get(key);
+      return !installed.has(key) || (manifest && !manifest.containers.some((m) => m.name === c.name));
+    });
+  };
+
   const actions = {
     deploy: (host: string, repo: string, { dryRun = false }: ActionOptions = {}) => perRepo(repoName.key(repo), () => deploy(ctx, host, repo, dryRun)),
 
@@ -102,11 +118,14 @@ export const createDeployer = (deps: DeployerDeps) => {
       }
     },
 
-    /** Deploys every installed repo, uninstalls the rest, and with `prune` deletes containers no manifest has. */
-    sync: async ({ prune = false, dryRun = false }: SyncRequest = {}) => {
+    /**
+     * Deploys every installed repo, uninstalls the rest, and with `prune` deletes
+     * containers no installed repo's manifest has. `empty` syncs to no repos.
+     */
+    sync: async ({ prune = false, dryRun = false, empty = false, expect }: SyncRequest = {}) => {
       const result: SyncResult = { deployed: [], unchanged: [], uninstalled: [], pruned: [], failed: [] };
       // By repo key: one per repo, however the code hosts spell its name.
-      const installed = new Map((await ctx.router.installed()).map((i) => [repoName.key(i.repo), i]));
+      const installed = new Map(empty ? [] : (await ctx.router.installed()).map((i) => [repoName.key(i.repo), i]));
       const manifests = new Map<string, RepoManifest>();
       for (const { host, repo } of installed.values()) {
         const outcome = await actions.deploy(host, repo, { dryRun });
@@ -115,37 +134,21 @@ export const createDeployer = (deps: DeployerDeps) => {
         if (outcome.manifest) manifests.set(repoName.key(repo), outcome.manifest);
       }
 
-      for (const record of await ctx.store.all()) {
+      const records = await ctx.store.all();
+      const doomed = prune ? await pruned(installed, manifests, records) : [];
+      const unexpected = expect && doomed.map(containerId).filter((c) => !expect.includes(c));
+      if (unexpected?.length) throw new Error(`It would prune ${unexpected.join(", ")} too, which weren't expected`);
+
+      for (const record of records) {
         if (record.state === "uninstalled" || installed.has(repoName.key(record.repo))) continue;
         await actions.uninstall(record.host, record.repo, { dryRun });
         result.uninstalled.push(record.repo);
       }
-
-      if (prune) {
-        const records = new Map((await ctx.store.all()).map((r) => [repoName.key(r.repo), r]));
-        for (const c of await ctx.containerProvider.list()) {
-          const key = repoName.key(c.repo);
-          const manifest = manifests.get(key) ?? records.get(key)?.deployed?.manifest;
-          // A container goes when its repo isn't installed, or its manifest (this sync's, or else the last deployed) doesn't have it.
-          // A repo that has never deployed has none, so nothing of it goes while it's installed.
-          if (installed.has(key) && (!manifest || manifest.containers.some((m) => m.name === c.name))) continue;
-          if (!dryRun) await ctx.containerProvider.remove(c.repo, c.name);
-          result.pruned.push(`${c.repo}/${c.name}`);
-        }
+      for (const c of doomed) {
+        if (!dryRun) await perRepo(repoName.key(c.repo), () => ctx.containerProvider.remove(c.repo, c.name));
+        result.pruned.push(containerId(c));
       }
       return result;
-    },
-
-    /** Deletes every container on its container provider, with its data: `achq infra down`, before it deletes the deployer. */
-    teardown: async ({ dryRun = false }: TeardownRequest = {}): Promise<TeardownResult> => {
-      const removed: string[] = [];
-      for (const c of await ctx.containerProvider.list()) {
-        await perRepo(repoName.key(c.repo), async () => {
-          if (!dryRun) await ctx.containerProvider.remove(c.repo, c.name);
-        });
-        removed.push(`${c.repo}/${c.name}`);
-      }
-      return { removed };
     },
 
     /** Every repo's record: what `achq infra status` shows from the infra. */

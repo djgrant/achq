@@ -2,7 +2,7 @@ import { beforeEach, expect, test } from "bun:test";
 import { type Change, plan, teardown } from "../src/engine/plan.ts";
 import { all, type Input, type Inputs, known, type Planned, UNKNOWN } from "../src/engine/values.ts";
 import { declared, resetDeclarations } from "../src/resources/resource.ts";
-import { type Context, ManagedResource, Resource, type ResourceOptions } from "../src/resources/resource.ts";
+import { type Context, DataSource, ManagedResource, Resource, type ResourceOptions } from "../src/resources/resource.ts";
 
 type Db = { rows: Map<string, Row>; reads: string[]; writes: string[] };
 type Row = { id: string; value: string };
@@ -264,4 +264,35 @@ test("teardown deletes what exists, each before what it depends on, and lists wh
   await planned.apply();
   expect(db.writes).toEqual(["-top", "-base"]);
   expect([...db.rows.keys()].sort()).toEqual(["left", "part"]);
+});
+
+/** What a store's value comes from, e.g. an account: only read. */
+class Source extends DataSource<{}, { value: string }> {
+  readonly kind = "source";
+  async read() {
+    db.reads.push(this.name);
+    const row = db.rows.get(this.name);
+    if (!row) throw new Error(`no ${this.name}`);
+    return { value: row.value };
+  }
+}
+
+test("a data source is read before what takes its outputs, and is never changed, deleted or listed", async () => {
+  seed("account", "v");
+  const account = new Source("account", {});
+  const store = new Doomed("store", account.out("value"));
+  const planned = await plan([store], ctx);
+  expect(db.reads).toEqual(["account", "store"]);
+  expect(summary(planned.changes)).toEqual(["+ store row"]);
+  await planned.apply();
+  expect(db.rows.get("store")?.value).toBe("v");
+
+  const down = await teardown([store], ctx);
+  expect(summary(down.changes)).toEqual(["- store store"]);
+  expect(down.protected).toEqual([]);
+  await down.apply();
+  expect([...db.rows.keys()]).toEqual(["account"]);
+
+  db.rows.delete("account");
+  await expect(plan([store], ctx)).rejects.toThrow("no account");
 });

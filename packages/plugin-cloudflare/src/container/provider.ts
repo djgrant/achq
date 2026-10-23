@@ -127,7 +127,11 @@ export class CloudflareContainerProvider implements ContainerProvider {
     return containers.filter((c) => c !== undefined);
   }
 
-  /** Its trigger, its container application, its Worker with its Durable Object and snapshots, its archive, and what's kept for it. */
+  /**
+   * Its trigger, its container application, its Worker with its Durable Object
+   * and snapshots, its archive, and what's kept for it. The last one takes the
+   * Builds token's registration with it: the next `ensure` registers it again.
+   */
   async remove(repo: string, name: string) {
     const worker = this.worker(repo, name);
     const found = await this.cf.workers.get(worker);
@@ -137,6 +141,11 @@ export class CloudflareContainerProvider implements ContainerProvider {
     if (found) await this.cf.workers.delete(worker);
     await this.cf.r2.deleteObject(this.options.bucket, archiveKey(worker));
     for (const key of [KV_KEYS.container(worker), KV_KEYS.deployed(worker)]) await this.cf.kv.delete(this.options.namespaceId, key);
+    if ((await this.list()).length) return;
+    this.buildToken = undefined;
+    // Only its own: one made in the dashboard that it borrowed isn't achq's.
+    const { own } = await registered(this.cf);
+    if (own) await this.cf.builds.deleteToken(own);
   }
 
   /** Its container application, whose running instance `wrangler containers ssh` connects to. Known once its first build has deployed. */

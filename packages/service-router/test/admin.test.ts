@@ -42,14 +42,6 @@ describe("admin", () => {
     expect(((await (await r.admin("GET", "/admin/sources")).json()) as { source: string }[])[0].source).toBe("app");
   });
 
-  test("teardown is forwarded to the deployer", async () => {
-    const r = await boot({ deployer: fakeDeployer().url });
-    const started = await r.admin("POST", "/admin/teardown", { dryRun: true });
-    expect(started.status).toBe(202);
-    expect(await started.json()).toEqual({ id: "t1" });
-    expect(await (await r.admin("GET", "/admin/teardown/t1")).json()).toEqual({ state: "done", result: { removed: [`${repo}/dev`] } });
-  });
-
   test("sync and status are forwarded to the deployer, waking it", async () => {
     const deployer = fakeDeployer();
     const r = await boot({ deployer: deployer.url });

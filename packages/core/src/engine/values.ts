@@ -1,5 +1,5 @@
 import { json } from "@achq/utils/json";
-import type { ManagedResource } from "../resources/resource.ts";
+import type { ReadableResource } from "../resources/resource.ts";
 
 /** A value not known until what it comes from is created, e.g. a new service's URL. */
 export const UNKNOWN: unique symbol = Symbol("known after apply");
@@ -14,13 +14,13 @@ export const hasUnknown = (value: unknown): boolean =>
   value === UNKNOWN || (Array.isArray(value) ? value.some(hasUnknown) : json.isPlainObject(value) && Object.values(value).some(hasUnknown));
 
 /** Each resource's outputs, as planned or as applied. */
-export type Outputs = Map<ManagedResource, unknown>;
+export type Outputs = Map<ReadableResource, unknown>;
 
 /** A value resources produce, for another resource to take as an input. */
 export class Output<T> {
   constructor(
     /** The resources it comes from: whatever takes it is planned after them. */
-    readonly from: ManagedResource[],
+    readonly from: ReadableResource[],
     readonly get: (outputs: Outputs) => T | Unknown,
   ) {}
 
@@ -57,7 +57,7 @@ export const resolve = (value: unknown, outputs: Outputs): any => {
   return value;
 };
 
-export const dependencies = (value: unknown): ManagedResource[] => {
+export const dependencies = (value: unknown): ReadableResource[] => {
   if (value instanceof Output) return value.from;
   if (Array.isArray(value)) return value.flatMap(dependencies);
   if (json.isPlainObject(value)) return Object.values(value).flatMap(dependencies);

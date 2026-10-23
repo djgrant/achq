@@ -62,6 +62,47 @@ export abstract class Resource {
 }
 
 /**
+ * A resource the engine reads, and others can take outputs from: a data
+ * source, which it only reads, or a managed resource, which it keeps in shape.
+ * Planned after what its props take outputs from, and what it's `after`.
+ */
+export abstract class ReadableResource<P = any, O = any> extends Resource {
+  constructor(
+    name: string,
+    readonly props: Inputs<P>,
+    options: ResourceOptions & { after?: ReadableResource[] } = {},
+  ) {
+    super(name, options);
+    this.after = options.after ?? [];
+  }
+
+  /** What it must follow without taking an input from it. */
+  readonly after: ReadableResource[];
+
+  /** What it is now. */
+  abstract read(props: P, ctx: Context): Promise<unknown>;
+
+  out<K extends keyof O>(key: K): Output<O[K]> {
+    return new Output([this], (outputs) => (outputs.has(this) ? ((outputs.get(this) as Planned<O>)[key] as O[K] | Unknown) : UNKNOWN));
+  }
+
+  /** All its outputs, unknown while any of them is. */
+  outputs(): Output<O> {
+    return new Output([this], (outputs) => (outputs.has(this) && !hasUnknown(outputs.get(this)) ? (outputs.get(this) as O) : UNKNOWN));
+  }
+}
+
+/**
+ * What achq only reads, e.g. the account the infra is on: it's never changed,
+ * deleted or listed, only taken outputs from. Its props are known when it's
+ * read.
+ */
+export abstract class DataSource<P = any, O = any> extends ReadableResource<P, O> {
+  /** What it is. Throws if it isn't there: what reads it can't go on without it. */
+  abstract read(props: P, ctx: Context): Promise<O>;
+}
+
+/**
  * A resource achq keeps in shape. The engine reads, compares and applies; the
  * resource says how.
  *
@@ -70,19 +111,12 @@ export abstract class Resource {
  * exist yet. When applying, every part is known, and the engine reads and
  * compares again if any changed since.
  */
-export abstract class ManagedResource<P = any, S = any, O = any, C = any> extends Resource {
-  constructor(
-    name: string,
-    readonly props: Inputs<P>,
-    options: ResourceOptions & { after?: ManagedResource[]; protect?: boolean } = {},
-  ) {
-    super(name, options);
-    this.after = options.after ?? [];
+export abstract class ManagedResource<P = any, S = any, O = any, C = any> extends ReadableResource<P, O> {
+  constructor(name: string, props: Inputs<P>, options: ResourceOptions & { after?: ReadableResource[]; protect?: boolean } = {}) {
+    super(name, props, options);
     this.protect = options.protect ?? false;
   }
 
-  /** What it must follow without taking an input from it. */
-  readonly after: ManagedResource[];
   /** Never deleted: `achq infra down` lists it instead. */
   readonly protect: boolean;
 
@@ -102,15 +136,8 @@ export abstract class ManagedResource<P = any, S = any, O = any, C = any> extend
   /**
    * Deletes it. Only `achq infra down` calls this, each before what it depends
    * on, unless it's protected. One without it goes with what it's part of,
-   * e.g. a Worker's variables with the namespace they're kept in.
+   * e.g. a Worker's variables with the namespace they're kept in. Deleting one
+   * that's gone since it was read succeeds.
    */
   destroy?(props: P, current: S, ctx: Context): Promise<void>;
-  out<K extends keyof O>(key: K): Output<O[K]> {
-    return new Output([this], (outputs) => (outputs.has(this) ? ((outputs.get(this) as Planned<O>)[key] as O[K] | Unknown) : UNKNOWN));
-  }
-
-  /** All its outputs, unknown while any of them is. */
-  outputs(): Output<O> {
-    return new Output([this], (outputs) => (outputs.has(this) && !hasUnknown(outputs.get(this)) ? (outputs.get(this) as O) : UNKNOWN));
-  }
 }

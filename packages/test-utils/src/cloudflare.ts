@@ -228,6 +228,12 @@ export const startFakeCloudflare = (seed: { accountId?: string; subdomain?: stri
       return ok(token);
     }
     if (p === "/builds/tokens") return ok(tokens);
+    if ((m = p.match(/^\/builds\/tokens\/([^/]+)$/)) && method === "DELETE") {
+      const at = tokens.findIndex((t) => t.build_token_uuid === m![1]);
+      if (at < 0) return fail(404, "Build token not found");
+      tokens.splice(at, 1);
+      return ok(null);
+    }
     if (p === "/builds/repos/connections" && method === "PUT") {
       const body = (await req.json()) as RepoConnection;
       // What Workers Builds answers when its GitHub App can't see the repo.

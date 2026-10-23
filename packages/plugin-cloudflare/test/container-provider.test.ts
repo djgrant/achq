@@ -226,6 +226,14 @@ test("list reads containers' repo and name, locate says where, remove deletes th
   expect([...fake.kv("achq")!.keys()].filter((k) => k.includes("-dev"))).toEqual([]);
   expect(await host.list()).toEqual([{ repo: spec.repo, name: "docs" }]);
   await host.remove(spec.repo, "dev"); // already gone: nothing to do
+  expect(registeredToken()).toBeDefined();
+
+  // The last one takes the Builds token's registration with it, but not a token it didn't register; the next ensure registers it again.
+  await host.remove(spec.repo, "docs");
+  expect(registeredToken()).toBeUndefined();
+  expect(fake.tokens.map((t) => t.build_token_uuid)).toEqual(["bt-1"]);
+  await host.ensure(spec);
+  expect(registeredToken()).toBeDefined();
 });
 
 test("only builds repos on GitHub, at a known achq commit", async () => {

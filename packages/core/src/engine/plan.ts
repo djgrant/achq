@@ -1,6 +1,6 @@
 import { graph } from "@achq/utils/graph";
 import { json } from "@achq/utils/json";
-import { type Context, ManagedResource, type Resource } from "../resources/resource.ts";
+import { type Context, ManagedResource, ReadableResource, type Resource } from "../resources/resource.ts";
 import { dependencies, hasUnknown, type Input, type Outputs, resolve, type Unknown } from "./values.ts";
 
 /**
@@ -22,26 +22,30 @@ export type Applied = {
   changed(resource: ManagedResource): boolean;
 };
 
-type Step = { resource: ManagedResource; props: unknown; current: unknown; changes: unknown[]; planned: unknown };
+type Step = { resource: ReadableResource; props: unknown; current: unknown; changes: unknown[]; planned: unknown };
 
 const label = (r: Resource): string => (r.parent ? `${label(r.parent)}/${r.name}` : r.name);
 
-const dependsOn = (r: ManagedResource) => [...dependencies(r.props), ...r.after];
+const dependsOn = (r: ReadableResource) => [...dependencies(r.props), ...r.after];
 
-/** What `resource` is now, and what applying `props` would change. */
-const readAndCompare = async (resource: ManagedResource, props: unknown, ctx: Context): Promise<Step> => {
+/** What `resource` is now, and what applying `props` would change: nothing, for a data source. */
+const readAndCompare = async (resource: ReadableResource, props: unknown, ctx: Context): Promise<Step> => {
   const current = await resource.read(props, ctx);
+  if (!(resource instanceof ManagedResource)) return { resource, props, current, changes: [], planned: current };
   const changes = resource.diff(props, current, ctx);
   return { resource, props, current, changes, planned: resource.planned(props, current, changes) };
 };
 
+/** The steps of what achq keeps in shape: not data sources. */
+const managed = (steps: Step[]) => steps.filter((s): s is Step & { resource: ManagedResource } => s.resource instanceof ManagedResource);
+
 /** Reads `resources`, their children and everything they depend on, each after what it depends on. */
 const readAll = async (resources: Resource[], ctx: Context) => {
   // Each resource's children are asked for once.
-  const reached = graph.reachable(resources, (r) => [...(r instanceof ManagedResource ? dependsOn(r) : []), ...r.children(ctx)]);
+  const reached = graph.reachable(resources, (r) => [...(r instanceof ReadableResource ? dependsOn(r) : []), ...r.children(ctx)]);
   const outputs: Outputs = new Map();
   const steps: Step[] = [];
-  for (const resource of graph.topoSort(reached.filter((r) => r instanceof ManagedResource), dependsOn, label)) {
+  for (const resource of graph.topoSort(reached.filter((r) => r instanceof ReadableResource), dependsOn, label)) {
     const step = await readAndCompare(resource, resolve(resource.props, outputs), ctx);
     steps.push(step);
     outputs.set(resource, step.planned);
@@ -54,8 +58,8 @@ export const plan = async (resources: Resource[], ctx: Context): Promise<Plan> =
   const { steps, outputs } = await readAll(resources, ctx);
 
   return {
-    changes: steps.flatMap(({ resource, props, changes }) => changes.map((c) => resource.describe(c, props))),
-    warnings: steps.flatMap(({ resource, props, current }) => (current !== undefined && resource.check ? resource.check(props, current) : [])),
+    changes: steps.flatMap(({ resource, props, changes }) => changes.map((c) => (resource as ManagedResource).describe(c, props))),
+    warnings: managed(steps).flatMap(({ resource, props, current }) => (current !== undefined && resource.check ? resource.check(props, current) : [])),
     value: (input) => resolve(input, outputs),
     apply: async () => {
       const live: Outputs = new Map();
@@ -70,8 +74,8 @@ export const plan = async (resources: Resource[], ctx: Context): Promise<Plan> =
         }
         // Applying what it depends on can change its props, and so what it has to change.
         const step = json.deepEqual(props, planned.props) ? planned : await readAndCompare(resource, props, ctx);
-        live.set(resource, step.changes.length ? await resource.apply(props, step.current, step.changes, ctx) : step.planned);
-        if (step.changes.length) changed.add(resource);
+        live.set(resource, step.changes.length ? await (resource as ManagedResource).apply(props, step.current, step.changes, ctx) : step.planned);
+        if (step.changes.length) changed.add(resource as ManagedResource);
       }
       return { value: (input) => resolve(input, live), changed: (r) => changed.has(r) };
     },
@@ -88,7 +92,7 @@ export type Teardown = {
 
 /** Plans deleting `resources`, their children and everything they depend on that exists: each before what it depends on. Reads, never writes. */
 export const teardown = async (resources: Resource[], ctx: Context): Promise<Teardown> => {
-  const existing = (await readAll(resources, ctx)).steps.filter((s) => s.current !== undefined).reverse();
+  const existing = managed((await readAll(resources, ctx)).steps).filter((s) => s.current !== undefined).reverse();
   const doomed = existing.filter(({ resource }) => !resource.protect && resource.destroy);
   return {
     changes: doomed.map(({ resource }) => ({ op: "-" as const, target: label(resource), what: resource.kind })),

@@ -205,6 +205,11 @@ class Builds {
     return this.t.call<BuildToken>("POST", `${this.account}/builds/tokens`, { json: { build_token_name: name, build_token_secret: secret, cloudflare_token_id: tokenId } });
   }
 
+  /** Unregisters a token from Workers Builds; the API token itself is kept. Deleting a missing one is fine. */
+  async deleteToken(uuid: string) {
+    await this.t.find("DELETE", `${this.account}/builds/tokens/${enc(uuid)}`);
+  }
+
   /** Creates or updates the connection to a repo, by its ids. Returns its uuid. */
   async connect(repo: RepoConnection) {
     return (await this.t.call<{ repo_connection_uuid: string }>("PUT", `${this.account}/builds/repos/connections`, { json: repo })).repo_connection_uuid;

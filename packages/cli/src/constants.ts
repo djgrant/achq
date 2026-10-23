@@ -20,8 +20,6 @@ export const STATUS_INTERVAL_MS = 5000;
 /** How long `achq infra up` waits for the sync, which deploys every repo, and how often it asks. */
 export const SYNC_TIMEOUT_MS = 60 * 60_000;
 export const SYNC_INTERVAL_MS = 5000;
-/** How long `achq infra down` waits for the deployer to delete every container. */
-export const TEARDOWN_TIMEOUT_MS = 10 * 60_000;
 /** How long `achq infra up` waits for a new deployer to replace the one running. */
 export const DEPLOYER_VERSION_TIMEOUT_MS = 10 * 60_000;
 /** How many times `achq repo install` opens what a failed deploy says only you can fix, and deploys again. */

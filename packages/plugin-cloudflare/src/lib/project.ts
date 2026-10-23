@@ -1,12 +1,12 @@
-import { type Change, type Context, ManagedResource, type Planned, Resource, type ResourceOptions, UNKNOWN } from "@achq/core";
+import { type Change, type Context, DataSource, ManagedResource, type Planned, Resource, type ResourceOptions, UNKNOWN } from "@achq/core";
 import { connect } from "./cloudflare.ts";
 
 type Named = { name: string };
 
-/** The account, as your sign-in reaches it, and its `<subdomain>.workers.dev`, which the project's Workers are public on. Read, never changed: it isn't achq's. */
+/** The account, as your sign-in reaches it, and its `<subdomain>.workers.dev`, which the project's Workers are public on. It isn't achq's, so it's only read. */
 type AccountState = { accountId: string; workersDev: string };
 
-export class Account extends ManagedResource<{}, AccountState, AccountState, never> {
+export class Account extends DataSource<{}, AccountState> {
   readonly kind = "cloudflare-account";
 
   async read(_: {}, ctx: Context) {
@@ -14,22 +14,6 @@ export class Account extends ManagedResource<{}, AccountState, AccountState, nev
     const subdomain = await cf.workers.subdomain();
     if (!subdomain) throw new Error(`Cloudflare account ${cf.accountId} has no workers.dev subdomain yet; choose one at https://dash.cloudflare.com/${cf.accountId}/workers-and-pages`);
     return { accountId: cf.accountId, workersDev: `${subdomain}.workers.dev` };
-  }
-
-  diff(): never[] {
-    return [];
-  }
-
-  describe(): Change {
-    throw new Error("An account is never changed");
-  }
-
-  planned(_: {}, current: AccountState) {
-    return current;
-  }
-
-  async apply(_: {}, current: AccountState) {
-    return current;
   }
 }
 
