@@ -41,6 +41,8 @@ export const workerConfig = (settings: WorkerSettings, { main, bucket, images, s
   compatibility_date: COMPATIBILITY.date,
   compatibility_flags: COMPATIBILITY.flags,
   workers_dev: true,
+  // Its logs and its container's, kept so a slow or failed start can be looked into after the fact.
+  observability: { enabled: true },
   vars: { ACHQ_SERVICE: settings },
   r2_buckets: [{ binding: "ARCHIVE", bucket_name: bucket }],
   containers: [
