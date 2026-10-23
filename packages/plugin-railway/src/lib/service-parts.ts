@@ -16,7 +16,8 @@ const LOCATE = [
   `const fs = require("node:fs");`,
   `const ref = process.env.ACHQ_REF;`,
   `if (!ref) throw new Error("Missing ACHQ_REF");`,
-  `const dir = (process.env.RAILWAY_VOLUME_MOUNT_PATH ?? "/tmp") + "/achq/" + ref;`,
+  `const root = (process.env.RAILWAY_VOLUME_MOUNT_PATH ?? "/tmp") + "/achq";`,
+  `const dir = root + "/" + ref;`,
 ];
 
 /** Downloads and unpacks it beside `dir`, then renames it into place, so an interrupted download is never taken for a finished one. */
@@ -42,6 +43,9 @@ const INSTALL = [
   `}`,
 ];
 
+/** Deletes every other ref once this one's ready: each is a copy of achq with its node_modules, which would otherwise fill the volume a push at a time. */
+const PRUNE = [`for (const other of fs.readdirSync(root)) if (other !== ref) fs.rmSync(root + "/" + other, { recursive: true, force: true });`];
+
 /**
  * Runs `entry` (e.g. `packages/service-router/src/main.ts`) from achq at
  * ACHQ_REF. The script must not contain single quotes, because Railway splits
@@ -49,7 +53,7 @@ const INSTALL = [
  */
 export const startCommand = (entry: string) => {
   const run = [`const entry = await import(dir + "/${entry}");`, `if (typeof entry.main === "function") await entry.main();`];
-  const script = [...LOCATE, ...DOWNLOAD, ...INSTALL, ...run].join(" ");
+  const script = [...LOCATE, ...DOWNLOAD, ...INSTALL, ...PRUNE, ...run].join(" ");
   return `bun -e '${script}'`;
 };
 
