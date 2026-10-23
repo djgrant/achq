@@ -36,6 +36,8 @@ let routerServer: ReturnType<typeof Bun.serve>;
 let ghCalls: { method: string; path: string; body?: any; jwtOk: boolean }[];
 let syncs: { body: any; signed: boolean }[];
 let polls = 0;
+/** How many times the deployer answers as one too old to say what it runs. */
+let oldDeployer = 0;
 let hook: { url?: string; content_type?: string; insecure_ssl?: string; secret?: string };
 let tmp: string;
 let secrets = 0;
@@ -54,6 +56,7 @@ beforeEach(() => {
   fake = startFakeRailway();
   ghCalls = [];
   syncs = [];
+  oldDeployer = 0;
   hook = {};
   gh = Bun.serve({
     port: 0,
@@ -80,6 +83,8 @@ beforeEach(() => {
       const routerVars = fake.service("achq-router")!.variables;
       const signed = verifySigned(adminSecret(routerVars.AGENT_WEBHOOK_KEY), req.method, url.pathname, body, req.headers);
       if (!signed) return new Response("bad signature", { status: 401 });
+      // The deployer runs what the router was given, as a new one does once it's replaced the old.
+      if (url.pathname === "/admin/deployer") return oldDeployer-- > 0 ? new Response("not found", { status: 404 }) : Response.json({ ref: routerVars.ACHQ_REF });
       // A sync starts, then is asked after: running once, then done.
       if (req.method === "POST") {
         syncs.push({ body: JSON.parse(body), signed });
@@ -211,6 +216,15 @@ test("up creates everything, puts the App's key only in the router's variables, 
   expect(JSON.stringify(fake.projects)).toContain(pemBody);
   expect(scan(tmp)).toEqual([]);
   expect(fs.existsSync(path.join(import.meta.dir, "../../../secrets.env")) ? fs.readFileSync(path.join(import.meta.dir, "../../../secrets.env"), "utf8") : "").not.toContain(pemBody);
+});
+
+test("up waits for the new deployer to replace the old before it syncs", async () => {
+  await up(infra(), { prune: false, dryRun: false }, deps());
+  oldDeployer = 2;
+  const log: string[] = [];
+  expect((await up(infra(), { prune: false, dryRun: false }, deps(log)))?.deployed).toEqual(["djgrant/x"]);
+  expect(log).toContain("  waiting for the deployer to run abc123…");
+  expect(oldDeployer).toBe(-1);
 });
 
 test("a second up changes nothing, keeps the key, and fixes a webhook URL that drifted", async () => {

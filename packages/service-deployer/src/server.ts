@@ -1,4 +1,4 @@
-import type { SyncStatus } from "@achq/core";
+import type { DeployerVersion, SyncStatus } from "@achq/core";
 import { DeployerEnvelope, SyncRequest } from "@achq/core/protocol";
 import { adminSecret } from "@achq/core/secrets";
 import { signedBy } from "@achq/core/signing";
@@ -46,5 +46,6 @@ export const deployerHandler = (deployer: Deployer, key: string, log: (line: str
       const status = syncs.get(c.req.param("id"));
       return status ? c.json(status) : c.text("no such sync", 404);
     })
+    .get("/version", (c) => c.json({ ref: deployer.ref } satisfies DeployerVersion))
     .get("/status", async (c) => c.json(await deployer.status())).fetch;
 };

@@ -1,5 +1,5 @@
 import * as path from "node:path";
-import { type Check, type Context, Deployer, type Vault, DEPLOYER_PORT, ENV, type Infra, known, plan, type Resource, Router, ROUTER_PRIVATE_PORT, type SyncRequest, type SyncStarted, type SyncStatus } from "@achq/core";
+import { type Check, type Context, Deployer, type Vault, DEPLOYER_PORT, ENV, type Infra, known, plan, type Resource, Router, ROUTER_PRIVATE_PORT, type SyncRequest, type DeployerVersion, type SyncStarted, type SyncStatus } from "@achq/core";
 import { adminSecret } from "@achq/core/secrets";
 import { signedFetch } from "@achq/core/signing";
 import { async } from "@achq/utils/async";
@@ -8,7 +8,7 @@ import { crypto } from "@achq/utils/crypto";
 import { Env, type Vars } from "@achq/utils/env";
 import { HttpError } from "@achq/utils/http";
 import { agentEnv, containerProviderNamed, INFRA_MODULES, vaultProviderNamed } from "achq/registry";
-import { SYNC_INTERVAL_MS, SYNC_TIMEOUT_MS } from "../constants.ts";
+import { DEPLOYER_VERSION_TIMEOUT_MS, SYNC_INTERVAL_MS, SYNC_TIMEOUT_MS } from "../constants.ts";
 import type { CliConfig } from "./config.ts";
 import { planLines } from "./format.ts";
 
@@ -128,6 +128,15 @@ export const adminRequest = async <T>(router: RouterAccess, method: string, path
   return (text ? JSON.parse(text) : undefined) as T;
 };
 
+/** Waits until the deployer runs `ref`. One older than `GET /version` answers 404, which counts as not yet. */
+const deployerRuns = async (router: RouterAccess, ref: string, ctx: Context, log: (line: string) => void) => {
+  const running = () => adminRequest<DeployerVersion>(router, "GET", "/admin/deployer").then((v) => v.ref, () => undefined);
+  if ((await running()) === ref) return;
+  log(`  waiting for the deployer to run ${ref.slice(0, 7)}…`);
+  const found = await async.pollUntil(running, (r) => r === ref, { intervalMs: SYNC_INTERVAL_MS, timeoutMs: DEPLOYER_VERSION_TIMEOUT_MS, sleep: ctx.sleep });
+  if (found !== ref) throw new Error(`The deployer isn't running ${ref.slice(0, 7)} after ${DEPLOYER_VERSION_TIMEOUT_MS / 60_000} minutes; see its logs on its container provider`);
+};
+
 export const up = async ({ router, deployer, resources }: InfraResources, options: UpOptions, deps: UpDeps) => {
   const { log } = deps;
   const ctx = cliContext({ env: deps.env, log, open: deps.open, prompt: deps.prompt, vault: deps.vault, newSecret: deps.newSecret, sleep: deps.sleep });
@@ -165,6 +174,8 @@ export const up = async ({ router, deployer, resources }: InfraResources, option
     return undefined;
   }
   const base = deps.routerUrl ? deps.routerUrl(url) : url;
+  // A new deployer takes a while to replace the one running, and a sync the old one ran would deploy with what it was given.
+  if (!options.dryRun) await deployerRuns({ base, key }, ref, ctx, log);
   const sync: SyncRequest = { prune: options.prune, dryRun: options.dryRun };
   // It runs on the deployer, and its builds can outlast a request, so it's asked after until it's done.
   const { id } = await adminRequest<SyncStarted>({ base, key }, "POST", "/admin/sync", sync);

@@ -63,6 +63,7 @@ export const createRouter = (deps: RouterDeps) => {
     .post("/sync", async (c) => toDeployer("POST", "/sync", await c.req.text()))
     .get("/sync/:id", (c) => toDeployer("GET", `/sync/${encodeURIComponent(c.req.param("id"))}`))
     .get("/status", () => toDeployer("GET", "/status"))
+    .get("/deployer", () => toDeployer("GET", "/version"))
     .get("/failed", async (c) => c.json(await listFailed(ctx)))
     .post("/failed/replay", async (c) => c.json(await replayFailed(ctx)));
 

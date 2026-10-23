@@ -92,6 +92,9 @@ export type SourceSettings = { channel: string; source: string; events: string[]
 
 export type SyncResult = { deployed: string[]; unchanged: string[]; uninstalled: string[]; pruned: string[]; failed: { repo: string; error: string }[] };
 
+/** The achq commit the deployer runs: a new one reaches it some time after its Worker is deployed. */
+export type DeployerVersion = { ref: string };
+
 /** What `POST /sync` answers: the sync it started, which `GET /sync/<id>` reports on. */
 export type SyncStarted = { id: string };
 
