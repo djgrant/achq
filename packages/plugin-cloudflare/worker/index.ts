@@ -6,7 +6,7 @@
 // `*.achq.internal` go through `Outbound`: to its own store, keep-awake and
 // archive, or to another Worker's container.
 
-import { DurableObject, type DurableObjectState, type R2Bucket, WorkerEntrypoint } from "cloudflare:workers";
+import { DurableObject, type DurableObjectState, type R2Bucket, WorkerEntrypoint, type WorkerVersionMetadata } from "cloudflare:workers";
 import { type Box, Lifecycle, type Memory } from "./lifecycle.ts";
 import { inbound, outbound, storeRequest, workerUrl } from "./routes.ts";
 import { DATA_DIR, DEPLOYER_TOKEN, HEADERS, INTERNAL_DOMAIN, SERVICE_INSTANCE, type WorkerSettings } from "./settings.ts";
@@ -21,6 +21,8 @@ type Env = {
   /** The deployer's own Cloudflare token: a secret only the deployer's Worker has. */
   [DEPLOYER_TOKEN]?: string;
   ARCHIVE: R2Bucket;
+  /** Which version of the Worker this is: VERSION_BINDING. */
+  VERSION: WorkerVersionMetadata;
 };
 
 const decoder = new TextDecoder();
@@ -41,12 +43,16 @@ const sha256 = async (text: string) => {
 /** The one Service of this Worker. */
 const service = (exports: DurableObjectState["exports"]) => exports.Service.get(exports.Service.idFromName(SERVICE_INSTANCE));
 
-/** Without the internal headers, which only this Worker sets. */
-const stripped = (req: Request, port?: number) => {
+/** Without the internal headers, which only this Worker sets: with `to`, those for its Durable Object. */
+const stripped = (req: Request, to?: { port: number; version: string }) => {
   const headers = new Headers(req.headers);
   headers.delete(HEADERS.key);
   headers.delete(HEADERS.port);
-  if (port !== undefined) headers.set(HEADERS.port, String(port));
+  headers.delete(HEADERS.version);
+  if (to) {
+    headers.set(HEADERS.port, String(to.port));
+    headers.set(HEADERS.version, to.version);
+  }
   return new Request(req, { headers });
 };
 
@@ -61,7 +67,14 @@ export default {
   async fetch(req: Request, env: Env, ctx: { exports: DurableObjectState["exports"] }) {
     const route = inbound(req.headers, env.ACHQ_SERVICE, (key) => sameKey(key, env.ACHQ_INTERNAL_KEY));
     if ("refuse" in route) return new Response(route.refuse === 404 ? "not found" : "refused", { status: route.refuse });
-    return service(ctx.exports).fetch(stripped(req, route.port));
+    const forwarded = stripped(req, { port: route.port, version: env.VERSION.timestamp });
+    if (forwarded.body) return service(ctx.exports).fetch(forwarded);
+    // One without a body can be sent again, as it is when the object it reached was on an older version and stepped aside.
+    try {
+      return await service(ctx.exports).fetch(forwarded.clone());
+    } catch {
+      return service(ctx.exports).fetch(forwarded);
+    }
   },
 };
 
@@ -137,6 +150,13 @@ export class Service extends DurableObject<Env> {
   }
 
   async fetch(req: Request) {
+    // Cloudflare moves an object onto its Worker's new version in its own time, which can be minutes, and until then it runs with the old variables.
+    // So one that a newer version reaches resets, and the next call starts one on it, which restarts the service if its config changed.
+    // Only for a request without a body, which its Worker sends again.
+    if (!req.body && Date.parse(req.headers.get(HEADERS.version) ?? "") > Date.parse(this.env.VERSION.timestamp)) {
+      console.log(`${this.env.ACHQ_SERVICE.name}: a newer version of its Worker is deployed; stepping aside`);
+      this.ctx.abort("a newer version of its Worker is deployed");
+    }
     await this.ready;
     const port = Number(req.headers.get(HEADERS.port));
     const response = await this.lifecycle.serve(port, () => this.ctx.container!.getTcpPort(port).fetch(toContainer(req)));

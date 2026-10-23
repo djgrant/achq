@@ -6,7 +6,7 @@ import { crypto } from "@achq/utils/crypto";
 import { Env, type Vars } from "@achq/utils/env";
 import { subprocess } from "@achq/utils/subprocess";
 import { text } from "@achq/utils/text";
-import { COMPATIBILITY, SERVICE_CLASS, type WorkerSettings } from "../../worker/settings.ts";
+import { COMPATIBILITY, SERVICE_CLASS, VERSION_BINDING, type WorkerSettings } from "../../worker/settings.ts";
 import { wranglerCommand } from "./cloudflare.ts";
 import { CLOUDFLARE_ENV, LOG_TAIL_LINES } from "./constants.ts";
 
@@ -43,6 +43,8 @@ export const workerConfig = (settings: WorkerSettings, { main, bucket, images, s
   workers_dev: true,
   // Its logs and its container's, kept so a slow or failed start can be looked into after the fact.
   observability: { enabled: true },
+  // Which version it is, so its Durable Object can tell a newer one has been deployed.
+  version_metadata: { binding: VERSION_BINDING },
   vars: { ACHQ_SERVICE: settings },
   r2_buckets: [{ binding: "ARCHIVE", bucket_name: bucket }],
   containers: [

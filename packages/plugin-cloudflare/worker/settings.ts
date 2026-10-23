@@ -18,8 +18,15 @@ export const INTERNAL_HOSTS = {
 /** The deployer's own Cloudflare token: a secret only its Worker has, which its container gets and its shells don't. */
 export const DEPLOYER_TOKEN = "ACHQ_CLOUDFLARE_DEPLOYER_TOKEN";
 
-/** One Worker hop to another carries the account's internal key, and the port it's for. */
-export const HEADERS = { key: "x-achq-internal-key", port: "x-achq-port" } as const;
+/**
+ * One Worker hop to another carries the account's internal key, and the port
+ * it's for. A Worker's own hop to its Durable Object carries when its version
+ * was made, so an object still on an older one knows to step aside.
+ */
+export const HEADERS = { key: "x-achq-internal-key", port: "x-achq-port", version: "x-achq-version" } as const;
+
+/** The Worker's version metadata binding. */
+export const VERSION_BINDING = "VERSION";
 
 /** The image the router and deployer run: Cloudflare's own, so nothing is built for them. It has Node, and gets Bun on its first start. */
 export const MANAGED_IMAGE = "cloudflare/debian-trixie";

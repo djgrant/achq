@@ -69,6 +69,15 @@ declare module "cloudflare:workers" {
     readonly exports: Exports;
     blockConcurrencyWhile<T>(fn: () => Promise<T>): Promise<T>;
     waitUntil(promise: Promise<unknown>): void;
+    /** Resets the object: what it's in the middle of throws, and the next call starts a new one. */
+    abort(reason?: string): never;
+  }
+
+  /** The version metadata binding: which version of the Worker this is, and when it was made. */
+  export interface WorkerVersionMetadata {
+    readonly id: string;
+    readonly tag: string;
+    readonly timestamp: string;
   }
 
   export interface ExecutionContext {
