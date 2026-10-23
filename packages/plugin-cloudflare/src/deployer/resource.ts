@@ -1,6 +1,6 @@
 import * as core from "@achq/core";
 import { type Context, type EnvValues, Output } from "@achq/core";
-import { BUILDS_GITHUB_APP_INSTALL_URL, CLOUDFLARE_ENV, CONTAINER_PROVIDER } from "../lib/constants.ts";
+import { CLOUDFLARE_ENV, CONTAINER_PROVIDER } from "../lib/constants.ts";
 import { DeployerToken } from "../lib/deployer-token.ts";
 import { privateUrl, serviceWorkerName } from "../lib/names.ts";
 import { ServiceParts } from "../lib/service-parts.ts";
@@ -76,8 +76,7 @@ export class Deployer extends core.Deployer {
   }
 
   children(ctx: Context) {
-    // Your gh login can't tell whether the App is installed, so this is only a reminder.
-    ctx.log(`  Workers Builds clones repos with Cloudflare's GitHub App: install it on ${this.inputs.owners.join(", ")}, on the repos achq serves, at ${BUILDS_GITHUB_APP_INSTALL_URL}`);
+    // Cloudflare's GitHub App isn't checked here: only Cloudflare can tell, so a deploy it can't build opens the App's page from `achq repo install`.
     return [this.token, ...this.parts.children(ctx)];
   }
 }

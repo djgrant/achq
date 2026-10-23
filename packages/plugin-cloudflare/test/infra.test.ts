@@ -123,7 +123,6 @@ test("a new project plans in one pass and writes nothing, with the router's URL 
   expect(applied.value(router.env)).toEqual({});
   const page = deployerTokenPage(fake.accountId);
   expect(logs).toEqual([
-    "  Workers Builds clones repos with Cloudflare's GitHub App: install it on djgrant, on the repos achq serves, at https://github.com/apps/cloudflare-workers-and-pages/installations/new",
     "  waiting for the router to answer…",
     `  The deployer needs a Cloudflare API token of its own. Create it with what's filled in, then paste it here. It's kept only as the deployer's secret: ${page}`,
   ]);
@@ -243,11 +242,11 @@ test("without a browser and a terminal to paste into, the deployer's token can't
   await expect((await plan(declare().resources, withoutPrompt)).apply()).rejects.toThrow("The deployer's Cloudflare token is made in your browser and pasted here, which only `achq infra up` can do");
 });
 
-test("Cloudflare's GitHub App isn't checked, which only Cloudflare can do: up reminds you to install it, and asks GitHub nothing", async () => {
+test("Cloudflare's GitHub App isn't checked, which only Cloudflare can do: up says nothing of it, and asks GitHub nothing", async () => {
   const planned = await plan(declare().resources, ctx);
   expect(summary(planned.changes).filter((c) => c.includes("cloudflare-workers-and-pages"))).toEqual([]);
   await planned.apply();
-  expect(logs).toContain("  Workers Builds clones repos with Cloudflare's GitHub App: install it on djgrant, on the repos achq serves, at https://github.com/apps/cloudflare-workers-and-pages/installations/new");
+  expect(logs.filter((l) => l.includes("cloudflare-workers-and-pages"))).toEqual([]);
   expect(opened.map((o) => o.what)).not.toContain("install cloudflare-workers-and-pages on djgrant");
   expect(githubCalls).toEqual([]);
 });
