@@ -26,8 +26,8 @@ export const command = defineCommand({
     const env = new Env(process.env);
     const result = await up(infra, { prune: context.prune, dryRun: context.dryRun, rotateDeployerToken: context.rotateDeployerToken }, {
       env: process.env,
-      // What every container gets: each agent runtime's variables, from your shell.
-      containerEnv: Object.fromEntries(agentEnv().map(({ name, hint }) => [name, env.require(name, hint)])),
+      // What every container gets: each agent runtime's variables, from your shell, trimmed, as a secret pasted into a vault can end in a newline.
+      containerEnv: Object.fromEntries(agentEnv().map(({ name, hint }) => [name, env.require(name, hint).trim()])),
       achqRef: () => source.lastCommit(ACHQ_SOURCE.repo, ACHQ_SOURCE.branch, ACHQ_CODE_PATHS),
       open: openInBrowser,
       prompt: readSecret,
