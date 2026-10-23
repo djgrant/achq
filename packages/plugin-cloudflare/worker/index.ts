@@ -77,7 +77,16 @@ export class Service extends DurableObject<Env> {
       get images() {
         return container.images;
       },
-      start: ({ env: startEnv, ...options }) => container.start({ ...options, ...(startEnv && { env: startEnv }), enableInternet: true }),
+      start: ({ env: startEnv, ...options }) => {
+        container.start({ ...options, ...(startEnv && { env: startEnv }), enableInternet: true });
+        // Cloudflare keeps no container output, so how it stopped is logged, for `wrangler tail`.
+        ctx.waitUntil(
+          container.monitor().then(
+            () => console.log(`${settings.name}: its container stopped`),
+            (e: { exitCode?: number; message?: string }) => console.error(`${settings.name}: its container stopped with exit code ${e?.exitCode ?? "unknown"}: ${e?.message ?? e}`),
+          ),
+        );
+      },
       intercept: () => container.interceptOutboundHttp(`*.${INTERNAL_DOMAIN}`, ctx.exports.Outbound({ props: {} })),
       setInactivityTimeout: (ms) => container.setInactivityTimeout(ms),
       snapshot: (name) => container.snapshotContainer({ name }),

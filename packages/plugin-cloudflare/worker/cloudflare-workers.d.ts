@@ -24,6 +24,8 @@ declare module "cloudflare:workers" {
     readonly images: Record<string, string>;
     start(options: ContainerStartupOptions): void;
     destroy(reason?: unknown): Promise<void>;
+    /** Settles when it stops: rejects with `exitCode` when its command fails. */
+    monitor(): Promise<void>;
     setInactivityTimeout(ms: number): Promise<void>;
     snapshotContainer(options: { name?: string }): Promise<{ id: string; size: number; name?: string }>;
     exec(command: string[], options?: { env?: Record<string, string>; user?: string; cwd?: string }): Promise<{ output(): Promise<ExecOutput> }>;
