@@ -9,6 +9,7 @@ describe("errors for unwanted responses", () => {
     expect(http.excerpt(body).length).toBeLessThan(body.length);
     expect(error.body).toBe(body);
     expect(new HttpError(500, "POST", "/x", "").message).toBe("POST /x: 500");
+    expect(http.excerpt('<!DOCTYPE html>\n<html><head><title> Page not found </title></head><body>…</body></html>')).toBe("Page not found");
   });
 
   test("expectOk passes 2xx through and throws for anything else", async () => {

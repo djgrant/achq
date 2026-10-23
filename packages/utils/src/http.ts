@@ -18,8 +18,11 @@ export class HttpError extends Error {
 }
 
 export const http = {
-  /** As much of a response body as an error message quotes. */
-  excerpt: (body: string) => body.slice(0, ERROR_BODY_CHARS),
+  /** As much of a response body as an error message quotes: an HTML page's title, as its markup says nothing. */
+  excerpt: (body: string) => {
+    const title = /^\s*<(!doctype|html)/i.test(body) ? body.match(/<title>([^<]*)<\/title>/i)?.[1]?.trim() : undefined;
+    return title ?? body.slice(0, ERROR_BODY_CHARS);
+  },
 
   /** An error for a response that wasn't 2xx, e.g. `The router refused credentials: 403 forbidden`. Reads the body. */
   responseError: async (res: Response, what: string) => new Error(`${what}: ${res.status} ${http.excerpt(await res.text())}`.trimEnd()),

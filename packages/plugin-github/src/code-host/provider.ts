@@ -15,6 +15,7 @@ const CONFIG_DIR = ".achq";
 const SYMLINK_MODE = "120000";
 const LIST_PERMISSIONS = { metadata: "read" };
 const STATUS_EXCERPT_CHARS = 200;
+const NOT_FOUND = 404;
 
 /** A repo is set up for achq when the config's one App is installed on it. Only the router has the App keys that list where. */
 export class GitHubCodeHostProvider implements CodeHostProvider {
@@ -102,6 +103,9 @@ export class GitHubCodeHostProvider implements CodeHostProvider {
       headers: { authorization: `Bearer ${this.token()}`, "content-type": "application/json" },
       body: JSON.stringify({ host: CODE_HOST, repo, source: slug } satisfies InstallationRequest),
     });
+    if (res.status === NOT_FOUND) {
+      throw new Error(`No router answers at ${router}, which ${repo}'s ${STATUS_VARIABLE} names: its hq may have been torn down. Bring it back with \`achq infra up\`, or remove ${slug} from its installation in ${repoName.split(repo).owner}'s settings on GitHub`);
+    }
     await http.expectOk(res, `The router at ${router} couldn't say whether ${slug} is installed on ${repo}`);
     return (await res.json()) as RepoInstallation;
   }
