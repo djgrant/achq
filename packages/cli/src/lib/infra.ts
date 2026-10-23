@@ -215,11 +215,7 @@ export type DownDeps = {
 const deleteContainers = async (router: RouterAccess | undefined, dryRun: boolean, ctx: Context) => {
   if (!router) return [];
   const request: TeardownRequest = { dryRun };
-  const status = await deployerJob<JobStatus<TeardownResult>>(router, "teardown", request, TEARDOWN_TIMEOUT_MS, ctx).catch((e) => {
-    // A router or deployer from before `achq infra down` has no such route.
-    if (e instanceof HttpError && e.status === 404) throw new Error("The deployer can't delete containers yet: run `achq infra up` to update it, then `achq infra down`");
-    throw e;
-  });
+  const status = await deployerJob<JobStatus<TeardownResult>>(router, "teardown", request, TEARDOWN_TIMEOUT_MS, ctx);
   if (!status) throw new Error(`The deployer hasn't deleted the containers after ${TEARDOWN_TIMEOUT_MS / 60_000} minutes; nothing else was deleted`);
   if (status.state !== "done") throw new Error("The deployer couldn't delete the containers, and nothing else was deleted; its logs say why");
   return status.result.removed;
