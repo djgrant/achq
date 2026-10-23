@@ -1,4 +1,4 @@
-import { BrowserActionNeeded, type DeployRecord, ENV, type RepoClient, type RepoManifest, repoName, type Status } from "@achq/core";
+import { BrowserActionNeeded, type CodeHostProvider, type DeployRecord, ENV, type RepoClient, type RepoManifest, repoName, type Status } from "@achq/core";
 import { containerSecret } from "@achq/core/secrets";
 import { crypto } from "@achq/utils/crypto";
 import { errors } from "@achq/utils/errors";
@@ -32,6 +32,14 @@ const CONFIG_FILE = `${CONFIG_DIR}/${CONFIG_ENTRY}`;
 const withWarnings = <T extends object>(value: T, warnings: string[] | undefined): T & { warnings?: string[] } =>
   warnings?.length ? { ...value, warnings } : value;
 
+/** The repo as the deployer's own credential, which the router mints, reaches it. */
+export const repoClient = async (ctx: DeployerContext, host: CodeHostProvider, repo: string) => {
+  const policy = host.deployerPolicy(repo);
+  const credential = (await ctx.router.mint({ repo, policies: [policy] })).find((c) => c.provider === policy.provider);
+  if (!credential) throw new Error(`the router minted no ${policy.provider} credential for ${repo}`);
+  return host.repo(repo, credential);
+};
+
 /** One deploy of one repo, from `hostId`. Run one per repo at a time. */
 export const deploy = async (ctx: DeployerContext, hostId: string, repo: string, dryRun: boolean): Promise<DeployOutcome> => {
   const previous = await ctx.store.get(repo);
@@ -60,10 +68,7 @@ export const deploy = async (ctx: DeployerContext, hostId: string, repo: string,
     if (!ctx.owners.has(owner.toLowerCase())) throw new DeployFailure(`${owner} isn't an owner this deployer serves`);
 
     try {
-      const policy = host.deployerPolicy(repo);
-      const credential = (await ctx.router.mint({ repo, policies: [policy] })).find((c) => c.provider === policy.provider);
-      if (!credential) throw new Error(`the router minted no ${policy.provider} credential for ${repo}`);
-      client = host.repo(repo, credential);
+      client = await repoClient(ctx, host, repo);
     } catch (error) {
       throw new DeployFailure(`couldn't get a token for ${repo}: ${errors.message(error)}`);
     }

@@ -509,7 +509,7 @@ describe("sync", () => {
     expect(await deployer.sync({ prune: true })).toMatchObject({ deployed: [], unchanged: [A], uninstalled: [], pruned: [] });
   });
 
-  test("empty syncs to no repos: it uninstalls each, and with prune deletes every container; expected containers fail it before it changes anything", async () => {
+  test("empty syncs to no repos: it uninstalls each, deleting its ACHQ_STATUS, and with prune deletes every container; expected containers fail it before it changes anything", async () => {
     github.commit(A, repoFiles());
     router.installed = [{ host: "github", repo: A }];
     const deployer = makeDeployer();
@@ -520,6 +520,7 @@ describe("sync", () => {
     const dry = await deployer.sync({ empty: true, prune: true, dryRun: true });
     expect({ ...dry, pruned: dry.pruned.sort() }).toEqual({ deployed: [], unchanged: [], uninstalled: [A], pruned: all, failed: [] });
     expect(containerProvider.ops("remove")).toEqual([]);
+    expect(github.variable(A, STATUS_VARIABLE)).toBeDefined();
 
     await expect(deployer.sync({ empty: true, prune: true, expect: [`${A}/dev`] })).rejects.toThrow("notationlabs/gone/dev");
     expect(containerProvider.ops("remove")).toEqual([]);
@@ -528,6 +529,7 @@ describe("sync", () => {
     expect((await deployer.sync({ empty: true, prune: true, expect: all })).pruned.sort()).toEqual(all);
     expect(containerProvider.services.size).toBe(0);
     expect(router.repos.size).toBe(0);
+    expect(github.variable(A, STATUS_VARIABLE)).toBeUndefined();
     expect(await deployer.sync({ empty: true, prune: true, expect: all })).toEqual({ deployed: [], unchanged: [], uninstalled: [], pruned: [], failed: [] });
   });
 

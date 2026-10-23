@@ -34,6 +34,8 @@ export interface RepoClient {
   download(tree: ConfigTree, paths: string[], limits: FileLimits): Promise<Record<string, string>>;
   /** Writes ACHQ_STATUS where the repo's CLI reads it. */
   writeStatus(status: Status): Promise<void>;
+  /** Deletes ACHQ_STATUS, as if the repo had never been deployed: the router it names is going. */
+  clearStatus(): Promise<void>;
 }
 
 /**

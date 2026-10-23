@@ -218,6 +218,11 @@ export class RepoApi {
     }
   }
 
+  /** Deleting one that isn't there is fine. */
+  async deleteVariable(name: string) {
+    await unlessMissing(this.octokit.rest.actions.deleteRepoVariable({ ...this.at, name }));
+  }
+
   async issue(number: number) {
     return (await this.octokit.rest.issues.get({ ...this.at, issue_number: number })).data;
   }

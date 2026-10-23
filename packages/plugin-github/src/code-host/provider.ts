@@ -184,4 +184,8 @@ class GitHubRepoClient implements RepoClient {
   writeStatus(status: Status) {
     return this.repo.upsertVariable(STATUS_VARIABLE, JSON.stringify(status));
   }
+
+  clearStatus() {
+    return this.repo.deleteVariable(STATUS_VARIABLE);
+  }
 }

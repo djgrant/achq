@@ -103,6 +103,9 @@ export class FakeGitHub {
       repo.variables.set(r[1]!, ((await req.json()) as { value: string }).value);
       return new Response(null, { status: 204 });
     }
+    if (req.method === "DELETE" && (r = /^\/actions\/variables\/([^/]+)$/.exec(rest))) {
+      return repo.variables.delete(r[1]!) ? new Response(null, { status: 204 }) : notFound();
+    }
     if (req.method === "POST" && rest === "/actions/variables") {
       const { name, value } = (await req.json()) as { name: string; value: string };
       if (repo.variables.has(name)) return Response.json({ message: "Already exists" }, { status: 409 });

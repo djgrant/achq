@@ -1,8 +1,9 @@
 import { type CodeHostProvider, type ContainerProvider, type Stores, type DeployerEnvelope, type FileLimits, type RepoManifest, repoName, type SyncRequest, type SyncResult } from "@achq/core";
 import { async } from "@achq/utils/async";
+import { errors } from "@achq/utils/errors";
 import { HttpError } from "@achq/utils/http";
 import { type Evaluate, evaluateConfig } from "./config/evaluate.ts";
-import { deploy } from "./deploy.ts";
+import { deploy, repoClient } from "./deploy.ts";
 import type { RouterClient } from "./router-client.ts";
 import { createStore, type Store, type StoredRecord, wireRecord } from "./store.ts";
 
@@ -45,6 +46,10 @@ export type DeployerContext = Required<Omit<DeployerDeps, "owners">> & {
 };
 
 type ActionOptions = { dryRun?: boolean };
+type UninstallOptions = ActionOptions & {
+  /** Deletes its ACHQ_STATUS too, while the App still reaches it: the infra is going, router and all. */
+  clearStatus?: boolean;
+};
 
 export const createDeployer = (deps: DeployerDeps) => {
   const ctx: DeployerContext = {
@@ -77,10 +82,19 @@ export const createDeployer = (deps: DeployerDeps) => {
   const actions = {
     deploy: (host: string, repo: string, { dryRun = false }: ActionOptions = {}) => perRepo(repoName.key(repo), () => deploy(ctx, host, repo, dryRun)),
 
-    uninstall: (host: string, repo: string, { dryRun = false }: ActionOptions = {}) =>
+    uninstall: (host: string, repo: string, { dryRun = false, clearStatus = false }: UninstallOptions = {}) =>
       perRepo(repoName.key(repo), async () => {
         if (dryRun) return;
         const previous = await ctx.store.get(repo);
+        // Before the router forgets it, as minting needs it. A failure is only logged: the repo goes either way.
+        if (clearStatus) {
+          const provider = Object.hasOwn(ctx.codeHostProviders, host) ? ctx.codeHostProviders[host] : undefined;
+          try {
+            if (provider) await (await repoClient(ctx, provider, repo)).clearStatus();
+          } catch (error) {
+            ctx.log(`${repo}: couldn't delete ACHQ_STATUS: ${errors.message(error)}`);
+          }
+        }
         // One the router doesn't have is already out.
         await ctx.router.deleteRepo(repo).catch((error) => {
           if (!(error instanceof HttpError && error.status === NOT_FOUND)) throw error;
@@ -120,7 +134,9 @@ export const createDeployer = (deps: DeployerDeps) => {
 
     /**
      * Deploys every installed repo, uninstalls the rest, and with `prune` deletes
-     * containers no installed repo's manifest has. `empty` syncs to no repos.
+     * containers no installed repo's manifest has. `empty` syncs to no repos,
+     * as `achq infra down` does, and deletes each one's ACHQ_STATUS: the router
+     * it names is going.
      */
     sync: async ({ prune = false, dryRun = false, empty = false, expect }: SyncRequest = {}) => {
       const result: SyncResult = { deployed: [], unchanged: [], uninstalled: [], pruned: [], failed: [] };
@@ -141,7 +157,7 @@ export const createDeployer = (deps: DeployerDeps) => {
 
       for (const record of records) {
         if (record.state === "uninstalled" || installed.has(repoName.key(record.repo))) continue;
-        await actions.uninstall(record.host, record.repo, { dryRun });
+        await actions.uninstall(record.host, record.repo, { dryRun, clearStatus: empty });
         result.uninstalled.push(record.repo);
       }
       for (const c of doomed) {
