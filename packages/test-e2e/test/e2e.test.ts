@@ -614,7 +614,10 @@ describe("installations", () => {
   });
 
   test("the infra CLI's sync, through the router's public port, finds the repo up to date and prunes the container the config dropped", async () => {
-    expect(await w.infraCli("POST", "/admin/sync", { prune: true })).toEqual({ deployed: [], unchanged: [REPO], uninstalled: [], pruned: [`${REPO}/review`], failed: [] });
+    const { id } = await w.infraCli<{ id: string }>("POST", "/admin/sync", { prune: true });
+    const synced = async () => (await w.infraCli<{ state: string }>("GET", `/admin/sync/${id}`)).state !== "running";
+    while (!(await synced())) await Bun.sleep(10);
+    expect(await w.infraCli("GET", `/admin/sync/${id}`)).toEqual({ state: "done", result: { deployed: [], unchanged: [REPO], uninstalled: [], pruned: [`${REPO}/review`], failed: [] } });
     expect(w.containerProvider.removed).toEqual([`${REPO}/review`]);
     expect(await w.infraCli("GET", "/admin/status")).toEqual([expect.objectContaining({ repo: REPO, state: "deployed", commit: expect.any(String) })]);
   });

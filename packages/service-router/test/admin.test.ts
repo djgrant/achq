@@ -46,9 +46,10 @@ describe("admin", () => {
     const deployer = fakeDeployer();
     const r = await boot({ deployer: deployer.url });
     const sync = await r.admin("POST", "/admin/sync", { dryRun: true }, r.pub);
-    expect(sync.status).toBe(200);
-    expect(((await sync.json()) as { deployed: string[] }).deployed).toEqual([repo]);
+    expect(sync.status).toBe(202);
+    expect(await sync.json()).toEqual({ id: "s1" });
     expect(deployer.syncs).toBe(2);
+    expect(await (await r.admin("GET", "/admin/sync/s1")).json()).toMatchObject({ state: "done", result: { deployed: [repo] } });
     expect(await (await r.admin("GET", "/admin/status")).json()).toEqual([{ repo, state: "deployed" }]);
   });
 });

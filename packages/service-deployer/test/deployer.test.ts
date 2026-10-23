@@ -536,7 +536,12 @@ describe("HTTP", () => {
       const status = await signedFetch(adminSecret(KEY), `${base}/status`, { method: "GET" });
       expect(((await status.json()) as { state: string }[])[0]!.state).toBe("deployed");
       const sync = await signedFetch(adminSecret(KEY), `${base}/sync`, { method: "POST", body: JSON.stringify({ dryRun: true }) });
-      expect(await sync.json()).toMatchObject({ unchanged: [REPO] });
+      expect(sync.status).toBe(202);
+      const { id } = (await sync.json()) as { id: string };
+      const syncStatus = () => signedFetch(adminSecret(KEY), `${base}/sync/${id}`, { method: "GET" }).then((r) => r.json() as Promise<{ state: string }>);
+      while ((await syncStatus()).state === "running") await Bun.sleep(5);
+      expect(await syncStatus()).toMatchObject({ state: "done", result: { unchanged: [REPO] } });
+      expect((await signedFetch(adminSecret(KEY), `${base}/sync/nope`, { method: "GET" })).status).toBe(404);
       expect((await fetch(`${base}/`)).status).toBe(200);
     } finally {
       server.stop(true);

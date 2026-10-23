@@ -1,12 +1,14 @@
 import * as path from "node:path";
-import { type Check, type Context, Deployer, type Vault, DEPLOYER_PORT, ENV, type Infra, known, plan, type Resource, Router, ROUTER_PRIVATE_PORT, type SyncRequest, type SyncResult } from "@achq/core";
+import { type Check, type Context, Deployer, type Vault, DEPLOYER_PORT, ENV, type Infra, known, plan, type Resource, Router, ROUTER_PRIVATE_PORT, type SyncRequest, type SyncStarted, type SyncStatus } from "@achq/core";
 import { adminSecret } from "@achq/core/secrets";
 import { signedFetch } from "@achq/core/signing";
+import { async } from "@achq/utils/async";
 import { collections } from "@achq/utils/collections";
 import { crypto } from "@achq/utils/crypto";
 import { Env, type Vars } from "@achq/utils/env";
 import { HttpError } from "@achq/utils/http";
 import { agentEnv, containerProviderNamed, INFRA_MODULES, vaultProviderNamed } from "achq/registry";
+import { SYNC_INTERVAL_MS, SYNC_TIMEOUT_MS } from "../constants.ts";
 import type { CliConfig } from "./config.ts";
 import { planLines } from "./format.ts";
 
@@ -164,8 +166,14 @@ export const up = async ({ router, deployer, resources }: InfraResources, option
   }
   const base = deps.routerUrl ? deps.routerUrl(url) : url;
   const sync: SyncRequest = { prune: options.prune, dryRun: options.dryRun };
-  // Its status is sent before it's done, so a sync that fails says so in its body.
-  const result = await adminRequest<SyncResult | { error: string }>({ base, key }, "POST", "/admin/sync", sync);
-  if ("error" in result) throw new Error(`Router POST /admin/sync: ${result.error}`);
-  return result;
+  // It runs on the deployer, and its builds can outlast a request, so it's asked after until it's done.
+  const { id } = await adminRequest<SyncStarted>({ base, key }, "POST", "/admin/sync", sync);
+  const status = await async.pollUntil(
+    () => adminRequest<SyncStatus>({ base, key }, "GET", `/admin/sync/${id}`),
+    (s) => s.state !== "running",
+    { intervalMs: SYNC_INTERVAL_MS, timeoutMs: SYNC_TIMEOUT_MS, sleep: ctx.sleep },
+  );
+  if (!status) throw new Error(`The sync hasn't finished after ${SYNC_TIMEOUT_MS / 60_000} minutes; \`achq infra status\` shows each repo's deploy`);
+  if (status.state !== "done") throw new Error("The sync failed; the deployer's logs say why");
+  return status.result;
 };

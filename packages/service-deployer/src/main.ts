@@ -6,7 +6,7 @@ import { createDeployer } from "./deployer.ts";
 import { routerClient } from "./router-client.ts";
 import { deployerHandler } from "./server.ts";
 
-/** Bun's longest: a deploy that builds images can keep `/sync` busy for minutes. */
+/** Bun's longest: a deploy that builds images can keep `/events` busy for minutes. */
 const IDLE_TIMEOUT_S = 255;
 
 export const main = () => {

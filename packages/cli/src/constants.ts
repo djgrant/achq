@@ -14,9 +14,12 @@ export const CLI_ENV = {
 /** The paths in achq whose latest commit is the version the router and deployer run. */
 export const ACHQ_CODE_PATHS = ["packages", "package.json", "bun.lock"];
 
-/** How long `achq repo install` waits for the deploy's result, and how often it looks. */
-export const STATUS_TIMEOUT_MS = 180_000;
+/** How long `achq repo install` waits for the deploy's result, and how often it looks: a deploy can build images for minutes. */
+export const STATUS_TIMEOUT_MS = 20 * 60_000;
 export const STATUS_INTERVAL_MS = 5000;
+/** How long `achq infra up` waits for the sync, which deploys every repo, and how often it asks. */
+export const SYNC_TIMEOUT_MS = 60 * 60_000;
+export const SYNC_INTERVAL_MS = 5000;
 /** How many times `achq repo install` opens what a failed deploy says only you can fix, and deploys again. */
 export const FIX_ATTEMPTS = 3;
 

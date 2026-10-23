@@ -21,13 +21,13 @@ const DEPLOY_REQUESTS = "achq-deploy";
 export const createRouter = (deps: RouterDeps) => {
   const ctx = createContext(deps);
 
-  /** Forwards a request to the deployer, waking it, and relays its answer as it comes: JSON unless it says otherwise. */
+  /** Forwards a request to the deployer, waking it, and relays its answer: JSON unless it says otherwise. */
   const toDeployer = async (method: string, path: string, body?: string) => {
     const url = `${ctx.deployerUrl}${path}`;
     const result = await reach(ctx.delays, (signal) => fetchSigned(ctx, adminSecret(ctx.key), method, url, body, signal));
     if (!result.ok) return new Response(result.error, { status: 504 });
     const { res } = result;
-    return new Response(res.body, { status: res.status, headers: { "content-type": res.headers.get("content-type") ?? "application/json" } });
+    return new Response(await res.text(), { status: res.status, headers: { "content-type": res.headers.get("content-type") ?? "application/json" } });
   };
 
   // For the deployer and the infra CLI, on both ports, signed with the admin secret.
@@ -61,6 +61,7 @@ export const createRouter = (deps: RouterDeps) => {
     .get("/installed", async (c) => c.json((await Promise.all(Object.values(ctx.codeHostProviders).map((h) => h.installed()))).flat()))
     .get("/sources", async (c) => c.json((await Promise.all(ctx.channelProviders.map((channel) => channel.sources()))).flat()))
     .post("/sync", async (c) => toDeployer("POST", "/sync", await c.req.text()))
+    .get("/sync/:id", (c) => toDeployer("GET", `/sync/${encodeURIComponent(c.req.param("id"))}`))
     .get("/status", () => toDeployer("GET", "/status"))
     .get("/failed", async (c) => c.json(await listFailed(ctx)))
     .post("/failed/replay", async (c) => c.json(await replayFailed(ctx)));

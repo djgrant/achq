@@ -192,7 +192,7 @@ class TestContainerProvider implements ContainerProvider {
 
 const adminJson = async <T>(base: string, method: string, route: string, body?: unknown): Promise<T> => {
   const res = await signedFetch(adminSecret(KEY), `${base}${route}`, { method, ...(body !== undefined && { body: JSON.stringify(body) }) });
-  expect(res.status).toBe(200);
+  expect(res.ok).toBe(true);
   return (await res.json()) as T;
 };
 

@@ -35,6 +35,7 @@ let gh: ReturnType<typeof Bun.serve>;
 let routerServer: ReturnType<typeof Bun.serve>;
 let ghCalls: { method: string; path: string; body?: any; jwtOk: boolean }[];
 let syncs: { body: any; signed: boolean }[];
+let polls = 0;
 let hook: { url?: string; content_type?: string; insecure_ssl?: string; secret?: string };
 let tmp: string;
 let secrets = 0;
@@ -78,10 +79,16 @@ beforeEach(() => {
       const body = await req.text();
       const routerVars = fake.service("achq-router")!.variables;
       const signed = verifySigned(adminSecret(routerVars.AGENT_WEBHOOK_KEY), req.method, url.pathname, body, req.headers);
-      syncs.push({ body: JSON.parse(body), signed });
       if (!signed) return new Response("bad signature", { status: 401 });
+      // A sync starts, then is asked after: running once, then done.
+      if (req.method === "POST") {
+        syncs.push({ body: JSON.parse(body), signed });
+        polls = 0;
+        return Response.json({ id: "sync-1" }, { status: 202 });
+      }
+      if (url.pathname !== "/admin/sync/sync-1") return new Response("not found", { status: 404 });
       const result: SyncResult = { deployed: ["djgrant/x"], unchanged: [], uninstalled: [], pruned: [], failed: [] };
-      return Response.json(result);
+      return Response.json(++polls < 2 ? { state: "running" } : { state: "done", result });
     },
   });
   tmp = fs.mkdtempSync(path.join(os.tmpdir(), "achq-up-"));

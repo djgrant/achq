@@ -92,6 +92,12 @@ export type SourceSettings = { channel: string; source: string; events: string[]
 
 export type SyncResult = { deployed: string[]; unchanged: string[]; uninstalled: string[]; pruned: string[]; failed: { repo: string; error: string }[] };
 
+/** What `POST /sync` answers: the sync it started, which `GET /sync/<id>` reports on. */
+export type SyncStarted = { id: string };
+
+/** A sync's progress: a failed one's error isn't shown, only logged. */
+export type SyncStatus = { state: "running" } | { state: "done"; result: SyncResult } | { state: "failed" };
+
 export type DeployState = "deployed" | "failed" | "uninstalled";
 
 /** The deployer's record of a repo, as ACHQ_STATUS and `/admin/status` show it. */

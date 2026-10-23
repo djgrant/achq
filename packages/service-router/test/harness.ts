@@ -143,7 +143,8 @@ export const fakeDeployer = () => {
     const body = await req.text();
     if (!verifySigned(adminSecret(key), req.method, pathname, body, req.headers)) return new Response("bad signature", { status: 401 });
     if (pathname === "/events") fake.events.push(JSON.parse(body));
-    if (pathname === "/sync") return ++fake.syncs < 2 ? new Response("waking", { status: 503 }) : Response.json({ deployed: [repo], unchanged: [], uninstalled: [], pruned: [], failed: [] });
+    if (pathname === "/sync") return ++fake.syncs < 2 ? new Response("waking", { status: 503 }) : Response.json({ id: "s1" }, { status: 202 });
+    if (pathname === "/sync/s1") return Response.json({ state: "done", result: { deployed: [repo], unchanged: [], uninstalled: [], pruned: [], failed: [] } });
     if (pathname === "/status") return Response.json([{ repo, state: "deployed" }]);
     return accepted();
   });

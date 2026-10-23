@@ -4,9 +4,6 @@ import { errors } from "./errors.ts";
 /** How much of an error response's body goes into an error message: enough to read, not a whole HTML page. */
 const ERROR_BODY_CHARS = 500;
 
-/** How often a long answer sends a space: under every hop's idle timeout, the shortest being Bun's server's 10 seconds. */
-const KEEPALIVE_MS = 5_000;
-
 /** A response a client didn't want, e.g. `Router GET /admin/installed: 401 bad signature`. `service` names who answered. */
 export class HttpError extends Error {
   constructor(
@@ -30,37 +27,6 @@ export const http = {
   expectOk: async (res: Response, what: string) => {
     if (!res.ok) throw await http.responseError(res, what);
     return res;
-  },
-
-  /**
-   * `work`'s JSON, after a space every few seconds until it settles, so no hop
-   * closes a long request as idle: JSON parses with spaces before it. The
-   * status goes first, so if it throws, it's `{ error: "internal error" }`,
-   * logging the error without leaking it.
-   */
-  longAnswer: (work: Promise<unknown>, log: (line: string) => void, intervalMs = KEEPALIVE_MS) => {
-    const encoder = new TextEncoder();
-    let timer: ReturnType<typeof setInterval>;
-    const body = new ReadableStream<Uint8Array>({
-      start(controller) {
-        timer = setInterval(() => controller.enqueue(encoder.encode(" ")), intervalMs);
-        work
-          .then(
-            (value) => JSON.stringify(value),
-            (error) => {
-              log(errors.detail(error));
-              return JSON.stringify({ error: "internal error" });
-            },
-          )
-          .then((json) => {
-            clearInterval(timer);
-            controller.enqueue(encoder.encode(json));
-            controller.close();
-          });
-      },
-      cancel: () => clearInterval(timer),
-    });
-    return new Response(body, { headers: { "content-type": "application/json" } });
   },
 
   bearerToken: (req: Request) => req.headers.get("authorization")?.match(/^Bearer (\S+)$/)?.[1],
