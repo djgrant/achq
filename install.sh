@@ -34,10 +34,10 @@ rm -rf "$tmp"
 rm -rf /opt/achq
 mkdir -p /opt/achq
 if [ -n "${ACHQ_SOURCE:-}" ]; then
-  cp -R "$ACHQ_SOURCE/packages" "$ACHQ_SOURCE/package.json" "$ACHQ_SOURCE/bun.lock" /opt/achq
+  cp -R "$ACHQ_SOURCE/packages" "$ACHQ_SOURCE/patches" "$ACHQ_SOURCE/package.json" "$ACHQ_SOURCE/bun.lock" /opt/achq
 else
   curl -fsSL "https://codeload.github.com/djgrant/achq/tar.gz/$ref" \
-    | tar -xz --strip-components=1 -C /opt/achq --wildcards '*/packages/*' '*/package.json' '*/bun.lock'
+    | tar -xz --strip-components=1 -C /opt/achq --wildcards '*/packages/*' '*/patches/*' '*/package.json' '*/bun.lock'
 fi
 rm -rf /opt/achq/packages/*/node_modules
 (cd /opt/achq && bun install --production --frozen-lockfile)
