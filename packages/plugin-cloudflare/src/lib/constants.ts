@@ -60,7 +60,7 @@ export const MAX_WORKER_NAME = 63;
 export const WRANGLER = ["npx", "-y", "wrangler@4"];
 
 /** Bun, as the router and deployer get it on their first start: Cloudflare's image has only Node. */
-export const BUN_VERSION = "1.3.14";
+export const BUN_VERSION = "1.4.3";
 
 /** Every container: `lite` is too small for a 2 GB image. */
 export const INSTANCE = "standard-1";

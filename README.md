@@ -82,7 +82,7 @@ The Dockerfile installs the repo's toolchain and achq:
 
 ```dockerfile
 FROM node:22.18-bookworm
-RUN npm install -g bun@1.3.14
+RUN npm install -g bun@1.4.3
 ARG ACHQ_REF=main
 RUN curl -fsSL "https://raw.githubusercontent.com/djgrant/achq/$ACHQ_REF/install.sh" | sh -s "$ACHQ_REF"
 CMD ["achq-agent"]
