@@ -28,9 +28,9 @@ export type ChannelProps = {
 /**
  * `settings` is where you change what achq can't. `keys` are the App's: the
  * vault's when there's a vault, else the router's. `onRouter` is whether the
- * router has them as they are. `vaulted` is whether they're the vault's.
+ * router has them as they are.
  */
-export type ChannelState = AppSettings & { hook: HookConfig; settings: string; keys: AppKeys[string]; onRouter: boolean; vaulted: boolean };
+export type ChannelState = AppSettings & { hook: HookConfig; settings: string; keys: AppKeys[string]; onRouter: boolean };
 
 /** The slug is GitHub's, which can differ from the one its name makes. */
 export type ChannelAttrs = { slug: string; id: string; privateKey: string };
@@ -68,7 +68,8 @@ export class Channel extends ManagedResource<ChannelProps, ChannelState, Channel
       hookUrl: router.url.map((url) => `${url}/webhook`),
       key: router.key,
       stored: router.env.map((env) => parseApps(env[GITHUB_ENV.apps])[slug]),
-    });
+      // GitHub has no API to delete an App.
+    }, { protect: true });
     this.slug = slug;
     const channels = routerChannels.get(router) ?? new Map<string, Channel>();
     if (!routerChannels.has(router)) {
@@ -125,7 +126,6 @@ export class Channel extends ManagedResource<ChannelProps, ChannelState, Channel
       settings: permissionsPage,
       keys,
       onRouter: stored?.id === keys.id && stored.privateKey === keys.privateKey,
-      vaulted: Boolean(ctx.vault),
     };
   }
 
@@ -154,14 +154,6 @@ export class Channel extends ManagedResource<ChannelProps, ChannelState, Channel
     const lacks = lacking(current, { events: APP_EVENTS, permissions: APP_PERMISSIONS });
     const problems = [...lacks.events.map((e) => `doesn't send ${e}`), ...lacks.permissions.map(([name, level]) => `lacks ${name}: ${level}`)];
     return problems.map((problem) => `${slug} ${problem}: change it at ${current.settings}`);
-  }
-
-  /** GitHub has no API to delete an App. With a vault, its key is kept there for the next router; without one, it goes with the router. */
-  kept({ slug }: ChannelProps, current: ChannelState) {
-    const page = current.settings.replace(/\/permissions$/, "/advanced");
-    return !current.vaulted
-      ? `GitHub App ${slug}: its key goes with the router, so the next \`achq infra up\` makes another. Delete it at ${page}`
-      : `GitHub App ${slug}, whose key the vault keeps for the next router. To be done with it, delete it at ${page}, and its key from the vault`;
   }
 
   planned({ slug }: ChannelProps, current: ChannelState | undefined): Planned<ChannelAttrs> {

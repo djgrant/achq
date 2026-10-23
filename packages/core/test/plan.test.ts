@@ -18,7 +18,7 @@ const ctx: Context = { env: {}, log: () => {}, newSecret: () => "secret", sleep:
 /** A row whose value is its one prop. Its id is known once it exists. */
 class Store extends ManagedResource<{ value: string }, Row, Row, "create" | "update"> {
   readonly kind = "store";
-  constructor(name: string, value: Input<string>, options: ResourceOptions & { after?: ManagedResource[] } = {}) {
+  constructor(name: string, value: Input<string>, options: ResourceOptions & { after?: ManagedResource[]; protect?: boolean } = {}) {
     super(name, { value }, options);
   }
   async read() {
@@ -46,7 +46,7 @@ class Store extends ManagedResource<{ value: string }, Row, Row, "create" | "upd
   }
 }
 
-/** A Store `achq infra down` deletes, unless it's marked kept, which only you can delete. */
+/** A Store `achq infra down` can delete. */
 class Doomed extends Store {
   removal(): Change {
     return { op: "-", target: this.name, what: "row" };
@@ -54,12 +54,6 @@ class Doomed extends Store {
   async destroy() {
     db.writes.push(`-${this.name}`);
     db.rows.delete(this.name);
-  }
-}
-
-class Kept extends Store {
-  kept(_props: { value: string }, current: Row) {
-    return `${this.name}: delete ${current.id} yourself`;
   }
 }
 
@@ -253,7 +247,7 @@ test("a plan's and an apply's values resolve outputs nested in objects and array
   expect((await planned.apply()).value(input)).toEqual({ ids: ["id-old", "id-fresh"], value: "w", plain: 1 });
 });
 
-test("teardown deletes what exists, each before what it depends on, and lists what only you can delete", async () => {
+test("teardown deletes what exists, each before what it depends on, and lists what's protected instead of deleting it", async () => {
   seed("base", "v");
   seed("top", "v");
   seed("left", "v");
@@ -263,12 +257,12 @@ test("teardown deletes what exists, each before what it depends on, and lists wh
   // Goes with what it's part of.
   const part = new Store("part", "v", { after: [base] });
   seed("part", "v");
-  const left = new Kept("left", "v");
+  const left = new Doomed("left", "v", { protect: true });
 
   const planned = await teardown([top, gone, part, left], ctx);
   expect(db.writes).toEqual([]);
   expect(summary(planned.changes)).toEqual(["- top row", "- base row"]);
-  expect(planned.kept).toEqual(["left: delete id-left yourself"]);
+  expect(planned.protected).toEqual([{ target: "left", what: "store" }]);
 
   await planned.apply();
   expect(db.writes).toEqual(["-top", "-base"]);

@@ -81,8 +81,8 @@ export const plan = async (resources: Resource[], ctx: Context): Promise<Plan> =
 export type Teardown = {
   /** What it deletes, in order. */
   changes: Change[];
-  /** What it leaves, which only you can delete. */
-  kept: string[];
+  /** What it leaves because it's protected. */
+  protected: { target: string; what: string }[];
   apply(): Promise<void>;
 };
 
@@ -90,12 +90,12 @@ export type Teardown = {
 export const teardown = async (resources: Resource[], ctx: Context): Promise<Teardown> => {
   const existing = (await readAll(resources, ctx)).steps.filter((s) => s.current !== undefined).reverse();
   const doomed = existing.flatMap((step) => {
-    const removal = step.resource.destroy && step.resource.removal?.(step.props, step.current);
+    const removal = !step.resource.protect && step.resource.destroy && step.resource.removal?.(step.props, step.current);
     return removal ? [{ ...step, removal }] : [];
   });
   return {
     changes: doomed.map(({ removal }) => removal),
-    kept: existing.flatMap(({ resource, props, current }) => resource.kept?.(props, current) ?? []),
+    protected: existing.filter(({ resource }) => resource.protect).map(({ resource }) => ({ target: label(resource), what: resource.kind })),
     apply: async () => {
       for (const { resource, props, current } of doomed) await resource.destroy!(props, current, ctx);
     },

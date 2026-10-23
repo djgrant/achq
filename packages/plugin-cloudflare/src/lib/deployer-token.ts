@@ -1,6 +1,6 @@
 import { type Change, type Context, known, ManagedResource } from "@achq/core";
-import { connect, deployerTokenPage, deployerTokenProblem, TOKENS_PAGE } from "./cloudflare.ts";
-import { CLOUDFLARE_ENV, DEPLOYER_TOKEN_NAME, TOKEN_ATTEMPTS } from "./constants.ts";
+import { connect, deployerTokenPage, deployerTokenProblem } from "./cloudflare.ts";
+import { CLOUDFLARE_ENV, TOKEN_ATTEMPTS } from "./constants.ts";
 
 type Props = {
   /** The deployer's Worker. */
@@ -42,11 +42,6 @@ export class DeployerToken extends ManagedResource<Props, State, {}, TokenChange
 
   planned() {
     return {};
-  }
-
-  /** No sign-in can delete API tokens either. */
-  kept(_: Props, { has }: State) {
-    return has ? `The deployer's Cloudflare API token, ${DEPLOYER_TOKEN_NAME}: delete it at ${TOKENS_PAGE}` : undefined;
   }
 
   async apply({ worker }: Props, _current: State | undefined, _changes: TokenChange[], ctx: Context) {

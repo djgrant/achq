@@ -224,8 +224,7 @@ const deleteContainers = async (router: RouterAccess | undefined, dryRun: boolea
 /**
  * Deletes the infra: first every container, by the deployer, then the router,
  * the deployer and what they share, each before what it depends on. Shows it
- * all and asks first. What only you can delete, e.g. a GitHub App, is listed
- * with where to.
+ * all and asks first. What's protected is listed, and left.
  */
 export const down = async (infra: InfraResources, { dryRun }: { dryRun: boolean }, deps: DownDeps) => {
   const { log } = deps;
@@ -236,12 +235,11 @@ export const down = async (infra: InfraResources, { dryRun }: { dryRun: boolean 
   const planned = await teardown(infra.resources, ctx);
   const changes = [...containers.map((c) => ({ op: "-" as const, target: c, what: "container", detail: "with its data" })), ...planned.changes];
   if (!changes.length) log("  nothing to delete");
-  for (const line of planLines({ changes, warnings: [] })) log(`  ${line}`);
+  for (const line of planLines({ changes, warnings: [], protected: planned.protected })) log(`  ${line}`);
   if (!dryRun && changes.length) {
     if (!(await deps.confirm("Delete all of this?"))) throw new Error("Nothing was deleted");
     await deleteContainers(router, false, ctx);
     await planned.apply();
     log("  deleted");
   }
-  for (const k of planned.kept) log(`  kept: ${k}`);
 };

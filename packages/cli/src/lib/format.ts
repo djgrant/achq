@@ -1,4 +1,4 @@
-import { type Change, type DeployRecord, type FailedDelivery, type InstalledRepo, type Plan, type ReplayResult, repoName, type Status, type SyncResult, threadKey } from "@achq/core";
+import { type Change, type DeployRecord, type FailedDelivery, type InstalledRepo, type Plan, type ReplayResult, type Teardown, repoName, type Status, type SyncResult, threadKey } from "@achq/core";
 import { text } from "@achq/utils/text";
 
 const SHORT_SHA_LENGTH = 7;
@@ -23,11 +23,12 @@ const collapse = (changes: Change[]) => {
   return [...rows.values()];
 };
 
-/** Each change on a line, in columns: its target, what of it, and any detail, or how many names it changes. */
-export const planLines = ({ changes, warnings }: Pick<Plan, "changes" | "warnings">) => [
-  ...text.alignedTable(
-    collapse(changes).map(({ change, details, names }) => [`${change.op} ${change.target}`, change.what, [...details, ...(names.size ? [String(names.size)] : [])].join(", ")]),
-  ),
+/** Each change on a line, in columns: its target, what of it, and any detail, or how many names it changes. Then what's protected, which a teardown leaves. */
+export const planLines = ({ changes, warnings, protected: kept = [] }: Pick<Plan, "changes" | "warnings"> & Partial<Pick<Teardown, "protected">>) => [
+  ...text.alignedTable([
+    ...collapse(changes).map(({ change, details, names }) => [`${change.op} ${change.target}`, change.what, [...details, ...(names.size ? [String(names.size)] : [])].join(", ")]),
+    ...kept.map(({ target, what }) => [`= ${target}`, what, "protected"]),
+  ]),
   ...warnings.map((w) => `! ${w}`),
 ];
 

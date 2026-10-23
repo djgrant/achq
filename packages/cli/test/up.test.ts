@@ -232,14 +232,14 @@ const downDeps = (log: string[], answer: boolean): DownDeps => {
   return { env, sleep, routerUrl, log: (line) => log.push(line), confirm: async () => answer };
 };
 
-test("down shows what it deletes, the deployer's containers first, and what's left to you; a dry run or a no deletes nothing", async () => {
+test("down shows what it deletes, the deployer's containers first, and what's protected; a dry run or a no deletes nothing", async () => {
   await up(infra(), { prune: false, dryRun: false }, deps());
   const log: string[] = [];
   await down(infra(), { dryRun: true }, downDeps(log, true));
   expect(log).toEqual([
     "  - djgrant/x/dev  container        with its data",
     "  - achq           railway project  with every service and volume in it",
-    `  kept: GitHub App djgrant-claude: its key goes with the router, so the next \`achq infra up\` makes another. Delete it at http://localhost:${gh.port}/settings/apps/djgrant-claude/advanced`,
+    "  = personal       github-channel   protected",
   ]);
   await expect(down(infra(), { dryRun: false }, downDeps([], false))).rejects.toThrow("Nothing was deleted");
   expect(teardowns.map((t) => t.dryRun)).toEqual([true, true]);

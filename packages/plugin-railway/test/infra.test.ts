@@ -121,7 +121,7 @@ test("teardown deletes the project, and every service and volume in it with it",
   await (await plan(declare().resources, ctx)).apply();
   const planned = await teardown(declare().resources, ctx);
   expect(planned.changes).toEqual([{ op: "-", target: "achq", what: "railway project", detail: "with every service and volume in it" }]);
-  expect(planned.kept).toEqual([]);
+  expect(planned.protected).toEqual([]);
   await planned.apply();
   expect(fake.projects).toEqual([]);
   expect((await teardown(declare().resources, ctx)).changes).toEqual([]);

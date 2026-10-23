@@ -74,14 +74,17 @@ export abstract class ManagedResource<P = any, S = any, O = any, C = any> extend
   constructor(
     name: string,
     readonly props: Inputs<P>,
-    options: ResourceOptions & { after?: ManagedResource[] } = {},
+    options: ResourceOptions & { after?: ManagedResource[]; protect?: boolean } = {},
   ) {
     super(name, options);
     this.after = options.after ?? [];
+    this.protect = options.protect ?? false;
   }
 
   /** What it must follow without taking an input from it. */
   readonly after: ManagedResource[];
+  /** Never deleted: `achq infra down` lists it instead. */
+  readonly protect: boolean;
 
   /** What exists now, or undefined if it doesn't. */
   abstract read(props: P, ctx: Context): Promise<S | undefined>;
@@ -96,14 +99,11 @@ export abstract class ManagedResource<P = any, S = any, O = any, C = any> extend
   /** What achq can't change itself, e.g. an App's permissions. Printed, never applied. */
   check?(props: P, current: S): string[];
 
-  // `achq infra down` deletes what has `removal` and `destroy`, each before what it depends on. One with neither goes with what it's part of, e.g. a Worker's variables with the namespace they're kept in.
+  // `achq infra down` deletes what has `removal` and `destroy`, each before what it depends on, unless it's protected. One with neither goes with what it's part of, e.g. a Worker's variables with the namespace they're kept in.
   /** What `destroy` deletes, for printing: undefined if nothing of it is left. */
   removal?(props: P, current: S): Change | undefined;
   /** Deletes it. Only `achq infra down` calls this. */
   destroy?(props: P, current: S, ctx: Context): Promise<void>;
-  /** What `achq infra down` leaves, which only you can delete, and where: e.g. a GitHub App. */
-  kept?(props: P, current: S): string | undefined;
-
   out<K extends keyof O>(key: K): Output<O[K]> {
     return new Output([this], (outputs) => (outputs.has(this) ? ((outputs.get(this) as Planned<O>)[key] as O[K] | Unknown) : UNKNOWN));
   }

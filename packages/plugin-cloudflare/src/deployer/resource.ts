@@ -58,7 +58,8 @@ export class Deployer extends core.Deployer {
     this.token = new DeployerToken(
       "deployer-token",
       { worker, tag: this.parts.worker.out("tag"), replace: new Output([], () => this.rotating) },
-      { parent: this, after: [this.parts.worker] },
+      // No sign-in can delete an API token.
+      { parent: this, after: [this.parts.worker], protect: true },
     );
   }
 
