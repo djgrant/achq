@@ -1,6 +1,7 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { fakeBin } from "./fake-bin.ts";
 
 export type FakeOpItem = { id: string; vault: string; title: string; archived: boolean; fields: { id: string; label: string; type: string; value: string }[] };
 
@@ -16,9 +17,9 @@ export const fakeOp = ({ fails = false } = {}) => {
   const calls = path.join(dir, "calls.json");
   fs.writeFileSync(state, "[]");
   fs.writeFileSync(calls, "[]");
-  const script = path.join(dir, "op.ts");
-  fs.writeFileSync(
-    script,
+  const bin = fakeBin(
+    dir,
+    "op",
     `const fs = require("node:fs");
 const args = process.argv.slice(2);
 const flag = (name) => args[args.indexOf(name) + 1];
@@ -48,8 +49,6 @@ if (noun === "item" && verb === "get") {
 } else { console.error("fake op doesn't know " + args.join(" ")); process.exit(2); }
 `,
   );
-  const bin = path.join(dir, "op");
-  fs.writeFileSync(bin, `#!/bin/sh\nexec ${JSON.stringify(process.execPath)} ${JSON.stringify(script)} "$@"\n`, { mode: 0o755 });
   return {
     bin,
     items: () => JSON.parse(fs.readFileSync(state, "utf8")) as FakeOpItem[],

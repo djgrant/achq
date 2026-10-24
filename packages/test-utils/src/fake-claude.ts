@@ -1,5 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { fakeBin } from "./fake-bin.ts";
 
 export type ClaudeCall = { argv: string[]; env: Record<string, string>; stdin: string; cwd: string; start: number; end: number };
 
@@ -11,16 +12,14 @@ export type ClaudeCall = { argv: string[]; env: Record<string, string>; stdin: s
  * its pid is in `running()`.
  */
 export const fakeClaude = (dir: string) => {
-  const bin = path.join(dir, "claude");
   const log = path.join(dir, "calls");
   const running = path.join(dir, "running");
   const control = path.join(dir, "control.json");
   fs.mkdirSync(log, { recursive: true });
   fs.mkdirSync(running, { recursive: true });
-  // A shell wrapper, since bun's path may have spaces a shebang can't hold.
-  fs.writeFileSync(bin, `#!/bin/sh\nexec '${process.execPath.replace(/'/g, `'\\''`)}' '${bin}.js' "$@"\n`);
-  fs.writeFileSync(
-    `${bin}.js`,
+  const bin = fakeBin(
+    dir,
+    "claude",
     `const fs = require("node:fs");
 const argv = process.argv.slice(2);
 const stdin = argv.includes("-p") ? await Bun.stdin.text() : "";
@@ -46,7 +45,6 @@ if (fail) { console.error("boom: " + fail); process.exit(3); }
 out({ type: "result", subtype: "success", is_error: false, session_id: id, num_turns: 1, result: "Reply for " + id, modelUsage: { m: { contextWindow: 200000 } } });
 `,
   );
-  fs.chmodSync(bin, 0o755);
   const calls = (): ClaudeCall[] =>
     fs
       .readdirSync(log)

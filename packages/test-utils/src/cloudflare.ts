@@ -2,6 +2,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import type { BuildToken, RepoConnection, Trigger, TriggerSettings } from "@achq/utils/cloudflare";
+import { fakeBin } from "./fake-bin.ts";
 
 type FakeWorker = {
   id: string;
@@ -331,10 +332,10 @@ export const startFakeCloudflare = (seed: { accountId?: string; subdomain?: stri
  */
 export const fakeWrangler = (fake: FakeCloudflare, { fails = false, signedIn = true } = {}) => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "achq-fake-wrangler-"));
-  const script = path.join(dir, "wrangler.ts");
   const base = fake.url.replace(/\/client\/v4$/, "");
-  fs.writeFileSync(
-    script,
+  return fakeBin(
+    dir,
+    "wrangler",
     `const args = process.argv.slice(2);
 const read = (flag) => JSON.parse(require("node:fs").readFileSync(args[args.indexOf(flag) + 1], "utf8"));
 const token = process.env.CLOUDFLARE_API_TOKEN;
@@ -353,8 +354,4 @@ await fetch(${JSON.stringify(`${base}/__wrangler`)}, { method: "POST", body: JSO
 console.log("Deployed " + read("--config").name);
 `,
   );
-  // Bun's own path can have spaces, and the command is split on them.
-  const bin = path.join(dir, "wrangler");
-  fs.writeFileSync(bin, `#!/bin/sh\nexec ${JSON.stringify(process.execPath)} ${JSON.stringify(script)} "$@"\n`, { mode: 0o755 });
-  return bin;
 };
