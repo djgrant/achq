@@ -28,6 +28,9 @@ describe("admin", () => {
     expect((await fetch(`${r.priv}${path}`, { headers: signedHeaders(containerSecret(key, repo, "dev"), "GET", path, "") })).status).toBe(401);
     // A config for another repo than the path names.
     expect((await r.admin("PUT", "/admin/repos/acme/other", config(r.dev, r.docsbox))).status).toBe(400);
+    // A segment that's only dots isn't a repo name, so no route takes it; dotted names are.
+    expect((await r.admin("PUT", "/admin/repos/.../widgets", config(r.dev, r.docsbox))).status).toBe(404);
+    expect((await r.admin("PUT", "/admin/repos/acme.co/wid.gets", config(r.dev, r.docsbox))).status).toBe(400);
     const { host: _host, ...hostless } = config(r.dev, r.docsbox);
     expect((await r.admin("PUT", `/admin/repos/${repo}`, hostless)).status).toBe(400);
   });
