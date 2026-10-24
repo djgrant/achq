@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { type ChannelClient, type ChannelEvent, type ChannelProvider, type ClaimRequest, ENV, type PolicyProvider, type RepoManifest, type RuntimeContext, type RuntimeFactory, type Thread, type ThreadRef, threadKey } from "@achq/core";
 import { ContainerEnvelope } from "@achq/core/protocol";
-import { signedBy, signedFetch } from "@achq/core/signing";
+import { routerForContainer } from "@achq/core/client";
+import { signedBy } from "@achq/core/signing";
 import { async } from "@achq/utils/async";
 import { disk } from "@achq/utils/disk";
 import type { Vars } from "@achq/utils/env";
@@ -102,6 +103,7 @@ class RunSlots {
 export class Runner {
   readonly paths: Paths;
   readonly credentials: Credentials;
+  private router: ReturnType<typeof routerForContainer>;
   readonly fetch: (req: Request) => Response | Promise<Response>;
   /** One thread's runs go one after another. */
   private enqueue = async.keyedQueue();
@@ -118,6 +120,7 @@ export class Runner {
     this.log = opts.log ?? ((line) => console.log(line));
     this.runtimes = opts.runtimes ?? defaultRuntimes;
     this.runTimeoutMs = opts.runTimeoutMs ?? DEFAULT_RUN_TIMEOUT_MINUTES * MINUTE_MS;
+    this.router = routerForContainer({ url: opts.routerUrl, secret: opts.containerSecret });
     this.credentials = new Credentials({
       routerUrl: opts.routerUrl,
       containerSecret: opts.containerSecret,
@@ -216,8 +219,7 @@ export class Runner {
       writeState(file, state);
       // Recorded on the router, so it sends the thread's events here.
       const claim: ClaimRequest = { repo: this.opts.repo, container: this.opts.container, workspace: claiming.name, thread: ref };
-      const recorded = signedFetch(this.opts.containerSecret, `${this.opts.routerUrl}/claims`, { method: "POST", body: JSON.stringify(claim) });
-      void logFailure(recorded.then((res) => http.expectOk(res, "The router refused the claim")), this.log, "claim not recorded");
+      void logFailure(this.router.claim(claim), this.log, "claim not recorded");
     }
     const workspace = workspaces.find((w) => w.name === state.workspace)!;
 

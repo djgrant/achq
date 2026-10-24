@@ -1,9 +1,8 @@
-import type { ChannelCredential, CredentialsRequest, CredentialsResponse, PolicyProvider } from "@achq/core";
-import { signedFetch } from "@achq/core/signing";
+import type { ChannelCredential, CredentialsResponse, PolicyProvider } from "@achq/core";
+import { routerForContainer } from "@achq/core/client";
 import { async } from "@achq/utils/async";
 import { disk } from "@achq/utils/disk";
 import { errors } from "@achq/utils/errors";
-import { http } from "@achq/utils/http";
 import { MINUTE_MS } from "./constants.ts";
 import type { Paths } from "./volume.ts";
 
@@ -30,12 +29,14 @@ export type Current = CredentialsResponse & {
 
 export class Credentials {
   private current?: Current;
+  private router: ReturnType<typeof routerForContainer>;
   private now: () => number;
   private log: (line: string) => void;
 
   constructor(private opts: CredentialsOptions) {
     this.now = opts.now ?? Date.now;
     this.log = opts.log ?? (() => {});
+    this.router = routerForContainer({ url: opts.routerUrl, secret: opts.containerSecret });
   }
 
   /**
@@ -62,10 +63,8 @@ export class Credentials {
   }
 
   private refresh = async.singleFlight(async () => {
-    const { routerUrl, containerSecret, repo, container, policyProviders, paths } = this.opts;
-    const res = await signedFetch(containerSecret, `${routerUrl}/credentials`, { method: "POST", body: JSON.stringify({ repo, container } satisfies CredentialsRequest) });
-    await http.expectOk(res, "The router refused credentials");
-    const response = (await res.json()) as CredentialsResponse;
+    const { repo, container, policyProviders, paths } = this.opts;
+    const response = await this.router.credentials({ repo, container });
 
     const env: Record<string, string> = {};
     for (const provider of policyProviders) {

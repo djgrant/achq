@@ -1,6 +1,4 @@
-import type { PolicyCredential } from "@achq/core";
-import { adminSecret } from "@achq/core/secrets";
-import { signedFetch } from "@achq/core/signing";
+import { routerAdmin } from "@achq/core/client";
 import { http } from "@achq/utils/http";
 import type { RepoConnection } from "@achq/utils/cloudflare";
 
@@ -17,10 +15,8 @@ const GITHUB_API = "https://api.github.com";
 export const routerRepoIds =
   ({ routerUrl, key, githubApi = GITHUB_API }: { routerUrl: string; key: string; githubApi?: string }): RepoIds =>
   async (repo) => {
-    const body = JSON.stringify({ repo, policies: [{ provider: "github", repo, permissions: { metadata: "read" } }] });
-    const minted = await signedFetch(adminSecret(key), `${routerUrl.replace(/\/+$/, "")}/admin/mint`, { method: "POST", body });
-    await http.expectOk(minted, `The router couldn't mint a token to read ${repo}`);
-    const token = ((await minted.json()) as PolicyCredential[]).find((c) => c.provider === "github")?.value;
+    const minted = await routerAdmin({ url: routerUrl, key }).mint({ repo, policies: [{ provider: "github", repo, permissions: { metadata: "read" } }] });
+    const token = minted.find((c) => c.provider === "github")?.value;
     if (!token) throw new Error(`The router minted no GitHub token for ${repo}`);
     const res = await http.expectOk(await fetch(`${githubApi}/repos/${repo}`, { headers: { authorization: `Bearer ${token}`, accept: "application/vnd.github+json" } }), `GitHub couldn't show ${repo}`);
     const found = (await res.json()) as { id: number; name: string; owner: { id: number; login: string } };
