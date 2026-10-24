@@ -1,19 +1,18 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { CONFIG_DIR, CONFIG_ENTRY, plan, type RepoRequest, type Status } from "@achq/core";
-import { context } from "@achq/core/context";
+import { CONFIG_DIR, CONFIG_ENTRY, type RepoInstallation, type RepoManifest, repoName, STATUS_VARIABLE, type Status } from "@achq/core";
+import { routerForPusher } from "@achq/core/client";
 import { evaluateConfig } from "@achq/deployer/config";
 import { async } from "@achq/utils/async";
 import { disk } from "@achq/utils/disk";
-import { http } from "@achq/utils/http";
-import { text } from "@achq/utils/text";
-import { FIX_ATTEMPTS, STATUS_INTERVAL_MS, STATUS_TIMEOUT_MS } from "../constants.ts";
-import { planLines } from "./format.ts";
-import { openInBrowser } from "./terminal.ts";
-import { needRepo, repoRoot } from "./workdir.ts";
+import { errors } from "@achq/utils/errors";
+import { HttpError } from "@achq/utils/http";
+import { FIX_ATTEMPTS, STATUS_INTERVAL_MS, STATUS_TIMEOUT_MS, UNINSTALL_INTERVAL_MS, UNINSTALL_TIMEOUT_MS } from "../constants.ts";
+import type { RepoHere } from "./workdir.ts";
 
 /** Installed packages under `.achq/` are not part of the config. */
 const SKIPPED_DIRS = ["node_modules"];
+const NOT_FOUND = 404;
 
 export type WaitOptions = { timeoutMs?: number; intervalMs?: number; sleep?: (ms: number) => Promise<void> };
 
@@ -24,19 +23,107 @@ export const loadRepoManifest = async (repoDir: string) => {
   return evaluateConfig(disk.readTree(dir, { skip: SKIPPED_DIRS }));
 };
 
-/** Plans installing or uninstalling this repo on its code host and prints the plan. `apply` is undefined when nothing would change. */
-export const planInstall = async (action: "install" | "uninstall") => {
-  const { host, repo, codeHost } = needRepo();
-  const config = await loadRepoManifest(repoRoot());
-  const resources = action === "install" ? codeHost.install(repo, config) : codeHost.uninstall(repo, config);
-  const planned = await plan(resources, context({ env: process.env, log: (line) => console.log(line), open: openInBrowser }));
-  for (const line of planLines(planned)) console.log(line);
-  if (planned.changes.length) return { host, repo, codeHost, apply: () => planned.apply() };
-  // e.g. `app is already installed on a/b`, or `app isn't installed on a/b`.
-  const n = resources.length;
-  const state = action === "install" ? `${text.plural(n, "is", "are")} already installed` : `${text.plural(n, "isn't", "aren't")} installed`;
-  console.log(`${resources.map((r) => r.name).join(", ")} ${state} on ${repo}`);
-  return { host, repo, codeHost, apply: undefined };
+export type FlowDeps = {
+  log: (line: string) => void;
+  /** Opens your browser at `url` to do `what`. */
+  open: (url: string, what: string) => Promise<void>;
+  wait?: WaitOptions;
+};
+
+/**
+ * Whether `source` is installed on the repo, as the router ACHQ_STATUS names
+ * says: it checks you can push to the repo. Undefined when there's no
+ * ACHQ_STATUS naming one, and "gone" when nothing answers there: a 404, as
+ * from a router torn down, or one that doesn't have the source.
+ */
+const askRouter = async ({ host, repo, codeHost }: RepoHere, source: string): Promise<RepoInstallation | "gone" | undefined> => {
+  const router = (await codeHost.status(repo))?.router;
+  if (!router) return undefined;
+  try {
+    return await routerForPusher({ url: router, token: codeHost.token() }).installation({ host, repo, source });
+  } catch (error) {
+    if (error instanceof HttpError && error.status === NOT_FOUND) return "gone";
+    throw error;
+  }
+};
+
+/**
+ * Where to install the config's source on the repo, or undefined when it's
+ * installed already. Refuses a source lacking what the config needs. Without
+ * a router to ask, the repo's never been deployed, or its hq is gone, e.g.
+ * moved to another provider, whose deploy names its own router: either way,
+ * the source's install page.
+ */
+export const planInstall = async (here: RepoHere, manifest: RepoManifest, { log }: Pick<FlowDeps, "log">) => {
+  const { repo, codeHost } = here;
+  const source = codeHost.sourceOf(manifest);
+  const { missing, warnings } = await codeHost.checkSource(source, manifest);
+  if (missing.length) throw new Error(`${source} doesn't have what ${repo}'s config needs: ${missing.join(", ")}`);
+  for (const warning of warnings) log(`! ${warning}`);
+  const found = await askRouter(here, source);
+  if (found !== "gone" && found?.installed) {
+    log(`${source} is already installed on ${repo}`);
+    return { source, url: undefined };
+  }
+  const url = found === "gone" || !found ? codeHost.installPage(source) : found.url;
+  log(`+ ${source} on ${repo}: opens your browser to install it`);
+  return { source, url };
+};
+
+/** Opens your browser where you install `source` on the repo. */
+export const openInstall = async ({ repo, codeHost }: RepoHere, source: string, url: string, { log, open }: FlowDeps) => {
+  log(codeHost.howTo("install", source, repo, url));
+  await open(url, `install ${source} on ${repo}`);
+};
+
+/** The source's installation on the repo, when the router ACHQ_STATUS names can say: uninstalling needs it to. */
+const installationToRemove = async (here: RepoHere, source: string) => {
+  const { repo } = here;
+  const { owner } = repoName.split(repo);
+  const found = await askRouter(here, source);
+  if (!found) throw new Error(`achq can't tell whether ${source} is installed on ${repo}: it has no ${STATUS_VARIABLE} naming its router yet. Remove it from ${source}'s installation in ${owner}'s settings`);
+  if (found === "gone") {
+    const router = (await here.codeHost.status(repo))?.router;
+    throw new Error(`No router answers at ${router}, which ${repo}'s ${STATUS_VARIABLE} names: its hq may have been torn down. Bring it back with \`achq infra up\`, or remove ${source} from its installation in ${owner}'s settings`);
+  }
+  return found;
+};
+
+/** Where to remove the config's source from the repo, or undefined when it isn't installed. */
+export const planUninstall = async (here: RepoHere, manifest: RepoManifest, { log }: Pick<FlowDeps, "log">) => {
+  const { repo, codeHost } = here;
+  const source = codeHost.sourceOf(manifest);
+  const found = await installationToRemove(here, source);
+  if (!found.installed) {
+    log(`${source} isn't installed on ${repo}`);
+    return { source, url: undefined };
+  }
+  log(`- ${source} on ${repo}: opens your browser to remove it`);
+  return { source, url: found.url };
+};
+
+/**
+ * Opens your browser where you remove the repo from `source`, waits until the
+ * router says it's gone, then deletes ACHQ_STATUS with your login: the source
+ * can't reach the repo any more. Without it, the repo is as if never deployed,
+ * so installing again opens the source's install page.
+ */
+export const removeAndWait = async (here: RepoHere, source: string, url: string, { log, open, wait = {} }: FlowDeps) => {
+  const { repo, codeHost } = here;
+  log(codeHost.howTo("remove", source, repo, url));
+  await open(url, `remove ${repo} from ${source}'s installation`);
+  await async.pollOrThrow(() => installationToRemove(here, source), (found) => !found.installed, {
+    intervalMs: wait.intervalMs ?? UNINSTALL_INTERVAL_MS,
+    timeoutMs: wait.timeoutMs ?? UNINSTALL_TIMEOUT_MS,
+    sleep: wait.sleep,
+    timedOut: (after) => `${source} is still installed on ${repo} after ${after}`,
+  });
+  try {
+    await codeHost.clearStatus(repo);
+  } catch (error) {
+    log(`Couldn't delete ${repo}'s ${STATUS_VARIABLE}: ${errors.message(error)}`);
+  }
+  log(`${repo}'s containers sleep, and are kept until \`achq infra up --prune\`.`);
 };
 
 /** The repo's status once one turns up that was written after `since`, rather than one left from before. Undefined if none does in time. */
@@ -46,12 +133,6 @@ export const waitForStatus = (
   since: Date,
   { timeoutMs = STATUS_TIMEOUT_MS, intervalMs = STATUS_INTERVAL_MS, sleep = Bun.sleep }: WaitOptions = {},
 ) => async.pollUntil(() => status(repo), (found) => !!found && Date.parse(found.at) > since.getTime(), { timeoutMs, intervalMs, sleep });
-
-/** Has the router deploy the repo again, as installing it does. It checks, with your code host token, that you can push to it. */
-export const redeploy = async (router: string, request: RepoRequest, token: string) => {
-  const res = await fetch(`${router}/deploy`, { method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" }, body: JSON.stringify(request satisfies RepoRequest) });
-  await http.expectOk(res, `The router couldn't deploy ${request.repo} again`);
-};
 
 export type FixDeps = {
   status: (repo: string) => Promise<Status | undefined>;

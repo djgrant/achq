@@ -72,24 +72,6 @@ export const testHost: CodeHostProvider = {
   },
   canPush: async (forRepo, token) => forRepo === repo && token === "push-token",
   cloneUrl: (forRepo) => `https://test.example/${forRepo}.git`,
-  repoOf() {
-    throw new Error("not on the router");
-  },
-  token() {
-    throw new Error("not on the router");
-  },
-  status() {
-    throw new Error("not on the router");
-  },
-  lastCommit() {
-    throw new Error("not on the router");
-  },
-  install() {
-    throw new Error("not on the router");
-  },
-  uninstall() {
-    throw new Error("not on the router");
-  },
   installed: async () => [{ host: "test", repo }],
   // `app` is installed on `repo`; the router has no other source.
   installation: async (forRepo, source) => (source === "app" ? { installed: forRepo === repo, url: `https://test.example/settings/${source}` } : undefined),

@@ -22,7 +22,7 @@ export const command = defineCommand({
   run: clean(async (r, { context }) => {
     const infra = await loadInfra(needInfra());
     // Where the router and deployer's code comes from: achq's own repo, on its code host.
-    const source = codeHostProviderNamed(ACHQ_SOURCE.host).create(process.env);
+    const source = codeHostProviderNamed(ACHQ_SOURCE.host).asYou(process.env);
     const env = new Env(process.env);
     const result = await up(infra, { prune: context.prune, dryRun: context.dryRun, rotateDeployerToken: context.rotateDeployerToken }, {
       env: process.env,

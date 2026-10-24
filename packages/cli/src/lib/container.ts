@@ -1,7 +1,7 @@
 import type { Prompter } from "@pokit/core";
-import type { ContainerShell, Status, WakeRequest } from "@achq/core";
+import type { ContainerShell, Status } from "@achq/core";
+import { routerForPusher } from "@achq/core/client";
 import { SessionSummary } from "@achq/core/protocol";
-import { http } from "@achq/utils/http";
 import { text } from "@achq/utils/text";
 import { findContainerProvider } from "achq/registry";
 import { z } from "zod";
@@ -47,12 +47,7 @@ export const reachContainer = async (prompter: Prompter, { host, repo, codeHost 
     },
   });
   // The router checks, on the repo's host, that you can push to the repo.
-  const res = await fetch(`${status.router}/wake`, {
-    method: "POST",
-    headers: { authorization: `Bearer ${codeHost.token()}`, "content-type": "application/json" },
-    body: JSON.stringify({ host, repo, container: container.name } satisfies WakeRequest),
-  });
-  await http.expectOk(res, `Couldn't wake ${container.name}`);
+  await routerForPusher({ url: status.router, token: codeHost.token() }).wake({ host, repo, container: container.name });
   return container;
 };
 

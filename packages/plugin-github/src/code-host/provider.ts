@@ -1,38 +1,30 @@
-import { CONFIG_DIR, type CodeHostProvider, type ConfigTree, type Credential, type FileLimits, type InstallationRequest, type RepoClient, type RepoInstallation, type RepoManifest, repoName, STATUS_VARIABLE, type Status } from "@achq/core";
+import { CONFIG_DIR, type CodeHostAsYou, type CodeHostProvider, type ConfigTree, type Credential, type FileLimits, type RepoClient, type RepoInstallation, type RepoManifest, repoName, STATUS_VARIABLE, type Status } from "@achq/core";
 import type { Vars } from "@achq/utils/env";
-import { http } from "@achq/utils/http";
+import { errors } from "@achq/utils/errors";
 import { type CommitSummary, GitHub, type RepoApi } from "@achq/utils/gh";
 import { text } from "@achq/utils/text";
 import type { Apps } from "../lib/apps.ts";
 import { configNeeds, configSource } from "../lib/config-needs.ts";
-import { CODE_HOST, githubUrls, type GitHubUrls, POLICY_PROVIDER, REPO_NAME } from "../lib/constants.ts";
-import { DEPLOYER_PERMISSIONS } from "../lib/permissions.ts";
+import { appInstallPage, CODE_HOST, githubUrls, type GitHubUrls, POLICY_PROVIDER, REPO_NAME } from "../lib/constants.ts";
+import { DEPLOYER_PERMISSIONS, lacking } from "../lib/permissions.ts";
 import { asYou } from "../lib/you.ts";
 import type { GitHubPolicyData } from "../policy/resource.ts";
-import { CodeHost } from "./resource.ts";
 
 /** A git tree entry's mode for a symlink, whose blob is only the path it points to. */
 const SYMLINK_MODE = "120000";
 const LIST_PERMISSIONS = { metadata: "read" };
 const STATUS_EXCERPT_CHARS = 200;
-const NOT_FOUND = 404;
 
 /** A repo is set up for achq when the config's one App is installed on it. Only the router has the App keys that list where. */
 export class GitHubCodeHostProvider implements CodeHostProvider {
   readonly repoName = REPO_NAME;
   private urls: GitHubUrls;
-  private you?: GitHub;
 
   constructor(
-    private env: Vars,
+    env: Vars,
     private apps: Apps,
   ) {
     this.urls = githubUrls(env);
-  }
-
-  /** You, through your gh login: the CLI's side. Logged in on first use, since the router makes this provider too. */
-  private get gh() {
-    return (this.you ??= asYou(this.env));
   }
 
   /** Through whichever App is installed on the repo: GitHub's policy provider finds it. */
@@ -50,70 +42,6 @@ export class GitHubCodeHostProvider implements CodeHostProvider {
 
   cloneUrl(repo: string) {
     return `${this.urls.web}/${repo}.git`;
-  }
-
-  /** From an https or ssh remote. */
-  repoOf(remote: string) {
-    const host = text.escapeRegExp(new URL(this.urls.web).host);
-    return remote.trim().match(new RegExp(`${host}[:/]([\\w.-]+/[\\w.-]+?)(?:\\.git)?$`))?.[1];
-  }
-
-  token() {
-    return GitHub.cliToken(this.env);
-  }
-
-  async status(repo: string) {
-    const value = await this.gh.repo(repo).variable(STATUS_VARIABLE);
-    if (value === undefined) return undefined;
-    try {
-      return JSON.parse(value) as Status;
-    } catch {
-      throw new Error(`${repo}'s ${STATUS_VARIABLE} isn't JSON: ${value.slice(0, STATUS_EXCERPT_CHARS)}`);
-    }
-  }
-
-  async lastCommit(repo: string, branch: string, paths: string[]) {
-    const api = this.gh.repo(repo);
-    const latestPerPath = await Promise.all(paths.map((path) => api.latestCommitTouching(branch, path)));
-    const committedAt = (commit: CommitSummary) => commit.commit.committer?.date ?? "";
-    const [latest] = latestPerPath.filter((commit) => commit !== undefined).sort((a, b) => committedAt(b).localeCompare(committedAt(a)));
-    if (!latest) throw new Error(`No commits on ${repo}`);
-    return latest.sha;
-  }
-
-  install(repo: string, manifest: RepoManifest) {
-    return [this.codeHost(repo, manifest, true)];
-  }
-
-  uninstall(repo: string, manifest: RepoManifest) {
-    return [this.codeHost(repo, manifest, false)];
-  }
-
-  private codeHost(repo: string, manifest: RepoManifest, installed: boolean) {
-    const slug = configSource(manifest);
-    return new CodeHost({ slug, repo, installed, needs: configNeeds(manifest, slug) }, (r, source) => this.askRouter(r, source, installed));
-  }
-
-  /**
-   * Whether the App is installed on the repo, from the router ACHQ_STATUS
-   * names, which checks you can push to it. Undefined without one, or, when
-   * installing, when it's gone: the repo moved to another hq, whose deploy
-   * names its own router.
-   */
-  private async askRouter(repo: string, slug: string, installing: boolean): Promise<RepoInstallation | undefined> {
-    const router = (await this.status(repo))?.router;
-    if (!router) return undefined;
-    const res = await fetch(`${router}/installation`, {
-      method: "POST",
-      headers: { authorization: `Bearer ${this.token()}`, "content-type": "application/json" },
-      body: JSON.stringify({ host: CODE_HOST, repo, source: slug } satisfies InstallationRequest),
-    });
-    if (res.status === NOT_FOUND) {
-      if (installing) return undefined;
-      throw new Error(`No router answers at ${router}, which ${repo}'s ${STATUS_VARIABLE} names: its hq may have been torn down. Bring it back with \`achq infra up\`, or remove ${slug} from its installation in ${repoName.split(repo).owner}'s settings on GitHub`);
-    }
-    await http.expectOk(res, `The router at ${router} couldn't say whether ${slug} is installed on ${repo}`);
-    return (await res.json()) as RepoInstallation;
   }
 
   /** The repos every App's installations cover. Suspended installations are skipped: they can't mint tokens. */
@@ -140,11 +68,91 @@ export class GitHubCodeHostProvider implements CodeHostProvider {
     const { web } = this.urls;
     const { owner } = repoName.split(repo);
     const found = (await this.apps.asApp(slug).installations()).find((i) => GitHub.sameLogin(i.account.login, owner));
-    if (!found) return { installed: false, url: `${web}/apps/${slug}/installations/new` };
+    if (!found) return { installed: false, url: appInstallPage(this.urls, slug) };
     const { id, account } = found;
     // Where you choose its repos.
     const url = account.type === "Organization" ? `${web}/organizations/${account.login}/settings/installations/${id}` : `${web}/settings/installations/${id}`;
     return { installed: !found.suspended_at && (await this.apps.covers(slug, id, repo)).covered, url };
+  }
+}
+
+/**
+ * GitHub as you, through your gh login. It can read an App and ACHQ_STATUS,
+ * but not list an App's installations or change them: GitHub takes only a
+ * GitHub App's user token, a fine-grained token or, for removing, a classic one.
+ */
+export class GitHubCodeHostAsYou implements CodeHostAsYou {
+  readonly repoName = REPO_NAME;
+  private urls: GitHubUrls;
+  private you?: GitHub;
+
+  constructor(private env: Vars) {
+    this.urls = githubUrls(env);
+  }
+
+  /** Logged in on first use: finding which host a remote is on needs no login. */
+  private get gh() {
+    return (this.you ??= asYou(this.env));
+  }
+
+  /** From an https or ssh remote. */
+  repoOf(remote: string) {
+    const host = text.escapeRegExp(new URL(this.urls.web).host);
+    return remote.trim().match(new RegExp(`${host}[:/]([\\w.-]+/[\\w.-]+?)(?:\\.git)?$`))?.[1];
+  }
+
+  token() {
+    return GitHub.cliToken(this.env);
+  }
+
+  async status(repo: string) {
+    const value = await this.gh.repo(repo).variable(STATUS_VARIABLE);
+    if (value === undefined) return undefined;
+    try {
+      return JSON.parse(value) as Status;
+    } catch {
+      throw new Error(`${repo}'s ${STATUS_VARIABLE} isn't JSON: ${value.slice(0, STATUS_EXCERPT_CHARS)}`);
+    }
+  }
+
+  async clearStatus(repo: string) {
+    try {
+      await this.gh.repo(repo).deleteVariable(STATUS_VARIABLE);
+    } catch (error) {
+      throw new Error(`${errors.message(error)}; delete it with \`gh variable delete ${STATUS_VARIABLE} -R ${repo}\``);
+    }
+  }
+
+  async lastCommit(repo: string, branch: string, paths: string[]) {
+    const api = this.gh.repo(repo);
+    const latestPerPath = await Promise.all(paths.map((path) => api.latestCommitTouching(branch, path)));
+    const committedAt = (commit: CommitSummary) => commit.commit.committer?.date ?? "";
+    const [latest] = latestPerPath.filter((commit) => commit !== undefined).sort((a, b) => committedAt(b).localeCompare(committedAt(a)));
+    if (!latest) throw new Error(`No commits on ${repo}`);
+    return latest.sha;
+  }
+
+  /** The one App the config's policies, workspaces and triggers name. */
+  sourceOf(manifest: RepoManifest) {
+    return configSource(manifest);
+  }
+
+  /** The App's events and permissions against what the config needs. GitHub won't show a private App's settings, even to its owner. */
+  async checkSource(slug: string, manifest: RepoManifest) {
+    const app = await this.gh.publicApp(slug);
+    if (!app) return { missing: [], warnings: [`${slug} is private, so GitHub won't show its settings; skipping the App check`] };
+    const lacks = lacking(app, configNeeds(manifest, slug));
+    return { missing: [...lacks.events.map((e) => `the ${e} event`), ...lacks.permissions.map(([name, level]) => `${name}: ${level}`)], warnings: [] };
+  }
+
+  installPage(slug: string) {
+    return appInstallPage(this.urls, slug);
+  }
+
+  howTo(change: "install" | "remove", slug: string, repo: string, url: string) {
+    return change === "install"
+      ? `Install ${slug} on ${repo} at ${url}: on ${repoName.split(repo).owner}, with ${repo} among its repos.`
+      : `Remove ${repo} from ${slug}'s installation at ${url}: under "Repository access", unselect it (on all repos, choose "Only select repositories" without it).`;
   }
 }
 

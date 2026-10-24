@@ -1,6 +1,7 @@
 import type { PolicyData } from "../resources/config.ts";
 import type { RepoManifest } from "../resources/repo-manifest.ts";
-import type { ManagedResource } from "../resources/resource.ts";
+import type { Vars } from "@achq/utils/env";
+import type { Implementation } from "./implementation.ts";
 import type { Credential } from "./channel-provider.ts";
 import type { InstalledRepo, RepoInstallation, Status } from "../wire/protocol.ts";
 
@@ -43,42 +44,72 @@ export interface RepoClient {
 }
 
 /**
- * Where repos live. The deployer reads configs from it, the router checks
- * `/wake` against it, containers clone from it. A repo on it is set up for
- * achq or not: installing and uninstalling are its lifecycle.
+ * Where repos live, as achq's services reach it, made from their env: the
+ * deployer reads configs from it, the router checks `/wake` against it and
+ * lists the repos set up for achq, containers clone from it. A repo on it is
+ * set up for achq or not: installing and uninstalling are its lifecycle.
  */
 export interface CodeHostProvider {
+  /** What a repo's `owner/name` looks like on this host: the deployer deploys nothing else. */
   readonly repoName: RegExp;
+
+  // ── Deployer ──
   /** The policy the deployer's own access to `repo` needs: read `.achq/`, write the status. */
   deployerPolicy(repo: string): PolicyData;
   /** With a credential minted for `deployerPolicy`. */
   repo(repo: string, credential: Credential): RepoClient;
-  /** Whether `token` (from `token`) belongs to someone who can push to `repo`. */
-  canPush(repo: string, token: string): Promise<boolean>;
+
+  // ── Container ──
   /** Where containers clone `repo` from, with the credentials their policy provider installs. */
   cloneUrl(repo: string): string;
 
-  // ── The CLI, acting as you ──
-  /** The repo a git remote URL names, if it's on this host. */
-  repoOf(remote: string): string | undefined;
-  /** Proves who you are to `canPush`, for `/wake`. */
-  token(): string;
-  /** The status the deployer last wrote, or undefined if it hasn't. */
-  status(repo: string): Promise<Status | undefined>;
-  /** The latest commit on `branch` that touched any of `paths`. */
-  lastCommit(repo: string, branch: string, paths: string[]): Promise<string>;
-
-  /** CLI, as you: what sets `repo` up for achq, planned and applied like any resource. */
-  install(repo: string, manifest: RepoManifest): ManagedResource[];
-  /** CLI, as you: what tears it down. */
-  uninstall(repo: string, manifest: RepoManifest): ManagedResource[];
-  /** Router: the repos currently set up. */
+  // ── Router ──
+  /** Whether `token` (from `CodeHostAsYou.token`) belongs to someone who can push to `repo`. */
+  canPush(repo: string, token: string): Promise<boolean>;
+  /** The repos currently set up. */
   installed(): Promise<InstalledRepo[]>;
   /**
-   * Router, for `POST /installation`: whether `source` (a config's, e.g. a
-   * GitHub App's slug) is installed on `repo`, and where you'd change that.
+   * For `POST /installation`: whether `source` (a config's, e.g. a GitHub
+   * App's slug) is installed on `repo`, and where you'd change that.
    * Undefined for a source the router doesn't have. Only the router can tell:
    * on GitHub it takes the App's key.
    */
   installation(repo: string, source: string): Promise<RepoInstallation | undefined>;
 }
+
+/** What `checkSource` found: what the source lacks that the config needs, and what it couldn't check. */
+export type SourceCheck = { missing: string[]; warnings: string[] };
+
+/**
+ * The code host as the CLI reaches it, acting as you through your own login,
+ * e.g. `gh`'s: without the infra's vault or any App's key.
+ */
+export interface CodeHostAsYou {
+  /** What a repo's `owner/name` looks like on this host. */
+  readonly repoName: RegExp;
+  /** The repo a git remote URL names, if it's on this host. */
+  repoOf(remote: string): string | undefined;
+  /** Proves who you are to the router's `canPush`, for its public endpoints. */
+  token(): string;
+  /** The status the deployer last wrote, or undefined if it hasn't. */
+  status(repo: string): Promise<Status | undefined>;
+  /** Deletes the status, as if the repo had never been deployed: once it's uninstalled, the deployer can't reach it. */
+  clearStatus(repo: string): Promise<void>;
+  /** The latest commit on `branch` that touched any of `paths`. */
+  lastCommit(repo: string, branch: string, paths: string[]): Promise<string>;
+
+  // ── Installing and uninstalling a repo ──
+  /** The one source (e.g. a GitHub App's slug) the config is served through, which installing puts on the repo. Throws unless there's exactly one. */
+  sourceOf(manifest: RepoManifest): string;
+  /** What `source` lacks of what `manifest` needs, as far as you can see it. */
+  checkSource(source: string, manifest: RepoManifest): Promise<SourceCheck>;
+  /** Where you install `source` on a repo, when there's no router to say where. */
+  installPage(source: string): string;
+  /** What to do at `url`, which the router or `installPage` gave, to install `source` on `repo` or remove it. */
+  howTo(change: "install" | "remove", source: string, repo: string, url: string): string;
+}
+
+/** A code host's services' side, made with `create`, and the CLI's, made with `asYou`. */
+export type CodeHostImplementation = Implementation<CodeHostProvider> & {
+  asYou(env: Vars): CodeHostAsYou;
+};

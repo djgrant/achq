@@ -24,6 +24,9 @@ export const SYNC_TIMEOUT_MS = 60 * time.MINUTE_MS;
 export const SYNC_INTERVAL_MS = 5000;
 /** How long `achq infra up` waits for a new deployer to replace the one running. */
 export const DEPLOYER_VERSION_TIMEOUT_MS = 10 * time.MINUTE_MS;
+/** How long `achq repo uninstall` waits for you to remove the repo in your browser, and how often it asks the router whether you have. */
+export const UNINSTALL_TIMEOUT_MS = 15 * time.MINUTE_MS;
+export const UNINSTALL_INTERVAL_MS = 5000;
 /** How many times `achq repo install` opens what a failed deploy says only you can fix, and deploys again. */
 export const FIX_ATTEMPTS = 3;
 

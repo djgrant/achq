@@ -1,5 +1,4 @@
 import type { Vars } from "@achq/utils/env";
-import { time } from "@achq/utils/time";
 
 export const GITHUB_API = "https://api.github.com";
 export const GITHUB_WEB = "https://github.com";
@@ -26,9 +25,8 @@ export type GitHubUrls = { api: string; web: string };
 /** Where `env` points the API client, and web links and clone URLs. */
 export const githubUrls = (env: Vars): GitHubUrls => ({ api: env[GITHUB_ENV.api] || GITHUB_API, web: env[GITHUB_ENV.web] || GITHUB_WEB });
 
+/** Where you install an App: on an owner that has it already, GitHub goes on to its installation, where you add the repo. */
+export const appInstallPage = ({ web }: GitHubUrls, slug: string) => `${web}/apps/${slug}/installations/new`;
+
 /** Variables that only exist on the router, or that an App's own tooling sets. */
 export const PRIVATE_ENV = [GITHUB_ENV.apps, "GITHUB_APP_PRIVATE_KEY", "GITHUB_WEBHOOK_SECRET", "GITHUB_APP_ID"];
-
-/** How often `achq repo uninstall` asks the router whether you've removed the repo on GitHub, and how long it waits for you. */
-export const FLOW_POLL_INTERVAL_MS = 5000;
-export const FLOW_TIMEOUT_MS = 15 * time.MINUTE_MS;

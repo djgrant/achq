@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, beforeEach, expect, test } from "bun:test";
-import { Agent, type Change, collectManifest, Container, type Context, plan, resetDeclarations, Trigger, Workspace } from "@achq/core";
+import { Agent, collectManifest, Container, resetDeclarations, Trigger, Workspace } from "@achq/core";
 import { configSource, configNeeds } from "../src/lib/config-needs.ts";
 import { Channel, Policy } from "../src/index.ts";
 import { githubCodeHostProvider } from "../src/code-host/index.ts";
@@ -37,30 +37,18 @@ test("a config naming two Apps, or none, is refused", () => {
 });
 
 test("a repo comes from an https or ssh remote on GitHub", () => {
-  const github = githubCodeHostProvider.create({});
+  const github = githubCodeHostProvider.asYou({});
   expect(github.repoOf("https://github.com/notationlabs/yieldstar.git")).toBe("notationlabs/yieldstar");
   expect(github.repoOf("git@github.com:notationlabs/yieldstar.git")).toBe("notationlabs/yieldstar");
   expect(github.repoOf("https://github.com/djgrant/achq")).toBe("djgrant/achq");
   expect(github.repoOf("https://gitlab.com/notationlabs/yieldstar.git")).toBeUndefined();
   // On the web URL the env points it at.
-  expect(githubCodeHostProvider.create({ GITHUB_WEB_URL: "http://localhost:3000" }).repoOf("http://localhost:3000/o/r.git")).toBe("o/r");
+  expect(githubCodeHostProvider.asYou({ GITHUB_WEB_URL: "http://localhost:3000" }).repoOf("http://localhost:3000/o/r.git")).toBe("o/r");
 });
 
-// ── A fake GitHub, as your gh login sees it, and the router ACHQ_STATUS names ──
+// ── A fake GitHub, as your gh login sees it ──
 
-/** What GitHub answers gh's token (an OAuth App's) on the routes that list a user's installations. */
-const NOT_A_GITHUB_APP_TOKEN = "You must authenticate with an access token authorized to a GitHub App in order to list installations";
-
-type Fake = {
-  app?: { events: string[]; permissions: Record<string, string> };
-  /** What the router says of the App on the repo, one answer per ask; the last repeats. */
-  router: { installed: boolean; url: string }[];
-  /** The router ACHQ_STATUS names is torn down, so 404s. */
-  routerGone?: boolean;
-  asked: { body: unknown; auth: string | null }[];
-  status?: { value: string };
-  calls: string[];
-};
+type Fake = { app?: { events: string[]; permissions: Record<string, string> }; status?: { value: string }; calls: string[] };
 let fake: Fake;
 let server: ReturnType<typeof Bun.serve>;
 
@@ -72,13 +60,7 @@ beforeAll(() => {
       const route = `${req.method} ${url.pathname}`;
       fake.calls.push(route);
       let m: RegExpMatchArray | null;
-      if (route === "POST /router/installation") {
-        if (fake.routerGone) return new Response("Not Found", { status: 404 });
-        fake.asked.push({ body: await req.json(), auth: req.headers.get("authorization") });
-        return Response.json(fake.router.length > 1 ? fake.router.shift() : fake.router[0]);
-      }
       if ((m = route.match(/^GET \/apps\/(.+)$/))) return fake.app ? Response.json({ slug: m[1], ...fake.app }) : new Response("Not Found", { status: 404 });
-      if (url.pathname.startsWith("/user/installations")) return Response.json({ message: NOT_A_GITHUB_APP_TOKEN }, { status: 403 });
       if (route === "DELETE /repos/notationlabs/yieldstar/actions/variables/ACHQ_STATUS") {
         if (!fake.status) return new Response("Not Found", { status: 404 });
         fake.status = undefined;
@@ -93,133 +75,39 @@ beforeAll(() => {
 });
 afterAll(() => server.stop(true));
 beforeEach(() => {
-  fake = { router: [], asked: [], calls: [] };
+  fake = { calls: [] };
 });
 
 const REPO = "notationlabs/yieldstar";
 const FULL = { events: ["issues", "issue_comment", "push"], permissions: { contents: "write", issues: "write", pull_requests: "admin", metadata: "read", actions_variables: "write" } };
-const web = () => `http://localhost:${server.port}/web`;
-const api = () => `http://localhost:${server.port}`;
-const SETTINGS = "https://github.com/organizations/NotationLabs/settings/installations/2";
+/** Your gh login (GH_TOKEN skips gh), on the fake's API and web URLs. */
+const you = () => githubCodeHostProvider.asYou({ GITHUB_API_URL: `http://localhost:${server.port}`, GITHUB_WEB_URL: "http://localhost:3000", GH_TOKEN: "gho_t" });
 
-/** The repo deployed before, so ACHQ_STATUS names the router, which says this of the App. */
-const routerSays = (...answers: { installed: boolean; url: string }[]) => {
-  fake.status = { value: JSON.stringify({ host: "github", repo: REPO, state: "deployed", at: "2026-10-17T10:02:00Z", router: `${api()}/router` }) };
-  fake.router = answers;
-};
-
-/** As the CLI plans it: your gh login (GH_TOKEN skips gh), the env's GitHub, and a browser that records what it opened. */
-const installing = async (installed: boolean, opts: { open?: boolean } = {}) => {
-  const log: string[] = [];
-  const opened: string[] = [];
-  const env = { GITHUB_API_URL: api(), GITHUB_WEB_URL: web(), GH_TOKEN: "gho_t" };
-  const ctx: Context = {
-    env,
-    log: (line) => log.push(line),
-    ...(opts.open !== false && { open: async (url: string) => void opened.push(url) }),
-    newSecret: () => "secret",
-    sleep: async () => {},
-  };
-  const codeHost = githubCodeHostProvider.create(env);
-  const resources = installed ? codeHost.install(REPO, configManifest()) : codeHost.uninstall(REPO, configManifest());
-  return { planned: await plan(resources, ctx), log, opened };
-};
-
-const summary = (changes: Change[]) => changes.map((c) => `${c.op} ${c.target} ${c.what}${c.detail ? ` ${c.detail}` : ""}`);
-const writes = () => fake.calls.filter((c) => !c.startsWith("GET ") && c !== "POST /router/installation");
-
-test("gh's token can't list installations: GitHub refuses it, so install never asks", async () => {
-  const res = await fetch(`${api()}/user/installations`, { headers: { authorization: "token gho_t" } });
-  expect([res.status, ((await res.json()) as { message: string }).message]).toEqual([403, NOT_A_GITHUB_APP_TOKEN]);
-  fake.calls = [];
+test("the App is checked for what the config needs", async () => {
   fake.app = FULL;
-  routerSays({ installed: false, url: SETTINGS });
-  await (await installing(true)).planned.apply();
-  routerSays({ installed: true, url: SETTINGS }, { installed: false, url: SETTINGS });
-  await (await installing(false)).planned.apply();
-  expect(fake.calls.filter((c) => c.includes("/user/installations"))).toEqual([]);
-});
-
-test("install asks the router ACHQ_STATUS names, with your gh token, and opens where the router says to add the repo", async () => {
-  fake.app = FULL;
-  routerSays({ installed: false, url: SETTINGS });
-  const { planned, log, opened } = await installing(true);
-  expect(summary(planned.changes)).toEqual(["+ notation-achq repo notationlabs/yieldstar, opens GitHub to install it"]);
-  expect(planned.warnings).toEqual([]);
-  expect(fake.asked).toEqual([{ body: { host: "github", repo: REPO, source: "notation-achq" }, auth: "Bearer gho_t" }]);
-
-  await planned.apply();
-  expect(opened).toEqual([SETTINGS]);
-  expect(log).toEqual([`Install notation-achq on ${REPO} at ${SETTINGS}: on notationlabs, with ${REPO} among its repos.`]);
-  expect(writes()).toEqual([]);
-});
-
-test("install changes nothing when the router says the App is installed on the repo", async () => {
-  fake.app = FULL;
-  routerSays({ installed: true, url: SETTINGS });
-  expect((await installing(true)).planned.changes).toEqual([]);
-});
-
-test("install on a repo that's never been deployed, so has no router to ask, opens GitHub's install page, on the env's web URL", async () => {
-  fake.app = FULL;
-  const { planned, opened } = await installing(true);
-  expect(summary(planned.changes)).toEqual(["+ notation-achq repo notationlabs/yieldstar, opens GitHub to install it"]);
-  await planned.apply();
-  expect(opened).toEqual([`${web()}/apps/notation-achq/installations/new`]);
-  expect(fake.asked).toEqual([]);
-
-  const headless = await installing(true, { open: false });
-  await expect(headless.planned.apply()).rejects.toThrow("opens your browser");
-});
-
-test("install on a repo whose router is gone, e.g. its hq moved to another provider, opens GitHub's install page; uninstall says what to do", async () => {
-  fake.app = FULL;
-  routerSays();
-  fake.routerGone = true;
-  const { planned, opened } = await installing(true);
-  expect(summary(planned.changes)).toEqual(["+ notation-achq repo notationlabs/yieldstar, opens GitHub to install it"]);
-  await planned.apply();
-  expect(opened).toEqual([`${web()}/apps/notation-achq/installations/new`]);
-
-  await expect(installing(false)).rejects.toThrow(`No router answers at ${api()}/router`);
-});
-
-test("install fails before installing when the App lacks the events or permissions the config needs", async () => {
+  expect(await you().checkSource("notation-achq", configManifest())).toEqual({ missing: [], warnings: [] });
   fake.app = { events: ["issues", "push"], permissions: { ...FULL.permissions, contents: "read" } };
-  await expect(installing(true)).rejects.toThrow("notation-achq doesn't have what notationlabs/yieldstar's config needs: the issue_comment event, contents: write");
-  expect(writes()).toEqual([]);
+  expect(await you().checkSource("notation-achq", configManifest())).toEqual({ missing: ["the issue_comment event", "contents: write"], warnings: [] });
 });
 
 test("a private App's 404 skips the App comparison, with a warning", async () => {
-  const { planned } = await installing(true);
-  expect(summary(planned.changes)).toEqual(["+ notation-achq repo notationlabs/yieldstar, opens GitHub to install it"]);
-  expect(planned.warnings).toEqual(["notation-achq is private, so GitHub won't show its settings; skipping the App check"]);
+  expect(await you().checkSource("notation-achq", configManifest())).toEqual({
+    missing: [],
+    warnings: ["notation-achq is private, so GitHub won't show its settings; skipping the App check"],
+  });
 });
 
-test("uninstall opens the installation's settings, waits until the router says the repo's gone, then deletes ACHQ_STATUS; it never reads the App", async () => {
-  routerSays({ installed: true, url: SETTINGS }, { installed: true, url: SETTINGS }, { installed: true, url: SETTINGS }, { installed: false, url: SETTINGS });
-  const { planned, log, opened } = await installing(false);
-  expect(summary(planned.changes)).toEqual(["- notation-achq repo notationlabs/yieldstar, opens GitHub to remove it"]);
-  await planned.apply();
-  expect(opened).toEqual([SETTINGS]);
-  expect(fake.asked).toHaveLength(4);
-  expect(log.at(-1)).toBe("notationlabs/yieldstar's containers sleep, and are kept until `achq infra up --prune`.");
-  expect(writes()).toEqual(["DELETE /repos/notationlabs/yieldstar/actions/variables/ACHQ_STATUS"]);
-  expect(fake.status).toBeUndefined();
-  expect(fake.calls.some((c) => c.startsWith("GET /apps/"))).toBe(false);
-
-  // Not installed: nothing to change.
-  routerSays({ installed: false, url: SETTINGS });
-  expect((await installing(false)).planned.changes).toEqual([]);
+test("the App's install page is on the env's web URL, and what to do there names the owner", () => {
+  expect(you().installPage("notation-achq")).toBe("http://localhost:3000/apps/notation-achq/installations/new");
+  expect(you().howTo("install", "notation-achq", REPO, "u")).toBe(`Install notation-achq on ${REPO} at u: on notationlabs, with ${REPO} among its repos.`);
+  expect(you().howTo("remove", "notation-achq", REPO, "u")).toStartWith(`Remove ${REPO} from notation-achq's installation at u: under "Repository access"`);
 });
 
-test("uninstall without a router to ask says where to remove it instead", async () => {
-  await expect(installing(false)).rejects.toThrow("achq can't tell whether notation-achq is installed on notationlabs/yieldstar: it has no ACHQ_STATUS naming its router yet");
-});
-
-test("ACHQ_STATUS is read from the repository variable, and is undefined before the first deploy", async () => {
-  const codeHost = githubCodeHostProvider.create({ GITHUB_API_URL: `http://localhost:${server.port}`, GH_TOKEN: "t" });
-  expect(await codeHost.status(REPO)).toBeUndefined();
+test("ACHQ_STATUS is read from the repository variable, and is undefined before the first deploy; clearing it deletes it", async () => {
+  expect(await you().status(REPO)).toBeUndefined();
   fake.status = { value: JSON.stringify({ host: "github", repo: REPO, state: "deployed", at: "2026-10-17T10:02:00Z" }) };
-  expect((await codeHost.status(REPO))?.state).toBe("deployed");
+  expect((await you().status(REPO))?.state).toBe("deployed");
+  await you().clearStatus(REPO);
+  expect(fake.status).toBeUndefined();
+  expect(fake.calls.filter((c) => c.startsWith("DELETE "))).toEqual(["DELETE /repos/notationlabs/yieldstar/actions/variables/ACHQ_STATUS"]);
 });

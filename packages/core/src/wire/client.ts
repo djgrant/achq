@@ -7,15 +7,19 @@ import type {
   DeployerVersion,
   DeployRecord,
   FailedDelivery,
+  InstallationRequest,
   InstalledRepo,
   MintRequest,
   ReplayResult,
+  RepoInstallation,
+  RepoRequest,
   RouterRepoConfig,
   SourceSettings,
   SyncRequest,
   SyncStarted,
   SyncStatus,
   ValidateRequest,
+  WakeRequest,
 } from "./protocol.ts";
 import { adminSecret } from "./secrets.ts";
 import { signedFetch } from "./signing.ts";
@@ -73,3 +77,29 @@ export const routerForContainer = ({ url, secret }: { url: string; secret: strin
     credentials: (request: CredentialsRequest) => call<CredentialsResponse>("POST", "/credentials", request),
   };
 };
+
+/**
+ * The router's public endpoints for the repo CLI, at `url`, as ACHQ_STATUS
+ * names it: each answers only someone who can push to the repo, which `token`,
+ * your code host token, proves. A refusal throws an HttpError, e.g. `Router
+ * https://… POST /installation: 403 no push access`.
+ */
+export const routerForPusher = ({ url, token }: { url: string; token: string }) => {
+  const root = url.replace(/\/+$/, "");
+  const call = async (path: string, body: RepoRequest) => {
+    const res = await fetch(root + path, { method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" }, body: JSON.stringify(body) });
+    const text = await res.text();
+    if (!res.ok) throw new HttpError(res.status, "POST", path, text, `Router ${root}`);
+    return text;
+  };
+  return {
+    /** Wakes a container, answering once it's up. */
+    wake: async (request: WakeRequest) => void (await call("/wake", request)),
+    /** Whether the config's source is installed on the repo, and where you'd change that. */
+    installation: async (request: InstallationRequest) => JSON.parse(await call("/installation", request)) as RepoInstallation,
+    /** Has the deployer deploy the repo again, as installing it does. */
+    deploy: async (request: RepoRequest) => void (await call("/deploy", request)),
+  };
+};
+
+export type RouterForPusher = ReturnType<typeof routerForPusher>;

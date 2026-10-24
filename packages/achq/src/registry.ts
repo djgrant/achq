@@ -1,7 +1,7 @@
 import { onePasswordVaultProvider } from "@achq/1password/vault";
 import { claudeAgentProvider } from "@achq/claude/agent";
 import { cloudflareContainerProvider } from "@achq/cloudflare/container";
-import { type AgentProvider, type ChannelProvider, type CodeHostProvider, type ContainerProviderImplementation, ENV, type Implementation, type PolicyProvider, type Stores, type VaultProvider } from "@achq/core";
+import { type AgentProvider, type ChannelProvider, type CodeHostImplementation, type CodeHostProvider, type ContainerProviderImplementation, ENV, type Implementation, type PolicyProvider, type Stores, type VaultProvider } from "@achq/core";
 import { githubChannelProvider } from "@achq/github/channel";
 import { githubPolicyProvider } from "@achq/github/policy";
 import { githubCodeHostProvider } from "@achq/github/code-host";
@@ -11,7 +11,7 @@ import * as infra from "./infra.ts";
 
 export const CHANNEL_PROVIDERS: Implementation<ChannelProvider>[] = [githubChannelProvider];
 export const POLICY_PROVIDERS: Implementation<PolicyProvider>[] = [githubPolicyProvider];
-export const CODE_HOST_PROVIDERS: Implementation<CodeHostProvider>[] = [githubCodeHostProvider];
+export const CODE_HOST_PROVIDERS: CodeHostImplementation[] = [githubCodeHostProvider];
 export const CONTAINER_PROVIDERS: ContainerProviderImplementation[] = [railwayContainerProvider, cloudflareContainerProvider];
 export const AGENT_PROVIDERS: AgentProvider[] = [claudeAgentProvider];
 /** Where `achq infra up` can keep secrets for reuse, as `achq.config.ts` names one. */

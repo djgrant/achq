@@ -1,13 +1,13 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { CodeHostProvider } from "@achq/core";
+import type { CodeHostAsYou } from "@achq/core";
 import type { Vars } from "@achq/utils/env";
 import { Git } from "@achq/utils/git";
 import { z } from "zod";
 import { CODE_HOST_PROVIDERS } from "achq/registry";
 import { CLI_ENV, INFRA_FILE } from "../constants.ts";
 
-export type RepoHere = { host: string; repo: string; codeHost: CodeHostProvider };
+export type RepoHere = { host: string; repo: string; codeHost: CodeHostAsYou };
 
 /** The directory `achq` was run in. `bin/achq` passes it on, since pok runs from achq's own directory. */
 export const callerCwd = () => process.env[CLI_ENV.callerCwd] ?? process.cwd();
@@ -25,7 +25,7 @@ export const needInfra = (dir = callerCwd()) => {
 /** The repo `remote` names, on whichever host has it. */
 const repoAt = (remote: string, env: Vars = process.env) => {
   for (const h of CODE_HOST_PROVIDERS) {
-    const codeHost = h.create(env);
+    const codeHost = h.asYou(env);
     const repo = codeHost.repoOf(remote);
     if (repo) return { host: h.id, repo, codeHost };
   }
@@ -33,7 +33,7 @@ const repoAt = (remote: string, env: Vars = process.env) => {
 
 /** The repo `name` (`owner/name`) is, on the one host whose names it fits. */
 const repoNamed = (name: string, env: Vars = process.env): RepoHere | undefined => {
-  const fits = CODE_HOST_PROVIDERS.map((h) => ({ host: h.id, repo: name, codeHost: h.create(env) })).filter((h) => h.codeHost.repoName.test(name));
+  const fits = CODE_HOST_PROVIDERS.map((h) => ({ host: h.id, repo: name, codeHost: h.asYou(env) })).filter((h) => h.codeHost.repoName.test(name));
   if (fits.length > 1) throw new Error(`${name} could be on ${fits.map((h) => h.host).join(" or ")}; pass its URL`);
   return fits[0];
 };
