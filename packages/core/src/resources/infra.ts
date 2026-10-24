@@ -1,7 +1,7 @@
 import { GENERATED, type Input, type Output } from "../engine/values.ts";
 import { DEPLOYER_PORT, ENV, ROUTER_PRIVATE_PORT, ROUTER_PUBLIC_PORT } from "../wire/constants.ts";
 import { type Context, declared, Resource, resetDeclarations } from "./resource.ts";
-import { type VariableGroup, VariableGroups, type VariableValues } from "./variables.ts";
+import { CurrentVariables, type VariableGroup, VariableGroups, type VariableValues } from "./variables.ts";
 
 /** A variable's value: a string, another resource's output, or generated once and then kept. */
 export type EnvValue = Input<string> | typeof GENERATED;
@@ -38,8 +38,6 @@ export abstract class Service extends Resource {
   abstract readonly public: boolean;
   /** Sleeps when idle, and wakes on a request. */
   abstract readonly sleeps: boolean;
-  /** Its variables as they are before this run changes them: empty if it doesn't exist yet. */
-  abstract readonly env: Output<Record<string, string>>;
   /** Where it runs: set by its plugin's constructor. */
   protected abstract readonly placement: Placement;
 
@@ -107,10 +105,26 @@ export abstract class Router extends Service {
   readonly sleeps = false;
   /** Its public URL: unknown until it has one. */
   abstract readonly url: Output<string>;
+  private current?: CurrentVariables;
 
-  /** AGENT_WEBHOOK_KEY, generated once, in its first group of variables. */
+  /** AGENT_WEBHOOK_KEY, generated once, in its first group of variables: known only once it's set, so a known key means the router exists. */
   get key(): Output<string> {
     return this.first.out(ENV.key);
+  }
+
+  /** Read whenever it's planned, whether or not anything takes `env`. */
+  private get currentVariables() {
+    return (this.current ??= new CurrentVariables("env", this.first, { parent: this }));
+  }
+
+  /** Its variables as they are before this run changes them: empty if it doesn't exist yet. */
+  get env(): Output<Record<string, string>> {
+    return this.currentVariables.outputs();
+  }
+
+  /** Its variables as they are come first, so they're read before any group is set, even when this run makes it. */
+  children(ctx: Context): Resource[] {
+    return [this.currentVariables, ...super.children(ctx)];
   }
 
   protected achqVariables(): EnvValues {

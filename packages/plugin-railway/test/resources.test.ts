@@ -26,15 +26,3 @@ test("a service's comparison is pure: it takes what was read and says what diffe
   ]);
   expect(service.planned(props, current, changes)).toEqual({ serviceId: "s", url: "https://keep.up.railway.app" });
 });
-
-test("a service asked for its env gives its variables as read, none if it doesn't exist yet, and applying doesn't change them", () => {
-  resetDeclarations();
-  const at = { projectId: "p", environmentId: "e" };
-  const service = new Service("service", { at, name: "achq-router", settings: {}, volume: "/data", env: true });
-  const props = { at, name: "achq-router", settings: {}, volume: "/data", env: true as const };
-  expect(service.planned(props, undefined, service.diff(props, undefined))).toEqual({ serviceId: expect.anything(), url: undefined, env: {} });
-  const current = { serviceId: "s", instance: { latestDeployment: null }, volumes: ["/data"], domains: [], autoDeploy: false, env: { PORT: "8080" } };
-  expect(service.planned(props, current, service.diff(props, current)).env).toEqual({ PORT: "8080" });
-  const { env: _, ...withoutEnv } = props;
-  expect(service.planned(withoutEnv, current, [])).toEqual({ serviceId: "s", url: undefined });
-});

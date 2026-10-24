@@ -25,7 +25,6 @@ export type DeployerInputs = {
  */
 export class Deployer extends core.Deployer {
   readonly containerProvider = CONTAINER_PROVIDER;
-  readonly env: Output<Record<string, string>>;
   protected readonly placement: ServiceParts;
   private readonly token: DeployerToken;
   private readonly router: Router;
@@ -44,7 +43,6 @@ export class Deployer extends core.Deployer {
       // It starts with its token.
       deployAfter: () => [this.token],
     });
-    this.env = this.placement.worker.out("env").map((env) => env!);
     this.token = new DeployerToken(
       "deployer-token",
       { worker: this.placement.name, tag: this.placement.worker.out("tag"), replace: new Output([], () => this.rotating) },

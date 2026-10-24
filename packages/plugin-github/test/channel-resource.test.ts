@@ -103,7 +103,6 @@ class RouterService extends ManagedResource<Service, true, Omit<Service, "exists
 class StubRouter extends Router {
   readonly containerProvider = "stub";
   readonly url: Output<string>;
-  readonly env: Output<Record<string, string>>;
   readonly groups: (EnvValues | ((ctx: Context) => EnvValues))[] = [];
   protected readonly placement = undefined as unknown as Placement;
   private readonly service: RouterService;
@@ -111,10 +110,13 @@ class StubRouter extends Router {
   constructor(service: Service) {
     super("router");
     this.service = new RouterService("service", service, { parent: this });
-    [this.url, this.env] = [this.service.out("url"), this.service.out("env")];
+    this.url = this.service.out("url");
   }
   override get key() {
     return this.service.out("key");
+  }
+  override get env() {
+    return this.service.out("env");
   }
   override children() {
     return [];

@@ -12,8 +12,6 @@ type ServiceProps = {
   publicPort?: number;
   /** Set false to turn off deploys on push once it's connected to a repo. */
   autoDeploy?: false;
-  /** Set to read its variables, for `env`: one more call per read, which a container's service doesn't need. */
-  env?: true;
 };
 
 type ServiceState = {
@@ -24,11 +22,9 @@ type ServiceState = {
   domains: ServiceDomain[];
   /** Whether it deploys on push. Only read when it's to be off; otherwise taken as off. */
   autoDeploy: boolean;
-  env?: Record<string, string>;
 };
 
-/** `env`, if asked for: its variables before this run changes them, none if it doesn't exist yet. */
-type ServiceOutputs = { serviceId: string; url?: string; env?: Record<string, string> };
+type ServiceOutputs = { serviceId: string; url?: string };
 
 type ServiceChange =
   | { kind: "service" }
@@ -48,9 +44,6 @@ const isPublic = (props: ServiceProps, domain: ServiceDomain) => Boolean(props.p
 
 const kept = (props: ServiceProps, current: ServiceState | undefined) => current?.domains.find((d) => isPublic(props, d));
 
-/** Its variables as read, before applying changes them: known, if none, while planning a new one. */
-const env = (props: ServiceProps, current: ServiceState | undefined) => (props.env ? { env: current?.env ?? {} } : {});
-
 export class Service extends ManagedResource<ServiceProps, ServiceState, ServiceOutputs, ServiceChange> {
   readonly kind = "railway-service";
 
@@ -66,7 +59,6 @@ export class Service extends ManagedResource<ServiceProps, ServiceState, Service
       endpoint: service.privateEndpoint(),
       // Railway can fail to say, for a service it can't deploy yet: that's taken as off.
       autoDeploy: props.autoDeploy === false ? service.autoDeploy().catch(() => false) : false,
-      env: props.env ? service.variables() : undefined,
     });
     return {
       serviceId: service.id,
@@ -75,7 +67,6 @@ export class Service extends ManagedResource<ServiceProps, ServiceState, Service
       endpoint: read.endpoint,
       domains: read.domains,
       autoDeploy: read.autoDeploy,
-      ...(read.env && { env: read.env }),
     };
   }
 
@@ -120,7 +111,6 @@ export class Service extends ManagedResource<ServiceProps, ServiceState, Service
     return {
       serviceId: current?.serviceId ?? UNKNOWN,
       url: changes.some((c) => c.kind === "add-domain") ? UNKNOWN : https(kept(props, current)?.domain),
-      ...env(props, current),
     };
   }
 
@@ -156,6 +146,6 @@ export class Service extends ManagedResource<ServiceProps, ServiceState, Service
           break;
       }
     }
-    return { serviceId: service!.id, url: https(domain), ...env(props, current) };
+    return { serviceId: service!.id, url: https(domain) };
   }
 }

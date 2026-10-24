@@ -13,7 +13,6 @@ export class Router extends core.Router {
   readonly containerProvider = CONTAINER_PROVIDER;
   readonly project: Project;
   readonly url: Output<string>;
-  readonly env: Output<Record<string, string>>;
   protected readonly placement: ServiceParts;
 
   constructor(
@@ -24,7 +23,6 @@ export class Router extends core.Router {
     this.project = new Project("project", { name: inputs.project }, { parent: this });
     this.placement = new ServiceParts(this, this.project.at(), { wait: true });
     this.url = this.placement.service.out("url").map((u) => u!);
-    this.env = this.placement.service.out("env").map((env) => env!);
   }
 
   children(ctx: core.Context) {

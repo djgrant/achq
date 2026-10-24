@@ -112,7 +112,8 @@ test("a new project plans in one pass and writes nothing, with the router's URL 
     "~ achq-deployer deploy",
   ]);
   expect(planned.value(router.url)).toBe(url);
-  expect(planned.value(router.key)).toBe("generated-key");
+  // Generated as it's set, so unknown until then.
+  expect(planned.value(router.key)).toBe(core.UNKNOWN);
   expect(planned.value(router.env)).toEqual({});
   expect(router.privateUrl(8081)).toBe("http://8081.achq-router.achq.internal");
   expect(deployer.privateUrl(3000)).toBe("http://3000.achq-deployer.achq.internal");
@@ -120,6 +121,7 @@ test("a new project plans in one pass and writes nothing, with the router's URL 
 
   const applied = await planned.apply();
   expect(applied.value(router.url)).toBe(url);
+  expect(applied.value(router.key)).toBe("generated-key");
   expect(applied.value(router.env)).toEqual({});
   const page = deployerTokenPage(fake.accountId);
   expect(logs).toEqual([
@@ -196,7 +198,6 @@ test("a new project plans in one pass and writes nothing, with the router's URL 
   const unchanged = await plan(again.resources, ctx);
   expect(unchanged.changes).toEqual([]);
   expect(unchanged.value(again.router.env)).toMatchObject({ AGENT_WEBHOOK_KEY: "generated-key", PORT: "8080" });
-  expect(unchanged.value(again.deployer.env)).toMatchObject({ ACHQ_CLOUDFLARE_PROJECT: "achq" });
 });
 
 test("once applied, nothing changes until an input does, and then only what depends on it", async () => {
@@ -296,7 +297,6 @@ test("the deployer runs in a Cloudflare router's project", () => {
   class Elsewhere extends core.Router {
     readonly containerProvider = "elsewhere";
     readonly url = undefined as unknown as Output<string>;
-    readonly env = undefined as unknown as Output<Record<string, string>>;
     protected readonly placement = undefined as unknown as core.Placement;
   }
   expect(() => achq(() => new Deployer("deployer", { router: new Elsewhere("router"), owners: [] }))()).toThrow("router must be a cloudflare.Router");

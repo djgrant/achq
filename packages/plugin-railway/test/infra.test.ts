@@ -69,12 +69,14 @@ test("a new project plans in one pass and writes nothing, with the router's URL 
     "~ achq-deployer deploy",
   ]);
   expect(planned.value(router.url)).toBe(UNKNOWN);
-  expect(planned.value(router.key)).toBe("generated-key");
+  // Generated as it's set, so unknown until then.
+  expect(planned.value(router.key)).toBe(UNKNOWN);
   expect(planned.value(router.env)).toEqual({});
   expect(fake.mutations).toEqual([]);
 
   const applied = await planned.apply();
   expect(applied.value(router.url)).toBe(url);
+  expect(applied.value(router.key)).toBe("generated-key");
   // Read before the service was made.
   expect(applied.value(router.env)).toEqual({});
   expect(logs).toEqual(["  waiting for the router to deploy…"]);
@@ -111,7 +113,6 @@ test("once applied, nothing changes until an input does, and then only what depe
   const applied = await changed.apply();
   // Its variables before this run changed them.
   expect(applied.value(b.router.env).ACHQ_REF).toBe("a");
-  expect(applied.value(b.deployer.env).ACHQ_REF).toBe("a");
   expect(fake.service("achq-router")!.deployments).toHaveLength(2);
   expect(fake.service("achq-router")!.domains).toHaveLength(1);
   expect(fake.service("achq-router")!.variables.AGENT_WEBHOOK_KEY).toBe("generated-key");
@@ -193,7 +194,7 @@ test("each variable is in one group, checked when planned, and groups are declar
   const { router, deployer } = declare();
   deployer.variables(() => ({ ACHQ_REF: "b" }));
   await expect(plan([router, deployer], ctx)).rejects.toThrow("achq-deployer: ACHQ_REF declared in two groups of variables");
-  expect(router.children(ctx).map((r) => r.name)).toEqual(["project", "service", "variables", "variables-2", "variables-3", "deploy"]);
+  expect(router.children(ctx).map((r) => r.name)).toEqual(["project", "env", "service", "variables", "variables-2", "variables-3", "deploy"]);
 
   const fresh = declare();
   const late = fresh.router.variables((c) => ({ LATE: c.env.RAILWAY_WORKSPACE_ID! }));
@@ -205,7 +206,7 @@ test("each variable is in one group, checked when planned, and groups are declar
 
 test("declaring the router and deployer reads nothing: only planning does", () => {
   const { router, deployer } = declare();
-  expect(router.children(ctx).map((r) => r.name)).toEqual(["project", "service", "variables", "variables-2", "variables-3", "deploy"]);
+  expect(router.children(ctx).map((r) => r.name)).toEqual(["project", "env", "service", "variables", "variables-2", "variables-3", "deploy"]);
   expect(deployer.children(ctx).map((r) => r.name)).toEqual(["service", "variables", "variables-2", "deploy"]);
   expect(router.children(ctx).every((r) => r.parent === router)).toBe(true);
   expect(core.declared()).toEqual([router, deployer]);
@@ -220,7 +221,6 @@ test("the deployer runs in a Railway router's project", () => {
   class Elsewhere extends core.Router {
     readonly containerProvider = "elsewhere";
     readonly url = undefined as unknown as Output<string>;
-    readonly env = undefined as unknown as Output<Record<string, string>>;
     protected readonly placement = undefined as unknown as core.Placement;
   }
   expect(() => achq(() => new Deployer("deployer", { router: new Elsewhere("router"), owners: [] }))()).toThrow("router must be a railway.Router");

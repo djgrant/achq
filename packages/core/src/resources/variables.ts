@@ -2,17 +2,16 @@ import { collections } from "@achq/utils/collections";
 import type { Change } from "../engine/plan.ts";
 import { all, GENERATED, type Output, type Planned, UNKNOWN } from "../engine/values.ts";
 import type { EnvValues } from "./infra.ts";
-import { type Context, ManagedResource } from "./resource.ts";
+import { type Context, DataSource, ManagedResource, type ResourceOptions } from "./resource.ts";
 
-/** A group's variables as its props have them: GENERATED ones are made when it's planned. */
+/** A group's variables as its props have them: GENERATED ones are made when they're first set. */
 export type DeclaredVariables = Record<string, string | typeof GENERATED>;
 type Current = Record<string, string>;
-/** The variables to set. Unknown values differ from anything. */
-type Set = Record<string, string>;
+/** The variables to set: GENERATED for one made as it's set. Unknown values differ from anything. */
+type Set = Record<string, string | typeof GENERATED>;
 
 /** Each declared variable's value once `set` is set over `current`: undefined for one in neither. */
-const valuesAfter = (values: DeclaredVariables, current: Current, set: Set = {}): Record<string, string | undefined> =>
-  collections.mapValues(values, (_, key) => set[key] ?? current[key]);
+const valuesAfter = (values: DeclaredVariables, current: Current, set: Set = {}) => collections.mapValues(values, (_, key) => set[key] ?? current[key]);
 
 /**
  * A group of a service's variables, set as one resource. Its provider says
@@ -24,10 +23,9 @@ export abstract class VariableGroup<P extends { values: DeclaredVariables }> ext
   protected abstract store(props: P, set: Set, ctx: Context): Promise<void>;
   protected abstract target(props: P): string;
 
-  diff({ values }: P, current: Current = {}, ctx: Context): Set[] {
-    // A generated value is made here, once, so what's printed is what's set: as `current` has it, or else a new secret.
-    const want = collections.mapValues(values, (value, key) => (value === GENERATED ? (current[key] ?? ctx.newSecret()) : value));
-    const set = collections.filterKeys(want, (key) => current[key] !== want[key]);
+  diff({ values }: P, current: Current = {}): Set[] {
+    // A generated value is kept once it's set.
+    const set = collections.filterKeys(values, (key) => (values[key] === GENERATED ? current[key] === undefined : current[key] !== values[key]));
     return Object.keys(set).length ? [set] : [];
   }
 
@@ -35,14 +33,37 @@ export abstract class VariableGroup<P extends { values: DeclaredVariables }> ext
     return { op: "~", target: this.target(props), what: "variables", names: Object.keys(set) };
   }
 
+  /** A generated value is unknown until it's set: so a known one is kept where the service's variables are. */
   planned({ values }: P, current: Current = {}, changes: Set[]): Planned<Current> {
-    return collections.mapValues(valuesAfter(values, current, changes[0]), (value) => value ?? UNKNOWN);
+    return collections.mapValues(valuesAfter(values, current, changes[0]), (value) => (value === undefined || value === GENERATED ? UNKNOWN : value));
   }
 
   async apply(props: P, current: Current = {}, [set]: Set[], ctx: Context) {
-    await this.store(props, set!, ctx);
+    const made = collections.mapValues(set!, (value) => (value === GENERATED ? ctx.newSecret() : value));
+    await this.store(props, made, ctx);
     // Every declared variable is either set now or already was.
-    return valuesAfter(props.values, current, set) as Current;
+    return valuesAfter(props.values, current, made) as Current;
+  }
+}
+
+/**
+ * A service's variables as `group`'s provider keeps them, all of them, before
+ * this run sets any: none if it doesn't exist yet. Read with the group's props
+ * but not its values, so it depends only on where they're kept.
+ */
+export class CurrentVariables extends DataSource<object, Current> {
+  readonly kind = "current-variables";
+
+  constructor(
+    name: string,
+    private readonly group: VariableGroup<any>,
+    options: ResourceOptions,
+  ) {
+    super(name, { ...(group.props as object), values: {} }, options);
+  }
+
+  async read(props: object, ctx: Context): Promise<Current> {
+    return (await this.group.read(props, ctx)) ?? {};
   }
 }
 

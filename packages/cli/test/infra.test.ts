@@ -19,13 +19,11 @@ const nothing = new core.Output<any>([], () => core.UNKNOWN);
 class ElsewhereRouter extends core.Router {
   readonly containerProvider = "elsewhere";
   readonly url = nothing;
-  readonly env = nothing;
   protected readonly placement = undefined as unknown as core.Placement;
 }
 
 class ElsewhereDeployer extends core.Deployer {
   readonly containerProvider = "elsewhere";
-  readonly env = nothing;
   protected readonly placement = undefined as unknown as core.Placement;
   constructor(
     name: string,

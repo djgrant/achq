@@ -1,5 +1,5 @@
 import * as core from "@achq/core";
-import type { Context, EnvValues, Output } from "@achq/core";
+import type { Context, EnvValues } from "@achq/core";
 import { Env } from "@achq/utils/env";
 import { CONTAINER_PROVIDER, RAILWAY_ENV } from "../lib/constants.ts";
 import type { Project } from "../lib/project.ts";
@@ -14,7 +14,6 @@ import { Router } from "../router/resource.ts";
 export class Deployer extends core.Deployer {
   readonly containerProvider = CONTAINER_PROVIDER;
   readonly project: Project;
-  readonly env: Output<Record<string, string>>;
   protected readonly placement: ServiceParts;
 
   constructor(
@@ -26,7 +25,6 @@ export class Deployer extends core.Deployer {
     if (!(router instanceof Router)) throw new Error(`railway.Deployer ${name} runs in its router's Railway project, so ${router.name} must be a railway.Router`);
     this.project = router.project;
     this.placement = new ServiceParts(this, this.project.at(), { wait: false });
-    this.env = this.placement.service.out("env").map((env) => env!);
   }
 
   /** What its container provider needs: the token and the project. */

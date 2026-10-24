@@ -34,7 +34,7 @@ export class ServiceParts implements Placement {
     this.settings = { source: { image: BUN_IMAGE }, startCommand: startCommand(owner.entry), healthcheckPath: "/", sleepApplication: owner.sleeps };
     this.service = new Service(
       "service",
-      { at, name: this.name, settings: this.settings, volume: VOLUME, ...(owner.public && { publicPort: owner.port }), env: true },
+      { at, name: this.name, settings: this.settings, volume: VOLUME, ...(owner.public && { publicPort: owner.port }) },
       { parent: owner },
     );
     this.at = { ...at, serviceId: this.service.out("serviceId") };

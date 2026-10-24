@@ -1,5 +1,5 @@
 import * as path from "node:path";
-import { type Check, type Context, Deployer, ENV, type Infra, known, plan, type Resource, Router, type SyncRequest, type SyncResult, teardown } from "@achq/core";
+import { type Check, type Context, Deployer, type Infra, known, plan, type Resource, Router, type SyncRequest, type SyncResult, teardown } from "@achq/core";
 import { context } from "@achq/core/context";
 import { routerAdmin, type RouterAdmin } from "@achq/core/client";
 import { async } from "@achq/utils/async";
@@ -96,15 +96,15 @@ export const agentEnvCheck = (env: Vars): Check => ({
 
 /**
  * The router's public URL and AGENT_WEBHOOK_KEY, read from where it runs, or
- * undefined if it hasn't both: one without its key never reached the deployer,
- * so nothing was deployed through it. Plans the router, so changes nothing.
+ * undefined if it hasn't both: its key is known only once it's set, and one
+ * without it never reached the deployer, so nothing was deployed through it.
+ * Plans the router, so changes nothing.
  */
 const foundRouter = async ({ router }: InfraResources, ctx: Context): Promise<RouterAccess | undefined> => {
   const planned = await plan([router], ctx);
-  const env = planned.value(router.env);
   const url = planned.value(router.url);
-  const key = known(env) ? env[ENV.key] : undefined;
-  return key && known(url) ? { url, key } : undefined;
+  const key = planned.value(router.key);
+  return known(key) && known(url) ? { url, key } : undefined;
 };
 
 /** As `foundRouter`, but throws if it isn't there. */
@@ -142,13 +142,11 @@ export const up = async ({ router, deployer, resources }: InfraResources, option
   if (!planned.changes.length) log("  up to date");
   for (const line of planLines(planned)) log(`  ${line}`);
 
-  // On some providers a new router's URL is known before it's made, so a dry run asks whether the router exists: it has variables.
+  // A dry run's key is known only if the router has it already: on some providers a new router's URL is known before it's made.
   const read = options.dryRun ? planned : await planned.apply();
   const url = read.value(router.url);
   const key = read.value(router.key);
-  const existing = planned.value(router.env);
-  const exists = !options.dryRun || (known(existing) && Object.keys(existing).length > 0);
-  if (!known(url) || !known(key) || !exists) {
+  if (!known(url) || !known(key)) {
     log("  sync: skipped until the router exists");
     return undefined;
   }

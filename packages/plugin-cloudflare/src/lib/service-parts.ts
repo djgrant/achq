@@ -38,7 +38,7 @@ export class ServiceParts implements Placement {
     this.name = serviceWorkerName(project.name, owner.name);
     const at = project.resource.at();
     this.namespaceId = at.namespaceId;
-    this.worker = new Worker("worker", { name: this.name, workersDev: at.workersDev, env: { namespaceId: this.namespaceId } }, { parent: owner });
+    this.worker = new Worker("worker", { name: this.name, workersDev: at.workersDev }, { parent: owner });
   }
 
   privateUrl(port: number) {
