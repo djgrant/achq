@@ -1,7 +1,7 @@
 import { DEPLOYER_PORT, ENV } from "@achq/core";
 import { Env } from "@achq/utils/env";
 import { text } from "@achq/utils/text";
-import { containerProviderNamed, privateEnv, CODE_HOST_PROVIDERS } from "achq/registry";
+import { codeHostProviders, privateEnv, serviceContainerProvider } from "achq/registry";
 import { createDeployer } from "./deployer.ts";
 import { routerClient } from "./router-client.ts";
 import { deployerHandler } from "./server.ts";
@@ -13,13 +13,13 @@ export const main = () => {
   const env = new Env(process.env);
   const key = env.require(ENV.key);
   const routerUrl = env.require(ENV.routerUrl);
-  const containerProvider = containerProviderNamed(env.require(ENV.containerProvider));
+  const containerProvider = serviceContainerProvider(env);
   const deployer = createDeployer({
-    containerProvider: containerProvider.create(env.vars),
+    containerProvider: containerProvider.provider.create(env.vars),
     router: routerClient({ url: routerUrl, key }),
-    codeHostProviders: Object.fromEntries(CODE_HOST_PROVIDERS.map((h) => [h.id, h.create(env.vars)])),
+    codeHostProviders: codeHostProviders(env.vars),
     owners: text.commaList(env.require(ENV.owners)),
-    stores: (collection) => containerProvider.store(env.vars, collection),
+    stores: containerProvider.stores,
     env: {
       containerEnv: JSON.parse(env.require(ENV.containerEnv)),
       privateEnv: privateEnv(),

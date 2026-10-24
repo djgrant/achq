@@ -1,6 +1,6 @@
 import { ENV, ROUTER_PRIVATE_PORT, ROUTER_PUBLIC_PORT } from "@achq/core";
 import { Env } from "@achq/utils/env";
-import { CHANNEL_PROVIDERS, CODE_HOST_PROVIDERS, containerProviderNamed, POLICY_PROVIDERS } from "achq/registry";
+import { CHANNEL_PROVIDERS, codeHostProviders, POLICY_PROVIDERS, serviceContainerProvider } from "achq/registry";
 import { createRouter } from "./router.ts";
 
 /** Listening on "::" lets private networks over IPv6 reach it, where its container provider has one. */
@@ -8,14 +8,14 @@ const ALL_INTERFACES = "::";
 
 export const main = async () => {
   const env = new Env(process.env);
-  const containerProvider = containerProviderNamed(env.require(ENV.containerProvider));
+  const { stores } = serviceContainerProvider(env);
   const router = createRouter({
     channelProviders: CHANNEL_PROVIDERS.map((c) => c.create(env.vars)),
     policyProviders: POLICY_PROVIDERS.map((p) => p.create(env.vars)),
-    codeHostProviders: Object.fromEntries(CODE_HOST_PROVIDERS.map((h) => [h.id, h.create(env.vars)])),
+    codeHostProviders: codeHostProviders(env.vars),
     key: env.require(ENV.key),
     deployerUrl: env.require(ENV.deployerUrl),
-    stores: (collection) => containerProvider.store(env.vars, collection),
+    stores,
   });
   // Loaded before serving, so no event is routed against an empty config.
   await router.start();

@@ -1,11 +1,12 @@
 import { onePasswordVaultProvider } from "@achq/1password/vault";
 import { claudeAgentProvider } from "@achq/claude/agent";
 import { cloudflareContainerProvider } from "@achq/cloudflare/container";
-import type { AgentProvider, ChannelProvider, CodeHostProvider, ContainerProviderImplementation, Implementation, PolicyProvider, VaultProvider } from "@achq/core";
+import { type AgentProvider, type ChannelProvider, type CodeHostProvider, type ContainerProviderImplementation, ENV, type Implementation, type PolicyProvider, type Stores, type VaultProvider } from "@achq/core";
 import { githubChannelProvider } from "@achq/github/channel";
 import { githubPolicyProvider } from "@achq/github/policy";
 import { githubCodeHostProvider } from "@achq/github/code-host";
 import { railwayContainerProvider } from "@achq/railway/container";
+import type { Env, Vars } from "@achq/utils/env";
 import * as infra from "./infra.ts";
 
 export const CHANNEL_PROVIDERS: Implementation<ChannelProvider>[] = [githubChannelProvider];
@@ -31,6 +32,16 @@ export const containerProviderNamed = lookup("container provider", CONTAINER_PRO
 export const vaultProviderNamed = lookup("vault provider", VAULT_PROVIDERS);
 /** For a location's `containerProvider`, which may name a provider this build doesn't have. */
 export const findContainerProvider = (id: string | undefined) => CONTAINER_PROVIDERS.find((h) => h.id === id);
+
+/** Every code host provider, made from `vars`, by id. */
+export const codeHostProviders = (vars: Vars): Record<string, CodeHostProvider> => Object.fromEntries(CODE_HOST_PROVIDERS.map((h) => [h.id, h.create(vars)]));
+
+/** The container provider a router or deployer runs on, as ENV.containerProvider names it, and the stores it keeps what outlives a restart in. */
+export const serviceContainerProvider = (env: Env) => {
+  const provider = containerProviderNamed(env.require(ENV.containerProvider));
+  const stores: Stores = (collection) => provider.store(env.vars, collection);
+  return { provider, stores };
+};
 
 /** Every variable only the router and deployer have. */
 export const privateEnv = () => [...new Set([...CHANNEL_PROVIDERS, ...POLICY_PROVIDERS, ...CODE_HOST_PROVIDERS, ...CONTAINER_PROVIDERS].flatMap((i) => i.privateEnv))];
