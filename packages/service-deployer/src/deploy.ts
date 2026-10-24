@@ -1,5 +1,6 @@
 import { BrowserActionNeeded, CONFIG_DIR, CONFIG_ENTRY, type CodeHostProvider, type DeployRecord, ENV, type RepoClient, type RepoManifest, repoName, type Status } from "@achq/core";
 import { containerSecret } from "@achq/core/secrets";
+import { collections } from "@achq/utils/collections";
 import { crypto } from "@achq/utils/crypto";
 import { errors } from "@achq/utils/errors";
 import { json } from "@achq/utils/json";
@@ -59,7 +60,7 @@ export const deploy = async (ctx: DeployerContext, hostId: string, repo: string,
   };
 
   try {
-    const host = Object.hasOwn(ctx.codeHostProviders, hostId) ? ctx.codeHostProviders[hostId] : undefined;
+    const host = collections.own(ctx.codeHostProviders, hostId);
     if (!host) throw new DeployFailure(`achq doesn't know the code host "${hostId}"`);
     if (!host.repoName.test(repo)) throw new DeployFailure(`"${repo}" isn't a repository name on ${hostId}`);
     // A stranger can install a public App. Their repo is recorded as failed but

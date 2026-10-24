@@ -7,6 +7,9 @@ export const collections = {
     return [...repeated];
   },
 
+  /** `record[key]` when it's the record's own, not something it inherits, like `constructor`, so a key from outside can't pick one. */
+  own: <V>(record: Readonly<Record<string, V>>, key: string): V | undefined => (Object.hasOwn(record, key) ? record[key] : undefined),
+
   /** The item when there's exactly one. */
   only: <T>(list: readonly T[]) => (list.length === 1 ? list[0] : undefined),
 

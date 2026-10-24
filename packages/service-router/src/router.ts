@@ -2,6 +2,7 @@ import { type ChannelEvent, type ChannelProvider, type CodeHostProvider, type Cr
 import { ClaimRequest, CredentialsRequest, InstallationRequest, MintRequest, RepoRequest, RouterRepoConfig, ValidateRequest, WakeRequest } from "@achq/core/protocol";
 import { adminSecret, containerSecret } from "@achq/core/secrets";
 import { isSigned, signedBy } from "@achq/core/signing";
+import { collections } from "@achq/utils/collections";
 import { disk } from "@achq/utils/disk";
 import { http } from "@achq/utils/http";
 import { zValidator } from "@hono/zod-validator";
@@ -76,7 +77,7 @@ export const createRouter = (deps: RouterDeps) => {
     const token = http.bearerToken(req);
     if (!token) return new Response("missing token", { status: 401 });
     if (!REPO.test(request.repo)) return new Response("bad request", { status: 400 });
-    const host = Object.hasOwn(ctx.codeHostProviders, request.host) ? ctx.codeHostProviders[request.host] : undefined;
+    const host = collections.own(ctx.codeHostProviders, request.host);
     if (!host) return new Response("unknown host", { status: 400 });
     if (!(await host.canPush(request.repo, token))) return new Response("no push access", { status: 403 });
     return host;

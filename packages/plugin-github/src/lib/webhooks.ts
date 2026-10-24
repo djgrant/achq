@@ -1,4 +1,5 @@
 import { type ChannelEvent, CONFIG_DIR } from "@achq/core";
+import { collections } from "@achq/utils/collections";
 import type { Json } from "@achq/utils/json";
 import { CHANNEL, CODE_HOST } from "./constants.ts";
 import { issueThreadId, labelNames, messageId, OPENING_POST_ID, TRUSTED } from "./threads.ts";
@@ -106,7 +107,7 @@ const PARSERS: Record<string, (delivery: Delivery) => ChannelEvent | undefined> 
 export const parseEvent = (source: string, headers: Headers, body: string) => {
   const name = headers.get("x-github-event");
   const delivery = headers.get("x-github-delivery");
-  const parse = name && Object.hasOwn(PARSERS, name) ? PARSERS[name] : undefined;
+  const parse = name ? collections.own(PARSERS, name) : undefined;
   if (!name || !delivery || !parse) return undefined;
   let payload: unknown;
   try {

@@ -1,5 +1,6 @@
 import { type CodeHostProvider, type ContainerProvider, type Stores, type DeployerEnvelope, type FileLimits, type RepoManifest, repoName, type SyncRequest, type SyncResult } from "@achq/core";
 import { async } from "@achq/utils/async";
+import { collections } from "@achq/utils/collections";
 import { errors } from "@achq/utils/errors";
 import { HttpError } from "@achq/utils/http";
 import { type Evaluate, evaluateConfig } from "./config/evaluate.ts";
@@ -88,7 +89,7 @@ export const createDeployer = (deps: DeployerDeps) => {
         const previous = await ctx.store.get(repo);
         // Before the router forgets it, as minting needs it. A failure is only logged: the repo goes either way.
         if (clearStatus) {
-          const provider = Object.hasOwn(ctx.codeHostProviders, host) ? ctx.codeHostProviders[host] : undefined;
+          const provider = collections.own(ctx.codeHostProviders, host);
           try {
             if (provider) await (await repoClient(ctx, provider, repo)).clearStatus();
           } catch (error) {
