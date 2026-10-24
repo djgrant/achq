@@ -52,11 +52,6 @@ export const waitForEnter = async (prompter: Prompter, message: string) => {
 /** Asks a yes-or-no question, where no is the default. Without a terminal to ask at, it's no. */
 export const confirm = async (prompter: Prompter, message: string) => interactive() && (await prompter.confirm({ message, initialValue: false }));
 
-const ENTER = ["\r", "\n"];
-const CTRL_C = "\u0003";
-const CTRL_D = "\u0004";
-const BACKSPACE = ["\u007f", "\b"];
-
 /** Opens the URL in your browser, printing it only when that fails: Cloudflare's are long. */
 export const openInBrowser = async (url: string, what: string) => {
   console.log(`  opening your browser to ${what}…`);
@@ -67,45 +62,11 @@ export const openInBrowser = async (url: string, what: string) => {
  * Asks for a secret on the terminal, e.g. a token you just made, showing a `*`
  * for each character. Without a terminal, reads a line from stdin.
  */
-export const readSecret = async (message: string): Promise<string> => {
-  const stdin = process.stdin;
+export const readSecret = async (prompter: Prompter, message: string): Promise<string> => {
+  if (interactive()) return prompter.password({ message });
   process.stdout.write(`  ${message}: `);
-  if (!stdin.isTTY) {
-    let line = "";
-    for await (line of console) break;
-    process.stdout.write("\n");
-    return line;
-  }
-  stdin.setRawMode(true);
-  stdin.resume();
-  stdin.setEncoding("utf8");
-  try {
-    return await new Promise<string>((resolve, reject) => {
-      let typed = "";
-      const onData = (chunk: string) => {
-        for (const char of chunk) {
-          if (ENTER.includes(char) || char === CTRL_D) {
-            stdin.off("data", onData);
-            return resolve(typed);
-          }
-          if (char === CTRL_C) {
-            stdin.off("data", onData);
-            return reject(new Error("Cancelled"));
-          }
-          if (BACKSPACE.includes(char)) {
-            if (typed) process.stdout.write("\b \b");
-            typed = typed.slice(0, -1);
-          } else {
-            typed += char;
-            process.stdout.write("*");
-          }
-        }
-      };
-      stdin.on("data", onData);
-    });
-  } finally {
-    stdin.setRawMode(false);
-    stdin.pause();
-    process.stdout.write("\n");
-  }
+  let line = "";
+  for await (line of console) break;
+  process.stdout.write("\n");
+  return line;
 };

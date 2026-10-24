@@ -1,11 +1,12 @@
 import { expect, test } from "bun:test";
 import * as path from "node:path";
 import { createRawPrompter, type PromptCall } from "@pokit/core";
-import { confirm, waitForEnter } from "../src/lib/terminal.ts";
+import { confirm, readSecret, waitForEnter } from "../src/lib/terminal.ts";
 
 test("a secret is read from stdin without a terminal, and isn't echoed", async () => {
   const terminal = path.join(import.meta.dir, "../src/lib/terminal.ts");
-  const proc = Bun.spawn([process.execPath, "-e", `const { readSecret } = await import(${JSON.stringify(terminal)}); process.stderr.write("got " + (await readSecret("Token")));`], {
+  const proc = Bun.spawn([process.execPath, "-e", `const { createRawPrompter } = await import("@pokit/core"); const { readSecret } = await import(${JSON.stringify(terminal)}); process.stderr.write("got " + (await readSecret(createRawPrompter({}), "Token")));`], {
+    cwd: path.join(import.meta.dir, ".."),
     stdin: new TextEncoder().encode("s3cret\n"),
     stdout: "pipe",
     stderr: "pipe",
@@ -37,6 +38,19 @@ test("at a terminal, a question is asked with no as the default, and the answer 
     const prompter = createRawPrompter({ confirmResponses: [true, false], onPrompt: (call) => void asked.push(call) });
     expect([await confirm(prompter, "Delete all of this?"), await confirm(prompter, "Delete all of this?")]).toEqual([true, false]);
     expect(asked.map(({ options }) => options)).toEqual([{ message: "Delete all of this?", initialValue: false }, { message: "Delete all of this?", initialValue: false }]);
+  } finally {
+    [process.stdin.isTTY, process.stdout.isTTY] = tty as [true, true];
+  }
+});
+
+test("at a terminal, a secret is asked for with the prompter's masked prompt", async () => {
+  const tty = [process.stdin.isTTY, process.stdout.isTTY];
+  process.stdin.isTTY = process.stdout.isTTY = true;
+  try {
+    const asked: PromptCall[] = [];
+    const prompter = createRawPrompter({ passwordResponses: "s3cret", onPrompt: (call) => void asked.push(call) });
+    expect(await readSecret(prompter, "Token")).toBe("s3cret");
+    expect(asked.map(({ type, options }) => [type, options])).toEqual([["password", { message: "Token" }]]);
   } finally {
     [process.stdin.isTTY, process.stdout.isTTY] = tty as [true, true];
   }

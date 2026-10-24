@@ -35,8 +35,8 @@
         "@achq/core": "workspace:*",
         "@achq/deployer": "workspace:*",
         "@achq/utils": "workspace:*",
-        "@pokit/core": "^0.6.0",
-        "@pokit/terminal": "^0.6.0",
+        "@pokit/core": "^0.10.0",
+        "@pokit/terminal": "^0.10.0",
         "achq": "workspace:*",
         "zod": "^4.3.6",
       },
@@ -204,7 +204,7 @@
     },
   },
   "patchedDependencies": {
-    "@pokit/core@0.6.0": "patches/@pokit%2Fcore@0.6.0.patch",
+    "@pokit/core@0.10.0": "patches/@pokit%2Fcore@0.10.0.patch",
   },
   "packages": {
     "@achq/1password": ["@achq/1password@workspace:packages/plugin-1password"],
@@ -289,9 +289,9 @@
 
     "@octokit/webhooks-methods": ["@octokit/webhooks-methods@6.0.0", "", {}, "sha512-MFlzzoDJVw/GcbfzVC1RLR36QqkTLUf79vLVO3D+xn7r0QgxnFoLZgtrzxiQErAjFUOdH6fas2KeQJ1yr/qaXQ=="],
 
-    "@pokit/core": ["@pokit/core@0.6.0", "", { "dependencies": { "@folder/xdg": "^4.0.1", "fast-glob": "^3.3.2", "picomatch": "^4.0.2", "zod": "^4.3.6" } }, "sha512-qQAXpc20HWjF+G9DwSJFmY0cupiqm9erF/ohhjfsSz3GtXu4ZfZuaLuUf4pW3QDJJjEXTg62Arsh9uJqDqpj0A=="],
+    "@pokit/core": ["@pokit/core@0.10.0", "", { "dependencies": { "@folder/xdg": "^4.0.1", "fast-glob": "^3.3.2", "picomatch": "^4.0.2", "zod": "^4.3.6" } }, "sha512-aBqV7eY0HeZ6w1O12RiiOJlmNOcGA/1/pwxDwIKLO9cA8om5Q/+50/igfmPIy5pu2mgYBL2nLQ4NTb7dOp/8dQ=="],
 
-    "@pokit/terminal": ["@pokit/terminal@0.6.0", "", { "dependencies": { "marked": "^15.0.12", "marked-terminal": "^7.3.0", "picocolors": "^1.1.1" }, "peerDependencies": { "@pokit/core": "0.6.0" } }, "sha512-DIhSjcVZFoNhESnk3y/dMl2AVV2XCndRjGxLALrkVlJdEaK8/OxiCsQaEz0JRO2ovtAD2mWV9vI1esXH9+tUSg=="],
+    "@pokit/terminal": ["@pokit/terminal@0.10.0", "", { "dependencies": { "marked": "^15.0.12", "marked-terminal": "^7.3.0", "picocolors": "^1.1.1" }, "peerDependencies": { "@pokit/core": "0.10.0" } }, "sha512-nGoP2gN0OTcDCw7FoG9M0TtWMXIiaU9Qqke9b8F8oZ1jAivaoONPLBqQp+l/gAbn13dDJOYU3duYfC6bCOhCcA=="],
 
     "@sindresorhus/is": ["@sindresorhus/is@4.6.0", "", {}, "sha512-t09vSN3MdfsyCHoFcTRCH/iUtG7OJ0CsjzB8cjAmKc/va/kIgeDI/TxsigdncE/4be734m0cvIYwNaV4i2XqAw=="],
 

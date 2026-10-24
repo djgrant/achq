@@ -19,7 +19,7 @@ export const command = defineCommand({
     rotateDeployerToken: { from: "flag", schema: z.boolean().default(false), description: "Replace the deployer's own token, where it has one" },
   },
   pre: async () => [...(await infraChecks(needInfra(), process.env)), agentEnvCheck(process.env)],
-  run: clean(async (_r, { context }) => {
+  run: clean(async (r, { context }) => {
     const infra = await loadInfra(needInfra());
     // Where the router and deployer's code comes from: achq's own repo, on its code host.
     const source = codeHostProviderNamed(ACHQ_SOURCE.host).create(process.env);
@@ -30,7 +30,7 @@ export const command = defineCommand({
       containerEnv: Object.fromEntries(agentEnv().map(({ name, hint }) => [name, env.require(name, hint).trim()])),
       achqRef: () => source.lastCommit(ACHQ_SOURCE.repo, ACHQ_SOURCE.branch, ACHQ_CODE_PATHS),
       open: openInBrowser,
-      prompt: readSecret,
+      prompt: (message) => readSecret(r.prompter, message),
       vault: configVault(await loadConfig(), process.env),
       log: (line) => console.log(line),
     });
