@@ -79,6 +79,11 @@ beforeAll(() => {
       }
       if ((m = route.match(/^GET \/apps\/(.+)$/))) return fake.app ? Response.json({ slug: m[1], ...fake.app }) : new Response("Not Found", { status: 404 });
       if (url.pathname.startsWith("/user/installations")) return Response.json({ message: NOT_A_GITHUB_APP_TOKEN }, { status: 403 });
+      if (route === "DELETE /repos/notationlabs/yieldstar/actions/variables/ACHQ_STATUS") {
+        if (!fake.status) return new Response("Not Found", { status: 404 });
+        fake.status = undefined;
+        return new Response(null, { status: 204 });
+      }
       if (route === "GET /repos/notationlabs/yieldstar/actions/variables/ACHQ_STATUS") {
         return fake.status ? Response.json({ name: "ACHQ_STATUS", ...fake.status }) : new Response("Not Found", { status: 404 });
       }
@@ -191,7 +196,7 @@ test("a private App's 404 skips the App comparison, with a warning", async () =>
   expect(planned.warnings).toEqual(["notation-achq is private, so GitHub won't show its settings; skipping the App check"]);
 });
 
-test("uninstall opens the installation's settings, and waits until the router says the repo's gone; it never reads the App", async () => {
+test("uninstall opens the installation's settings, waits until the router says the repo's gone, then deletes ACHQ_STATUS; it never reads the App", async () => {
   routerSays({ installed: true, url: SETTINGS }, { installed: true, url: SETTINGS }, { installed: true, url: SETTINGS }, { installed: false, url: SETTINGS });
   const { planned, log, opened } = await installing(false);
   expect(summary(planned.changes)).toEqual(["- notation-achq repo notationlabs/yieldstar, opens GitHub to remove it"]);
@@ -199,7 +204,8 @@ test("uninstall opens the installation's settings, and waits until the router sa
   expect(opened).toEqual([SETTINGS]);
   expect(fake.asked).toHaveLength(4);
   expect(log.at(-1)).toBe("notationlabs/yieldstar's containers sleep, and are kept until `achq infra up --prune`.");
-  expect(writes()).toEqual([]);
+  expect(writes()).toEqual(["DELETE /repos/notationlabs/yieldstar/actions/variables/ACHQ_STATUS"]);
+  expect(fake.status).toBeUndefined();
   expect(fake.calls.some((c) => c.startsWith("GET /apps/"))).toBe(false);
 
   // Not installed: nothing to change.

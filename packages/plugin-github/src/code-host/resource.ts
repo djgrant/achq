@@ -1,5 +1,6 @@
 import { type Change, type Context, ManagedResource, type RepoInstallation, repoName, STATUS_VARIABLE } from "@achq/core";
 import { async } from "@achq/utils/async";
+import { errors } from "@achq/utils/errors";
 import { type AppSettings, GitHub } from "@achq/utils/gh";
 import { FLOW_POLL_INTERVAL_MS, FLOW_TIMEOUT_MS, githubUrls } from "../lib/constants.ts";
 import { lacking } from "../lib/permissions.ts";
@@ -94,6 +95,13 @@ export class CodeHost extends ManagedResource<CodeHostProps, CodeHostState, {}, 
     await ctx.open(url, what);
     const removed = await async.pollUntil(() => this.ask(repo, slug), (found) => found?.installed === false, { intervalMs: FLOW_POLL_INTERVAL_MS, timeoutMs: FLOW_TIMEOUT_MS, sleep: ctx.sleep });
     if (!removed) throw new Error(`${slug} is still installed on ${repo} after ${FLOW_TIMEOUT_MS / 60_000} minutes`);
+    // With your gh login: the App can't reach the repo any more. Without it, the repo is as if never deployed, so installing again opens the App's install page.
+    const gh = GitHub.connect({ token: GitHub.cliToken(ctx.env), baseUrl: githubUrls(ctx.env).api });
+    try {
+      await gh.repo(repo).deleteVariable(STATUS_VARIABLE);
+    } catch (error) {
+      ctx.log(`Couldn't delete ${repo}'s ${STATUS_VARIABLE} (${errors.message(error)}): delete it with \`gh variable delete ${STATUS_VARIABLE} -R ${repo}\`.`);
+    }
     ctx.log(`${repo}'s containers sleep, and are kept until \`achq infra up --prune\`.`);
     return {};
   }

@@ -114,7 +114,7 @@ The runner posts the agent's final message as a comment. Only messages from user
 | `achq infra down [--dry-run] [--yes]` | Infra | Shows what it deletes and asks first: every container, by the deployer syncing to no repos, which deletes each repo's `ACHQ_STATUS`, then the router, the deployer and what they share. Protected resources, e.g. the GitHub App, are listed and left, and it opens where you delete each yourself |
 | `achq repo status [--repo]` | Repo | Its `ACHQ_STATUS` |
 | `achq repo install [--dry-run]` | Repo | Checks the config, opens GitHub to install its App on the repo, and waits for the deploy. If the deploy needs something only you can do, e.g. install Cloudflare's GitHub App, it opens that, waits for you, and deploys again |
-| `achq repo uninstall` | Repo | Opens GitHub to remove the repo from its App's installation, and waits until it's gone. Its containers are kept, asleep |
+| `achq repo uninstall` | Repo | Opens GitHub to remove the repo from its App's installation, and waits until it's gone, then deletes its `ACHQ_STATUS` with your `gh` login. Its containers are kept, asleep |
 | `achq container ssh [--repo] [-- cmd]` | Repo | A shell in the repo's container |
 | `achq container resume [n] [session] [--repo]` | Repo | Opens an agent session in its worktree, picked from all of them or issue `n`'s |
 
