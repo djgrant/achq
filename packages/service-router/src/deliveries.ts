@@ -40,18 +40,40 @@ export const targetsFor = (channel: ChannelProvider, event: ChannelEvent, config
   });
 };
 
-/** Records each container target's workspace as its claim on the event's thread, where it isn't already. */
-export const recordClaims = async (ctx: RouterContext, event: ChannelEvent, targets: Target[]) => {
+export type Reservation = { persist: () => Promise<void>; release: () => void };
+
+/**
+ * Claims the event's thread for each container target's workspace, where it
+ * isn't already, in memory: synchronously, where its targets are decided, so a
+ * concurrent event on the thread is routed by the claim too. `persist` writes
+ * the repo's claims to the store once the event is in the inbox; `release`
+ * undoes what this reservation set, if it wasn't accepted. None if there's
+ * nothing to claim.
+ */
+export const reserveClaims = (ctx: RouterContext, event: ChannelEvent, targets: ContainerTarget[]): Reservation | undefined => {
   if (!event.repo || !event.thread) return;
   const repo = repoName.key(event.repo);
   const thread = threadKey(event.thread);
   const repoClaims = ctx.claims.get(repo) ?? {};
-  const claimed = repoClaims[thread] ?? {};
-  const fresh = targets.flatMap((t) => (t.kind === "container" && claimed[t.container] !== t.workspace ? [[t.container, t.workspace]] : []));
+  const before = repoClaims[thread] ?? {};
+  const fresh = targets.filter((t) => before[t.container] !== t.workspace);
   if (!fresh.length) return;
-  repoClaims[thread] = { ...claimed, ...Object.fromEntries(fresh) };
+  repoClaims[thread] = { ...before, ...Object.fromEntries(fresh.map((t) => [t.container, t.workspace])) };
   ctx.claims.set(repo, repoClaims);
-  await ctx.store.claims.write(repoName.file(repo), repoClaims);
+  return {
+    persist: () => ctx.store.claims.write(repoName.file(repo), ctx.claims.get(repo) ?? repoClaims),
+    release: () => {
+      const now = ctx.claims.get(repo)?.[thread];
+      if (!now) return;
+      for (const t of fresh) {
+        if (now[t.container] !== t.workspace) continue;
+        const previous = before[t.container];
+        if (previous === undefined) delete now[t.container];
+        else now[t.container] = previous;
+      }
+      if (!Object.keys(now).length) delete ctx.claims.get(repo)![thread];
+    },
+  };
 };
 
 const targetLabel = (t: Target) => (t.kind === "deployer" ? "deployer" : `${t.repo}/${t.container}`);
@@ -131,7 +153,8 @@ const forward = (ctx: RouterContext, entry: InboxEntry) => {
  * Persists a new delivery, then forwards it in the background. False for one
  * already being forwarded. It's claimed in `inFlight` before the write, so a
  * duplicate arriving meanwhile is turned away, and released if the write fails.
- * `onPersisted` runs once it's in the inbox, before it's forwarded.
+ * `onPersisted` runs once it's in the inbox, before it's forwarded: the event
+ * is accepted by then, so if it fails that's only logged, and it's still forwarded.
  */
 export const acceptDelivery = async (ctx: RouterContext, entry: InboxEntry, { onPersisted }: { onPersisted?: () => Promise<unknown> } = {}) => {
   const { delivery } = entry.event;
@@ -139,10 +162,14 @@ export const acceptDelivery = async (ctx: RouterContext, entry: InboxEntry, { on
   ctx.inFlight.set(delivery, Promise.resolve());
   try {
     await ctx.store.inbox.write(delivery, entry);
-    await onPersisted?.();
   } catch (e) {
     ctx.inFlight.delete(delivery);
     throw e;
+  }
+  try {
+    await onPersisted?.();
+  } catch (e) {
+    ctx.log(`${delivery}: accepted, but ${errors.message(e)}`);
   }
   forward(ctx, entry);
   return true;

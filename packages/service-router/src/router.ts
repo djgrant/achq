@@ -11,7 +11,7 @@ import { createMiddleware } from "hono/factory";
 import { REPO_PATH } from "./constants.ts";
 import { claimsOf, configOf, createContext, type RouterDeps } from "./context.ts";
 import { mint, mintClients, validate } from "./credentials.ts";
-import { acceptDelivery, type InboxEntry, listFailed, recordClaims, replay, replayFailed, settled, targetsFor } from "./deliveries.ts";
+import { acceptDelivery, type InboxEntry, type Reservation, listFailed, replay, replayFailed, reserveClaims, settled, targetsFor } from "./deliveries.ts";
 import { fetchSigned, reach } from "./reach.ts";
 
 type Container = RouterRepoConfig["containers"][number];
@@ -102,7 +102,7 @@ export const createRouter = (deps: RouterDeps) => {
       if (!disk.isSafeFileName(event.delivery)) return c.text("bad delivery id", 400);
 
       let entry: InboxEntry;
-      let claim: (() => Promise<void>) | undefined;
+      let claim: Reservation | undefined;
       if (isRepoEvent(event)) {
         // A repo isn't deployed until its install is handled, so installs always go through; a push only for a repo that's deployed.
         const deployed = (repos: string[]) => repos.filter((repo) => configOf(ctx, repo));
@@ -113,13 +113,19 @@ export const createRouter = (deps: RouterDeps) => {
         const targets = targetsFor(found.channel, event, configOf(ctx, event.repo), claimsOf(ctx, event.repo));
         if (!targets.length) return c.text("no match");
         entry = { event, targets };
-        claim = () => recordClaims(ctx, event, targets);
+        // Claimed now, before anything is awaited, so a concurrent event on the thread goes to the same workspace.
+        claim = reserveClaims(ctx, event, targets);
       }
       // Persisted before answering, so a crash or restart doesn't lose it. Answered
       // without waiting for the targets: the channel gives up after seconds, and a
-      // waking service takes longer. The thread is claimed once the event is in the
-      // inbox, bound for the claiming workspace, so the next event goes there too.
-      const accepted = await acceptDelivery(ctx, entry, { onPersisted: claim });
+      // waking service takes longer. The claim is written to the store once the event
+      // is in the inbox, and undone if it never gets there.
+      let accepted = false;
+      try {
+        accepted = await acceptDelivery(ctx, entry, { onPersisted: claim?.persist });
+      } finally {
+        if (!accepted) claim?.release();
+      }
       return c.text(accepted ? "accepted" : "duplicate", 202);
     })
     // For `achq container ssh`: wakes a container for someone who can push to its repo, on the host it's deployed from.

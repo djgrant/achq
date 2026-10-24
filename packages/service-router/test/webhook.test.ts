@@ -1,6 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { readdirSync } from "node:fs";
+import { mkdtempSync, readdirSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
+import type { Stores } from "@achq/core";
+import { dirStores } from "@achq/test-utils/stores";
 import { repo, fakeDeployer, boot, selector, config, trusted, comment, deployed, deliveryIds, readJson, hold, accepted } from "./harness.ts";
 
 describe("routing events to containers", () => {
@@ -69,6 +72,81 @@ describe("routing events to containers", () => {
     await r.webhook(relabelled);
     await r.router.settled();
     expect(r.docsbox.events.at(-1)).toMatchObject({ event: { delivery: relabelled.delivery }, workspace: "docs" });
+  });
+
+  test("concurrent events on one thread go to the same workspace: the first claims it before its inbox write finishes", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "achq-router-"));
+    let open!: () => void;
+    const gate = new Promise<void>((r) => (open = r));
+    let writes = 0;
+    // The first inbox write waits until the second event has been routed.
+    const stores: Stores = (collection) => {
+      const store = dirStores(dir)(collection);
+      if (collection !== "inbox") return store;
+      return Object.assign(Object.create(store), {
+        write: async (name: string, value: any) => {
+          if (++writes === 1) await gate;
+          return store.write(name, value);
+        },
+      });
+    };
+    const r = await deployed({ dir, stores });
+    const docs = comment(13, ["docs"]);
+    const plain = comment(13, []);
+    const first = r.webhook(docs);
+    while (writes < 1) await Bun.sleep(5);
+    const second = r.webhook(plain);
+    while (writes < 2) await Bun.sleep(5);
+    open();
+    expect([(await first).status, (await second).status]).toEqual([202, 202]);
+    await r.router.settled();
+    expect(r.dev.events.map((e) => e.workspace)).toEqual(["dev-docs", "dev-docs"]);
+    expect(readJson(join(dir, "claims", `${repo.replace("/", "__")}.json`))).toEqual({ [`test:${repo}#13`]: { dev: "dev-docs", docsbox: "docs" } });
+  });
+
+  test("a claim whose event never reaches the inbox is undone", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "achq-router-"));
+    let failing = true;
+    const stores: Stores = (collection) => {
+      const store = dirStores(dir)(collection);
+      if (collection !== "inbox") return store;
+      return Object.assign(Object.create(store), {
+        write: async (name: string, value: any) => {
+          if (failing) throw new Error("inbox down");
+          return store.write(name, value);
+        },
+      });
+    };
+    const r = await deployed({ dir, stores });
+    expect((await r.webhook(comment(14, ["docs"]))).status).toBe(500);
+    failing = false;
+    await r.webhook(comment(14, []));
+    await r.router.settled();
+    expect(r.dev.events.map((e) => e.workspace)).toEqual(["dev-all"]);
+    expect(r.docsbox.events).toEqual([]);
+  });
+
+  test("a claim the store won't take is kept in memory, and its event is still forwarded", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "achq-router-"));
+    const stores: Stores = (collection) => {
+      const store = dirStores(dir)(collection);
+      if (collection !== "claims") return store;
+      return Object.assign(Object.create(store), {
+        write: async () => {
+          throw new Error("claims down");
+        },
+      });
+    };
+    const r = await deployed({ dir, stores });
+    const event = comment(15, ["docs"]);
+    expect(await (await r.webhook(event)).text()).toBe("accepted");
+    await r.router.settled();
+    expect(deliveryIds(r.dev)).toEqual([event.delivery!]);
+    expect(readdirSync(join(dir, "inbox"))).toEqual([]);
+    // The claim holds in memory: the relabelled thread stays where it was.
+    await r.webhook(comment(15, []));
+    await r.router.settled();
+    expect(r.dev.events.map((e) => e.workspace)).toEqual(["dev-docs", "dev-docs"]);
   });
 
   test("events that wake nothing claim nothing", async () => {
