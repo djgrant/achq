@@ -1,4 +1,4 @@
-import { type ChannelProvider, type CodeHostProvider, type CredentialsResponse, type DeployerEvent, isRepoEvent, repoName } from "@achq/core";
+import { type ChannelProvider, type CodeHostProvider, type CredentialsResponse, type DeployerEvent, repoName } from "@achq/core";
 import { CredentialsRequest, InstallationRequest, MintRequest, RepoRequest, RouterRepoConfig, ValidateRequest, WakeRequest } from "@achq/core/protocol";
 import { adminSecret, containerSecret } from "@achq/core/secrets";
 import { isSigned, signedBy } from "@achq/core/signing";
@@ -96,25 +96,26 @@ export const createRouter = (deps: RouterDeps) => {
       const headers = c.req.raw.headers;
       const found = await verifiedChannel(headers, body);
       if (!found) return c.text("bad signature", 401);
-      const event = found.channel.parse(found.source, headers, body);
-      if (!event) return c.text("ignored");
+      const parsed = found.channel.parse(found.source, headers, body);
+      if (!parsed) return c.text("ignored");
       // The delivery ID names its inbox file.
-      if (!disk.isSafeFileName(event.delivery)) return c.text("bad delivery id", 400);
+      if (!disk.isSafeFileName(parsed.event.delivery)) return c.text("bad delivery id", 400);
 
       let entry: InboxEntry;
       let claim: Reservation | undefined;
-      if (isRepoEvent(event)) {
+      if (parsed.to === "deployer") {
         // A repo isn't deployed until its install is handled, so installs always go through; a push only for a repo that's deployed.
         const deployed = (repos: string[]) => repos.filter((repo) => configOf(ctx, repo));
         // onlyIfDeployed is the router's to act on, so it isn't forwarded.
-        const { onlyIfDeployed, ...decided } = event;
+        const { onlyIfDeployed, ...decided } = parsed.event;
         const forDeployer: DeployerEvent = onlyIfDeployed ? { ...decided, deploy: deployed(decided.deploy), uninstall: deployed(decided.uninstall) } : decided;
         if (!forDeployer.deploy.length && !forDeployer.uninstall.length) return c.text("no match");
-        entry = { event: forDeployer, targets: [{ kind: "deployer" }] };
+        entry = { to: "deployer", event: forDeployer };
       } else {
+        const { event } = parsed;
         const targets = targetsFor(found.channel, event, configOf(ctx, event.repo), claimsOf(ctx, event.repo));
         if (!targets.length) return c.text("no match");
-        entry = { event, targets };
+        entry = { to: "containers", event, targets };
         // Claimed now, before anything is awaited, so a concurrent event on the thread goes to the same workspace.
         claim = reserveClaims(ctx, event, targets);
       }
@@ -160,7 +161,7 @@ export const createRouter = (deps: RouterDeps) => {
       if (refused instanceof Response) return refused;
       const event: DeployerEvent = { delivery: `deploy-${crypto.randomUUID()}`, type: "deploy.requested", host: request.host, deploy: [request.repo], uninstall: [] };
       // Through the inbox, as an install event goes, so a deployer that's asleep or restarting still gets it.
-      await acceptDelivery(ctx, { event, targets: [{ kind: "deployer" }] });
+      await acceptDelivery(ctx, { to: "deployer", event });
       return c.text("accepted", 202);
     });
 

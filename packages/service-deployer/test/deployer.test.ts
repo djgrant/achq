@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { routerAdmin } from "@achq/core/client";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { BrowserActionNeeded, isRepoEvent, STATUS_VARIABLE, type DeployerEnvelope } from "@achq/core";
+import { BrowserActionNeeded, STATUS_VARIABLE, type DeployerEnvelope } from "@achq/core";
 import { adminSecret, containerSecret } from "@achq/core/secrets";
 import { signedFetch } from "@achq/core/signing";
 import { evaluateConfig } from "../src/config/evaluate.ts";
@@ -81,8 +81,8 @@ const event = (type: string, repos: string[], source = APP): DeployerEnvelope =>
         ? { action, installation, repositories: list }
         : { action, installation, [`repositories_${action}`]: list };
   const parsed = githubChannelProvider.create({}).parse(source, new Headers({ "x-github-event": name!, "x-github-delivery": `d-${++n}` }), JSON.stringify(payload));
-  if (!parsed || !isRepoEvent(parsed)) throw new Error(`the GitHub channel ignored ${type}, or didn't make it a repo event`);
-  return { event: parsed };
+  if (parsed?.to !== "deployer") throw new Error(`the GitHub channel ignored ${type}, or didn't make it a repo event`);
+  return { event: parsed.event };
 };
 
 beforeEach(() => {

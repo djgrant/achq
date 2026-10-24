@@ -55,7 +55,8 @@ export type RepoEvent = DeployerEvent & {
 /** Whether a trusted person, not a bot, caused the event: only they start runs. The channel decides who's trusted; this is achq's rule for what that's for. */
 export const fromTrustedPerson = (event: ChannelEvent) => Boolean(event.actor?.trusted && !event.actor.bot);
 
-export const isRepoEvent = (event: ChannelEvent | DeployerEvent): event is DeployerEvent => "deploy" in event;
+/** A delivery as its channel parses it, tagged with where it goes: a repo event to the deployer, an event on a thread to containers. */
+export type ParsedEvent = { to: "deployer"; event: RepoEvent } | { to: "containers"; event: ChannelEvent };
 
 export type Thread = {
   ref: ThreadRef;
@@ -98,7 +99,7 @@ export interface ChannelProvider {
   /** Checks a delivery's signature. Returns the source it came from, or undefined if it's not genuine. */
   verify(headers: Headers, body: string): Promise<string | undefined>;
   /** Normalises a verified delivery: an event on a thread, one about which repos to deploy, or undefined for ones achq never acts on. */
-  parse(source: string, headers: Headers, body: string): ChannelEvent | RepoEvent | undefined;
+  parse(source: string, headers: Headers, body: string): ParsedEvent | undefined;
   /** A credential the container's runner (not the agent) uses for `ChannelClient`. Its scope names the `source`. */
   mintClient(source: string, repo: string): Promise<ChannelCredential>;
   /** What each source is set up to send and allow, for the deployer's checks. */

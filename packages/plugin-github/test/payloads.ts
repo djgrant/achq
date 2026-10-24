@@ -1,4 +1,3 @@
-import { isRepoEvent } from "@achq/core";
 import { crypto } from "@achq/utils/crypto";
 import { makeApp } from "@achq/test-utils/github";
 import { githubChannelProvider } from "../src/channel/index.ts";
@@ -74,13 +73,13 @@ const parseAny = (event: string, payload: object) => {
 /** A delivery that's an event on a thread, or undefined. */
 export const parse = (event: string, payload: object) => {
   const parsed = parseAny(event, payload);
-  if (parsed && isRepoEvent(parsed)) throw new Error(`${event} parsed to a repo event`);
-  return parsed;
+  if (parsed?.to === "deployer") throw new Error(`${event} parsed to a repo event`);
+  return parsed?.event;
 };
 
 /** A delivery that's about which repos to deploy, or undefined. */
 export const parseRepo = (event: string, payload: object) => {
   const parsed = parseAny(event, payload);
-  if (parsed && !isRepoEvent(parsed)) throw new Error(`${event} parsed to a channel event`);
-  return parsed;
+  if (parsed?.to === "containers") throw new Error(`${event} parsed to a channel event`);
+  return parsed?.event;
 };

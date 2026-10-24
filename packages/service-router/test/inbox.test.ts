@@ -139,7 +139,7 @@ describe("persisted events", () => {
     const install = { delivery: "inst-failed", type: "installed", host: "test", deploy: ["acme/new", "acme/newer"], uninstall: ["acme/old"] };
     await r.webhook(install);
     await r.router.settled();
-    expect(readJson(join(r.dir, "failed", "inst-failed.json")).targets).toEqual([{ kind: "deployer", error: "gave up after 3 attempts (503 down)" }]);
+    expect(readJson(join(r.dir, "failed", "inst-failed.json"))).toMatchObject({ to: "deployer", error: "gave up after 3 attempts (503 down)" });
     expect(await (await r.admin("GET", "/admin/failed")).json()).toEqual([
       { delivery: "inst-failed", type: "installed", repo: "acme/new, acme/newer, acme/old", targets: [{ target: "deployer", error: "gave up after 3 attempts (503 down)" }] },
     ]);

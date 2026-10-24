@@ -1,4 +1,4 @@
-import { type ChannelEvent, CONFIG_DIR, type RepoEvent } from "@achq/core";
+import { type ChannelEvent, CONFIG_DIR, type ParsedEvent, type RepoEvent } from "@achq/core";
 import { collections } from "@achq/utils/collections";
 import type { Json } from "@achq/utils/json";
 import { CHANNEL, CODE_HOST } from "./constants.ts";
@@ -78,12 +78,21 @@ const parseInstallationEvent = ({ name, base, payload }: Delivery): RepoEvent | 
   return { delivery: base.delivery, type: `${name}.${action}`, host: CODE_HOST, deploy, uninstall, onlyIfDeployed: false };
 };
 
-const PARSERS: Record<string, (delivery: Delivery) => ChannelEvent | RepoEvent | undefined> = {
-  issues: parseIssueEvent,
-  issue_comment: parseIssueEvent,
-  push: parsePushEvent,
-  installation: parseInstallationEvent,
-  installation_repositories: parseInstallationEvent,
+const forContainers = (parse: (delivery: Delivery) => ChannelEvent | undefined) => (delivery: Delivery): ParsedEvent | undefined => {
+  const event = parse(delivery);
+  return event && { to: "containers", event };
+};
+const forDeployer = (parse: (delivery: Delivery) => RepoEvent | undefined) => (delivery: Delivery): ParsedEvent | undefined => {
+  const event = parse(delivery);
+  return event && { to: "deployer", event };
+};
+
+const PARSERS: Record<string, (delivery: Delivery) => ParsedEvent | undefined> = {
+  issues: forContainers(parseIssueEvent),
+  issue_comment: forContainers(parseIssueEvent),
+  push: forDeployer(parsePushEvent),
+  installation: forDeployer(parseInstallationEvent),
+  installation_repositories: forDeployer(parseInstallationEvent),
 };
 
 /**

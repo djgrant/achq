@@ -28,8 +28,8 @@ export const testChannel: ChannelProvider = {
   parse(source, _headers, body) {
     const data = JSON.parse(body);
     if (data.type === "ping") return undefined;
-    if ("deploy" in data) return { uninstall: [], onlyIfDeployed: false, ...data };
-    return { channel: "test", source, detail: {}, ...data };
+    if ("deploy" in data) return { to: "deployer", event: { uninstall: [], onlyIfDeployed: false, ...data } };
+    return { to: "containers", event: { channel: "test", source, detail: {}, ...data } };
   },
   async mintClient(source, forRepo) {
     return { channel: "test", value: `client:${source}:${forRepo}`, expiresAt: hour(), scope: { source, repo: forRepo } };
