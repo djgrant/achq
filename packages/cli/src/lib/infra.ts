@@ -9,7 +9,7 @@ import { HttpError } from "@achq/utils/http";
 import { agentEnv, containerProviderNamed, INFRA_MODULES, vaultProviderNamed } from "achq/registry";
 import { DEPLOYER_VERSION_TIMEOUT_MS, SYNC_INTERVAL_MS, SYNC_TIMEOUT_MS } from "../constants.ts";
 import type { CliConfig } from "./config.ts";
-import { formatSync, planLines } from "./format.ts";
+import { formatSync, planLines, shortSha } from "./format.ts";
 
 const NOT_FOUND = 404;
 
@@ -118,9 +118,13 @@ export const routerAccess = async (infra: InfraResources, ctx: Context) => {
 const deployerRuns = async (admin: RouterAdmin, ref: string, ctx: Context, log: (line: string) => void) => {
   const running = () => admin.deployerVersion().then((v) => v.ref, () => undefined);
   if ((await running()) === ref) return;
-  log(`  waiting for the deployer to run ${ref.slice(0, 7)}…`);
-  const found = await async.pollUntil(running, (r) => r === ref, { intervalMs: SYNC_INTERVAL_MS, timeoutMs: DEPLOYER_VERSION_TIMEOUT_MS, sleep: ctx.sleep });
-  if (found !== ref) throw new Error(`The deployer isn't running ${ref.slice(0, 7)} after ${DEPLOYER_VERSION_TIMEOUT_MS / 60_000} minutes; see its logs on its container provider`);
+  log(`  waiting for the deployer to run ${shortSha(ref)}…`);
+  await async.pollOrThrow(running, (r) => r === ref, {
+    intervalMs: SYNC_INTERVAL_MS,
+    timeoutMs: DEPLOYER_VERSION_TIMEOUT_MS,
+    sleep: ctx.sleep,
+    timedOut: (after) => `The deployer isn't running ${shortSha(ref)} after ${after}; see its logs on its container provider`,
+  });
 };
 
 export const up = async ({ router, deployer, resources }: InfraResources, options: UpOptions, deps: UpDeps) => {
@@ -174,7 +178,7 @@ export const up = async ({ router, deployer, resources }: InfraResources, option
 const sync = async (admin: RouterAdmin, request: SyncRequest, ctx: Context): Promise<SyncResult> => {
   const start = () => admin.sync(request).then(({ id }) => id);
   let id = await start();
-  const status = await async.pollUntil(
+  const status = await async.pollOrThrow(
     async () => {
       try {
         return await admin.syncStatus(id);
@@ -185,9 +189,13 @@ const sync = async (admin: RouterAdmin, request: SyncRequest, ctx: Context): Pro
       }
     },
     (s) => s.state !== "running",
-    { intervalMs: SYNC_INTERVAL_MS, timeoutMs: SYNC_TIMEOUT_MS, sleep: ctx.sleep },
+    {
+      intervalMs: SYNC_INTERVAL_MS,
+      timeoutMs: SYNC_TIMEOUT_MS,
+      sleep: ctx.sleep,
+      timedOut: (after) => `The sync hasn't finished after ${after}; \`achq infra status\` shows each repo's deploy`,
+    },
   );
-  if (!status) throw new Error(`The sync hasn't finished after ${SYNC_TIMEOUT_MS / 60_000} minutes; \`achq infra status\` shows each repo's deploy`);
   if (status.state !== "done") throw new Error("The sync failed; the deployer's logs say why");
   return status.result;
 };

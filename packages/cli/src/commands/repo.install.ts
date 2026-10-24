@@ -1,14 +1,12 @@
 import { defineCommand } from "@pokit/core";
 import type { Status } from "@achq/core";
 import { subprocess } from "@achq/utils/subprocess";
-import { text } from "@achq/utils/text";
+import { time } from "@achq/utils/time";
 import { z } from "zod";
 import { STATUS_TIMEOUT_MS } from "../constants.ts";
 import { formatStatus } from "../lib/format.ts";
 import { fixInBrowser, planInstall, redeploy, waitForStatus } from "../lib/repo.ts";
 import { clean, interactive, waitForEnter } from "../lib/terminal.ts";
-
-const MS_PER_MINUTE = 60_000;
 
 /** A deploy that failed with something only you can fix, in your browser. */
 const needsYou = (status: Status | undefined) => status?.state === "failed" && !!status.action;
@@ -47,8 +45,7 @@ export const command = defineCommand({
       log: (line) => console.log(line),
     });
     if (!status) {
-      const minutes = STATUS_TIMEOUT_MS / MS_PER_MINUTE;
-      console.log(`No result after ${minutes} ${text.plural(minutes, "minute")}. Run \`achq infra up\` to sync installs, then \`achq repo status\`.`);
+      console.log(`No result after ${time.minutes(STATUS_TIMEOUT_MS)}. Run \`achq infra up\` to sync installs, then \`achq repo status\`.`);
       process.exitCode = 1;
       return;
     }

@@ -94,8 +94,12 @@ export class CodeHost extends ManagedResource<CodeHostProps, CodeHostState, {}, 
     const { url } = current.installation!;
     ctx.log(`Remove ${repo} from ${slug}'s installation at ${url}: under "Repository access", unselect it (on all repos, choose "Only select repositories" without it).`);
     await ctx.open(url, what);
-    const removed = await async.pollUntil(() => this.ask(repo, slug), (found) => found?.installed === false, { intervalMs: FLOW_POLL_INTERVAL_MS, timeoutMs: FLOW_TIMEOUT_MS, sleep: ctx.sleep });
-    if (!removed) throw new Error(`${slug} is still installed on ${repo} after ${FLOW_TIMEOUT_MS / 60_000} minutes`);
+    await async.pollOrThrow(() => this.ask(repo, slug), (found) => found?.installed === false, {
+      intervalMs: FLOW_POLL_INTERVAL_MS,
+      timeoutMs: FLOW_TIMEOUT_MS,
+      sleep: ctx.sleep,
+      timedOut: (after) => `${slug} is still installed on ${repo} after ${after}`,
+    });
     // With your gh login: the App can't reach the repo any more. Without it, the repo is as if never deployed, so installing again opens the App's install page.
     const gh = asYou(ctx.env);
     try {

@@ -57,8 +57,12 @@ export class Deployment extends ManagedResource<Props, State, Outputs, "deploy">
       if (status && FAILED_DEPLOY_STATUSES.includes(status)) throw new Error(`${name}'s deploy ${status.toLowerCase()}; see its logs on Railway`);
       return status;
     };
-    const live = await async.pollUntil(latestStatus, (status) => status === DEPLOY_STATUS.live, { intervalMs: DEPLOY_POLL_INTERVAL_MS, timeoutMs: DEPLOY_TIMEOUT_MS, sleep: ctx.sleep });
-    if (!live) throw new Error(`${name} hasn't deployed after ${DEPLOY_TIMEOUT_MS / 60_000} minutes`);
+    await async.pollOrThrow(latestStatus, (status) => status === DEPLOY_STATUS.live, {
+      intervalMs: DEPLOY_POLL_INTERVAL_MS,
+      timeoutMs: DEPLOY_TIMEOUT_MS,
+      sleep: ctx.sleep,
+      timedOut: (after) => `${name} hasn't deployed after ${after}`,
+    });
     return { fingerprint };
   }
 }

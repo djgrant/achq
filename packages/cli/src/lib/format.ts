@@ -5,6 +5,9 @@ const SHORT_SHA_LENGTH = 7;
 const NONE = "-";
 const INFRA_COLUMNS = ["REPO", "STATE", "AT", "CONTAINERS"];
 
+/** A commit's sha, cut to its usual short form. */
+export const shortSha = (sha: string) => sha.slice(0, SHORT_SHA_LENGTH);
+
 const containerNames = (containers: { name: string }[] | undefined) => (containers ?? []).map((c) => c.name);
 
 /** `1 delivery`, `2 deliveries`. */
@@ -46,7 +49,7 @@ export const formatSync = (result: SyncResult, dryRun: boolean) => {
 
 /** Headed e.g. `deployed at 2026-10-17T10:00:00Z (abc1234)`, or `failed at …: why`. */
 export const formatStatus = (status: Status) => {
-  const commit = status.commit ? ` (${status.commit.slice(0, SHORT_SHA_LENGTH)})` : "";
+  const commit = status.commit ? ` (${shortSha(status.commit)})` : "";
   const error = status.error ? `: ${status.error}` : "";
   const lines = [`${status.state} at ${status.at}${commit}${error}`];
   const containers = containerNames(status.containers);

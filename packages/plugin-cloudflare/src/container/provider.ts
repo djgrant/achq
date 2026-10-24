@@ -83,12 +83,16 @@ export class CloudflareContainerProvider implements ContainerProvider {
     if (!trigger || !branch) throw new Error(`${worker} has no build trigger; ensure it first`);
 
     const started = await this.cf.builds.start(trigger.trigger_uuid, branch);
-    const build = await async.pollUntil(
+    const build = await async.pollOrThrow(
       () => this.cf.builds.get(started.build_uuid),
       (b) => b.status === BUILD_STOPPED,
-      { intervalMs: BUILD_POLL_INTERVAL_MS, timeoutMs: BUILD_TIMEOUT_MS, sleep: this.ctx.sleep },
+      {
+        intervalMs: BUILD_POLL_INTERVAL_MS,
+        timeoutMs: BUILD_TIMEOUT_MS,
+        sleep: this.ctx.sleep,
+        timedOut: (after) => `${worker}'s build ${started.build_uuid} hasn't finished after ${after}`,
+      },
     );
-    if (!build) throw new Error(`${worker}'s build ${started.build_uuid} hasn't finished after ${BUILD_TIMEOUT_MS / 60_000} minutes`);
     if (build.build_outcome !== BUILD_SUCCEEDED) {
       const tail = text.tailLines((await this.cf.builds.log(build.build_uuid)).join("\n"), LOG_TAIL_LINES).join("\n");
       throw new Error(`${worker}'s build ${build.build_outcome ?? "failed"}:\n${tail}\n${cloneHint(repo)}`);

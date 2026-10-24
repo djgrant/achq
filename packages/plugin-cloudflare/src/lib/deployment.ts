@@ -71,12 +71,16 @@ export class Deployment extends ManagedResource<Props, State, Outputs, "deploy">
     if (!wait) return { fingerprint: deployed };
 
     ctx.log(`  waiting for the ${this.parent?.kind ?? config.name} to answer…`);
-    const answered = await async.pollUntil(
+    await async.pollOrThrow(
       () => fetch(`${wait}/`).then((res) => res.ok, () => false),
       (ok) => ok,
-      { intervalMs: ANSWER_POLL_INTERVAL_MS, timeoutMs: ANSWER_TIMEOUT_MS, sleep: ctx.sleep },
+      {
+        intervalMs: ANSWER_POLL_INTERVAL_MS,
+        timeoutMs: ANSWER_TIMEOUT_MS,
+        sleep: ctx.sleep,
+        timedOut: (after) => `${config.name} hasn't answered after ${after}; see its logs on Cloudflare`,
+      },
     );
-    if (!answered) throw new Error(`${config.name} hasn't answered after ${ANSWER_TIMEOUT_MS / 60_000} minutes; see its logs on Cloudflare`);
     return { fingerprint: deployed };
   }
 }
