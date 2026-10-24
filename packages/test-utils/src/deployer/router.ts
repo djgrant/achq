@@ -1,7 +1,7 @@
 import type { InstalledRepo, MintRequest, PolicyData, RouterRepoConfig, SourceSettings, ValidateRequest } from "@achq/core";
 import { adminSecret } from "@achq/core/secrets";
 import { verifySigned } from "@achq/core/signing";
-import type { FakeGitHub } from "./github.ts";
+import type { FakeGitHub } from "../github.ts";
 
 /** The router's admin endpoints, checking every request's admin signature. */
 export class FakeRouter {
@@ -48,7 +48,9 @@ export class FakeRouter {
       const request = body as MintRequest;
       this.mints.push(request);
       const value = `tok-${++this.n}`;
-      this.github.tokens.set(value, request.repo);
+      // A token for the repo with what its GitHub policies ask for, as the router's GitHub policy provider would mint.
+      const permissions = Object.assign({}, ...request.policies.filter((p) => p.provider === "github").map((p) => p.permissions as Record<string, string>));
+      this.github.grant(value, [request.repo], permissions);
       return Response.json([{ provider: "github", value, expiresAt: new Date(Date.now() + 3600_000).toISOString(), scope: { repos: [request.repo] } }]);
     }
     if (req.method === "POST" && path === "/admin/validate") {

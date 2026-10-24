@@ -1,4 +1,5 @@
 import { createVerify, generateKeyPairSync } from "node:crypto";
+import { type GitObjects, gitDirObjects, MemoryGitObjects } from "./git-objects.ts";
 
 export type FakeApp = { slug: string; id: string; privateKey: string; publicKey: string; events: string[]; permissions: Record<string, string> };
 
@@ -28,14 +29,9 @@ type Issue = {
   reactions: string[];
 };
 
-type Repo = { full_name: string; gitDir: string; default_branch: string; variables: Map<string, string> };
+type Repo = { full_name: string; objects: GitObjects; default_branch: string; variables: Map<string, string> };
 
 const RANK: Record<string, number> = { read: 1, write: 2, admin: 3 };
-
-const git = (gitDir: string, args: string[]) => {
-  const result = Bun.spawnSync(["git", "--git-dir", gitDir, ...args], { stdout: "pipe", stderr: "pipe" });
-  return result.exitCode === 0 ? result.stdout : undefined;
-};
 
 export const makeApp = (slug: string, id: string, permissions: Record<string, string> = {}, events: string[] = []): FakeApp => {
   const { privateKey, publicKey } = generateKeyPairSync("rsa", {
@@ -61,7 +57,7 @@ export class FakeGitHub {
   private next = 1;
   private nextComment = 1;
 
-  constructor(readonly apps: FakeApp[]) {}
+  constructor(readonly apps: FakeApp[] = []) {}
 
   get url() {
     return `http://localhost:${this.server!.port}`;
@@ -80,9 +76,23 @@ export class FakeGitHub {
     this.server?.stop(true);
   }
 
-  /** Serves `repo`'s git data from the git repository at `gitDir` (bare or not). */
-  addRepo(repo: string, gitDir: string, defaultBranch = "main") {
-    this.repos.set(repo.toLowerCase(), { full_name: repo, gitDir, default_branch: defaultBranch, variables: new Map() });
+  /** Serves `repo`'s git data from `objects`, or from the git repository at that path (bare or not). */
+  addRepo(repo: string, objects: GitObjects | string, defaultBranch = "main") {
+    const source = typeof objects === "string" ? gitDirObjects(objects) : objects;
+    this.repos.set(repo.toLowerCase(), { full_name: repo, objects: source, default_branch: defaultBranch, variables: new Map() });
+  }
+
+  /** Commits `files`, the repo's whole content, to `branch` of a repo kept in memory, adding it if it's new. Returns the commit's sha. */
+  commit(repo: string, files: Record<string, string>, branch = "main") {
+    if (!this.repos.has(repo.toLowerCase())) this.addRepo(repo, new MemoryGitObjects(), branch);
+    const { objects } = this.repos.get(repo.toLowerCase())!;
+    if (!(objects instanceof MemoryGitObjects)) throw new Error(`${repo}'s git data is read from a git repository, not kept in memory`);
+    return objects.commit(files, branch);
+  }
+
+  /** Grants `token` to an installation of `app` on `repos`, with `permissions`, as though GitHub had minted it. */
+  grant(token: string, repos: string[], permissions: Record<string, string>, app = "app") {
+    this.tokens.set(token, { app, installation: 0, repos, permissions });
   }
 
   /** A repository variable's value, parsed as JSON. */
@@ -233,31 +243,21 @@ export class FakeGitHub {
         if (level("contents") < 1) return json({ message: "Resource not accessible by integration" }, 403);
         let n: RegExpExecArray | null;
         if ((n = /^\/git\/ref\/heads(?:\/|%2F)(.+)$/i.exec(rest))) {
-          const sha = git(repo.gitDir, ["rev-parse", "-q", "--verify", `refs/heads/${decodeURIComponent(n[1]!)}`])?.toString().trim();
-          return sha ? json({ ref: `refs/heads/${decodeURIComponent(n[1]!)}`, object: { sha, type: "commit" } }) : notFound();
+          const branch = decodeURIComponent(n[1]!);
+          const sha = repo.objects.head(branch);
+          return sha ? json({ ref: `refs/heads/${branch}`, object: { sha, type: "commit" } }) : notFound();
         }
         if ((n = /^\/git\/commits\/([0-9a-f]{40})$/.exec(rest))) {
-          const tree = git(repo.gitDir, ["rev-parse", "-q", "--verify", `${n[1]}^{tree}`])?.toString().trim();
+          const tree = repo.objects.treeOf(n[1]!);
           return tree ? json({ sha: n[1], tree: { sha: tree } }) : notFound();
         }
         if ((n = /^\/git\/trees\/([0-9a-f]{40})$/.exec(rest))) {
-          const recursive = url.searchParams.get("recursive") === "1";
-          const out = git(repo.gitDir, ["ls-tree", "-l", "-z", ...(recursive ? ["-r", "-t"] : []), n[1]!]);
-          if (!out) return notFound();
-          const tree = out
-            .toString()
-            .split("\0")
-            .filter(Boolean)
-            .map((line) => {
-              const [meta, entryPath] = line.split("\t") as [string, string];
-              const [mode, type, sha, size] = meta.split(/\s+/) as [string, string, string, string];
-              return { path: entryPath, mode, type, sha, ...(type === "blob" && { size: Number(size) }) };
-            });
-          return json({ sha: n[1], tree, truncated: false });
+          const tree = repo.objects.list(n[1]!, url.searchParams.get("recursive") === "1");
+          return tree ? json({ sha: n[1], tree, truncated: false }) : notFound();
         }
         if ((n = /^\/git\/blobs\/([0-9a-f]{40})$/.exec(rest))) {
-          const content = git(repo.gitDir, ["cat-file", "blob", n[1]!]);
-          return content ? json({ sha: n[1], content: Buffer.from(content).toString("base64"), encoding: "base64", size: content.length }) : notFound();
+          const content = repo.objects.blob(n[1]!);
+          return content ? json({ sha: n[1], content: content.toString("base64"), encoding: "base64", size: content.length }) : notFound();
         }
         return notFound();
       }
@@ -269,6 +269,7 @@ export class FakeGitHub {
         repo.variables.set(name, ((await req.json()) as { value: string }).value);
         return new Response(null, { status: 204 });
       }
+      if (name && method === "DELETE") return repo.variables.delete(name) ? new Response(null, { status: 204 }) : notFound();
       if (!name && method === "POST") {
         const body = (await req.json()) as { name: string; value: string };
         if (repo.variables.has(body.name)) return json({ message: "Already exists" }, 409);

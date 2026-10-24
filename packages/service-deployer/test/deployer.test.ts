@@ -10,7 +10,7 @@ import { DOC_CONFIG, DOC_PLAN } from "@achq/test-utils/config";
 import { createDeployer } from "../src/deployer.ts";
 import { githubChannelProvider } from "@achq/github/channel";
 import { githubCodeHostProvider } from "@achq/github/code-host";
-import { FakeGitHub } from "@achq/test-utils/deployer/github";
+import { FakeGitHub } from "@achq/test-utils/github";
 import { FakeRouter } from "@achq/test-utils/deployer/router";
 import { MemoryContainerProvider } from "@achq/test-utils/deployer/container-provider";
 import { dirStores } from "@achq/test-utils/stores";
@@ -86,7 +86,7 @@ const event = (type: string, repos: string[], source = APP): DeployerEnvelope =>
 };
 
 beforeEach(() => {
-  github = new FakeGitHub();
+  github = new FakeGitHub().start();
   router = new FakeRouter(KEY, github);
   router.sources = [{ channel: "github", source: APP, events: ["issue_comment", "issues", "push", "installation"], permissions: { contents: "write", actions_variables: "write" } }];
   router.installed = [{ host: "github", repo: REPO }];
