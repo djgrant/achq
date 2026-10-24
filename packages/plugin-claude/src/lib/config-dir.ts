@@ -4,13 +4,10 @@ import { disk } from "@achq/utils/disk";
 import type { AgentConfig } from "../agent/resource.ts";
 import { CLAUDE_HOME, CLAUDE_JSON, DEFAULT_MODEL, PERSISTED_EFFORT } from "./constants.ts";
 
-const HOME_PREFIX = "~/";
-
-/** `~/.claude/…` goes in the agent's own config directory; `~/…` and relative paths under `home`; absolute paths as they are. */
+/** `~/.claude/…` goes in the agent's own config directory, and any other path where the container's startup files go. */
 export const resolveStartupPath = (key: string, home: string, configDir: string) => {
   if (key === CLAUDE_HOME || key.startsWith(`${CLAUDE_HOME}/`)) return path.join(configDir, key.slice(CLAUDE_HOME.length));
-  if (key.startsWith(HOME_PREFIX)) return path.join(home, key.slice(HOME_PREFIX.length));
-  return path.isAbsolute(key) ? key : path.join(home, key);
+  return disk.underHome(key, home);
 };
 
 /** The parts of `.claude.json` achq sets. Claude Code owns the rest. */

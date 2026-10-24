@@ -153,6 +153,11 @@ export const disk = {
   safeFileName: (name: string) => name.replace(UNSAFE_CHAR, "_"),
 
   /** Both must be absolute and normalised. */
+  /** Where a path someone wrote for a machine goes there: `~/…` and relative paths under `home`, absolute paths as they are. */
+  underHome: (file: string, home: string) => {
+    if (file.startsWith("~/")) return path.join(home, file.slice(2));
+    return path.isAbsolute(file) ? file : path.join(home, file);
+  },
   isWithin: (root: string, file: string) => file === root || file.startsWith(root + path.sep),
 
   /** `relative` resolved against `root`, or undefined if it leads outside `root`. */

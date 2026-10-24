@@ -1,5 +1,4 @@
 import * as fs from "node:fs";
-import * as path from "node:path";
 import type { RepoManifest, RuntimeContext } from "@achq/core";
 import { collections } from "@achq/utils/collections";
 import { disk } from "@achq/utils/disk";
@@ -22,14 +21,8 @@ export const resolveFiles = (files: Record<string, unknown> | undefined, root: s
   return collections.mapValues(collections.sortKeys(files ?? {}), contentOf);
 };
 
-/** Where a startup file goes: `~/…` and relative paths under `home`, absolute paths as they are. */
-export const targetPath = (key: string, home: string) => {
-  if (key.startsWith("~/")) return path.join(home, key.slice(2));
-  return path.isAbsolute(key) ? key : path.join(home, key);
-};
-
 export const writeFiles = (resolved: Record<string, string>, home: string) => {
-  for (const [key, content] of Object.entries(resolved)) disk.writeEnsured(targetPath(key, home), content);
+  for (const [key, content] of Object.entries(resolved)) disk.writeEnsured(disk.underHome(key, home), content);
 };
 
 export const runtimeContext = (root: string, rest: Omit<RuntimeContext, "readFile" | "resolveFiles">): RuntimeContext => ({
