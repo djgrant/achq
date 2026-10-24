@@ -5,8 +5,15 @@ import type { Implementation } from "./implementation.ts";
 import type { Credential } from "./channel-provider.ts";
 import type { InstalledRepo, RepoInstallation, Status } from "../wire/protocol.ts";
 
+/** An owner's or a repo's name, in characters that can't escape a path or a directory. */
+const SEGMENT = "[\\w.-]+";
+
 /** A repo's `owner/name`. Code hosts compare them case-insensitively, and so does achq. */
 export const repoName = {
+  /** One of its two halves, as a route's pattern. */
+  segment: SEGMENT,
+  /** Any `owner/name` that's safe in a path. Each code host's own `repoName` is stricter. */
+  pattern: new RegExp(`^${SEGMENT}/${SEGMENT}$`),
   /** What anything kept per repo is kept under. */
   key: (repo: string) => repo.toLowerCase(),
   same: (a: string, b: string) => repoName.key(a) === repoName.key(b),

@@ -8,7 +8,7 @@ import { http } from "@achq/utils/http";
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import { createMiddleware } from "hono/factory";
-import { REPO, REPO_PATH } from "./constants.ts";
+import { REPO_PATH } from "./constants.ts";
 import { claimsOf, configOf, createContext, type RouterDeps } from "./context.ts";
 import { mint, mintClients, validate } from "./credentials.ts";
 import { acceptDelivery, type InboxEntry, listFailed, recordClaims, replay, replayFailed, settled, targetsFor } from "./deliveries.ts";
@@ -73,7 +73,7 @@ export const createRouter = (deps: RouterDeps) => {
   const pusher = async (req: Request, request: RepoRequest): Promise<CodeHostProvider | Response> => {
     const token = http.bearerToken(req);
     if (!token) return new Response("missing token", { status: 401 });
-    if (!REPO.test(request.repo)) return new Response("bad request", { status: 400 });
+    if (!repoName.pattern.test(request.repo)) return new Response("bad request", { status: 400 });
     const host = collections.own(ctx.codeHostProviders, request.host);
     if (!host) return new Response("unknown host", { status: 400 });
     if (!(await host.canPush(request.repo, token))) return new Response("no push access", { status: 403 });

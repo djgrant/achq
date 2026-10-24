@@ -7,7 +7,6 @@ export const CHANNEL = "github";
 export const POLICY_PROVIDER = "github";
 export const CODE_HOST = "github";
 
-export const REPO = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
 /** GitHub's rules for owner and repository names. */
 export const REPO_NAME = /^[A-Za-z0-9-]{1,39}\/[A-Za-z0-9._-]{1,100}$/;
 

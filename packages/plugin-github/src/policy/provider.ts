@@ -5,7 +5,7 @@ import { disk } from "@achq/utils/disk";
 import type { z } from "zod";
 import type { Permissions } from "@achq/utils/gh";
 import { type Apps, botLogin, type FoundInstallation } from "../lib/apps.ts";
-import { POLICY_PROVIDER, REPO } from "../lib/constants.ts";
+import { POLICY_PROVIDER } from "../lib/constants.ts";
 import { GH_CONFIG_DIR, GH_HOSTS_FILE, GIT_CONFIG_FILE, ghHostsYml, gitConfig, removeStaleTokens, tokenFileName, writeSecretFile } from "../lib/git-credentials.ts";
 import { covers, maxLevel } from "../lib/permissions.ts";
 import { GitHubPolicyData } from "../lib/schemas.ts";
@@ -54,7 +54,7 @@ export class GitHubPolicyProvider implements PolicyProvider {
     const policy = parsed.data;
     if (policy.source !== undefined && !this.apps.has(policy.source)) return [`GitHub App "${policy.source}" isn't configured on the router`];
     const target = policy.repo ?? repo;
-    if (!REPO.test(target)) return [`"${target}" isn't an owner/name repo`];
+    if (!repoName.pattern.test(target)) return [`"${target}" isn't an owner/name repo`];
     const permissions = Object.entries(policy.permissions);
 
     const found = await this.installation(policy.source, target);
@@ -89,7 +89,7 @@ export class GitHubPolicyProvider implements PolicyProvider {
       if (data.provider !== POLICY_PROVIDER) continue;
       const policy = GitHubPolicyData.parse(data);
       const target = policy.repo ?? repo;
-      if (!REPO.test(target)) throw new Error(`"${target}" isn't an owner/name repo`);
+      if (!repoName.pattern.test(target)) throw new Error(`"${target}" isn't an owner/name repo`);
       const lookup = `${policy.source ?? ""}\n${repoName.key(target)}`;
       if (!lookups.has(lookup)) lookups.set(lookup, this.installation(policy.source, target));
       const found = await lookups.get(lookup);
@@ -138,7 +138,7 @@ export class GitHubPolicyProvider implements PolicyProvider {
       writeSecretFile(tokenFile, credential.value);
       tokenFiles.add(name);
       const repos = Array.isArray(credential.scope.repos) ? credential.scope.repos : [];
-      for (const repo of repos) if (typeof repo === "string" && REPO.test(repo)) entries.push({ repo, tokenFile });
+      for (const repo of repos) if (typeof repo === "string" && repoName.pattern.test(repo)) entries.push({ repo, tokenFile });
     });
 
     const gitconfig = path.join(dir, GIT_CONFIG_FILE);

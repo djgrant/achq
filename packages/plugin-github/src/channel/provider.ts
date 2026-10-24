@@ -2,7 +2,7 @@ import { type ChannelClient, type ChannelEvent, type ChannelProvider, type Crede
 import { GitHub, type Issue, type IssueComment, type ReactionContent, type ReactionTarget } from "@achq/utils/gh";
 import { verify } from "@octokit/webhooks-methods";
 import { type Apps, appWebhookSecret, botLogin } from "../lib/apps.ts";
-import { CHANNEL, GITHUB_API, REPO } from "../lib/constants.ts";
+import { CHANNEL, GITHUB_API } from "../lib/constants.ts";
 import { CLIENT_PERMISSIONS } from "../lib/permissions.ts";
 import { matchEvent, matchThread } from "../lib/selectors.ts";
 import { labelNames, messageId, OPENING_POST_ID, parseThreadId, slugify, TRUSTED } from "../lib/threads.ts";
@@ -33,7 +33,7 @@ export class GitHubChannelProvider implements ChannelProvider {
   }
 
   async mintClient(source: string, repo: string) {
-    if (!REPO.test(repo)) throw new Error(`Not a repo: ${repo}`);
+    if (!repoName.pattern.test(repo)) throw new Error(`Not a repo: ${repo}`);
     const installation = await this.apps.installation(source, repo);
     if (!installation) throw new Error(`${source} isn't installed on ${repo}`);
     const token = await this.apps.token(source, installation.id, { repositories: [repoName.split(repo).name], permissions: CLIENT_PERMISSIONS });
