@@ -13,9 +13,10 @@ import {
   resetDeclarations,
   Router,
   UNKNOWN,
+  type VariableValues,
 } from "@achq/core";
 import { collections } from "@achq/utils/collections";
-import { appWebhookSecret } from "../src/lib/apps.ts";
+import { appWebhookSecret, joinApps } from "../src/lib/apps.ts";
 import { Channel } from "../src/channel/resource.ts";
 
 const { privateKey: pem, publicKey } = generateKeyPairSync("rsa", { modulusLength: 2048, privateKeyEncoding: { type: "pkcs8", format: "pem" }, publicKeyEncoding: { type: "spki", format: "pem" } });
@@ -120,9 +121,16 @@ class StubRouter extends Router {
   override children() {
     return [];
   }
+  /** Its groups of variables, as they're declared. */
+  private readonly declared: VariableValues[] = [];
+  override variables(values: VariableValues) {
+    this.declared.push(values);
+    return undefined as never;
+  }
   /** ACHQ_GITHUB_APPS as it would be set. */
   apps(): EnvValue {
-    return this.mapVariables().ACHQ_GITHUB_APPS!;
+    const values = this.declared.map((v) => (typeof v === "function" ? v(undefined as never) : v));
+    return values.find((v) => v.ACHQ_GITHUB_APPS)!.ACHQ_GITHUB_APPS!;
   }
 }
 
@@ -246,6 +254,14 @@ test("the router's ACHQ_GITHUB_APPS holds the App of every channel declared on i
   // A new channel: the variable waits on its App.
   const other = new Channel("org", { name: "Notation ACHQ", org: "notationlabs", router });
   expect((await plan([channel, other], ctx)).value(router.apps())).toBe(UNKNOWN);
+});
+
+test("a stored ACHQ_GITHUB_APPS that isn't a map of Apps' keys is refused with what it must be", async () => {
+  expect(() => joinApps("{not json", {})).toThrow("ACHQ_GITHUB_APPS isn't JSON: it must map each App's slug to its id and privateKey");
+  expect(() => joinApps('{"app":{"id":"1"}}', STORED)).toThrow('GitHub App "app" needs an id and a privateKey');
+  const router = new StubRouter({ url: ROUTER, key: KEY, exists: true, env: { ACHQ_GITHUB_APPS: "{not json" } });
+  const channel = new Channel("personal", { name: "djgrant-claude", router });
+  await expect(plan([channel], context())).rejects.toThrow("ACHQ_GITHUB_APPS isn't JSON");
 });
 
 test("two channels with one slug are refused", () => {

@@ -1,5 +1,6 @@
 import { repoName } from "@achq/core";
 import { implementationSecret } from "@achq/core/secrets";
+import { collections } from "@achq/utils/collections";
 import { errors } from "@achq/utils/errors";
 import type { Vars } from "@achq/utils/env";
 import { GitHub, type Installation, type TokenNarrowing } from "@achq/utils/gh";
@@ -14,11 +15,20 @@ export { AppKeys };
 /** Reads ACHQ_GITHUB_APPS. */
 export const parseApps = (json: string | undefined): AppKeys => {
   if (!json) return {};
-  const parsed = AppKeys.safeParse(JSON.parse(json));
+  let value: unknown;
+  try {
+    value = JSON.parse(json);
+  } catch {
+    throw new Error(`${GITHUB_ENV.apps} isn't JSON: it must map each App's slug to its id and privateKey`);
+  }
+  const parsed = AppKeys.safeParse(value);
   if (parsed.success) return parsed.data;
   const [slug] = parsed.error.issues[0]!.path;
   throw new Error(slug === undefined ? `${GITHUB_ENV.apps} must map each App's slug to its id and privateKey` : `GitHub App "${String(slug)}" needs an id and a privateKey`);
 };
+
+/** ACHQ_GITHUB_APPS as the router is given it: what's stored, which it checks, with `added` over it, sorted by slug, so the same Apps always make the same variable. */
+export const joinApps = (stored: string | undefined, added: AppKeys) => JSON.stringify(collections.sortKeys({ ...parseApps(stored), ...added }));
 
 /** An App's key in a vault: its item, and its fields. */
 export const vaultedApp = {

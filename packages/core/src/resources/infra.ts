@@ -1,8 +1,7 @@
-import { collections } from "@achq/utils/collections";
 import { all, GENERATED, type Input, type Output } from "../engine/values.ts";
 import { DEPLOYER_PORT, ENV, ROUTER_PRIVATE_PORT, ROUTER_PUBLIC_PORT } from "../wire/constants.ts";
 import { type Context, declared, Resource, resetDeclarations } from "./resource.ts";
-import { CurrentVariables, type VariableGroup, VariableGroups } from "./variables.ts";
+import { CurrentVariables, type VariableGroup, VariableGroups, type VariableValues } from "./variables.ts";
 
 /** A variable's value: a string, another resource's output, or generated once and then kept. */
 export type EnvValue = Input<string> | typeof GENERATED;
@@ -80,11 +79,17 @@ export abstract class Service extends Resource {
   /**
    * Declares a group of its variables, set as one resource. A later group can
    * take values from resources that depend on an earlier one: the router's
-   * key → a GitHub App → the App's key on the router. It's redeployed
-   * whenever its settings or any of its variables change.
+   * key → a GitHub App → the App's key on the router. A function is called
+   * when the service is planned, so it can take from resources declared after.
+   * It's redeployed whenever its settings or any of its variables change.
    */
-  variables(values: EnvValues): Output<Record<string, string>> {
+  variables(values: VariableValues): Output<Record<string, string>> {
     return this.variableGroups.add(values).outputs();
+  }
+
+  /** Whether it's been planned, so no group of variables can be declared. */
+  protected get planned() {
+    return this.made !== undefined;
   }
 
   /** Made once, when it's planned: no group of variables can be declared after. */
@@ -106,9 +111,8 @@ export abstract class Router extends Service {
   /** Its public URL: unknown until it has one. */
   abstract readonly url: Output<string>;
   private current?: CurrentVariables;
-  /** What's added to each JSON-map variable, by what adds it, by the variable's name: declared, all as one group, when it's planned. */
-  private readonly maps = new Map<string, Map<string, Output<Record<string, unknown>>>>();
-  private mapsDeclared = false;
+  /** What's added to each variable many resources add to, by key, by the variable's name. */
+  private readonly added = new Map<string, Map<string, Output<unknown>>>();
 
   /** AGENT_WEBHOOK_KEY, generated once, in its first group of variables: known only once it's set, so a known key means the router exists. */
   get key(): Output<string> {
@@ -126,35 +130,29 @@ export abstract class Router extends Service {
   }
 
   /**
-   * Adds `entries` to its variable `name`, a JSON map: e.g. a channel adds its
-   * App's key, under the App's slug, to ACHQ_GITHUB_APPS. `from` names what
-   * adds them, which only one may. Entries stored there that nothing adds any
-   * more stay.
+   * Adds `value`, under `key`, to its variable `name`, which many resources
+   * add to: e.g. each GitHub channel adds its App's key, by slug, to
+   * ACHQ_GITHUB_APPS. When it's planned, `join` makes the variable from its
+   * value as stored and everything added, by key: the first to add gives it. A
+   * key is added once.
    */
-  addToMap(name: string, from: string, entries: Output<Record<string, unknown>>) {
-    if (this.mapsDeclared) throw new Error(`${this.name}: ${name} added to after it was planned`);
-    const added = this.maps.get(name) ?? new Map<string, Output<Record<string, unknown>>>();
-    if (added.has(from)) throw new Error(`${this.name}: ${from} adds to ${name} twice`);
-    this.maps.set(name, added.set(from, entries));
+  addTo<T>(name: string, key: string, value: Output<T>, join: (stored: string | undefined, added: Record<string, T>) => string) {
+    if (this.planned) throw new Error(`${this.name}: ${name} added to after it was planned`);
+    let added = this.added.get(name);
+    if (!added) {
+      const values = (added = new Map());
+      this.added.set(name, values);
+      // Valued when it's planned, once everything that adds to it has.
+      this.variables(() => ({
+        [name]: all([this.env, all([...values.values()])]).map(([env, made]) => join(env[name], Object.fromEntries([...values.keys()].map((k, i) => [k, made[i] as T])))),
+      }));
+    }
+    if (added.has(key)) throw new Error(`${this.name}: ${key} adds to ${name} twice`);
+    added.set(key, value);
   }
 
-  /** Each JSON-map variable: what's added over what's stored, keys sorted, so the same entries always make the same variable. */
-  protected mapVariables(): EnvValues {
-    return collections.mapValues(Object.fromEntries(this.maps), (added, name) =>
-      all([this.env, all([...added.values()])]).map(([env, entries]) =>
-        JSON.stringify(collections.sortKeys(Object.assign(env[name] ? JSON.parse(env[name]) : {}, ...entries))),
-      ),
-    );
-  }
-
-  /**
-   * Its JSON-map variables are declared now, once everything that adds to
-   * them has. Its variables as they are come first, so they're read before
-   * any group is set, even when this run makes it.
-   */
+  /** Its variables as they are come first, so they're read before any group is set, even when this run makes it. */
   children(ctx: Context): Resource[] {
-    if (!this.mapsDeclared && this.maps.size) this.variables(this.mapVariables());
-    this.mapsDeclared = true;
     return [this.currentVariables, ...super.children(ctx)];
   }
 

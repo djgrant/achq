@@ -1,6 +1,6 @@
 import { type Change, type Context, known, ManagedResource, type Planned, type Router, UNKNOWN } from "@achq/core";
 import { type AppSettings, GitHub, type HookConfig } from "@achq/utils/gh";
-import { type AppKeys, appWebhookSecret, parseApps, vaultedApp } from "../lib/apps.ts";
+import { type AppKeys, appWebhookSecret, joinApps, parseApps, vaultedApp } from "../lib/apps.ts";
 import { GITHUB_ENV, githubUrls } from "../lib/constants.ts";
 import { appSlug, manifestFlow } from "../lib/manifest.ts";
 import { APP_EVENTS, APP_PERMISSIONS, lacking } from "../lib/permissions.ts";
@@ -73,9 +73,9 @@ export class Channel extends ManagedResource<ChannelProps, ChannelState, Channel
       // GitHub has no API to delete an App.
     }, { protect: true });
     this.slug = slug;
-    // Its App's key, under the slug GitHub gave it, in the router's ACHQ_GITHUB_APPS with every other channel's.
+    // Its App's key, under its slug, where it's read from, in the router's ACHQ_GITHUB_APPS with every other channel's.
     // It stays once the channel is gone from the infra: that doesn't delete the App on GitHub.
-    router.addToMap(GITHUB_ENV.apps, slug, this.outputs().map((app) => ({ [app.slug]: { id: app.id, privateKey: app.privateKey } })));
+    router.addTo(GITHUB_ENV.apps, slug, this.outputs().map(({ id, privateKey }) => ({ id, privateKey })), joinApps);
   }
 
   static get(slug: string) {
