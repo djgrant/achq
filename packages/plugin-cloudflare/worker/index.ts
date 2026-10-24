@@ -9,7 +9,7 @@
 import { DurableObject, type DurableObjectState, type R2Bucket, WorkerEntrypoint, type WorkerVersionMetadata } from "cloudflare:workers";
 import { type Box, Lifecycle, type Memory } from "./lifecycle.ts";
 import { inbound, outbound, storeRequest, workerUrl } from "./routes.ts";
-import { DATA_DIR, DEPLOYER_TOKEN, HEADERS, INTERNAL_DOMAIN, SERVICE_INSTANCE, type WorkerSettings } from "./settings.ts";
+import { archiveKey, DATA_DIR, DEPLOYER_TOKEN, HEADERS, INTERNAL_DOMAIN, SERVICE_INSTANCE, type WorkerSettings } from "./settings.ts";
 
 type Env = {
   /** What it is: written into its config by achq. */
@@ -209,7 +209,7 @@ export class Outbound extends WorkerEntrypoint<Env> {
         await service(this.ctx.exports).awake();
         return new Response("awake");
       case "archive":
-        return this.archive(req, `${settings.name}/data.tar.gz`);
+        return this.archive(req, archiveKey(settings.name));
       case "worker": {
         const headers = new Headers(req.headers);
         headers.set(HEADERS.key, this.env.ACHQ_INTERNAL_KEY);

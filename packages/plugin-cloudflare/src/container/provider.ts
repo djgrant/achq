@@ -5,11 +5,11 @@ import { BUILD_STOPPED, BUILD_SUCCEEDED, CLOUDFLARE_API, Cloudflare } from "@ach
 import { subprocess } from "@achq/utils/subprocess";
 import { text } from "@achq/utils/text";
 import { ENV_FILE } from "../../worker/lifecycle.ts";
-import { SERVICE_CLASS } from "../../worker/settings.ts";
+import { archiveKey, SERVICE_CLASS } from "../../worker/settings.ts";
 import { BUILD_POLL_INTERVAL_MS, BUILD_TIMEOUT_MS, BUILDS_GITHUB_APP_INSTALL_URL, CLOUDFLARE_ENV, CONTAINER_PROVIDER, LOG_TAIL_LINES, SOURCE_HOST, WRANGLER } from "../lib/constants.ts";
 import { buildToken, registered } from "../lib/build-token.ts";
 import { type ContainerPlace, containerParts } from "../lib/container-parts.ts";
-import { archiveKey, containerUrl, containerWorkerName, KV_KEYS } from "../lib/names.ts";
+import { containerUrl, containerWorkerName, KV_KEYS } from "../lib/names.ts";
 
 /** Where it puts containers, and its own token, which it builds them with too. */
 export type CloudflareContainerProviderOptions = Omit<ContainerPlace, "buildToken"> & {

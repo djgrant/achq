@@ -29,6 +29,3 @@ export const KV_KEYS = {
   /** A hash of what a Worker was last deployed with, or its secrets last set from. */
   deployed: (worker: string) => `deployed/${worker}`,
 };
-
-/** A container's archive of its /data, in the project's R2 bucket. */
-export const archiveKey = (worker: string) => `${worker}/data.tar.gz`;

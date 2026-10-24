@@ -117,3 +117,6 @@ export const deployerTokenProblem = async (token: string, accountId: string, end
  * they deploy, and it never reaches a container.
  */
 export const internalKey = (key: string) => implementationSecret(key, `${CONTAINER_PROVIDER}:internal`);
+
+/** A Worker's secrets: its container's variables, as ACHQ_ENV, and its internal key, from AGENT_WEBHOOK_KEY. */
+export const workerSecrets = (variables: Record<string, string>, key: string) => ({ ACHQ_ENV: JSON.stringify(variables), ACHQ_INTERNAL_KEY: internalKey(key) });

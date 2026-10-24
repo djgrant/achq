@@ -34,6 +34,9 @@ export const MANAGED_IMAGE = "cloudflare/debian-trixie";
 /** A container's image, built from its repo's Dockerfile, by this name in its Worker's config. */
 export const APP_IMAGE = "app";
 
+/** A container's archive of its /data, in the project's R2 bucket, by its Worker's name. */
+export const archiveKey = (worker: string) => `${worker}/data.tar.gz`;
+
 /** Where a container keeps what outlives a restart: in its snapshots, and its archive. */
 export const DATA_DIR = "/data";
 

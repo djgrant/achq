@@ -1,7 +1,7 @@
 import { CONTAINER_PORT, type ContainerSpec, ENV, type Input } from "@achq/core";
 import { APP_IMAGE, DATA_DIR, INTERNAL_HOSTS, type WorkerSettings } from "../../worker/settings.ts";
 import { BuildTrigger, CONTAINER_MAIN } from "./build-trigger.ts";
-import { internalKey } from "./cloudflare.ts";
+import { workerSecrets } from "./cloudflare.ts";
 import { INSTANCE } from "./constants.ts";
 import { containerWorkerName, KV_KEYS } from "./names.ts";
 import { Secrets } from "./secrets.ts";
@@ -43,7 +43,7 @@ export const containerParts = (spec: ContainerSpec, place: ContainerPlace) => {
   const variables = new Variables("variables", { namespaceId: place.namespaceId, key: KV_KEYS.container(name), target: name, values }, { parent: worker });
   const secrets = new Secrets(
     "secrets",
-    { namespaceId: place.namespaceId, worker: name, tag: worker.out("tag"), secrets: { ACHQ_ENV: JSON.stringify(values), ACHQ_INTERNAL_KEY: internalKey(place.key) } },
+    { namespaceId: place.namespaceId, worker: name, tag: worker.out("tag"), secrets: workerSecrets(values, place.key) },
     { parent: worker, after: [variables] },
   );
   const settings: WorkerSettings = {

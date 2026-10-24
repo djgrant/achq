@@ -2,7 +2,7 @@ import { type Change, type Context, ENV, hasUnknown, known, ManagedResource, typ
 import { async } from "@achq/utils/async";
 import { collections } from "@achq/utils/collections";
 import { crypto } from "@achq/utils/crypto";
-import { connect, internalKey } from "./cloudflare.ts";
+import { connect, workerSecrets } from "./cloudflare.ts";
 import { ANSWER_POLL_INTERVAL_MS, ANSWER_TIMEOUT_MS } from "./constants.ts";
 import { KV_KEYS } from "./names.ts";
 import { type WorkerConfig, workerSourceHash, wranglerDeploy } from "./wrangler.ts";
@@ -27,13 +27,6 @@ const FINGERPRINT_CHARS = 16;
  */
 export const fingerprint = (config: WorkerConfig, variables: Record<string, string>) =>
   crypto.sha256Hex(JSON.stringify({ config: { ...config, main: undefined }, variables: collections.sortKeys(variables), worker: workerSourceHash() }), FINGERPRINT_CHARS);
-
-/** What its Worker's secrets are: its container's variables, and the internal key it derives from AGENT_WEBHOOK_KEY among them. */
-export const workerSecrets = (name: string, variables: Record<string, string>) => {
-  const key = variables[ENV.key];
-  if (!key) throw new Error(`${name} has no ${ENV.key}, which its Worker's internal key derives from`);
-  return { ACHQ_ENV: JSON.stringify(variables), ACHQ_INTERNAL_KEY: internalKey(key) };
-};
 
 /**
  * One of achq's services deployed as its Worker, with Wrangler: the achq
@@ -64,7 +57,10 @@ export class Deployment extends ManagedResource<Props, State, Outputs, "deploy">
 
   async apply({ namespaceId, config, variables, wait }: Props, _current: State | undefined, _changes: "deploy"[], ctx: Context) {
     const cf = await connect(ctx.env);
-    await wranglerDeploy(ctx.env, cf.accountId, config, workerSecrets(config.name, variables));
+    // Its internal key derives from AGENT_WEBHOOK_KEY among its variables.
+    const key = variables[ENV.key];
+    if (!key) throw new Error(`${config.name} has no ${ENV.key}, which its Worker's internal key derives from`);
+    await wranglerDeploy(ctx.env, cf.accountId, config, workerSecrets(variables, key));
     const deployed = fingerprint(config, variables);
     // Recorded once it's deployed, so an interrupted run deploys next time.
     await cf.kv.put(namespaceId, KV_KEYS.deployed(config.name), deployed);
