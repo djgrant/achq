@@ -24,6 +24,17 @@ const cantSee = (repo: string, error: RailwayError) =>
     what: `install ${SOURCE_GITHUB_APP} on ${repo}`,
   });
 
+/**
+ * Variables containers were once given, which a variable group never deletes:
+ * ACHQ_PRIVATE_ENV, which an agent would now see, and ACHQ_BRANCH. Deletes
+ * them where they're left. Delete once deployed infras have run it.
+ */
+const STALE = ["ACHQ_PRIVATE_ENV", "ACHQ_BRANCH"];
+const dropStale = async (service: RailwayService) => {
+  const variables = await service.variables();
+  for (const name of STALE) if (name in variables) await service.deleteVariable(name);
+};
+
 export class RailwayContainerProvider implements ContainerProvider {
   /** The deployer's project, in the environment its containers run in. */
   readonly project: RailwayProject;
@@ -38,7 +49,9 @@ export class RailwayContainerProvider implements ContainerProvider {
   async ensure(spec: ContainerSpec, { build }: { build: boolean }) {
     const { service, resources } = containerService(spec, { projectId: this.project.id, environmentId: this.project.environmentId });
     const applied = await (await plan(resources, this.ctx)).apply();
-    if (build) await this.build(this.project.service(applied.value(service.out("serviceId"))), spec);
+    const made = this.project.service(applied.value(service.out("serviceId")));
+    await dropStale(made);
+    if (build) await this.build(made, spec);
     return { url: containerUrl(containerServiceName(spec.repo, spec.name)) };
   }
 

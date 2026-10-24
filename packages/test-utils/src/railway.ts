@@ -126,6 +126,10 @@ export const startFakeRailway = (seed: { workspaces?: string[] } = {}): FakeRail
       Object.assign(findService(input.serviceId).service.variables, input.variables);
       return true;
     },
+    variableDelete: ({ input }) => {
+      delete findService(input.serviceId).service.variables[input.name];
+      return true;
+    },
     volumeCreate: ({ input }) => {
       const p = projects.find((x) => x.id === input.projectId)!;
       const v = { id: id("vol"), serviceId: input.serviceId, mountPath: input.mountPath };

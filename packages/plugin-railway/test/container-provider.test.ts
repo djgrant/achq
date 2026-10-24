@@ -59,6 +59,17 @@ test("ensure creates a private service with a volume, and a second ensure change
   expect(fake.mutations.length).toBe(before);
 });
 
+// Delete with dropStale, once deployed infras have run it.
+test("ensure deletes the variables containers were once given, ACHQ_PRIVATE_ENV and ACHQ_BRANCH, where they're left", async () => {
+  await host.ensure(spec, NO_BUILD);
+  const service = fake.service("notationlabs-yieldstar-dev")!;
+  Object.assign(service.variables, { ACHQ_PRIVATE_ENV: "{}", ACHQ_BRANCH: "main" });
+  await host.ensure(spec, NO_BUILD);
+  expect(service.variables).not.toHaveProperty("ACHQ_PRIVATE_ENV");
+  expect(service.variables).not.toHaveProperty("ACHQ_BRANCH");
+  expect(fake.mutations.filter((m) => m === "variableDelete")).toHaveLength(2);
+});
+
 test("a build of a repo Railway's GitHub App can't see fails with where to install it, and builds once it can", async () => {
   fake.unseenRepos.add(spec.repo);
   const failure = await host.ensure(spec, BUILD).catch((e) => e);

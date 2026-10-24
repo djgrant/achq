@@ -59,6 +59,10 @@ export class RailwayService {
     await this.transport.call(OPERATIONS.variableCollectionUpsert, { input: { ...this.at, variables, skipDeploys: true } });
   }
 
+  async deleteVariable(name: string) {
+    await this.transport.call(OPERATIONS.variableDelete, { input: { ...this.at, name } });
+  }
+
   async addVolume(mountPath: string) {
     await this.transport.call(OPERATIONS.volumeCreate, { input: { ...this.at, mountPath } });
   }

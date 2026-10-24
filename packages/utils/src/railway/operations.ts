@@ -109,6 +109,8 @@ export const OPERATIONS = {
     nothing,
   ),
 
+  variableDelete: op<{ input: ServiceAt & { name: string } }, void>(`mutation ($input: VariableDeleteInput!) { variableDelete(input: $input) }`, nothing),
+
   volumeCreate: op<{ input: ServiceAt & { mountPath: string } }, void>(`mutation ($input: VolumeCreateInput!) { volumeCreate(input: $input) { id } }`, nothing),
   volumeDelete: op<{ volumeId: string }, void>(`mutation ($volumeId: String!) { volumeDelete(volumeId: $volumeId) }`, nothing),
 
