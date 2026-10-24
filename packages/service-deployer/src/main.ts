@@ -30,7 +30,7 @@ export const main = () => {
     },
   });
 
-  Bun.serve({ port: DEPLOYER_PORT, idleTimeout: IDLE_TIMEOUT_S, fetch: deployerHandler(deployer, key) });
+  Bun.serve({ port: DEPLOYER_PORT, hostname: "::", idleTimeout: IDLE_TIMEOUT_S, fetch: deployerHandler(deployer, key) });
   console.log(`deployer listening on ${DEPLOYER_PORT}`);
 };
 
