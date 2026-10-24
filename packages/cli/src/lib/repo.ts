@@ -31,18 +31,18 @@ export type FlowDeps = {
 };
 
 /**
- * Whether `source` is installed on the repo, as the router ACHQ_STATUS names
- * says: it checks you can push to the repo. Undefined when there's no
- * ACHQ_STATUS naming one, and "gone" when nothing answers there: a 404, as
- * from a router torn down, or one that doesn't have the source.
+ * The router ACHQ_STATUS names, and whether `source` is installed on the repo
+ * as it says: it checks you can push to the repo. Undefined when there's no
+ * ACHQ_STATUS naming one, and no `installation` when nothing answers there: a
+ * 404, as from a router torn down, or one that doesn't have the source.
  */
-const askRouter = async ({ host, repo, codeHost }: RepoHere, source: string): Promise<RepoInstallation | "gone" | undefined> => {
+const askRouter = async ({ host, repo, codeHost }: RepoHere, source: string): Promise<{ router: string; installation?: RepoInstallation } | undefined> => {
   const router = (await codeHost.status(repo))?.router;
   if (!router) return undefined;
   try {
-    return await routerForPusher({ url: router, token: codeHost.token() }).installation({ host, repo, source });
+    return { router, installation: await routerForPusher({ url: router, token: codeHost.token() }).installation({ host, repo, source }) };
   } catch (error) {
-    if (error instanceof HttpError && error.status === NOT_FOUND) return "gone";
+    if (error instanceof HttpError && error.status === NOT_FOUND) return { router };
     throw error;
   }
 };
@@ -60,12 +60,12 @@ export const planInstall = async (here: RepoHere, manifest: RepoManifest, { log 
   const { missing, warnings } = await codeHost.checkSource(source, manifest);
   if (missing.length) throw new Error(`${source} doesn't have what ${repo}'s config needs: ${missing.join(", ")}`);
   for (const warning of warnings) log(`! ${warning}`);
-  const found = await askRouter(here, source);
-  if (found !== "gone" && found?.installed) {
+  const found = (await askRouter(here, source))?.installation;
+  if (found?.installed) {
     log(`${source} is already installed on ${repo}`);
     return { source, url: undefined };
   }
-  const url = found === "gone" || !found ? codeHost.installPage(source) : found.url;
+  const url = found?.url ?? codeHost.installPage(source);
   log(`+ ${source} on ${repo}: opens your browser to install it`);
   return { source, url };
 };
@@ -80,13 +80,11 @@ export const openInstall = async ({ repo, codeHost }: RepoHere, source: string, 
 const installationToRemove = async (here: RepoHere, source: string) => {
   const { repo } = here;
   const { owner } = repoName.split(repo);
-  const found = await askRouter(here, source);
-  if (!found) throw new Error(`achq can't tell whether ${source} is installed on ${repo}: it has no ${STATUS_VARIABLE} naming its router yet. Remove it from ${source}'s installation in ${owner}'s settings`);
-  if (found === "gone") {
-    const router = (await here.codeHost.status(repo))?.router;
-    throw new Error(`No router answers at ${router}, which ${repo}'s ${STATUS_VARIABLE} names: its hq may have been torn down. Bring it back with \`achq infra up\`, or remove ${source} from its installation in ${owner}'s settings`);
-  }
-  return found;
+  const asked = await askRouter(here, source);
+  if (!asked) throw new Error(`achq can't tell whether ${source} is installed on ${repo}: it has no ${STATUS_VARIABLE} naming its router yet. Remove it from ${source}'s installation in ${owner}'s settings`);
+  if (!asked.installation)
+    throw new Error(`No router answers at ${asked.router}, which ${repo}'s ${STATUS_VARIABLE} names: its hq may have been torn down. Bring it back with \`achq infra up\`, or remove ${source} from its installation in ${owner}'s settings`);
+  return asked.installation;
 };
 
 /** Where to remove the config's source from the repo, or undefined when it isn't installed. */

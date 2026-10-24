@@ -9,7 +9,7 @@ export const command = defineCommand({
   examples: ["achq infra replay"],
   pre: () => infraChecks(needInfra(), process.env),
   run: clean(async () => {
-    const admin = await adminClient();
+    const admin = await adminClient(needInfra(), { env: process.env, log: (line) => console.log(line) });
     for (const line of formatReplay(await admin.replay())) console.log(line);
   }),
 });

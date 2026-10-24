@@ -10,7 +10,6 @@ import { agentEnv, containerProviderNamed, INFRA_MODULES, vaultProviderNamed } f
 import { DEPLOYER_VERSION_TIMEOUT_MS, SYNC_INTERVAL_MS, SYNC_TIMEOUT_MS } from "../constants.ts";
 import type { CliConfig } from "./config.ts";
 import { formatSync, planLines, shortSha } from "./format.ts";
-import { needInfra } from "./workdir.ts";
 
 const NOT_FOUND = 404;
 
@@ -115,9 +114,8 @@ export const routerAccess = async (infra: InfraResources, ctx: Context) => {
   return found;
 };
 
-/** The router's admin API, for the infra file here, as `achq infra status` and `replay` reach it. */
-export const adminClient = async () =>
-  routerAdmin(await routerAccess(await loadInfra(needInfra()), context({ env: process.env, log: (line) => console.log(line) })));
+/** The router's admin API, for the infra file `file`, as `achq infra status` and `replay` reach it. */
+export const adminClient = async (file: string, parts: Pick<Context, "env" | "log">) => routerAdmin(await routerAccess(await loadInfra(file), context(parts)));
 
 /** Waits until the deployer runs `ref`. One older than `GET /version` answers 404, which counts as not yet. */
 const deployerRuns = async (admin: RouterAdmin, ref: string, ctx: Context, log: (line: string) => void) => {

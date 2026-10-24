@@ -101,5 +101,3 @@ export const routerForPusher = ({ url, token }: { url: string; token: string }) 
     deploy: async (request: RepoRequest) => void (await call("/deploy", request)),
   };
 };
-
-export type RouterForPusher = ReturnType<typeof routerForPusher>;

@@ -9,7 +9,7 @@ export const command = defineCommand({
   examples: ["achq infra status"],
   pre: () => infraChecks(needInfra(), process.env),
   run: clean(async () => {
-    const admin = await adminClient();
+    const admin = await adminClient(needInfra(), { env: process.env, log: (line) => console.log(line) });
     const [records, installed, failed] = await Promise.all([admin.status(), admin.installed(), admin.failed()]);
     console.log([infraStatusTable(records, installed), ...failedSection(failed)].join("\n"));
   }),
