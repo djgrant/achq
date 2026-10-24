@@ -31,6 +31,10 @@ export const ENV = {
   ref: "ACHQ_REF",
   /** Where a service or container keeps what outlives a restart. Its container provider sets it. */
   dataDir: "DATA_DIR",
+  /** How many runs a container has going at once. Optional. */
+  maxRuns: "ACHQ_MAX_RUNS",
+  /** How long a container's run may take before it's stopped, in minutes. Optional. */
+  runTimeoutMinutes: "ACHQ_RUN_TIMEOUT_MINUTES",
   /** The container provider the router and deployer run on, by id: where they keep what they store, and where the deployer puts containers. */
   containerProvider: "ACHQ_CONTAINER_PROVIDER",
 } as const;

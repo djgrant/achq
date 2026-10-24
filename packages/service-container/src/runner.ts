@@ -12,7 +12,7 @@ import { http } from "@achq/utils/http";
 import { zValidator } from "@hono/zod-validator";
 import { agentEnv, saveAgentEnv } from "./agent-env.ts";
 import type { LoadedConfig } from "./config.ts";
-import { DEFAULT_MAX_RUNS, DEFAULT_RUN_TIMEOUT_MINUTES, MINUTE_MS } from "./constants.ts";
+import { MINUTE_MS } from "./constants.ts";
 import { Credentials } from "./credentials.ts";
 import { configLoadFailed, failureReply, NOTHING_TO_COMPACT, runFailed, runInterrupted, unrunnableAgent, worktreeFailed } from "./messages.ts";
 import { buildPrompt, type Command, parseCommand } from "./prompt.ts";
@@ -33,8 +33,9 @@ export type RunnerOptions = {
   repoUrl: string;
   loadConfig: (commit: string) => Promise<LoadedConfig>;
   runtimes?: Record<string, RuntimeFactory>;
-  maxRuns?: number;
-  runTimeoutMs?: number;
+  /** Runs going at once; more wait for one to finish. */
+  maxRuns: number;
+  runTimeoutMs: number;
   /** Private variables are removed. */
   env?: Vars;
   now?: () => number;
@@ -119,7 +120,7 @@ export class Runner {
     this.now = opts.now ?? Date.now;
     this.log = opts.log ?? ((line) => console.log(line));
     this.runtimes = opts.runtimes ?? defaultRuntimes;
-    this.runTimeoutMs = opts.runTimeoutMs ?? DEFAULT_RUN_TIMEOUT_MINUTES * MINUTE_MS;
+    this.runTimeoutMs = opts.runTimeoutMs;
     this.router = routerForContainer({ url: opts.routerUrl, secret: opts.containerSecret });
     this.credentials = new Credentials({
       routerUrl: opts.routerUrl,
@@ -145,7 +146,7 @@ export class Runner {
     // expiry, and `install` rewrites them in place for the running agents.
     const ping = opts.keepAwake ?? keepAwake(this.baseEnv);
     let stopTicking = () => {};
-    this.slots = new RunSlots(opts.maxRuns ?? DEFAULT_MAX_RUNS, {
+    this.slots = new RunSlots(opts.maxRuns, {
       onBusy: () => {
         stopTicking = stayAwake(() => {
           void logFailure(this.credentials.get(), this.log, "credentials");

@@ -1,4 +1,5 @@
 import { CONTAINER_PORT } from "@achq/core";
+import { Env } from "@achq/utils/env";
 import { createAgent, settings } from "./agent.ts";
 import { savedAgentEnv } from "./agent-env.ts";
 import { createConfigLoader } from "./config.ts";
@@ -7,7 +8,7 @@ import { resume } from "./resume.ts";
 import { formatSessions, paths as layout, sessionsFor } from "./volume.ts";
 
 const main = async () => {
-  const { repo, container, dataDir, repoUrl } = settings(process.env);
+  const { repo, container, dataDir, repoUrl } = settings(new Env(process.env));
   const paths = layout(dataDir);
   const [command, ...args] = process.argv.slice(2);
   const required = (arg: string | undefined) => {

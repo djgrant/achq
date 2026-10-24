@@ -8,43 +8,43 @@ import { Runner } from "./runner.ts";
 import { paths as layout } from "./volume.ts";
 
 const DEFAULT_DATA_DIR = "/data";
-const MAX_RUNS_ENV = "ACHQ_MAX_RUNS";
-const RUN_TIMEOUT_MINUTES_ENV = "ACHQ_RUN_TIMEOUT_MINUTES";
 
 /** The settings every command needs, from the container's environment (what the deployer's `ContainerSpec.env` sets). */
-export const settings = (vars: Vars) => {
-  const env = new Env(vars);
-  return {
-    repo: env.require(ENV.repo),
-    container: env.require(ENV.container),
-    dataDir: env.optional(ENV.dataDir) ?? DEFAULT_DATA_DIR,
-    repoUrl: env.require(ENV.repoUrl),
-  };
-};
+export const settings = (env: Env) => ({
+  repo: env.require(ENV.repo),
+  container: env.require(ENV.container),
+  dataDir: env.optional(ENV.dataDir) ?? DEFAULT_DATA_DIR,
+  repoUrl: env.require(ENV.repoUrl),
+});
 
-export const createAgent = (env: Vars, options: { log?: (line: string) => void } = {}) => {
+/** How many runs go at once and how long each may take, from the container's environment or their defaults. */
+export const runLimits = (env: Env) => ({
+  maxRuns: env.positiveInt(ENV.maxRuns, DEFAULT_MAX_RUNS),
+  runTimeoutMs: env.positiveInt(ENV.runTimeoutMinutes, DEFAULT_RUN_TIMEOUT_MINUTES) * MINUTE_MS,
+});
+
+export const createAgent = (vars: Vars, options: { log?: (line: string) => void } = {}) => {
+  const env = new Env(vars);
   const { repo, container, dataDir, repoUrl } = settings(env);
-  const required = new Env(env);
   const paths = layout(dataDir);
   let runner: Runner;
   const loadConfig = createConfigLoader({
     mirror: paths.mirror,
     dir: paths.config,
-    fetch: async () => fetchMirror(paths.mirror, repoUrl, { ...env, ...(await runner.credentials.get()).env }),
+    fetch: async () => fetchMirror(paths.mirror, repoUrl, { ...vars, ...(await runner.credentials.get()).env }),
   });
   runner = new Runner({
     repo,
     container,
     // Without the router's key or secrets: credentials come from the router.
-    channelProviders: CHANNEL_PROVIDERS.map((c) => c.create(env)),
-    policyProviders: POLICY_PROVIDERS.map((p) => p.create(env)),
-    routerUrl: required.require(ENV.routerUrl),
-    containerSecret: required.require(ENV.containerSecret),
+    channelProviders: CHANNEL_PROVIDERS.map((c) => c.create(vars)),
+    policyProviders: POLICY_PROVIDERS.map((p) => p.create(vars)),
+    routerUrl: env.require(ENV.routerUrl),
+    containerSecret: env.require(ENV.containerSecret),
     dataDir,
     repoUrl,
-    env,
-    maxRuns: Number(env[MAX_RUNS_ENV] ?? DEFAULT_MAX_RUNS),
-    runTimeoutMs: Number(env[RUN_TIMEOUT_MINUTES_ENV] ?? DEFAULT_RUN_TIMEOUT_MINUTES) * MINUTE_MS,
+    env: vars,
+    ...runLimits(env),
     log: options.log,
     loadConfig,
   });

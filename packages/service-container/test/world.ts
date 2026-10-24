@@ -9,6 +9,8 @@ import { makeOrigin } from "@achq/test-utils/origin";
 import { testPolicyProvider } from "@achq/test-utils/test-policy-provider";
 import { tempDir } from "@achq/test-utils/temp-dir";
 import { TestChannelProvider } from "@achq/test-utils/test-channel-provider";
+import { Env } from "@achq/utils/env";
+import { runLimits } from "../src/agent.ts";
 import { createConfigLoader } from "../src/config.ts";
 import { fetchMirror } from "../src/repo.ts";
 import { Runner } from "../src/runner.ts";
@@ -53,7 +55,8 @@ export const world = async (opts: { maxRuns?: number } = {}) => {
     repoUrl: git.origin,
     loadConfig: load,
     env,
-    maxRuns: opts.maxRuns,
+    ...runLimits(new Env(env)),
+    ...(opts.maxRuns && { maxRuns: opts.maxRuns }),
     keepAwake: async () => {},
     log: (line) => logs.push(line),
   });
