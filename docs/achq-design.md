@@ -88,7 +88,8 @@ An event finds its container through its thread: event → thread (issue 42) →
 
 - A GitHub App is both a channel and a policy provider. Others needn't be: Linear would be a channel, with code access still through a GitHub App's policy, and optionally a policy provider for Linear's own API.
 - Listening and replying stay one interface. A reply goes to the thread it came from. Sending somewhere else, such as a Slack notification, would be an extra output on an agent, not half a channel.
-- Each channel defines who's trusted. For GitHub: users with write access. Only trusted messages go into the prompt.
+- Each channel defines who's trusted: it marks each event's actor trusted or not, and a bot or not. For GitHub: users with write access, on an issue opened by one. Only trusted messages go into the prompt.
+- Only a trusted person, not a bot, starts a run. That's achq's rule, not the channel's: the router wakes no container for anyone else, and the container checks again. A trigger's selector only says which events it's for.
 - Threads are keyed by channel, e.g. `github:notationlabs/yieldstar#42` or `linear:ENG-123`.
 - A thread selector (`channel.issues`, `channel.issues.where({ labels: ["docs"] })`) is a plain-data description of which threads match, not a list.
 

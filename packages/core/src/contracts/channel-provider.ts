@@ -52,6 +52,9 @@ export type RepoEvent = DeployerEvent & {
   onlyIfDeployed: boolean;
 };
 
+/** Whether a trusted person, not a bot, caused the event: only they start runs. The channel decides who's trusted; this is achq's rule for what that's for. */
+export const fromTrustedPerson = (event: ChannelEvent) => Boolean(event.actor?.trusted && !event.actor.bot);
+
 export const isRepoEvent = (event: ChannelEvent | DeployerEvent): event is DeployerEvent => "deploy" in event;
 
 export type Thread = {

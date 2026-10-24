@@ -1,4 +1,4 @@
-import { type ChannelEvent, type ChannelProvider, type ContainerEnvelope, type DeployerEnvelope, type DeployerEvent, type FailedDelivery, isRepoEvent, type ReplayResult, repoName, type RouterRepoConfig, threadKey } from "@achq/core";
+import { type ChannelEvent, type ChannelProvider, type ContainerEnvelope, type DeployerEnvelope, type DeployerEvent, type FailedDelivery, fromTrustedPerson, isRepoEvent, type ReplayResult, repoName, type RouterRepoConfig, threadKey } from "@achq/core";
 import { adminSecret, containerSecret } from "@achq/core/secrets";
 import { errors } from "@achq/utils/errors";
 import { configOf, type RouterContext } from "./context.ts";
@@ -25,7 +25,7 @@ const isForDeployer = (entry: InboxEntry): entry is Extract<InboxEntry, { event:
 export const targetsFor = (channel: ChannelProvider, event: ChannelEvent, config: RouterRepoConfig | undefined, claims: Claims): ContainerTarget[] => {
   if (!config) return [];
   // Only wake a container for something it would act on. It checks again.
-  if (!event.actor?.trusted || event.actor.bot || !event.thread) return [];
+  if (!fromTrustedPerson(event) || !event.thread) return [];
   if (!config.triggers.some((t) => t.event.channel === channel.id && channel.matchEvent(t.event, event))) return [];
 
   const thread = { ref: event.thread, labels: event.labels ?? [] };

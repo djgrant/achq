@@ -152,6 +152,7 @@ describe("routing events to containers", () => {
   test("events that wake nothing claim nothing", async () => {
     const r = await deployed();
     await r.webhook(comment(11, ["docs"], { actor: { login: "stranger", trusted: false, bot: false } }));
+    await r.webhook(comment(11, ["docs"], { actor: { login: "ci[bot]", trusted: true, bot: true } }));
     await r.webhook(comment(11, ["docs"], { type: "issue.opened" }));
     const relabelled = comment(11, []);
     await r.webhook(relabelled);

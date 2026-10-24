@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { ChannelEvent } from "@achq/core";
+import { type ChannelEvent, fromTrustedPerson } from "@achq/core";
 import type { EventSelectorData, IssueSelectorData } from "../src/index.ts";
 import { mentions } from "../src/lib/selectors.ts";
 import { channel, commentPayload, issuePayload, parse, parseRepo, repository } from "./payloads.ts";
@@ -49,10 +49,16 @@ describe("matchEvent", () => {
     expect(channel.matchEvent({ ...selector(), channel: "linear" } as any, comment("created"))).toBe(false);
   });
 
-  test("bots and untrusted actors never match", () => {
-    expect(channel.matchEvent(selector(), comment("created", { author: "x[bot]", type: "Bot", association: "OWNER" }))).toBe(false);
-    expect(channel.matchEvent(selector(), comment("created", { association: "CONTRIBUTOR" }))).toBe(false);
-    expect(channel.matchEvent(selector(), comment("created", { issue: issuePayload({ association: "NONE" }) }))).toBe(false);
+  test("matching doesn't judge the actor: bots and untrusted actors match, and aren't from a trusted person, so they start nothing", () => {
+    for (const event of [
+      comment("created", { author: "x[bot]", type: "Bot", association: "OWNER" }),
+      comment("created", { association: "CONTRIBUTOR" }),
+      comment("created", { issue: issuePayload({ association: "NONE" }) }),
+    ]) {
+      expect(channel.matchEvent(selector(), event)).toBe(true);
+      expect(fromTrustedPerson(event)).toBe(false);
+    }
+    expect(fromTrustedPerson(comment("created"))).toBe(true);
   });
 
   test("issue events, with no mention required", () => {

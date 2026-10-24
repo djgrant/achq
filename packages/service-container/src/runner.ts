@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { type ChannelClient, type ChannelEvent, type ChannelProvider, ENV, type PolicyProvider, type RepoManifest, type RuntimeContext, type RuntimeFactory, type Thread, type ThreadRef, threadKey } from "@achq/core";
+import { type ChannelClient, type ChannelEvent, type ChannelProvider, ENV, fromTrustedPerson, type PolicyProvider, type RepoManifest, type RuntimeContext, type RuntimeFactory, type Thread, type ThreadRef, threadKey } from "@achq/core";
 import { ContainerEnvelope } from "@achq/core/protocol";
 import { signedBy } from "@achq/core/signing";
 import { async } from "@achq/utils/async";
@@ -178,7 +178,7 @@ export class Runner {
     const ref = event.thread;
     if (!channel || !ref) return;
     // Only trusted people start runs.
-    if (!event.actor?.trusted || event.actor.bot) return this.log(`${tag} ignored: actor isn't a trusted person`);
+    if (!fromTrustedPerson(event)) return this.log(`${tag} ignored: actor isn't a trusted person`);
 
     const config = await this.opts.loadConfig(commit).catch(async (e) => {
       // The router only forwards events some trigger matches, so someone is waiting on a reply.

@@ -57,7 +57,6 @@ export const matchEvent = (selector: SelectorData, event: ChannelEvent) => {
   if (typeof s.event !== "string" || !Array.isArray(s.actions)) return false;
   const [name, action] = event.type.split(".");
   if (name !== s.event || !action || !s.actions.includes(action)) return false;
-  if (!event.actor || event.actor.bot || !event.actor.trusted) return false;
   if (s.labels?.some((l) => !event.labels?.includes(l))) return false;
   if (s.mention) {
     if (!mentions(event.text, s.mention)) return false;
