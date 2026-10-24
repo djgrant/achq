@@ -1,4 +1,4 @@
-import { type Change, type Context, known, ManagedResource, type Planned, UNKNOWN } from "@achq/core";
+import { type Context, CreateOnlyResource, known, type Planned, UNKNOWN } from "@achq/core";
 import { connect } from "./cloudflare.ts";
 import { COMPATIBILITY } from "../../worker/settings.ts";
 import { KV_KEYS, publicUrl } from "./names.ts";
@@ -23,8 +23,9 @@ const PLACEHOLDER = `export default { fetch: () => new Response("achq: not deplo
  * the Worker to exist, and a service's variables are set before its first
  * deploy. Its URL is known before it exists.
  */
-export class Worker extends ManagedResource<Props, State, Outputs, "create"> {
+export class Worker extends CreateOnlyResource<Props, State, Outputs> {
   readonly kind = "cloudflare-worker";
+  readonly what = "worker";
 
   async read({ name, env }: Props, ctx: Context) {
     const cf = await connect(ctx.env);
@@ -33,14 +34,6 @@ export class Worker extends ManagedResource<Props, State, Outputs, "create"> {
     if (!env) return { tag: found.id };
     const stored = known(env.namespaceId) ? await cf.kv.getJson<Record<string, string>>(env.namespaceId, KV_KEYS.service(name)) : undefined;
     return { tag: found.id, env: stored ?? {} };
-  }
-
-  diff(_: Props, current: State | undefined): "create"[] {
-    return current ? [] : ["create"];
-  }
-
-  describe(_: "create", { name }: Props): Change {
-    return { op: "+", target: name, what: "worker" };
   }
 
   planned({ name, workersDev, env }: Props, current: State | undefined): Planned<Outputs> {

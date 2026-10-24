@@ -1,4 +1,4 @@
-import { type Change, type Context, DataSource, ManagedResource, type Planned, Resource, type ResourceOptions, UNKNOWN } from "@achq/core";
+import { type Context, CreateOnlyResource, DataSource, type Planned, Resource, type ResourceOptions, UNKNOWN } from "@achq/core";
 import { connect } from "./cloudflare.ts";
 
 type Named = { name: string };
@@ -18,20 +18,13 @@ export class Account extends DataSource<{}, AccountState> {
 }
 
 /** A KV namespace, by its title. */
-export class Namespace extends ManagedResource<Named, { id: string }, { namespaceId: string }, "create"> {
+export class Namespace extends CreateOnlyResource<Named, { id: string }, { namespaceId: string }> {
   readonly kind = "cloudflare-kv-namespace";
+  readonly what = "kv namespace";
 
   async read({ name }: Named, ctx: Context) {
     const found = (await (await connect(ctx.env)).kv.namespaces()).find((n) => n.title === name);
     return found && { id: found.id };
-  }
-
-  diff(_: Named, current: { id: string } | undefined): "create"[] {
-    return current ? [] : ["create"];
-  }
-
-  describe(_: "create", { name }: Named): Change {
-    return { op: "+", target: name, what: "kv namespace" };
   }
 
   planned(_: Named, current: { id: string } | undefined): Planned<{ namespaceId: string }> {
@@ -49,19 +42,12 @@ export class Namespace extends ManagedResource<Named, { id: string }, { namespac
 }
 
 /** An R2 bucket. */
-export class Bucket extends ManagedResource<Named, {}, { bucket: string }, "create"> {
+export class Bucket extends CreateOnlyResource<Named, {}, { bucket: string }> {
   readonly kind = "cloudflare-r2-bucket";
+  readonly what = "r2 bucket";
 
   async read({ name }: Named, ctx: Context) {
     return (await (await connect(ctx.env)).r2.exists(name)) ? {} : undefined;
-  }
-
-  diff(_: Named, current: {} | undefined): "create"[] {
-    return current ? [] : ["create"];
-  }
-
-  describe(_: "create", { name }: Named): Change {
-    return { op: "+", target: name, what: "r2 bucket" };
   }
 
   planned({ name }: Named) {

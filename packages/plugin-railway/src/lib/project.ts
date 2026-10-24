@@ -1,4 +1,4 @@
-import { type Change, type Context, ManagedResource, type Planned, UNKNOWN } from "@achq/core";
+import { type Context, CreateOnlyResource, type Planned, UNKNOWN } from "@achq/core";
 import { Env } from "@achq/utils/env";
 import { type ProjectAt, type ProjectSnapshot, RailwayError } from "@achq/utils/railway";
 import { RAILWAY_ENV } from "./constants.ts";
@@ -10,22 +10,15 @@ type Props = { name: string };
 const placeOf = (project: ProjectSnapshot) => ({ projectId: project.id, environmentId: project.environmentId });
 
 /** A Railway project, found by name in RAILWAY_WORKSPACE_ID, or the token's only workspace. */
-export class Project extends ManagedResource<Props, ProjectAt, ProjectAt, "create"> {
+export class Project extends CreateOnlyResource<Props, ProjectAt, ProjectAt> {
   readonly kind = "railway-project";
+  readonly what = "railway project";
 
   async read({ name }: Props, ctx: Context) {
     const railway = railwayFromEnv(ctx.env);
     const found = await railway.projectByName(name, new Env(ctx.env).optional(RAILWAY_ENV.workspace));
     if (!found) return undefined;
     return placeOf(await railway.readProject(found.id));
-  }
-
-  diff(_: Props, current: ProjectAt | undefined): "create"[] {
-    return current ? [] : ["create"];
-  }
-
-  describe(_: "create", { name }: Props): Change {
-    return { op: "+", target: name, what: "railway project" };
   }
 
   planned(_: Props, current: ProjectAt | undefined): Planned<ProjectAt> {

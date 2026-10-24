@@ -143,3 +143,20 @@ export abstract class ManagedResource<P = any, S = any, O = any, C = any> extend
   /** For one that's protected: the page where you delete it yourself, which `achq infra down` opens once it's deleted the rest. */
   deletePage?(props: P, current: S, ctx: Context): string;
 }
+
+/**
+ * A managed resource achq only ever creates: once it exists, there's nothing
+ * to change. A plan names it by its props' `name`, as `what` it is.
+ */
+export abstract class CreateOnlyResource<P extends { name: string } = any, S = any, O = any> extends ManagedResource<P, S, O, "create"> {
+  /** What it is, in a plan: e.g. `kv namespace`. */
+  abstract readonly what: string;
+
+  diff(_: P, current: S | undefined): "create"[] {
+    return current ? [] : ["create"];
+  }
+
+  describe(_: "create", { name }: P): Change {
+    return { op: "+", target: name, what: this.what };
+  }
+}
