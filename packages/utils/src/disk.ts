@@ -1,5 +1,6 @@
 import * as fs from "node:fs";
 import * as fsp from "node:fs/promises";
+import * as os from "node:os";
 import * as path from "node:path";
 import { async } from "./async.ts";
 import { crypto } from "./crypto.ts";
@@ -122,6 +123,16 @@ export const disk = {
   },
 
   jsonFile: (dir: string, name: string) => path.join(dir, `${name}${JSON_EXT}`),
+
+  /** What `fn` gives with a new directory of its own under the system's temp directory, named from `prefix`, which is removed once `fn` is done. */
+  withTempDir: async <T>(prefix: string, fn: (dir: string) => T | Promise<T>): Promise<T> => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+    try {
+      return await fn(dir);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  },
 
   /** Every file under `dir`, by path relative to it, as text. Directories named in `skip` aren't entered. */
   readTree: (dir: string, { skip = [] }: { skip?: string[] } = {}) => {

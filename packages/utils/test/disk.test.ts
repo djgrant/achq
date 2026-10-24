@@ -136,6 +136,30 @@ describe("JsonDirStore", () => {
   });
 });
 
+describe("withTempDir", () => {
+  test("gives fn's result and removes the directory", async () => {
+    let seen = "";
+    const result = await disk.withTempDir("utils-temp-", async (dir) => {
+      seen = dir;
+      fs.writeFileSync(path.join(dir, "f"), "x");
+      return path.basename(dir);
+    });
+    expect(result.startsWith("utils-temp-")).toBe(true);
+    expect(fs.existsSync(seen)).toBe(false);
+  });
+
+  test("removes the directory when fn throws", async () => {
+    let seen = "";
+    await expect(
+      disk.withTempDir("utils-temp-", (dir) => {
+        seen = dir;
+        throw new Error("boom");
+      }),
+    ).rejects.toThrow("boom");
+    expect(fs.existsSync(seen)).toBe(false);
+  });
+});
+
 describe("paths", () => {
   test("safe file names", () => {
     expect(disk.safeFileName("owner/repo#42")).toBe("owner_repo_42");

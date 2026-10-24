@@ -1,6 +1,6 @@
 import * as fs from "node:fs";
-import * as os from "node:os";
 import * as path from "node:path";
+import { disk } from "@achq/utils/disk";
 import { subprocess } from "@achq/utils/subprocess";
 import { ITEM_CATEGORY, NOT_AN_ITEM } from "./constants.ts";
 
@@ -39,14 +39,11 @@ export class Op {
       category: ITEM_CATEGORY,
       fields: Object.entries(fields).map(([label, value]) => ({ id: label, label, type: "CONCEALED", value })),
     };
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "achq-op-"));
-    try {
+    await disk.withTempDir("achq-op-", async (dir) => {
       const file = path.join(dir, "item.json");
       fs.writeFileSync(file, JSON.stringify(template), { mode: 0o600 });
       await this.output(["item", "create", "--vault", vault, "--template", file, "--format", "json"], `1Password couldn't make "${title}" in vault ${vault}`);
-    } finally {
-      fs.rmSync(dir, { recursive: true, force: true });
-    }
+    });
   }
 
   /** Archives it, where it can still be restored from. */

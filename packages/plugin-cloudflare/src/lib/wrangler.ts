@@ -1,8 +1,8 @@
 import * as fs from "node:fs";
-import * as os from "node:os";
 import * as path from "node:path";
 import { gzipSync } from "node:zlib";
 import { crypto } from "@achq/utils/crypto";
+import { disk } from "@achq/utils/disk";
 import { Env, type Vars } from "@achq/utils/env";
 import { subprocess } from "@achq/utils/subprocess";
 import { COMPATIBILITY, SERVICE_CLASS, VERSION_BINDING, type WorkerSettings } from "../../worker/settings.ts";
@@ -73,8 +73,7 @@ export const packed = (value: string) => gzipSync(value, { level: 9 }).toString(
  */
 export const wranglerDeploy = async (env: Vars, accountId: string, config: WorkerConfig, secrets: Record<string, string>) => {
   const token = new Env(env).optional(CLOUDFLARE_ENV.token);
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "achq-wrangler-"));
-  try {
+  await disk.withTempDir("achq-wrangler-", async (dir) => {
     const configFile = path.join(dir, "wrangler.json");
     const secretsFile = path.join(dir, "secrets.json");
     fs.writeFileSync(configFile, JSON.stringify(config, null, 2));
@@ -84,7 +83,5 @@ export const wranglerDeploy = async (env: Vars, accountId: string, config: Worke
     else delete wranglerEnv[CLOUDFLARE_ENV.token];
     const result = await subprocess.collect([...wranglerCommand(env), "deploy", "--config", configFile, "--secrets-file", secretsFile], { cwd: dir, env: wranglerEnv });
     if (!result.ok) throw new Error(`Wrangler couldn't deploy ${config.name}:\n${subprocess.tail(result, LOG_TAIL_LINES)}`);
-  } finally {
-    fs.rmSync(dir, { recursive: true, force: true });
-  }
+  });
 };
