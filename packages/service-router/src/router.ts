@@ -8,7 +8,7 @@ import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import { createMiddleware } from "hono/factory";
 import { REPO, REPO_PATH } from "./constants.ts";
-import { claimsOf, configOf, createContext, repoFile, repoFromFile, type RouterDeps } from "./context.ts";
+import { claimsOf, configOf, createContext, type RouterDeps } from "./context.ts";
 import { mint, mintClients, validate } from "./credentials.ts";
 import { acceptDelivery, listFailed, replay, replayFailed, settled, targetsFor } from "./deliveries.ts";
 import { fetchSigned, reach } from "./reach.ts";
@@ -39,14 +39,14 @@ export const createRouter = (deps: RouterDeps) => {
       const config = c.req.valid("json");
       if (!repoName.same(config.repo, repo)) return c.text("bad config", 400);
       // Written before it's live, so what's served is always what a restart would load.
-      await ctx.store.repos.write(repoFile(repo), config);
+      await ctx.store.repos.write(repoName.file(repo), config);
       ctx.repos.set(repoName.key(repo), config);
       return c.body(null, 204);
     })
     .delete(REPO_PATH, async (c) => {
       const repo = `${c.req.param("owner")}/${c.req.param("name")}`;
       // Claims are kept: reinstalling brings everything back as it was.
-      await ctx.store.repos.remove(repoFile(repo));
+      await ctx.store.repos.remove(repoName.file(repo));
       ctx.repos.delete(repoName.key(repo));
       return c.body(null, 204);
     })
@@ -187,7 +187,7 @@ export const createRouter = (deps: RouterDeps) => {
       const thread = threadKey(claim.thread);
       repoClaims[thread] = { ...repoClaims[thread], [claim.container]: claim.workspace };
       ctx.claims.set(repo, repoClaims);
-      await ctx.store.claims.write(repoFile(repo), repoClaims);
+      await ctx.store.claims.write(repoName.file(repo), repoClaims);
       return c.body(null, 204);
     });
 
@@ -199,7 +199,7 @@ export const createRouter = (deps: RouterDeps) => {
       for (const config of await ctx.store.repos.all()) ctx.repos.set(repoName.key(config.repo), config);
       for (const name of await ctx.store.claims.list()) {
         const repoClaims = await ctx.store.claims.read(name);
-        if (repoClaims) ctx.claims.set(repoFromFile(name), repoClaims);
+        if (repoClaims) ctx.claims.set(repoName.fromFile(name), repoClaims);
       }
       await replay(ctx);
     },

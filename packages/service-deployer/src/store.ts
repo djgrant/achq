@@ -27,7 +27,7 @@ export type StoredRecord = DeployRecord & { deployed?: DeployedSnapshot };
 export const wireRecord = ({ deployed: _deployed, ...record }: StoredRecord): DeployRecord => record;
 
 /** A failed deploy of a name that's no repo's is recorded too, so this takes any string. */
-export const recordName = (repo: string) => disk.safeFileName(repoName.key(repo).replace("/", "__")).replace(UNSAFE_START, "_");
+export const recordName = (repo: string) => disk.safeFileName(repoName.file(repo)).replace(UNSAFE_START, "_");
 
 /** In its container provider's store: a record per repo, and the deliveries it's handled. */
 export const createStore = (stores: Stores) => {

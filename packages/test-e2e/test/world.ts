@@ -2,7 +2,7 @@ import { expect } from "bun:test";
 import { $ } from "bun";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { type BrowserAction, BrowserActionNeeded, type ContainerProvider, type ContainerSpec } from "@achq/core";
+import { type BrowserAction, BrowserActionNeeded, type ContainerProvider, type ContainerSpec, repoName } from "@achq/core";
 import { adminSecret } from "@achq/core/secrets";
 import { signedFetch } from "@achq/core/signing";
 import { createAgent, type Runner, readState } from "@achq/container";
@@ -326,7 +326,7 @@ export const startWorld = async () => {
     infraCli: <T>(method: string, route: string, body?: unknown) => adminJson<T>(routerPublic, method, route, body),
 
     routerClaims() {
-      const file = path.join(routerDir, "claims", `${REPO.toLowerCase().replace("/", "__")}.json`);
+      const file = path.join(routerDir, "claims", `${repoName.file(REPO)}.json`);
       return fs.existsSync(file) ? (JSON.parse(fs.readFileSync(file, "utf8")) as Record<string, Record<string, string>>) : {};
     },
 

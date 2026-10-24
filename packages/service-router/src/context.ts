@@ -20,10 +20,6 @@ export type RouterDeps = {
   log?: (line: string) => void;
 };
 
-/** What's kept per repo is kept in a file named after it. */
-export const repoFile = (repo: string) => repoName.key(repo).replace("/", "__");
-export const repoFromFile = (name: string) => name.replace("__", "/");
-
 export const createContext = (deps: RouterDeps) => ({
   ...deps,
   fetch: deps.fetch ?? fetch,

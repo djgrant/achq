@@ -13,6 +13,10 @@ export const repoName = {
     const [owner = "", name = ""] = repo.split("/");
     return { owner, name };
   },
+  /** The name of the file anything kept per repo is kept in: its key, with `owner/name` as `owner__name`. */
+  file: (repo: string) => repoName.key(repo).replace("/", "__"),
+  /** The repo key a `file` name was made from. */
+  fromFile: (name: string) => name.replace("__", "/"),
 };
 
 /** A repo's default branch head, and the `.achq` tree in it. */
