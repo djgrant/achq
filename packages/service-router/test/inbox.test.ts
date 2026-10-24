@@ -152,6 +152,33 @@ describe("persisted events", () => {
     expect(await (await r.admin("GET", "/admin/failed")).json()).toEqual([]);
   });
 
+  test("a repo event the deployer refuses, as one a version behind does mid-rollout, lands in failed/ and replays once it takes it", async () => {
+    const deployer = fakeDeployer();
+    deployer.respond = () => new Response("bad event", { status: 400 });
+    const r = await boot({ deployer: deployer.url });
+    await r.webhook({ delivery: "inst-refused", type: "installed", deploy: ["acme/new"], uninstall: [] });
+    await r.router.settled();
+    // Refused at once: a refusal isn't retried.
+    expect(deployer.events).toHaveLength(1);
+    expect(readJson(join(r.dir, "failed", "inst-refused.json"))).toMatchObject({ to: "deployer", error: "refused (400 bad event)" });
+
+    deployer.respond = accepted;
+    expect(await (await r.admin("POST", "/admin/failed/replay")).json()).toEqual({ replayed: ["inst-refused"], dropped: [] });
+    await r.router.settled();
+    expect(deployer.events).toHaveLength(2);
+    expect(await (await r.admin("GET", "/admin/failed")).json()).toEqual([]);
+  });
+
+  test("a container that refuses an event leaves it in failed/, as one that never answers does", async () => {
+    const r = await deployed();
+    r.dev.respond = () => new Response("bad envelope", { status: 400 });
+    const event = comment(19);
+    await r.webhook(event);
+    await r.router.settled();
+    expect(r.dev.attempts).toBe(1);
+    expect(readJson(join(r.dir, "failed", `${event.delivery}.json`)).targets).toMatchObject([{ container: "dev", error: "refused (400 bad envelope)" }]);
+  });
+
   // Delete with tagStored, once deployed infras have run it.
   test("entries an older router kept without saying where they go are tagged when it starts, then forwarded, listed and replayed as any are", async () => {
     const deployer = fakeDeployer();

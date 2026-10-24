@@ -72,6 +72,9 @@ export const reserveClaims = (ctx: RouterContext, event: ChannelEvent, targets: 
   };
 };
 
+/** A status from here up, short of a 5xx, means its target refused the event. */
+const CLIENT_ERROR = 400;
+
 const containerLabel = (t: ContainerTarget) => `${t.repo}/${t.container}`;
 
 type Endpoint = { url: string; secret: string; body: string };
@@ -93,12 +96,12 @@ const tellUnreached = async (ctx: RouterContext, event: ChannelEvent, failed: Co
 
 /**
  * Forwards an entry to its targets in the background, waking them if it has
- * to, and keeps it in `inFlight` until it's done. Targets that never answer go
- * to `failed/`, and a thread whose containers never answered is told, once.
+ * to, and keeps it in `inFlight` until it's done. Targets that never answer, or
+ * refuse it, go to `failed/`, and a thread whose containers never answered is told, once.
  */
 const forward = (ctx: RouterContext, entry: InboxEntry) => {
   const { event } = entry;
-  /** Sends the event to one target: why it never answered, if it didn't. */
+  /** Sends the event to one target: why it never took it, if it didn't. */
   const send = async (label: string, endpoint: () => Endpoint) => {
     // Addressed inside the attempt, so a bad target fails like one that never answers.
     const result = await reach(
@@ -109,9 +112,13 @@ const forward = (ctx: RouterContext, entry: InboxEntry) => {
       },
       ctx.attemptTimeout,
     );
-    if (result.ok) await result.res.body?.cancel();
     ctx.log(`${event.delivery} ${event.type} → ${label}: ${result.ok ? result.res.status : result.error}`);
-    return result.ok ? undefined : result.error;
+    if (!result.ok) return result.error;
+    const { res } = result;
+    // A 4xx answers, but refuses: its target only refuses an event whose signature or shape it doesn't accept, as one a version
+    // behind the router does mid-rollout, so the event is kept in failed/ to replay rather than dropped.
+    if (res.status >= CLIENT_ERROR) return `refused (${`${res.status} ${await res.text()}`.trim()})`;
+    await res.body?.cancel();
   };
   const deliver = async () => {
     if (entry.to === "deployer") {
