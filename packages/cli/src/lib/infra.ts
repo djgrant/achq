@@ -1,5 +1,5 @@
 import * as path from "node:path";
-import { type Check, type Context, Deployer, DEPLOYER_PORT, ENV, type Infra, known, plan, type Resource, Router, ROUTER_PRIVATE_PORT, type SyncRequest, type SyncResult, teardown } from "@achq/core";
+import { type Check, type Context, Deployer, ENV, type Infra, known, plan, type Resource, Router, type SyncRequest, type SyncResult, teardown } from "@achq/core";
 import { context } from "@achq/core/context";
 import { routerAdmin, type RouterAdmin } from "@achq/core/client";
 import { async } from "@achq/utils/async";
@@ -132,23 +132,8 @@ export const up = async ({ router, deployer, resources }: InfraResources, option
   const { log } = parts;
   const ctx = context(parts);
   if (options.rotateDeployerToken) deployer.rotateToken();
-  // What achq itself gives the router and deployer: how they reach each other, and what they run.
   const ref = await achqRef();
-  router.variables({
-    [ENV.deployerUrl]: deployer.privateUrl(DEPLOYER_PORT),
-    [ENV.ref]: ref,
-    // Where it keeps what it stores: its container provider's store.
-    [ENV.containerProvider]: router.containerProvider,
-  });
-  deployer.variables({
-    [ENV.key]: router.key,
-    [ENV.routerUrl]: router.privateUrl(ROUTER_PRIVATE_PORT),
-    [ENV.routerPublicUrl]: router.url,
-    [ENV.owners]: deployer.inputs.owners.join(","),
-    [ENV.containerEnv]: JSON.stringify(containerEnv),
-    [ENV.ref]: ref,
-    [ENV.containerProvider]: deployer.containerProvider,
-  });
+  deployer.connect({ ref, containerEnv });
 
   const planned = await plan(resources, ctx);
   if (!planned.changes.length) log("  up to date");

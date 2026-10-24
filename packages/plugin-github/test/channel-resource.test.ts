@@ -8,6 +8,7 @@ import {
   type EnvValues,
   ManagedResource,
   Output,
+  type Placement,
   type Planned,
   plan,
   resetDeclarations,
@@ -102,16 +103,22 @@ class RouterService extends ManagedResource<Service, true, Omit<Service, "exists
 class StubRouter extends Router {
   readonly containerProvider = "stub";
   readonly url: Output<string>;
-  readonly key: Output<string>;
   readonly env: Output<Record<string, string>>;
   readonly groups: (EnvValues | ((ctx: Context) => EnvValues))[] = [];
+  protected readonly placement = undefined as unknown as Placement;
+  private readonly service: RouterService;
 
   constructor(service: Service) {
     super("router");
-    const s = new RouterService("service", service, { parent: this });
-    [this.url, this.key, this.env] = [s.out("url"), s.out("key"), s.out("env")];
+    this.service = new RouterService("service", service, { parent: this });
+    [this.url, this.env] = [this.service.out("url"), this.service.out("env")];
   }
-  privateUrl = (port: number) => `http://router.internal:${port}`;
+  override get key() {
+    return this.service.out("key");
+  }
+  override children() {
+    return [];
+  }
   variables(values: EnvValues | ((ctx: Context) => EnvValues)) {
     this.groups.push(values);
     return new Output<Record<string, string>>([], () => ({}));

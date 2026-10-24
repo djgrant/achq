@@ -1,8 +1,7 @@
 import * as core from "@achq/core";
-import { type Context, type EnvValues, Output } from "@achq/core";
+import { type Context, Output } from "@achq/core";
 import { CLOUDFLARE_ENV, CONTAINER_PROVIDER } from "../lib/constants.ts";
 import { DeployerToken } from "../lib/deployer-token.ts";
-import { privateUrl, serviceWorkerName } from "../lib/names.ts";
 import { ServiceParts } from "../lib/service-parts.ts";
 import { Router } from "../router/resource.ts";
 
@@ -27,7 +26,7 @@ export type DeployerInputs = {
 export class Deployer extends core.Deployer {
   readonly containerProvider = CONTAINER_PROVIDER;
   readonly env: Output<Record<string, string>>;
-  private readonly parts: ServiceParts;
+  protected readonly placement: ServiceParts;
   private readonly token: DeployerToken;
   private rotating = false;
 
@@ -40,8 +39,7 @@ export class Deployer extends core.Deployer {
     if (!(router instanceof Router)) throw new Error(`cloudflare.Deployer ${name} runs in its router's Cloudflare project, so ${router.name} must be a cloudflare.Router`);
     const project = router.project;
     const at = project.at();
-    const worker = serviceWorkerName(router.inputs.project, name);
-    this.parts = new ServiceParts(this, { name: router.inputs.project, resource: project }, {
+    this.placement = new ServiceParts(this, { name: router.inputs.project, resource: project }, {
       variables: () => ({
         [CLOUDFLARE_ENV.accountId]: at.accountId,
         [CLOUDFLARE_ENV.project]: router.inputs.project,
@@ -54,12 +52,12 @@ export class Deployer extends core.Deployer {
       // It starts with its token.
       deployAfter: () => [this.token],
     });
-    this.env = this.parts.worker.out("env").map((env) => env!);
+    this.env = this.placement.worker.out("env").map((env) => env!);
     this.token = new DeployerToken(
       "deployer-token",
-      { worker, tag: this.parts.worker.out("tag"), replace: new Output([], () => this.rotating) },
+      { worker: this.placement.name, tag: this.placement.worker.out("tag"), replace: new Output([], () => this.rotating) },
       // No sign-in can delete an API token.
-      { parent: this, after: [this.parts.worker], protect: true },
+      { parent: this, after: [this.placement.worker], protect: true },
     );
   }
 
@@ -67,17 +65,8 @@ export class Deployer extends core.Deployer {
     this.rotating = true;
   }
 
-  privateUrl(port: number) {
-    const router = this.inputs.router as Router;
-    return privateUrl(serviceWorkerName(router.inputs.project, this.name), port);
-  }
-
-  variables(values: EnvValues | ((ctx: Context) => EnvValues)) {
-    return this.parts.variables(values);
-  }
-
   children(ctx: Context) {
     // Cloudflare's GitHub App isn't checked here: only Cloudflare can tell, so a deploy it can't build opens the App's page from `achq repo install`.
-    return [this.token, ...this.parts.children(ctx)];
+    return [this.token, ...super.children(ctx)];
   }
 }

@@ -296,10 +296,8 @@ test("the deployer runs in a Cloudflare router's project", () => {
   class Elsewhere extends core.Router {
     readonly containerProvider = "elsewhere";
     readonly url = undefined as unknown as Output<string>;
-    readonly key = undefined as unknown as Output<string>;
     readonly env = undefined as unknown as Output<Record<string, string>>;
-    privateUrl = () => "";
-    variables = () => undefined as unknown as Output<Record<string, string>>;
+    protected readonly placement = undefined as unknown as core.Placement;
   }
   expect(() => achq(() => new Deployer("deployer", { router: new Elsewhere("router"), owners: [] }))()).toThrow("router must be a cloudflare.Router");
 });

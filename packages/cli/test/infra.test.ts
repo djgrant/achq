@@ -19,23 +19,20 @@ const nothing = new core.Output<any>([], () => core.UNKNOWN);
 class ElsewhereRouter extends core.Router {
   readonly containerProvider = "elsewhere";
   readonly url = nothing;
-  readonly key = nothing;
   readonly env = nothing;
-  privateUrl = () => "http://router.elsewhere";
-  variables = () => nothing;
+  protected readonly placement = undefined as unknown as core.Placement;
 }
 
 class ElsewhereDeployer extends core.Deployer {
   readonly containerProvider = "elsewhere";
   readonly env = nothing;
+  protected readonly placement = undefined as unknown as core.Placement;
   constructor(
     name: string,
     readonly inputs: { router: core.Router; owners: string[] },
   ) {
     super(name);
   }
-  privateUrl = () => "http://deployer.elsewhere";
-  variables = () => nothing;
 }
 
 test("the router and deployer must run on one container provider, one achq can put containers on", () => {

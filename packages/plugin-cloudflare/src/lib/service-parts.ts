@@ -1,9 +1,9 @@
-import { achqStartScript, all, type Context, ENV, type EnvValues, type ManagedResource, type Service as AchqService, type VariableValues, VariableGroups } from "@achq/core";
+import { achqStartScript, all, type Context, type EnvValues, type ManagedResource, type Output, type Placement, type Service as AchqService } from "@achq/core";
 import * as path from "node:path";
 import { DATA_DIR, MANAGED_IMAGE, type WorkerSettings } from "../../worker/settings.ts";
 import { BUN_VERSION, INSTANCE } from "./constants.ts";
 import { Deployment } from "./deployment.ts";
-import { KV_KEYS, serviceWorkerName } from "./names.ts";
+import { KV_KEYS, privateUrl, serviceWorkerName } from "./names.ts";
 import type { Project } from "./project.ts";
 import { Variables } from "./variables.ts";
 import { WORKER_DIR, workerConfig } from "./wrangler.ts";
@@ -22,15 +22,12 @@ export const startCommand = (entry: string) => {
   return ["sh", "-c", `set -e; export PATH="${bun}/bin:$PATH"; command -v bun >/dev/null || npm install -g --prefix ${bun} bun@${BUN_VERSION}; exec bun -e '${script}'`];
 };
 
-/** One of achq's own services as Cloudflare resources: its Worker, its groups of variables, and its deploy. */
-export class ServiceParts {
+/** Where one of achq's own services runs on Cloudflare: its Worker, in `project`, and its deploy. */
+export class ServiceParts implements Placement {
   readonly name: string;
+  readonly dataDir = DATA_DIR;
   readonly worker: Worker;
-  /** Its own variables, its first group: what every service has, and `own.variables`. */
-  readonly first: Variables;
   private readonly namespaceId;
-  private readonly groups: VariableGroups<Variables>;
-  private made?: ManagedResource[];
 
   constructor(
     private readonly owner: AchqService,
@@ -42,19 +39,23 @@ export class ServiceParts {
     const at = project.resource.at();
     this.namespaceId = at.namespaceId;
     this.worker = new Worker("worker", { name: this.name, workersDev: at.workersDev, env: { namespaceId: this.namespaceId } }, { parent: owner });
-    this.groups = new VariableGroups(this.name, (name, values) =>
-      new Variables(
-        name,
-        { namespaceId: this.namespaceId, key: KV_KEYS.service(this.name), target: this.name, values },
-        // After its Worker, so a first run plans the Worker before what's kept for it.
-        { parent: owner, after: [this.worker] },
-      ),
-    );
-    this.first = this.groups.add((ctx) => ({ ...own.variables?.(ctx), [ENV.dataDir]: DATA_DIR, PORT: String(owner.port) }));
   }
 
-  variables(values: VariableValues) {
-    return this.groups.add(values).outputs();
+  variables(ctx: Context) {
+    return this.own.variables?.(ctx) ?? {};
+  }
+
+  privateUrl(port: number) {
+    return privateUrl(this.name, port);
+  }
+
+  group(name: string, values: EnvValues) {
+    return new Variables(
+      name,
+      { namespaceId: this.namespaceId, key: KV_KEYS.service(this.name), target: this.name, values },
+      // After its Worker, so a first run plans the Worker before what's kept for it.
+      { parent: this.owner, after: [this.worker] },
+    );
   }
 
   /** What the Worker is told about itself. */
@@ -73,10 +74,7 @@ export class ServiceParts {
     };
   }
 
-  /** Made once, when it's planned: no group of variables can be declared after. */
-  children(ctx: Context) {
-    if (this.made) return this.made;
-    const { groups, variables } = this.groups.resolve(ctx);
+  resources(groups: Variables[], variables: Output<Record<string, string>>) {
     const at = this.project.resource.at();
     const config = all([at.workersDev, at.bucket]).map(([workersDev, bucket]) =>
       workerConfig(this.settings(workersDev), { main: path.join(WORKER_DIR, "index.ts"), bucket, sshKeys: this.own.sshKeys }),
@@ -86,6 +84,6 @@ export class ServiceParts {
       { namespaceId: this.namespaceId, config, variables, ...(this.own.wait && { wait: this.worker.out("url") }) },
       { parent: this.owner, after: this.own.deployAfter?.() },
     );
-    return (this.made = [this.worker, ...groups, deploy]);
+    return [this.worker, ...groups, deploy];
   }
 }

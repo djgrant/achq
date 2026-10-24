@@ -1,8 +1,8 @@
-import { achqStartScript, CONTAINER_PORT, type ContainerSpec, type Context, ENV, type EnvValues, type Input, type ManagedResource, type Service as AchqService, type VariableValues, VariableGroups } from "@achq/core";
+import { achqStartScript, CONTAINER_PORT, type ContainerSpec, type Context, ENV, type EnvValues, type Input, type Output, type Placement, type Service as AchqService } from "@achq/core";
 import type { InstanceSettings, ProjectAt } from "@achq/utils/railway";
 import { BRANCH, BUN_IMAGE, VOLUME } from "./constants.ts";
 import { Deployment, fingerprint } from "./deployment.ts";
-import { containerServiceName, hostServiceName } from "./names.ts";
+import { containerServiceName, hostServiceName, privateUrl } from "./names.ts";
 import { Service } from "./service.ts";
 import { Variables } from "./variables.ts";
 
@@ -16,16 +16,13 @@ export const startCommand = (entry: string) => {
   return `bun -e '${achqStartScript(entry, { root: `(process.env.RAILWAY_VOLUME_MOUNT_PATH ?? "/tmp") + "/achq"` })}'`;
 };
 
-/** One of achq's own services as Railway resources: its service, its groups of variables, and its deploy. */
-export class ServiceParts {
+/** Where one of achq's own services runs on Railway: its service, in `at`, and its deploy. */
+export class ServiceParts implements Placement {
   readonly name: string;
+  readonly dataDir = VOLUME;
   readonly service: Service;
-  /** Its own variables, its first group: what every service has, and `own.variables`. */
-  readonly first: Variables;
   private readonly settings: InstanceSettings;
   private readonly at: { projectId: Input<string>; environmentId: Input<string>; serviceId: Input<string> };
-  private readonly groups: VariableGroups<Variables>;
-  private made?: ManagedResource[];
 
   constructor(
     private readonly owner: AchqService,
@@ -41,25 +38,27 @@ export class ServiceParts {
       { parent: owner },
     );
     this.at = { ...at, serviceId: this.service.out("serviceId") };
-    this.groups = new VariableGroups(this.name, (name, values) => new Variables(name, { at: this.at, service: this.name, values }, { parent: owner }));
-    this.first = this.groups.add((ctx) => ({ ...own.variables?.(ctx), [ENV.dataDir]: VOLUME, PORT: String(owner.port) }));
   }
 
-  variables(values: VariableValues) {
-    return this.groups.add(values).outputs();
+  variables(ctx: Context) {
+    return this.own.variables?.(ctx) ?? {};
   }
 
-  /** Made once, when it's planned: no group of variables can be declared after. */
-  children(ctx: Context) {
-    if (this.made) return this.made;
-    // Over every group's variables as one map, as it hashed before variables came in groups.
-    const { groups, variables } = this.groups.resolve(ctx);
+  privateUrl(port: number) {
+    return privateUrl(this.name, port);
+  }
+
+  group(name: string, values: EnvValues) {
+    return new Variables(name, { at: this.at, service: this.name, values }, { parent: this.owner });
+  }
+
+  resources(groups: Variables[], variables: Output<Record<string, string>>) {
     const deploy = new Deployment(
       "deploy",
       { at: this.at, service: this.name, fingerprint: variables.map((v) => fingerprint({ settings: this.settings, variables: v })), wait: this.own.wait },
       { parent: this.owner },
     );
-    return (this.made = [this.service, ...groups, deploy]);
+    return [this.service, ...groups, deploy];
   }
 }
 

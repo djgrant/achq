@@ -1,7 +1,6 @@
 import * as core from "@achq/core";
-import { type Context, ENV, type EnvValues, GENERATED, type Output } from "@achq/core";
+import type { Output } from "@achq/core";
 import { CONTAINER_PROVIDER } from "../lib/constants.ts";
-import { hostServiceName, privateUrl } from "../lib/names.ts";
 import { Project } from "../lib/project.ts";
 import { ServiceParts } from "../lib/service-parts.ts";
 
@@ -14,9 +13,8 @@ export class Router extends core.Router {
   readonly containerProvider = CONTAINER_PROVIDER;
   readonly project: Project;
   readonly url: Output<string>;
-  readonly key: Output<string>;
   readonly env: Output<Record<string, string>>;
-  private readonly parts: ServiceParts;
+  protected readonly placement: ServiceParts;
 
   constructor(
     name: string,
@@ -24,21 +22,12 @@ export class Router extends core.Router {
   ) {
     super(name);
     this.project = new Project("project", { name: inputs.project }, { parent: this });
-    this.parts = new ServiceParts(this, this.project.at(), { variables: () => ({ [ENV.key]: GENERATED }), wait: true });
-    this.url = this.parts.service.out("url").map((u) => u!);
-    this.key = this.parts.first.out(ENV.key);
-    this.env = this.parts.service.out("env").map((env) => env!);
+    this.placement = new ServiceParts(this, this.project.at(), { wait: true });
+    this.url = this.placement.service.out("url").map((u) => u!);
+    this.env = this.placement.service.out("env").map((env) => env!);
   }
 
-  privateUrl(port: number) {
-    return privateUrl(hostServiceName(this.name), port);
-  }
-
-  variables(values: EnvValues | ((ctx: Context) => EnvValues)) {
-    return this.parts.variables(values);
-  }
-
-  children(ctx: Context) {
-    return [this.project, ...this.parts.children(ctx)];
+  children(ctx: core.Context) {
+    return [this.project, ...super.children(ctx)];
   }
 }
