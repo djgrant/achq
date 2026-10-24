@@ -122,10 +122,26 @@ describe("JsonDirStore", () => {
     expect(await store.read("n")).toBe(9);
   });
 
-  test("refuses unsafe names", () => {
-    const store = new JsonDirStore(tmpDir());
-    expect(() => store.read("../x")).toThrow("Unsafe file name: ../x");
-    expect(() => store.write(".hidden", 1)).toThrow("Unsafe file name");
+  test("takes any string as a name, kept in its own file in the directory, and lists it back", async () => {
+    const root = tmpDir();
+    const dir = path.join(root, "records");
+    const store = new JsonDirStore<number>(dir);
+    const names = ["owner/name", "../x", ".hidden", "..", ".", "", "100%", "a%2Fb", "ünï"];
+    for (const [i, name] of names.entries()) await store.write(name, i);
+    expect(await store.list()).toEqual([...names].sort());
+    for (const [i, name] of names.entries()) expect(await store.read(name)).toBe(i);
+    // Nothing outside the directory, and no file hidden in it but the empty name's, `.json`.
+    expect(fs.readdirSync(root)).toEqual(["records"]);
+    expect(fs.readdirSync(dir).filter((f) => f.startsWith("."))).toEqual([".json"]);
+    expect(fs.existsSync(path.join(dir, "owner%2Fname.json"))).toBe(true);
+    await store.remove("owner/name");
+    expect(await store.read("owner/name")).toBeUndefined();
+  });
+
+  test("lists only names it encoded, so each one listed reads back", async () => {
+    const dir = tmpDir();
+    for (const file of ["plain.json", "bad%zz.json", "a%2fb.json"]) fs.writeFileSync(path.join(dir, file), "1");
+    expect(await new JsonDirStore(dir).list()).toEqual(["plain"]);
   });
 
   test("writes with the store's mode and format", async () => {
@@ -163,9 +179,6 @@ describe("withTempDir", () => {
 describe("paths", () => {
   test("safe file names", () => {
     expect(disk.safeFileName("owner/repo#42")).toBe("owner_repo_42");
-    expect(disk.isSafeFileName("owner__repo")).toBe(true);
-    expect(disk.isSafeFileName("..")).toBe(false);
-    expect(disk.isSafeFileName("a/b")).toBe(false);
   });
 
   test("resolveWithin refuses paths that leave the root", () => {

@@ -52,7 +52,7 @@ export interface ContainerShell {
   run(location: Record<string, string>, command: string[]): Promise<string>;
 }
 
-/** JSON values by name: one collection of what a service keeps. A write is durable once it resolves: a crash right after it loses nothing. */
+/** JSON values by name, any string: one collection of what a service keeps. A write is durable once it resolves: a crash right after it loses nothing. */
 export interface JsonStore<T> {
   read(name: string): Promise<T | undefined>;
   write(name: string, value: T): Promise<void>;
@@ -66,6 +66,25 @@ export interface JsonStore<T> {
 
 /** A service's durable storage: each of its collections, by name. */
 export type Stores = <T>(collection: string) => JsonStore<T>;
+
+/**
+ * Moves each value in `store` to the name `rename` gives it, where that's a
+ * new one: written there, then removed from the old. Run before anything else
+ * uses the store, so a move a crash cut short is simply made again.
+ *
+ * For the one-time move off names stores were once given as file names
+ * (`owner__name`); delete it once deployed infras have run it.
+ */
+export const renameStored = async <T>(store: JsonStore<T>, rename: (name: string, value: T) => string) => {
+  for (const name of await store.list()) {
+    const value = await store.read(name);
+    if (value === undefined) continue;
+    const renamed = rename(name, value);
+    if (renamed === name) continue;
+    await store.write(renamed, value);
+    await store.remove(name);
+  }
+};
 
 /**
  * A container provider as the registry lists it: the `ContainerProvider` the

@@ -49,8 +49,9 @@ const NOT_FOUND = 404;
 
 /**
  * JSON values by name at `base`: `GET base` lists the names, sorted; `GET`,
- * `PUT` and `DELETE` `base/<name>` read, write and remove one. A write is kept
- * once it's answered. Names are path segments, so they're encoded.
+ * `PUT` and `DELETE` `base?name=<name>` read, write and remove one. A write is
+ * kept once it's answered. Any string is a name: in the query, not the path,
+ * so neither a `/` nor a `..` in one can change which path it's at.
  */
 export class HttpJsonStore<T> {
   constructor(
@@ -59,7 +60,7 @@ export class HttpJsonStore<T> {
   ) {}
 
   private url(name: string) {
-    return `${this.base}/${encodeURIComponent(name)}`;
+    return `${this.base}?name=${encodeURIComponent(name)}`;
   }
 
   private async call(method: string, url: string, body?: string) {

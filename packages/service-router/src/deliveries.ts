@@ -57,7 +57,7 @@ export const reserveClaims = (ctx: RouterContext, event: ChannelEvent, targets: 
   repoClaims[thread] = { ...before, ...Object.fromEntries(fresh.map((t) => [t.container, t.workspace])) };
   ctx.claims.set(repo, repoClaims);
   return {
-    persist: () => ctx.store.claims.write(repoName.file(repo), ctx.claims.get(repo) ?? repoClaims),
+    persist: () => ctx.store.claims.write(repo, ctx.claims.get(repo) ?? repoClaims),
     release: () => {
       const now = ctx.claims.get(repo)?.[thread];
       if (!now) return;

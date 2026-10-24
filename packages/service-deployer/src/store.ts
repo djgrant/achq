@@ -1,15 +1,11 @@
-import { type DeployRecord, type RepoManifest, repoName, type Stores } from "@achq/core";
+import { type DeployRecord, type RepoManifest, renameStored, repoName, type Stores } from "@achq/core";
 import { async } from "@achq/utils/async";
-import { disk } from "@achq/utils/disk";
 
 /** How many delivery IDs are remembered as handled: the newest. */
 const MAX_DELIVERIES = 5000;
 
 /** The one value in the `deliveries` collection: the IDs handled. */
 const HANDLED = "handled";
-
-/** A name can't start with `.` or be empty: it may be a file's. */
-const UNSAFE_START = /^\.|^$/;
 
 /** What a container was last deployed from: a change to either means a rebuild. */
 export type ImageRecord = { dockerfile: string; blob: string };
@@ -26,12 +22,18 @@ export type StoredRecord = DeployRecord & { deployed?: DeployedSnapshot };
 /** The record without what only the deployer reads. */
 export const wireRecord = ({ deployed: _deployed, ...record }: StoredRecord): DeployRecord => record;
 
-/** A failed deploy of a name that's no repo's is recorded too, so this takes any string. */
-export const recordName = (repo: string) => disk.safeFileName(repoName.file(repo)).replace(UNSAFE_START, "_");
-
-/** In its container provider's store: a record per repo, and the deliveries it's handled. */
+/** In its container provider's store: a record per repo, by `repoName.key`, and the deliveries it's handled. */
 export const createStore = (stores: Stores) => {
-  const records = stores<StoredRecord>("records");
+  const store = stores<StoredRecord>("records");
+  // Once only, before the first use: records were kept under file names (`owner__name`). Delete once deployed infras have run it.
+  let renamed: Promise<void> | undefined;
+  const records = async () => {
+    await (renamed ??= renameStored(store, (_name, record) => repoName.key(record.repo)).catch((error) => {
+      renamed = undefined;
+      throw error;
+    }));
+    return store;
+  };
   const handled = stores<string[]>("deliveries");
   let deliveries: string[] | undefined;
   const loadDeliveries = async () => (deliveries ??= (await handled.read(HANDLED)) ?? []);
@@ -39,10 +41,10 @@ export const createStore = (stores: Stores) => {
   const inOrder = async.serial();
 
   return {
-    get: (repo: string) => records.read(recordName(repo)),
-    put: (record: StoredRecord) => records.write(recordName(record.repo), record),
+    get: async (repo: string) => (await records()).read(repoName.key(repo)),
+    put: async (record: StoredRecord) => (await records()).write(repoName.key(record.repo), record),
     /** Every record, in name order. */
-    all: () => records.all(),
+    all: async () => (await records()).all(),
     handled: async (delivery: string) => (await loadDeliveries()).includes(delivery),
     async markHandled(delivery: string) {
       const list = await loadDeliveries();

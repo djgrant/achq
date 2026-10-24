@@ -1,14 +1,13 @@
-import { type ChannelProvider, type CredentialsResponse, type DeployerEvent, repoName } from "@achq/core";
+import { type ChannelProvider, type CredentialsResponse, type DeployerEvent, renameStored, repoName } from "@achq/core";
 import { CredentialsRequest, InstallationRequest, MintRequest, RepoRequest, RouterRepoConfig, ValidateRequest, WakeRequest } from "@achq/core/protocol";
 import { adminSecret, containerSecret } from "@achq/core/secrets";
 import { isSigned, signedBy } from "@achq/core/signing";
 import { collections } from "@achq/utils/collections";
-import { disk } from "@achq/utils/disk";
 import { http } from "@achq/utils/http";
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import { createMiddleware } from "hono/factory";
-import { REPO_PATH } from "./constants.ts";
+import { DELIVERY_ID, REPO_PATH } from "./constants.ts";
 import { claimsOf, configOf, createContext, type RouterDeps } from "./context.ts";
 import { mint, mintClients, validate } from "./credentials.ts";
 import { acceptDelivery, type InboxEntry, type Reservation, listFailed, replay, replayFailed, reserveClaims, settled, targetsFor } from "./deliveries.ts";
@@ -37,14 +36,14 @@ export const createRouter = (deps: RouterDeps) => {
       const config = c.req.valid("json");
       if (!repoName.same(config.repo, repo)) return c.text("bad config", 400);
       // Written before it's live, so what's served is always what a restart would load.
-      await ctx.store.repos.write(repoName.file(repo), config);
+      await ctx.store.repos.write(repoName.key(repo), config);
       ctx.repos.set(repoName.key(repo), config);
       return c.body(null, 204);
     })
     .delete(REPO_PATH, async (c) => {
       const repo = `${c.req.param("owner")}/${c.req.param("name")}`;
       // Claims are kept: reinstalling brings everything back as it was.
-      await ctx.store.repos.remove(repoName.file(repo));
+      await ctx.store.repos.remove(repoName.key(repo));
       ctx.repos.delete(repoName.key(repo));
       return c.body(null, 204);
     })
@@ -95,8 +94,7 @@ export const createRouter = (deps: RouterDeps) => {
       if (!found) return c.text("bad signature", 401);
       const parsed = found.channel.parse(found.source, headers, body);
       if (!parsed) return c.text("ignored");
-      // The delivery ID names its inbox file.
-      if (!disk.isSafeFileName(parsed.event.delivery)) return c.text("bad delivery id", 400);
+      if (!DELIVERY_ID.test(parsed.event.delivery)) return c.text("bad delivery id", 400);
 
       let entry: InboxEntry;
       let claim: Reservation | undefined;
@@ -191,10 +189,14 @@ export const createRouter = (deps: RouterDeps) => {
     privateFetch: privateApp.fetch,
     /** Loads config and claims from the store, then replays the inbox in the background. Call before serving. */
     start: async () => {
+      // Once only: stores were given repos as `owner__name`. Delete once deployed infras have started with it.
+      await renameStored(ctx.store.repos, (_name, config) => repoName.key(config.repo));
+      await renameStored(ctx.store.claims, (name) => (name.includes("/") ? name : name.replace("__", "/")));
+
       for (const config of await ctx.store.repos.all()) ctx.repos.set(repoName.key(config.repo), config);
       for (const name of await ctx.store.claims.list()) {
         const repoClaims = await ctx.store.claims.read(name);
-        if (repoClaims) ctx.claims.set(repoName.fromFile(name), repoClaims);
+        if (repoClaims) ctx.claims.set(name, repoClaims);
       }
       await replay(ctx);
     },

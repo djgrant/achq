@@ -182,9 +182,9 @@ export class Service extends DurableObject<Env> {
     await this.lifecycle.touch();
   }
 
-  async store(method: string, path: string, body: string) {
+  async store(method: string, pathAndQuery: string, body: string) {
     const storage = this.ctx.storage;
-    const response = await storeRequest(method, path, body, {
+    const response = await storeRequest(method, pathAndQuery, body, {
       get: (key) => storage.get<string>(key),
       put: (key, value) => storage.put(key, value),
       delete: (key) => storage.delete(key),
@@ -202,7 +202,7 @@ export class Outbound extends WorkerEntrypoint<Env> {
     const route = outbound(url.hostname);
     switch (route.to) {
       case "store": {
-        const { status, body } = await service(this.ctx.exports).store(req.method, url.pathname, await req.text());
+        const { status, body } = await service(this.ctx.exports).store(req.method, url.pathname + url.search, await req.text());
         return new Response(status === 204 ? null : body, { status, headers: { "content-type": "application/json" } });
       }
       case "awake":

@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import { HttpJsonStore } from "@achq/utils/http";
 import { inbound, outbound, storeRequest, workerUrl } from "../worker/routes.ts";
 import type { WorkerSettings } from "../worker/settings.ts";
 
@@ -33,13 +34,26 @@ test("the store lists, reads, writes and removes JSON by collection and name", a
     delete: async (key: string) => values.delete(key),
     list: async (prefix: string) => [...values.keys()].filter((k) => k.startsWith(prefix)),
   };
-  expect((await storeRequest("PUT", "/inbox/d-1", `{"a":1}`, memory)).status).toBe(204);
-  await storeRequest("PUT", "/inbox/d-0", `{"a":0}`, memory);
-  await storeRequest("PUT", "/repos/acme__w", `{}`, memory);
+  expect((await storeRequest("PUT", "/inbox?name=d-1", `{"a":1}`, memory)).status).toBe(204);
+  await storeRequest("PUT", "/inbox?name=d-0", `{"a":0}`, memory);
+  await storeRequest("PUT", "/repos?name=acme%2Fw", `{}`, memory);
   expect(await (await storeRequest("GET", "/inbox", "", memory)).json()).toEqual(["d-0", "d-1"]);
-  expect(await (await storeRequest("GET", "/inbox/d-1", "", memory)).json()).toEqual({ a: 1 });
-  await storeRequest("DELETE", "/inbox/d-1", "", memory);
-  expect((await storeRequest("GET", "/inbox/d-1", "", memory)).status).toBe(404);
-  expect((await storeRequest("GET", "/inbox/a/b", "", memory)).status).toBe(400);
+  expect(await (await storeRequest("GET", "/inbox?name=d-1", "", memory)).json()).toEqual({ a: 1 });
+  expect(values.has("store/repos/acme/w")).toBe(true);
+  await storeRequest("DELETE", "/inbox?name=d-1", "", memory);
+  expect((await storeRequest("GET", "/inbox?name=d-1", "", memory)).status).toBe(404);
+  expect((await storeRequest("GET", "/inbox/a", "", memory)).status).toBe(400);
   expect((await storeRequest("GET", "/", "", memory)).status).toBe(400);
+
+  // Through HttpJsonStore, as the router and deployer reach it: any name round-trips, and none leaves its collection.
+  const store = (collection: string) =>
+    new HttpJsonStore<number>(`http://store.achq.internal/${collection}`, (async (url: string, init: RequestInit) => {
+      const { pathname, search } = new URL(url);
+      return storeRequest(init.method!, pathname + search, (init.body as string | undefined) ?? "", memory);
+    }) as typeof fetch);
+  const odd = ["owner/name", "..", ".", "", "a?b&name=c", "../inbox/d-0", "100%"];
+  for (const [i, name] of odd.entries()) await store("odd").write(name, i);
+  expect(await store("odd").list()).toEqual([...odd].sort());
+  for (const [i, name] of odd.entries()) expect(await store("odd").read(name)).toBe(i);
+  expect(await (await storeRequest("GET", "/inbox", "", memory)).json()).toEqual(["d-0"]);
 });

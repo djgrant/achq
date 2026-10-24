@@ -16,6 +16,7 @@ import { FakeRouter } from "@achq/test-utils/deployer/router";
 import { MemoryContainerProvider } from "@achq/test-utils/deployer/container-provider";
 import { dirStores } from "@achq/test-utils/stores";
 import { deployerHandler } from "../src/server.ts";
+import type { StoredRecord } from "../src/store.ts";
 
 const KEY = "test-webhook-key";
 const REPO = "notationlabs/yieldstar";
@@ -262,6 +263,20 @@ describe("checks", () => {
 });
 
 describe("config changes", () => {
+  // Delete with renameStored, once deployed infras have run it.
+  test("records kept under their old file names move to their repo keys before the deployer first reads one", async () => {
+    github.commit(REPO, repoFiles());
+    expect((await makeDeployer().deploy(REPO)).outcome).toBe("deployed");
+    // As an older deployer kept them: `owner__name`, and a name that's no repo's made safe as a file name.
+    const records = dirStores(dataDir)<StoredRecord>("records");
+    await records.write("notationlabs__yieldstar", (await records.read(REPO))!);
+    await records.remove(REPO);
+    await records.write("_hidden", { repo: ".Hidden", state: "failed", at: "2026-10-17T10:00:00Z", error: "no such repo" });
+
+    expect((await makeDeployer().deploy(REPO)).outcome).toBe("unchanged");
+    expect(await records.list()).toEqual([".hidden", REPO]);
+  });
+
   test("a new token for the agents deploys again, with the same .achq tree, and builds nothing", async () => {
     github.commit(REPO, repoFiles());
     expect((await makeDeployer().deploy(REPO)).outcome).toBe("deployed");

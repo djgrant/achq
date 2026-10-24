@@ -30,7 +30,7 @@ export const outbound = (hostname: string): Outbound => {
 /** Another Worker's public URL for a path. */
 export const workerUrl = (worker: string, settings: WorkerSettings, pathAndQuery: string) => `https://${worker}.${settings.workersDev}${pathAndQuery}`;
 
-/** The JSON store, as the router and deployer reach it at `store.achq.internal`: `/<collection>` lists, `/<collection>/<name>` is one value. */
+/** The JSON store, as the router and deployer reach it at `store.achq.internal` (`HttpJsonStore`): `/<collection>` lists, `/<collection>?name=<name>` is one value, by any string. */
 export interface StoreMemory {
   get(key: string): Promise<string | undefined>;
   put(key: string, value: string): Promise<void>;
@@ -41,12 +41,15 @@ export interface StoreMemory {
 const STORE_PREFIX = "store/";
 const SEGMENT = /^[^/]+$/;
 
-/** Answers a store request from `memory`. A write is kept once it's answered, as Durable Object storage keeps it. */
-export const storeRequest = async (method: string, path: string, body: string, memory: StoreMemory): Promise<Response> => {
-  const [collection, name, ...rest] = path.replace(/^\//, "").split("/").map(decodeURIComponent);
-  if (!collection || !SEGMENT.test(collection) || rest.length || (name !== undefined && !SEGMENT.test(name))) return new Response("bad path", { status: 400 });
+/** Answers a store request, for `pathAndQuery`, from `memory`. A write is kept once it's answered, as Durable Object storage keeps it. */
+export const storeRequest = async (method: string, pathAndQuery: string, body: string, memory: StoreMemory): Promise<Response> => {
+  const url = new URL(pathAndQuery, "http://store");
+  const collection = decodeURIComponent(url.pathname.slice(1));
+  if (!SEGMENT.test(collection)) return new Response("bad path", { status: 400 });
+  // A key is the collection's prefix and the name, whatever it is: listing by the prefix finds it.
   const prefix = `${STORE_PREFIX}${collection}/`;
-  if (name === undefined) {
+  const name = url.searchParams.get("name");
+  if (name === null) {
     if (method !== "GET") return new Response("method not allowed", { status: 405 });
     const keys = await memory.list(prefix);
     return Response.json(keys.map((k) => k.slice(prefix.length)).sort());

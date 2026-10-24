@@ -261,5 +261,5 @@ test("the router and deployer keep what they store in their Durable Object, whic
   } finally {
     globalThis.fetch = real;
   }
-  expect(requests).toEqual(["PUT http://store.achq.internal/inbox/d-1"]);
+  expect(requests).toEqual(["PUT http://store.achq.internal/inbox?name=d-1"]);
 });

@@ -12,8 +12,6 @@ export type JsonWriteOptions = WriteOptions & { pretty?: boolean };
 
 const JSON_EXT = ".json";
 
-/** Names that are safe as one path segment: no separators, and not `.` or `..`. */
-const SAFE_FILE_NAME = /^[\w-][\w.-]*$/;
 const UNSAFE_CHAR = /[^A-Za-z0-9._-]/g;
 
 /** Unique per process and write, so concurrent writers never share a temp file. */
@@ -148,8 +146,6 @@ export const disk = {
     return files;
   },
 
-  isSafeFileName: (name: string) => SAFE_FILE_NAME.test(name),
-
   safeFileName: (name: string) => name.replace(UNSAFE_CHAR, "_"),
 
   /** Where a path someone wrote for a machine goes there: `~/…` and relative paths under `home`, absolute paths as they are. */
@@ -168,7 +164,25 @@ export const disk = {
   },
 };
 
-/** JSON files in `dir`, one per name, created on the first write. Names must be safe file names (see `disk.safeFileName`); others throw. */
+/**
+ * A name as a file name, reversibly: percent-encoded, so `/` and the like
+ * can't make it a path, with a leading `.` escaped too, so it's never hidden
+ * (but for the empty name's, `.json`).
+ * `%2E` is never `encodeURIComponent`'s, so decoding gives the name back.
+ */
+const encodeName = (name: string) => encodeURIComponent(name).replace(/^\./, "%2E");
+
+/** The name a file name was encoded from, or undefined for one `encodeName` didn't make. */
+const decodeName = (file: string) => {
+  try {
+    const name = decodeURIComponent(file);
+    return encodeName(name) === file ? name : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
+/** JSON files in `dir`, one per name, created on the first write. Any string is a name: each is encoded as a file name, and decoded back by `list`. */
 export class JsonDirStore<T> {
   /** One write or removal of a name at a time, in the order asked for. */
   private inOrder = async.keyedQueue();
@@ -179,8 +193,7 @@ export class JsonDirStore<T> {
   ) {}
 
   private fileOf(name: string) {
-    if (!disk.isSafeFileName(name)) throw new Error(`Unsafe file name: ${name}`);
-    return disk.jsonFile(this.dir, name);
+    return disk.jsonFile(this.dir, encodeName(name));
   }
 
   read(name: string) {
@@ -198,9 +211,12 @@ export class JsonDirStore<T> {
     return this.inOrder(name, () => fsp.rm(file, { force: true }));
   }
 
-  /** Every stored name, sorted. */
-  list() {
-    return disk.listJsonNames(this.dir);
+  /** Every stored name, sorted. Files it didn't write are skipped. */
+  async list() {
+    return (await disk.listJsonNames(this.dir))
+      .map(decodeName)
+      .filter((name) => name !== undefined)
+      .sort();
   }
 
   /** Every stored value, in name order. */

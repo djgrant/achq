@@ -327,7 +327,7 @@ export const startWorld = async () => {
     infraCli: <T>(method: string, route: string, body?: unknown) => adminJson<T>(routerPublic, method, route, body),
 
     routerClaims() {
-      const file = path.join(routerDir, "claims", `${repoName.file(REPO)}.json`);
+      const file = path.join(routerDir, "claims", `${encodeURIComponent(repoName.key(REPO))}.json`);
       return fs.existsSync(file) ? (JSON.parse(fs.readFileSync(file, "utf8")) as Record<string, Record<string, string>>) : {};
     },
 

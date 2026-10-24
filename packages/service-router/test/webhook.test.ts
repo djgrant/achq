@@ -101,7 +101,7 @@ describe("routing events to containers", () => {
     expect([(await first).status, (await second).status]).toEqual([202, 202]);
     await r.router.settled();
     expect(r.dev.events.map((e) => e.workspace)).toEqual(["dev-docs", "dev-docs"]);
-    expect(readJson(join(dir, "claims", `${repo.replace("/", "__")}.json`))).toEqual({ [`test:${repo}#13`]: { dev: "dev-docs", docsbox: "docs" } });
+    expect(readJson(join(dir, "claims", `${encodeURIComponent(repo)}.json`))).toEqual({ [`test:${repo}#13`]: { dev: "dev-docs", docsbox: "docs" } });
   });
 
   test("a claim whose event never reaches the inbox is undone", async () => {
@@ -206,6 +206,8 @@ describe("routing events to containers", () => {
     for (const event of drops) expect(await (await r.webhook(event)).text()).toBe("no match");
     expect(await (await r.webhook({ type: "ping" })).text()).toBe("ignored");
     expect((await r.webhook(comment(8), "wrong-secret")).status).toBe(401);
+    // A delivery ID is held to a short run of plain characters.
+    for (const delivery of ["../x", "a b", "", "d".repeat(201)]) expect(await (await r.webhook(comment(8, [], { delivery }))).text()).toBe("bad delivery id");
     await r.router.settled();
     expect(r.dev.attempts + r.docsbox.attempts).toBe(0);
     expect(readdirSync(r.dir).includes("inbox") ? readdirSync(join(r.dir, "inbox")) : []).toEqual([]);
