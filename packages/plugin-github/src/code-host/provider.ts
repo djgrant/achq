@@ -7,6 +7,7 @@ import type { Apps } from "../lib/apps.ts";
 import { configNeeds, configSource } from "../lib/config-needs.ts";
 import { CODE_HOST, githubUrls, type GitHubUrls, POLICY_PROVIDER, REPO_NAME } from "../lib/constants.ts";
 import { DEPLOYER_PERMISSIONS } from "../lib/permissions.ts";
+import { asYou } from "../lib/you.ts";
 import type { GitHubPolicyData } from "../policy/resource.ts";
 import { CodeHost } from "./resource.ts";
 
@@ -32,7 +33,7 @@ export class GitHubCodeHostProvider implements CodeHostProvider {
 
   /** You, through your gh login: the CLI's side. Logged in on first use, since the router makes this provider too. */
   private get gh() {
-    return (this.you ??= GitHub.connect({ token: this.token(), baseUrl: this.urls.api }));
+    return (this.you ??= asYou(this.env));
   }
 
   /** Through whichever App is installed on the repo: GitHub's policy provider finds it. */
