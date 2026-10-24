@@ -11,6 +11,7 @@ import { DELIVERY_ID, REPO_PATH } from "./constants.ts";
 import { claimsOf, configOf, createContext, type RouterDeps } from "./context.ts";
 import { mint, mintClients, validate } from "./credentials.ts";
 import { acceptDelivery, type InboxEntry, type Reservation, listFailed, replay, replayFailed, reserveClaims, settled, targetsFor } from "./deliveries.ts";
+import { tagStored } from "./migrations.ts";
 import { fetchSigned, reach } from "./reach.ts";
 
 type Container = RouterRepoConfig["containers"][number];
@@ -192,6 +193,9 @@ export const createRouter = (deps: RouterDeps) => {
       // Once only: stores were given repos as `owner__name`. Delete once deployed infras have started with it.
       await renameStored(ctx.store.repos, (_name, config) => repoName.key(config.repo));
       await renameStored(ctx.store.claims, (name) => (name.includes("/") ? name : name.replace("__", "/")));
+      // Once only: entries were kept untagged, each target saying what it was. Delete once deployed infras have started with it.
+      await tagStored(ctx.store.inbox);
+      await tagStored(ctx.store.failed);
 
       for (const config of await ctx.store.repos.all()) ctx.repos.set(repoName.key(config.repo), config);
       for (const name of await ctx.store.claims.list()) {
