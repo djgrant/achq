@@ -121,10 +121,8 @@ export const createDeployer = (deps: DeployerDeps) => {
         if (await ctx.store.handled(event.delivery)) return false;
         const { host } = event;
         // One by one: each repo gets its own deploy and its own ACHQ_STATUS.
-        if (event.installation) {
-          for (const repo of event.installation.added) await actions.deploy(host, repo);
-          for (const repo of event.installation.removed) await actions.uninstall(host, repo);
-        } else if (event.configChanged && event.repo) await actions.deploy(host, event.repo);
+        for (const repo of event.deploy) await actions.deploy(host, repo);
+        for (const repo of event.uninstall) await actions.uninstall(host, repo);
         // Marked only once handled, so a crash part-way lets the router's replay finish the job.
         await ctx.store.markHandled(event.delivery);
         return true;

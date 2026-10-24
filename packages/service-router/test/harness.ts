@@ -2,7 +2,7 @@ import { afterEach, expect } from "bun:test";
 import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { ContainerEnvelope, DeployerEnvelope, PolicyData, SelectorData, PolicyProvider, ChannelProvider, ChannelEvent, CodeHostProvider, RouterRepoConfig, Stores } from "@achq/core";
+import type { ContainerEnvelope, DeployerEnvelope, PolicyData, SelectorData, PolicyProvider, ChannelProvider, ChannelEvent, CodeHostProvider, RepoEvent, RouterRepoConfig, Stores } from "@achq/core";
 import { adminSecret, containerSecret } from "@achq/core/secrets";
 import { signedRequestInit, verifySigned } from "@achq/core/signing";
 import { crypto } from "@achq/utils/crypto";
@@ -17,7 +17,7 @@ export const hour = () => new Date(Date.now() + 3_600_000).toISOString();
 export const sourceSecret = (source: string) => crypto.hmacHex(key, `test-source:${source}`);
 export const SOURCES = ["app"];
 
-/** Deliveries are a ChannelEvent's fields as JSON, signed per source. */
+/** Deliveries are a ChannelEvent's or RepoEvent's fields as JSON, signed per source. */
 export const testChannel: ChannelProvider = {
   id: "test",
   async verify(headers, body) {
@@ -28,6 +28,7 @@ export const testChannel: ChannelProvider = {
   parse(source, _headers, body) {
     const data = JSON.parse(body);
     if (data.type === "ping") return undefined;
+    if ("deploy" in data) return { uninstall: [], onlyIfDeployed: false, ...data };
     return { channel: "test", source, detail: {}, ...data };
   },
   async mintClient(source, forRepo) {
@@ -161,7 +162,7 @@ export const boot = async ({ dir = mkdtempSync(join(tmpdir(), "achq-router-")), 
     admin: (method: string, path: string, body?: object, base = priv) => signedRequest(base, adminSecret(key), method, path, body),
     asContainer: (forRepo: string, container: string, path: string, body: object, at?: number, base = priv) =>
       signedRequest(base, containerSecret(key, forRepo, container), "POST", path, body, at),
-    webhook: (event: Partial<ChannelEvent>, secret = sourceSecret("app")) => {
+    webhook: (event: Partial<ChannelEvent> | Partial<RepoEvent>, secret = sourceSecret("app")) => {
       const body = JSON.stringify(event);
       return fetch(`${pub}/webhook`, { method: "POST", body, headers: { "x-test-source": "app", "x-test-signature": crypto.hmacHex(secret, body) } });
     },
@@ -213,7 +214,7 @@ export const deployed = async (options: Boot = {}) => {
   return { ...r, dev, docsbox };
 };
 
-export const deliveryIds = (c: { events: { event: ChannelEvent }[] }) => c.events.map((e) => e.event.delivery);
+export const deliveryIds = (c: { events: { event: { delivery: string } }[] }) => c.events.map((e) => e.event.delivery);
 export const readJson = (path: string) => JSON.parse(readFileSync(path, "utf8"));
 
 /** Makes a container hold its answer until released, and say when a request has arrived. */

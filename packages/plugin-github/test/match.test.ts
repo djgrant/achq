@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import type { ChannelEvent } from "@achq/core";
 import type { EventSelectorData, IssueSelectorData } from "../src/index.ts";
 import { mentions } from "../src/lib/selectors.ts";
-import { channel, commentPayload, issuePayload, parse, repository } from "./payloads.ts";
+import { channel, commentPayload, issuePayload, parse, parseRepo, repository } from "./payloads.ts";
 
 describe("matchEvent", () => {
   const selector = (over: Partial<EventSelectorData> = {}): EventSelectorData => ({
@@ -61,9 +61,8 @@ describe("matchEvent", () => {
     expect(channel.matchEvent({ channel: "github", source: "notation-achq", event: "issues", actions: ["reopened"] }, opened)).toBe(false);
   });
 
-  test("a push or a thread selector never matches as an event", () => {
-    const push = parse("push", { ref: "refs/heads/main", commits: [], repository, after: "x" })!;
-    expect(channel.matchEvent(selector({ event: "push" as any, actions: [] }), push)).toBe(false);
+  test("a push is never an event on a thread, and a thread selector never matches as an event", () => {
+    expect(parseRepo("push", { ref: "refs/heads/main", commits: [{ added: [".achq/config.ts"] }], repository, after: "x" })?.type).toBe("push");
     expect(channel.matchEvent({ channel: "github", source: "notation-achq", kind: "issue" }, comment("created"))).toBe(false);
   });
 });

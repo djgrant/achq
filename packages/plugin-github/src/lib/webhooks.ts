@@ -1,4 +1,4 @@
-import { type ChannelEvent, CONFIG_DIR } from "@achq/core";
+import { type ChannelEvent, CONFIG_DIR, type RepoEvent } from "@achq/core";
 import { collections } from "@achq/utils/collections";
 import type { Json } from "@achq/utils/json";
 import { CHANNEL, CODE_HOST } from "./constants.ts";
@@ -57,42 +57,28 @@ const parseIssueEvent = ({ name, base, payload }: Delivery): ChannelEvent | unde
   };
 };
 
-const parsePushEvent = ({ base, payload }: Delivery): ChannelEvent | undefined => {
+/** A push to the default branch that may have changed `.achq/`, for the deployer. Containers never act on a push. */
+const parsePushEvent = ({ base, payload }: Delivery): RepoEvent | undefined => {
   const repo: string | undefined = payload.repository?.full_name;
-  if (!repo) return undefined;
+  if (!repo || payload.ref !== `refs/heads/${payload.repository?.default_branch}`) return undefined;
   const commits: any[] = Array.isArray(payload.commits) ? payload.commits : [];
   const touchesConfig = commits.some((commit) => [...(commit.added ?? []), ...(commit.modified ?? []), ...(commit.removed ?? [])].some((file: string) => file.startsWith(`${CONFIG_DIR}/`)));
   const truncated = commits.length >= PUSH_COMMIT_CAP;
-  const onDefaultBranch = payload.ref === `refs/heads/${payload.repository?.default_branch}`;
-  return {
-    ...base,
-    type: "push",
-    repo,
-    host: CODE_HOST,
-    configChanged: onDefaultBranch && (touchesConfig || truncated),
-    detail: { ref: payload.ref ?? "", after: payload.after ?? "", deleted: Boolean(payload.deleted) },
-  };
+  if (!touchesConfig && !truncated) return undefined;
+  return { delivery: base.delivery, type: "push", host: CODE_HOST, deploy: [repo], uninstall: [], onlyIfDeployed: true };
 };
 
-const parseInstallationEvent = ({ name, base, payload }: Delivery): ChannelEvent | undefined => {
+const parseInstallationEvent = ({ name, base, payload }: Delivery): RepoEvent | undefined => {
   const { action } = payload;
   if (!(name === "installation" ? INSTALLATION_ACTIONS : INSTALLATION_REPOS_ACTIONS).has(action)) return undefined;
   // An installation's own repos (when GitHub lists them) come and go with it: suspending removes them, unsuspending adds them back.
   const listed = fullNames(payload.repositories);
   const adds = action === "created" || action === "unsuspend";
-  return {
-    ...base,
-    type: `${name}.${action}`,
-    host: CODE_HOST,
-    installation:
-      name === "installation"
-        ? { added: adds ? listed : [], removed: adds ? [] : listed }
-        : { added: fullNames(payload.repositories_added), removed: fullNames(payload.repositories_removed) },
-    detail: { installation: payload.installation?.id ?? 0, account: payload.installation?.account?.login ?? "" },
-  };
+  const [deploy, uninstall] = name === "installation" ? (adds ? [listed, []] : [[], listed]) : [fullNames(payload.repositories_added), fullNames(payload.repositories_removed)];
+  return { delivery: base.delivery, type: `${name}.${action}`, host: CODE_HOST, deploy, uninstall, onlyIfDeployed: false };
 };
 
-const PARSERS: Record<string, (delivery: Delivery) => ChannelEvent | undefined> = {
+const PARSERS: Record<string, (delivery: Delivery) => ChannelEvent | RepoEvent | undefined> = {
   issues: parseIssueEvent,
   issue_comment: parseIssueEvent,
   push: parsePushEvent,

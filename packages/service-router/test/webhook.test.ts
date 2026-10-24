@@ -146,21 +146,21 @@ describe("routing events to the deployer", () => {
   test("installation events reach the deployer even for undeployed repos", async () => {
     const deployer = fakeDeployer();
     const r = await boot({ deployer: deployer.url });
-    const install = { delivery: "inst-1", type: "installed", host: "test", installation: { added: ["acme/new"], removed: [] } };
+    const install = { delivery: "inst-1", type: "installed", host: "test", deploy: ["acme/new"], uninstall: [] };
     expect((await r.webhook(install)).status).toBe(202);
     await r.router.settled();
     expect(deployer.events.map((e) => e.event.delivery)).toEqual(["inst-1"]);
   });
 
-  test("only config changes to a deployed repo reach the deployer", async () => {
+  test("a push reaches the deployer only for a deployed repo", async () => {
     const deployer = fakeDeployer();
     const r = await deployed({ deployer: deployer.url });
-    const push = (delivery: string, configChanged: boolean, forRepo = repo) => ({ delivery, type: "push", repo: forRepo, host: "test", configChanged });
-    await r.webhook(push("p-changed", true));
-    await r.webhook(push("p-unchanged", false));
-    await r.webhook(push("p-undeployed", true, "acme/other"));
+    const push = (delivery: string, forRepo = repo) => ({ delivery, type: "push", host: "test", deploy: [forRepo], onlyIfDeployed: true });
+    expect(await (await r.webhook(push("p-deployed"))).text()).toBe("accepted");
+    expect(await (await r.webhook(push("p-undeployed", "acme/other"))).text()).toBe("no match");
     await r.router.settled();
-    expect(deliveryIds(deployer)).toEqual(["p-changed"]);
+    expect(deliveryIds(deployer)).toEqual(["p-deployed"]);
+    expect(deployer.events[0]!.event).toEqual({ delivery: "p-deployed", type: "push", host: "test", deploy: [repo], uninstall: [], onlyIfDeployed: true });
     expect(r.dev.attempts).toBe(0);
   });
 });

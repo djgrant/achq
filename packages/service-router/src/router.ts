@@ -1,4 +1,4 @@
-import { type ChannelEvent, type ChannelProvider, type CodeHostProvider, type CredentialsResponse, repoName } from "@achq/core";
+import { type ChannelProvider, type CodeHostProvider, type CredentialsResponse, isRepoEvent, type RepoEvent, repoName } from "@achq/core";
 import { CredentialsRequest, InstallationRequest, MintRequest, RepoRequest, RouterRepoConfig, ValidateRequest, WakeRequest } from "@achq/core/protocol";
 import { adminSecret, containerSecret } from "@achq/core/secrets";
 import { isSigned, signedBy } from "@achq/core/signing";
@@ -11,13 +11,10 @@ import { createMiddleware } from "hono/factory";
 import { REPO, REPO_PATH } from "./constants.ts";
 import { claimsOf, configOf, createContext, type RouterDeps } from "./context.ts";
 import { mint, mintClients, validate } from "./credentials.ts";
-import { acceptDelivery, listFailed, recordClaims, replay, replayFailed, settled, targetsFor } from "./deliveries.ts";
+import { acceptDelivery, type InboxEntry, listFailed, recordClaims, replay, replayFailed, settled, targetsFor } from "./deliveries.ts";
 import { fetchSigned, reach } from "./reach.ts";
 
 type Container = RouterRepoConfig["containers"][number];
-
-/** What a deploy someone asked for through `/deploy` names as its channel and source, and its delivery IDs start with. */
-const DEPLOY_REQUESTS = "achq-deploy";
 
 export const createRouter = (deps: RouterDeps) => {
   const ctx = createContext(deps);
@@ -104,13 +101,25 @@ export const createRouter = (deps: RouterDeps) => {
       // The delivery ID names its inbox file.
       if (!disk.isSafeFileName(event.delivery)) return c.text("bad delivery id", 400);
 
-      const targets = targetsFor(found.channel, event, configOf(ctx, event.repo), claimsOf(ctx, event.repo));
-      if (!targets.length) return c.text("no match");
+      let entry: InboxEntry;
+      let claim: (() => Promise<void>) | undefined;
+      if (isRepoEvent(event)) {
+        // A repo isn't deployed until its install is handled, so installs always go through; a push only for a repo that's deployed.
+        const deployed = (repos: string[]) => repos.filter((repo) => configOf(ctx, repo));
+        const forDeployer = event.onlyIfDeployed ? { ...event, deploy: deployed(event.deploy), uninstall: deployed(event.uninstall) } : event;
+        if (!forDeployer.deploy.length && !forDeployer.uninstall.length) return c.text("no match");
+        entry = { event: forDeployer, targets: [{ kind: "deployer" }] };
+      } else {
+        const targets = targetsFor(found.channel, event, configOf(ctx, event.repo), claimsOf(ctx, event.repo));
+        if (!targets.length) return c.text("no match");
+        entry = { event, targets };
+        claim = () => recordClaims(ctx, event, targets);
+      }
       // Persisted before answering, so a crash or restart doesn't lose it. Answered
       // without waiting for the targets: the channel gives up after seconds, and a
       // waking service takes longer. The thread is claimed once the event is in the
       // inbox, bound for the claiming workspace, so the next event goes there too.
-      const accepted = await acceptDelivery(ctx, { event, targets }, { onPersisted: () => recordClaims(ctx, event, targets) });
+      const accepted = await acceptDelivery(ctx, entry, { onPersisted: claim });
       return c.text(accepted ? "accepted" : "duplicate", 202);
     })
     // For `achq container ssh`: wakes a container for someone who can push to its repo, on the host it's deployed from.
@@ -141,16 +150,7 @@ export const createRouter = (deps: RouterDeps) => {
       const request = c.req.valid("json");
       const refused = await pusher(c.req.raw, request);
       if (refused instanceof Response) return refused;
-      const event: ChannelEvent = {
-        channel: DEPLOY_REQUESTS,
-        source: DEPLOY_REQUESTS,
-        delivery: `${DEPLOY_REQUESTS}-${crypto.randomUUID()}`,
-        type: "deploy.requested",
-        repo: request.repo,
-        host: request.host,
-        installation: { added: [request.repo], removed: [] },
-        detail: {},
-      };
+      const event: RepoEvent = { delivery: `deploy-${crypto.randomUUID()}`, type: "deploy.requested", host: request.host, deploy: [request.repo], uninstall: [], onlyIfDeployed: false };
       // Through the inbox, as an install event goes, so a deployer that's asleep or restarting still gets it.
       await acceptDelivery(ctx, { event, targets: [{ kind: "deployer" }] });
       return c.text("accepted", 202);

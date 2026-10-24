@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { messageId } from "../src/lib/threads.ts";
-import { commentPayload, installation, issuePayload, parse, repository, user } from "./payloads.ts";
+import { commentPayload, installation, issuePayload, parse, parseRepo, repository, user } from "./payloads.ts";
 
 describe("parse", () => {
   test("an issue comment becomes a small event on its thread, without the payload", () => {
@@ -72,47 +72,39 @@ describe("parse", () => {
     installation,
   });
 
-  test("a push to the default branch changes the config when any commit touched .achq/, by any kind of change", () => {
-    const changed = (...args: Parameters<typeof push>) => parse("push", push(...args))!.configChanged;
+  test("a push to the default branch is for the deployer when any commit touched .achq/, by any kind of change; any other push is nothing", () => {
+    const changed = (...args: Parameters<typeof push>) => parseRepo("push", push(...args)) !== undefined;
     expect(changed([{ modified: ["src/a.ts"] }])).toBe(false);
     expect(changed([{ modified: ["src/a.ts"] }, { removed: [".achq/Dockerfile"] }])).toBe(true);
     expect(changed([{ added: [".achq/config.ts"] }])).toBe(true);
     // Not a prefix match on the name alone.
     expect(changed([{ added: [".achqx/config.ts", "docs/.achq/x"] }])).toBe(false);
     expect(changed([{ added: [".achq/config.ts"] }], "refs/heads/feature")).toBe(false);
-    const event = parse("push", push([], "refs/heads/feature"))!;
-    expect(event.type).toBe("push");
-    expect(event.repo).toBe("notationlabs/yieldstar");
-    expect(event.host).toBe("github");
-    expect(event.detail).toEqual({ ref: "refs/heads/feature", after: "b".repeat(40), deleted: false });
+    expect(parseRepo("push", push([{ added: [".achq/config.ts"] }]))).toEqual({ delivery: "d-1", type: "push", host: "github", deploy: ["notationlabs/yieldstar"], uninstall: [], onlyIfDeployed: true });
   });
 
   test("a push listing GitHub's maximum of 2048 commits may have changed the config", () => {
-    expect(parse("push", push(Array.from({ length: 2047 }, () => ({}))))!.configChanged).toBe(false);
-    expect(parse("push", push(Array.from({ length: 2048 }, () => ({}))))!.configChanged).toBe(true);
+    expect(parseRepo("push", push(Array.from({ length: 2047 }, () => ({}))))).toBeUndefined();
+    expect(parseRepo("push", push(Array.from({ length: 2048 }, () => ({}))))?.deploy).toEqual(["notationlabs/yieldstar"]);
   });
 
-  test("installations list the repos added and removed, and the account", () => {
+  test("installations deploy the repos added and uninstall the ones removed, whether or not they're deployed yet", () => {
     const account = { login: "notationlabs", type: "Organization" };
-    const created = parse("installation", {
+    const created = parseRepo("installation", {
       action: "created",
       installation: { id: 77, account },
       repositories: [{ id: 1, name: "a", full_name: "notationlabs/a", private: true }, { id: 2, name: "b", full_name: "notationlabs/b", private: false }],
       sender: user("dan"),
     })!;
-    expect(created.type).toBe("installation.created");
-    expect(created.repo).toBeUndefined();
-    expect(created.host).toBe("github");
-    expect(created.detail).toEqual({ installation: 77, account: "notationlabs" });
-    expect(created.installation).toEqual({ added: ["notationlabs/a", "notationlabs/b"], removed: [] });
-    const deleted = parse("installation", { action: "deleted", installation: { id: 77, account }, repositories: [{ full_name: "notationlabs/a" }] })!;
-    expect(deleted.installation).toEqual({ added: [], removed: ["notationlabs/a"] });
-    const suspended = parse("installation", { action: "suspend", installation: { id: 77, account }, repositories: [{ full_name: "notationlabs/a" }] })!;
+    expect(created).toEqual({ delivery: "d-1", type: "installation.created", host: "github", deploy: ["notationlabs/a", "notationlabs/b"], uninstall: [], onlyIfDeployed: false });
+    const deleted = parseRepo("installation", { action: "deleted", installation: { id: 77, account }, repositories: [{ full_name: "notationlabs/a" }] })!;
+    expect([deleted.deploy, deleted.uninstall]).toEqual([[], ["notationlabs/a"]]);
+    const suspended = parseRepo("installation", { action: "suspend", installation: { id: 77, account }, repositories: [{ full_name: "notationlabs/a" }] })!;
     expect(suspended.type).toBe("installation.suspend");
-    expect(suspended.installation).toEqual({ added: [], removed: ["notationlabs/a"] });
-    const unsuspended = parse("installation", { action: "unsuspend", installation: { id: 77, account }, repositories: [{ full_name: "notationlabs/a" }] })!;
-    expect(unsuspended.installation).toEqual({ added: ["notationlabs/a"], removed: [] });
-    const changed = parse("installation_repositories", {
+    expect([suspended.deploy, suspended.uninstall]).toEqual([[], ["notationlabs/a"]]);
+    const unsuspended = parseRepo("installation", { action: "unsuspend", installation: { id: 77, account }, repositories: [{ full_name: "notationlabs/a" }] })!;
+    expect([unsuspended.deploy, unsuspended.uninstall]).toEqual([["notationlabs/a"], []]);
+    const changed = parseRepo("installation_repositories", {
       action: "removed",
       installation: { id: 77, account },
       repository_selection: "selected",
@@ -120,8 +112,7 @@ describe("parse", () => {
       repositories_removed: [{ id: 3, name: "c", full_name: "notationlabs/c" }],
     })!;
     expect(changed.type).toBe("installation_repositories.removed");
-    expect(changed.detail).toMatchObject({ account: "notationlabs" });
-    expect(changed.installation).toEqual({ added: [], removed: ["notationlabs/c"] });
-    expect(parse("installation", { action: "new_permissions_accepted", installation: { id: 77, account } })).toBeUndefined();
+    expect([changed.deploy, changed.uninstall]).toEqual([[], ["notationlabs/c"]]);
+    expect(parseRepo("installation", { action: "new_permissions_accepted", installation: { id: 77, account } })).toBeUndefined();
   });
 });

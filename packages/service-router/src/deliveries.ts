@@ -1,30 +1,29 @@
-import { type ChannelEvent, type ChannelProvider, type ContainerEnvelope, type DeployerEnvelope, type FailedDelivery, type ReplayResult, repoName, type RouterRepoConfig, threadKey } from "@achq/core";
+import { type ChannelEvent, type ChannelProvider, type ContainerEnvelope, type DeployerEnvelope, type FailedDelivery, isRepoEvent, type RepoEvent, type ReplayResult, repoName, type RouterRepoConfig, threadKey } from "@achq/core";
 import { adminSecret, containerSecret } from "@achq/core/secrets";
 import { errors } from "@achq/utils/errors";
 import { configOf, type RouterContext } from "./context.ts";
 import { fetchSigned, reach } from "./reach.ts";
 
-export type Target =
-  | { kind: "deployer" }
-  /**
-   * `workspace` is the container's workspace the thread is worked in: the one that claimed it, or the first that matches it now. The container works it there.
-   * `commit` is the one whose config the router holds, so the container runs the same config.
-   */
-  | { kind: "container"; repo: string; container: string; url: string; workspace: string; commit: string };
+/** Where a repo event goes. */
+export type DeployerTarget = { kind: "deployer" };
+/**
+ * Where a channel event goes. `workspace` is the container's workspace the thread is worked in: the one that claimed it, or the first that matches it now. The container works it there.
+ * `commit` is the one whose config the router holds, so the container runs the same config.
+ */
+export type ContainerTarget = { kind: "container"; repo: string; container: string; url: string; workspace: string; commit: string };
+export type Target = DeployerTarget | ContainerTarget;
 
 /** Per thread key, per container: the workspace that claimed it. The router is the only one that decides and records claims. */
 export type Claims = Record<string, Record<string, string>>;
 
-/** `told`: the thread has been told its delivery failed, so a failed replay doesn't tell it again. */
-export type InboxEntry = { event: ChannelEvent; targets: Target[]; told?: boolean };
-export type FailedEntry = Omit<InboxEntry, "targets"> & { targets: (Target & { error: string })[] };
+/** A repo event goes to the deployer, a channel event to containers. `told`: the thread has been told its delivery failed, so a failed replay doesn't tell it again. */
+export type InboxEntry = ({ event: RepoEvent; targets: DeployerTarget[] } | { event: ChannelEvent; targets: ContainerTarget[] }) & { told?: boolean };
+export type FailedEntry = { event: RepoEvent | ChannelEvent; targets: (Target & { error: string })[]; told?: boolean };
 
-export const targetsFor = (channel: ChannelProvider, event: ChannelEvent, config: RouterRepoConfig | undefined, claims: Claims): Target[] => {
-  // A repo isn't deployed until its install is handled, so installs always go through.
-  if (event.installation) return [{ kind: "deployer" }];
+const isForDeployer = (entry: InboxEntry): entry is Extract<InboxEntry, { event: RepoEvent }> => isRepoEvent(entry.event);
+
+export const targetsFor = (channel: ChannelProvider, event: ChannelEvent, config: RouterRepoConfig | undefined, claims: Claims): ContainerTarget[] => {
   if (!config) return [];
-  if (event.configChanged) return [{ kind: "deployer" }];
-
   // Only wake a container for something it would act on. It checks again.
   if (!event.actor?.trusted || event.actor.bot || !event.thread) return [];
   if (!config.triggers.some((t) => t.event.channel === channel.id && channel.matchEvent(t.event, event))) return [];
@@ -34,7 +33,7 @@ export const targetsFor = (channel: ChannelProvider, event: ChannelEvent, config
   // Each container is decided on its own: a claim sticks within the container that
   // made it, and doesn't stop another container's workspace claiming the thread too.
   // A claim on a workspace the config no longer has is passed over.
-  return config.containers.flatMap((c): Target[] => {
+  return config.containers.flatMap((c): ContainerTarget[] => {
     const workspaces = config.workspaces.filter((w) => w.container === c.name && w.threads.channel === channel.id);
     const workspace = workspaces.find((w) => w.name === claimed[c.name]) ?? workspaces.find((w) => channel.matchThread(w.threads, thread));
     return workspace ? [{ kind: "container", repo: config.repo, container: c.name, url: c.url, workspace: workspace.name, commit: config.commit }] : [];
@@ -57,15 +56,23 @@ export const recordClaims = async (ctx: RouterContext, event: ChannelEvent, targ
 
 const targetLabel = (t: Target) => (t.kind === "deployer" ? "deployer" : `${t.repo}/${t.container}`);
 
-/** Where an event goes for `target`, and what it's signed with. */
-const endpointOf = (ctx: RouterContext, target: Target, event: ChannelEvent) => {
-  if (target.kind === "deployer") {
-    // targetsFor only picks the deployer for installation and configChanged events, which name their host.
-    if (event.host === undefined) throw new Error(`${event.delivery} isn't one for the deployer`);
-    return { url: `${ctx.deployerUrl}/events`, secret: adminSecret(ctx.key), body: JSON.stringify({ event } satisfies DeployerEnvelope) };
+type Endpoint = { url: string; secret: string; body: string };
+
+/** Each of an entry's targets, and where its event goes for it, and what it's signed with. */
+const endpointsOf = (ctx: RouterContext, entry: InboxEntry): { target: Target; endpoint: () => Endpoint }[] => {
+  if (isForDeployer(entry)) {
+    const body = JSON.stringify({ event: entry.event } satisfies DeployerEnvelope);
+    return entry.targets.map((target) => ({ target, endpoint: () => ({ url: `${ctx.deployerUrl}/events`, secret: adminSecret(ctx.key), body }) }));
   }
-  const envelope = { event, commit: target.commit, workspace: target.workspace } satisfies ContainerEnvelope;
-  return { url: `${target.url}/events`, secret: containerSecret(ctx.key, target.repo, target.container), body: JSON.stringify(envelope) };
+  const { event } = entry;
+  return entry.targets.map((target) => ({
+    target,
+    endpoint: () => ({
+      url: `${target.url}/events`,
+      secret: containerSecret(ctx.key, target.repo, target.container),
+      body: JSON.stringify({ event, commit: target.commit, workspace: target.workspace } satisfies ContainerEnvelope),
+    }),
+  }));
 };
 
 /** Replies on the event's thread, as its channel's source, naming the containers among `failed`. Whether it did: a failure to is only logged. */
@@ -92,12 +99,12 @@ const forward = (ctx: RouterContext, entry: InboxEntry) => {
   const { event } = entry;
   const deliver = async () => {
     const results = await Promise.all(
-      entry.targets.map(async (target) => {
+      endpointsOf(ctx, entry).map(async ({ target, endpoint }) => {
         // Addressed inside the attempt, so a bad target fails like one that never answers.
         const result = await reach(
           ctx.delays,
           (signal) => {
-            const { url, secret, body } = endpointOf(ctx, target, event);
+            const { url, secret, body } = endpoint();
             return fetchSigned(ctx, secret, "POST", url, body, signal);
           },
           ctx.attemptTimeout,
@@ -109,7 +116,7 @@ const forward = (ctx: RouterContext, entry: InboxEntry) => {
     );
     const failed = results.flat();
     if (failed.length) {
-      const told = entry.told || (await tellUnreached(ctx, event, failed));
+      const told = entry.told || (!isForDeployer(entry) && (await tellUnreached(ctx, entry.event, failed)));
       await ctx.store.failed.write(event.delivery, { ...entry, targets: failed, ...(told && { told }) });
     }
     await ctx.store.inbox.remove(event.delivery);
@@ -154,14 +161,20 @@ export const settled = async (ctx: RouterContext) => {
   while (ctx.inFlight.size) await Promise.all(ctx.inFlight.values());
 };
 
+/** The repos an event is about, as `GET /admin/failed` names them. */
+const reposOf = (event: RepoEvent | ChannelEvent) => (isRepoEvent(event) ? [...event.deploy, ...event.uninstall].join(", ") : event.repo);
+
 export const listFailed = async (ctx: RouterContext): Promise<FailedDelivery[]> =>
-  (await ctx.store.failed.all()).map(({ event, targets }) => ({
-    delivery: event.delivery,
-    type: event.type,
-    ...(event.repo && { repo: event.repo }),
-    ...(event.thread && { thread: event.thread }),
-    targets: targets.map((t) => ({ target: targetLabel(t), error: t.error })),
-  }));
+  (await ctx.store.failed.all()).map(({ event, targets }) => {
+    const repo = reposOf(event);
+    return {
+      delivery: event.delivery,
+      type: event.type,
+      ...(repo && { repo }),
+      ...(!isRepoEvent(event) && event.thread && { thread: event.thread }),
+      targets: targets.map((t) => ({ target: targetLabel(t), error: t.error })),
+    };
+  });
 
 /** Puts every failed delivery back in the inbox, for the targets that failed, and drops ones with none left. */
 export const replayFailed = async (ctx: RouterContext) => {
@@ -169,20 +182,28 @@ export const replayFailed = async (ctx: RouterContext) => {
   for (const delivery of await ctx.store.failed.list()) {
     const entry = await ctx.store.failed.read(delivery);
     if (!entry || ctx.inFlight.has(delivery)) continue;
-    // Each target where it is now: a container at its current URL, with the config the router holds now. None for a repo or container that's gone.
-    const targets = entry.targets.flatMap(({ error: _, ...target }): Target[] => {
-      if (target.kind === "deployer") return [target];
-      const config = configOf(ctx, target.repo);
-      const container = config?.containers.find((c) => c.name === target.container);
-      return config && container ? [{ ...target, url: container.url, commit: config.commit }] : [];
-    });
-    if (!targets.length) {
+    // A repo event goes back to the deployer. A channel event goes to each container where it is now, at its current URL, with the config
+    // the router holds now: to none for a repo or container that's gone.
+    const { event, told } = entry;
+    const again: InboxEntry = isRepoEvent(event)
+      ? { event, targets: [{ kind: "deployer" }] }
+      : {
+          event,
+          targets: entry.targets.flatMap(({ error: _, ...target }): ContainerTarget[] => {
+            if (target.kind !== "container") return [];
+            const config = configOf(ctx, target.repo);
+            const container = config?.containers.find((c) => c.name === target.container);
+            return config && container ? [{ ...target, url: container.url, commit: config.commit }] : [];
+          }),
+          ...(told && { told: true }),
+        };
+    if (!again.targets.length) {
       await ctx.store.failed.remove(delivery);
       result.dropped.push(delivery);
       continue;
     }
     // Out of failed/ only once it's in the inbox, and before it can fail again.
-    await acceptDelivery(ctx, { event: entry.event, targets, ...(entry.told && { told: true }) }, { onPersisted: () => ctx.store.failed.remove(delivery) });
+    await acceptDelivery(ctx, again, { onPersisted: () => ctx.store.failed.remove(delivery) });
     result.replayed.push(delivery);
   }
   return result;

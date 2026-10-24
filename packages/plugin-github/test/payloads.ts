@@ -1,3 +1,4 @@
+import { isRepoEvent } from "@achq/core";
 import { crypto } from "@achq/utils/crypto";
 import { makeApp } from "@achq/test-utils/github";
 import { githubChannelProvider } from "../src/channel/index.ts";
@@ -65,7 +66,21 @@ export const appA = makeApp("notation-achq", "101", { issues: "write", contents:
 export const appB = makeApp("djgrant-claude", "202", { issues: "write", contents: "read", metadata: "read" });
 export const keys = { [appA.slug]: { id: appA.id, privateKey: appA.privateKey }, [appB.slug]: { id: appB.id, privateKey: appB.privateKey } };
 export const channel = githubChannelProvider.create(githubEnv(keys, undefined, KEY));
-export const parse = (event: string, payload: object) => {
+const parseAny = (event: string, payload: object) => {
   const body = JSON.stringify(payload);
   return channel.parse("notation-achq", headers(event, body), body);
+};
+
+/** A delivery that's an event on a thread, or undefined. */
+export const parse = (event: string, payload: object) => {
+  const parsed = parseAny(event, payload);
+  if (parsed && isRepoEvent(parsed)) throw new Error(`${event} parsed to a repo event`);
+  return parsed;
+};
+
+/** A delivery that's about which repos to deploy, or undefined. */
+export const parseRepo = (event: string, payload: object) => {
+  const parsed = parseAny(event, payload);
+  if (parsed && !isRepoEvent(parsed)) throw new Error(`${event} parsed to a channel event`);
+  return parsed;
 };

@@ -7,23 +7,14 @@ export type ThreadRef = { channel: string; id: string };
 
 export const threadKey = (ref: ThreadRef) => `${ref.channel}:${ref.id}`;
 
-/** An event a channel delivered, normalised. Kept small, because the router persists and forwards it. */
-export type ChannelEvent = ChannelEventBase &
-  (
-    | { host?: undefined; installation?: undefined; configChanged?: undefined }
-    /** For the deployer: the repos the source was installed on (`added`) or removed from, on the `CodeHostProvider` `host`. */
-    | { host: string; installation: { added: string[]; removed: string[] }; configChanged?: undefined }
-    /** For the deployer: whether the repo's `.achq/` may have changed on its default branch, on the `CodeHostProvider` `host`. */
-    | { host: string; configChanged: boolean; installation?: undefined }
-  );
-
-type ChannelEventBase = {
+/** An event on a thread a channel delivered, normalised, for containers. Kept small, because the router persists and forwards it. */
+export type ChannelEvent = {
   channel: string;
   /** Which configured sender it came through, e.g. a GitHub App's slug. Selectors name one. */
   source: string;
-  /** Unique per delivery; containers and the deployer ignore ones they've handled. */
+  /** Unique per delivery; containers ignore ones they've handled. */
   delivery: string;
-  /** e.g. "issue_comment.created", "issues.edited", "push", "installation_repositories.added" */
+  /** e.g. "issue_comment.created", "issues.edited" */
   type: string;
   repo?: string;
   thread?: ThreadRef;
@@ -38,6 +29,25 @@ type ChannelEventBase = {
   /** Anything else the channel needs later, e.g. the comment ID to react to. */
   detail: { [key: string]: Json };
 };
+
+/**
+ * For the deployer: repos on the `CodeHostProvider` `host` to deploy, because
+ * a source was installed on them or their `.achq/` may have changed on their
+ * default branch, and repos to uninstall, because it was removed from them.
+ */
+export type RepoEvent = {
+  /** Unique per delivery; the deployer ignores ones it's handled. */
+  delivery: string;
+  /** e.g. "push", "installation_repositories.added", "deploy.requested" */
+  type: string;
+  host: string;
+  deploy: string[];
+  uninstall: string[];
+  /** For a push: only repos already deployed are deployed again. An install is what deploys a repo first. */
+  onlyIfDeployed: boolean;
+};
+
+export const isRepoEvent = (event: ChannelEvent | RepoEvent): event is RepoEvent => "deploy" in event;
 
 export type Thread = {
   ref: ThreadRef;
@@ -79,8 +89,8 @@ export interface ChannelProvider {
   // ── Router side: trusted achq code, holding the channel's secrets ──
   /** Checks a delivery's signature. Returns the source it came from, or undefined if it's not genuine. */
   verify(headers: Headers, body: string): Promise<string | undefined>;
-  /** Normalises a verified delivery, or returns undefined for ones achq never acts on. */
-  parse(source: string, headers: Headers, body: string): ChannelEvent | undefined;
+  /** Normalises a verified delivery: an event on a thread, one about which repos to deploy, or undefined for ones achq never acts on. */
+  parse(source: string, headers: Headers, body: string): ChannelEvent | RepoEvent | undefined;
   /** A credential the container's runner (not the agent) uses for `ChannelClient`. Its scope names the `source`. */
   mintClient(source: string, repo: string): Promise<ChannelCredential>;
   /** What each source is set up to send and allow, for the deployer's checks. */

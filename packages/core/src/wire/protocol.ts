@@ -1,6 +1,6 @@
 import { json } from "@achq/utils/json";
 import { z } from "zod";
-import type { ChannelCredential, ChannelEvent, ThreadRef } from "../contracts/channel-provider.ts";
+import type { ChannelCredential, ChannelEvent, RepoEvent, ThreadRef } from "../contracts/channel-provider.ts";
 import type { BrowserAction } from "../contracts/browser-action.ts";
 import type { PolicyCredential } from "../contracts/policy-provider.ts";
 import type { PolicyData, SelectorData } from "../resources/config.ts";
@@ -10,8 +10,17 @@ const policyData = z.custom<PolicyData>((value) => json.isPlainObject(value) && 
 const selectorData = z.custom<SelectorData>((value) => json.isPlainObject(value) && typeof value.channel === "string" && typeof value.source === "string");
 const channelEvent = z.custom<ChannelEvent>((value) => json.isPlainObject(value) && typeof value.delivery === "string" && typeof value.type === "string");
 
-/** What the router forwards to the deployer: install and config events, which name the `CodeHostProvider` they're about. */
-export const DeployerEnvelope = z.object({ event: channelEvent.refine((event): event is Extract<ChannelEvent, { host: string }> => typeof event.host === "string") });
+const repoEvent = z.object({
+  delivery: z.string(),
+  type: z.string(),
+  host: z.string(),
+  deploy: z.array(z.string()),
+  uninstall: z.array(z.string()),
+  onlyIfDeployed: z.boolean(),
+}) satisfies z.ZodType<RepoEvent>;
+
+/** What the router forwards to the deployer: which repos to deploy and uninstall. */
+export const DeployerEnvelope = z.object({ event: repoEvent });
 export type DeployerEnvelope = z.infer<typeof DeployerEnvelope>;
 
 export const ContainerEnvelope = z.object({

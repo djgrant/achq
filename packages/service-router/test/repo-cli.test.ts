@@ -32,6 +32,6 @@ describe("deploy", () => {
     const res = await r.asYou("/deploy", { host: "test", repo }, "push-token");
     expect([res.status, await res.text()]).toEqual([202, "accepted"]);
     await r.router.settled();
-    expect(deployer.events.map((e) => e.event)).toEqual([expect.objectContaining({ host: "test", repo, installation: { added: [repo], removed: [] }, type: "deploy.requested" })]);
+    expect(deployer.events.map((e) => e.event)).toEqual([{ delivery: expect.stringMatching(/^deploy-/), type: "deploy.requested", host: "test", deploy: [repo], uninstall: [], onlyIfDeployed: false }]);
   });
 });
