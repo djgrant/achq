@@ -1,5 +1,4 @@
-import { ACHQ_SOURCE, all, type Context, ENV, type EnvValues, type ManagedResource, type Service as AchqService } from "@achq/core";
-import { collections } from "@achq/utils/collections";
+import { achqStartScript, all, type Context, ENV, type EnvValues, type ManagedResource, type Service as AchqService, type VariableValues, VariableGroups } from "@achq/core";
 import * as path from "node:path";
 import { DATA_DIR, MANAGED_IMAGE, type WorkerSettings } from "../../worker/settings.ts";
 import { BUN_VERSION, INSTANCE } from "./constants.ts";
@@ -10,49 +9,6 @@ import { Variables } from "./variables.ts";
 import { WORKER_DIR, workerConfig } from "./wrangler.ts";
 import { Worker } from "./worker.ts";
 
-// The start command's script runs in the service's own Bun, not here, so it's
-// written as source. Its parts are joined with spaces into one line, and that
-// line is in the deploy's fingerprint: changing a character redeploys.
-
-/** Where achq at ACHQ_REF goes: under DATA_DIR, which its snapshots keep, so a wake doesn't download it again. */
-const LOCATE = [
-  `const fs = require("node:fs");`,
-  `const ref = process.env.ACHQ_REF;`,
-  `if (!ref) throw new Error("Missing ACHQ_REF");`,
-  `const root = "${DATA_DIR}/achq";`,
-  `const dir = root + "/" + ref;`,
-];
-
-/** Downloads and unpacks it beside `dir`, then renames it into place, so an interrupted download is never taken for a finished one. */
-const DOWNLOAD = [
-  `if (!fs.existsSync(dir)) {`,
-  `  const started = Date.now();`,
-  `  const res = await fetch("${ACHQ_SOURCE.archive}" + ref);`,
-  `  if (!res.ok) throw new Error("achq " + ref + ": " + res.status);`,
-  `  const tmp = dir + ".tmp";`,
-  `  fs.rmSync(tmp, { recursive: true, force: true });`,
-  `  fs.mkdirSync(tmp, { recursive: true });`,
-  `  await Bun.write(tmp + ".tgz", res);`,
-  `  const tar = Bun.spawnSync(["tar", "xzf", tmp + ".tgz", "-C", tmp, "--strip-components=1"]);`,
-  `  if (!tar.success) throw new Error("tar: " + tar.stderr);`,
-  `  fs.rmSync(tmp + ".tgz");`,
-  `  fs.renameSync(tmp, dir);`,
-  `  console.log("achq " + ref.slice(0, 7) + ": downloaded in " + (Date.now() - started) / 1000 + "s");`,
-  `}`,
-];
-
-const INSTALL = [
-  `if (!fs.existsSync(dir + "/node_modules")) {`,
-  `  const started = Date.now();`,
-  `  const install = Bun.spawnSync(["bun", "install", "--production", "--frozen-lockfile"], { cwd: dir, stdout: "inherit", stderr: "inherit" });`,
-  `  if (!install.success) throw new Error("bun install failed");`,
-  `  console.log("achq " + ref.slice(0, 7) + ": installed in " + (Date.now() - started) / 1000 + "s");`,
-  `}`,
-];
-
-/** Deletes every other ref once this one's ready: each is a copy of achq with its node_modules, which its snapshots and archives would otherwise keep. */
-const PRUNE = [`for (const other of fs.readdirSync(root)) if (other !== ref) fs.rmSync(root + "/" + other, { recursive: true, force: true });`];
-
 /**
  * Runs `entry` (e.g. `packages/service-router/src/main.ts`) from achq at
  * ACHQ_REF, in Cloudflare's image, which has Node but not Bun: Bun is
@@ -60,14 +16,11 @@ const PRUNE = [`for (const other of fs.readdirSync(root)) if (other !== ref) fs.
  * single quotes, because it's quoted for the shell.
  */
 export const startCommand = (entry: string) => {
-  const run = [`const entry = await import(dir + "/${entry}");`, `if (typeof entry.main === "function") await entry.main();`];
-  const script = [...LOCATE, ...DOWNLOAD, ...INSTALL, ...PRUNE, ...run].join(" ");
+  // Under DATA_DIR, which its snapshots keep.
+  const script = achqStartScript(entry, { root: `"${DATA_DIR}/achq"`, timed: true });
   const bun = `${DATA_DIR}/bun`;
   return ["sh", "-c", `set -e; export PATH="${bun}/bin:$PATH"; command -v bun >/dev/null || npm install -g --prefix ${bun} bun@${BUN_VERSION}; exec bun -e '${script}'`];
 };
-
-/** A group of variables, or how to make it when it's planned. */
-type Values = EnvValues | ((ctx: Context) => EnvValues);
 
 /** One of achq's own services as Cloudflare resources: its Worker, its groups of variables, and its deploy. */
 export class ServiceParts {
@@ -76,8 +29,7 @@ export class ServiceParts {
   /** Its own variables, its first group: what every service has, and `own.variables`. */
   readonly first: Variables;
   private readonly namespaceId;
-  /** Each group's resource, what it was declared with, and the values it sets, filled in when planned if declared with a function. */
-  private readonly groups: { variables: Variables; declared: Values; values: EnvValues }[] = [];
+  private readonly groups: VariableGroups<Variables>;
   private made?: ManagedResource[];
 
   constructor(
@@ -90,25 +42,19 @@ export class ServiceParts {
     const at = project.resource.at();
     this.namespaceId = at.namespaceId;
     this.worker = new Worker("worker", { name: this.name, workersDev: at.workersDev, env: { namespaceId: this.namespaceId } }, { parent: owner });
-    this.first = this.group((ctx) => ({ ...own.variables?.(ctx), [ENV.dataDir]: DATA_DIR, PORT: String(owner.port) }));
-  }
-
-  variables(values: Values) {
-    return this.group(values).outputs();
-  }
-
-  private group(declared: Values) {
-    if (this.made) throw new Error(`${this.name}: variables declared after it was planned`);
-    const n = this.groups.length;
-    const values = typeof declared === "function" ? {} : declared;
-    const variables = new Variables(
-      n ? `variables-${n + 1}` : "variables",
-      { namespaceId: this.namespaceId, key: KV_KEYS.service(this.name), target: this.name, values },
-      // After its Worker, so a first run plans the Worker before what's kept for it.
-      { parent: this.owner, after: [this.worker] },
+    this.groups = new VariableGroups(this.name, (name, values) =>
+      new Variables(
+        name,
+        { namespaceId: this.namespaceId, key: KV_KEYS.service(this.name), target: this.name, values },
+        // After its Worker, so a first run plans the Worker before what's kept for it.
+        { parent: owner, after: [this.worker] },
+      ),
     );
-    this.groups.push({ variables, declared, values });
-    return variables;
+    this.first = this.groups.add((ctx) => ({ ...own.variables?.(ctx), [ENV.dataDir]: DATA_DIR, PORT: String(owner.port) }));
+  }
+
+  variables(values: VariableValues) {
+    return this.groups.add(values).outputs();
   }
 
   /** What the Worker is told about itself. */
@@ -130,14 +76,7 @@ export class ServiceParts {
   /** Made once, when it's planned: no group of variables can be declared after. */
   children(ctx: Context) {
     if (this.made) return this.made;
-    for (const group of this.groups) {
-      if (typeof group.declared === "function") Object.assign(group.values, group.declared(ctx));
-    }
-    // Two groups setting one variable would undo each other on every apply.
-    const shared = collections.duplicates(this.groups.flatMap(({ values }) => Object.keys(values)));
-    if (shared.length) throw new Error(`${this.name}: ${shared.join(", ")} declared in two groups of variables`);
-    const groups = this.groups.map((g) => g.variables);
-    const variables = all(groups.map((g) => g.outputs())).map((maps): Record<string, string> => Object.assign({}, ...maps));
+    const { groups, variables } = this.groups.resolve(ctx);
     const at = this.project.resource.at();
     const config = all([at.workersDev, at.bucket]).map(([workersDev, bucket]) =>
       workerConfig(this.settings(workersDev), { main: path.join(WORKER_DIR, "index.ts"), bucket, sshKeys: this.own.sshKeys }),

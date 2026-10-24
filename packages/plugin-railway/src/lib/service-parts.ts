@@ -1,5 +1,4 @@
-import { ACHQ_SOURCE, all, CONTAINER_PORT, type ContainerSpec, type Context, ENV, type EnvValues, type Input, type ManagedResource, type Service as AchqService } from "@achq/core";
-import { collections } from "@achq/utils/collections";
+import { achqStartScript, CONTAINER_PORT, type ContainerSpec, type Context, ENV, type EnvValues, type Input, type ManagedResource, type Service as AchqService, type VariableValues, VariableGroups } from "@achq/core";
 import type { InstanceSettings, ProjectAt } from "@achq/utils/railway";
 import { BRANCH, BUN_IMAGE, VOLUME } from "./constants.ts";
 import { Deployment, fingerprint } from "./deployment.ts";
@@ -7,58 +6,15 @@ import { containerServiceName, hostServiceName } from "./names.ts";
 import { Service } from "./service.ts";
 import { Variables } from "./variables.ts";
 
-// The start command's script runs in the service's own Bun, not here, so it's
-// written as source. Its parts are joined with spaces into one line, and that
-// line is in the deploy's fingerprint: changing a character redeploys.
-
-/** Where achq at ACHQ_REF goes: on the volume, so a wake doesn't download it again. */
-const LOCATE = [
-  `const fs = require("node:fs");`,
-  `const ref = process.env.ACHQ_REF;`,
-  `if (!ref) throw new Error("Missing ACHQ_REF");`,
-  `const root = (process.env.RAILWAY_VOLUME_MOUNT_PATH ?? "/tmp") + "/achq";`,
-  `const dir = root + "/" + ref;`,
-];
-
-/** Downloads and unpacks it beside `dir`, then renames it into place, so an interrupted download is never taken for a finished one. */
-const DOWNLOAD = [
-  `if (!fs.existsSync(dir)) {`,
-  `  const res = await fetch("${ACHQ_SOURCE.archive}" + ref);`,
-  `  if (!res.ok) throw new Error("achq " + ref + ": " + res.status);`,
-  `  const tmp = dir + ".tmp";`,
-  `  fs.rmSync(tmp, { recursive: true, force: true });`,
-  `  fs.mkdirSync(tmp, { recursive: true });`,
-  `  await Bun.write(tmp + ".tgz", res);`,
-  `  const tar = Bun.spawnSync(["tar", "xzf", tmp + ".tgz", "-C", tmp, "--strip-components=1"]);`,
-  `  if (!tar.success) throw new Error("tar: " + tar.stderr);`,
-  `  fs.rmSync(tmp + ".tgz");`,
-  `  fs.renameSync(tmp, dir);`,
-  `}`,
-];
-
-const INSTALL = [
-  `if (!fs.existsSync(dir + "/node_modules")) {`,
-  `  const install = Bun.spawnSync(["bun", "install", "--production", "--frozen-lockfile"], { cwd: dir, stdout: "inherit", stderr: "inherit" });`,
-  `  if (!install.success) throw new Error("bun install failed");`,
-  `}`,
-];
-
-/** Deletes every other ref once this one's ready: each is a copy of achq with its node_modules, which would otherwise fill the volume a push at a time. */
-const PRUNE = [`for (const other of fs.readdirSync(root)) if (other !== ref) fs.rmSync(root + "/" + other, { recursive: true, force: true });`];
-
 /**
  * Runs `entry` (e.g. `packages/service-router/src/main.ts`) from achq at
  * ACHQ_REF. The script must not contain single quotes, because Railway splits
  * the command like a shell.
  */
 export const startCommand = (entry: string) => {
-  const run = [`const entry = await import(dir + "/${entry}");`, `if (typeof entry.main === "function") await entry.main();`];
-  const script = [...LOCATE, ...DOWNLOAD, ...INSTALL, ...PRUNE, ...run].join(" ");
-  return `bun -e '${script}'`;
+  // On the volume, which a wake keeps.
+  return `bun -e '${achqStartScript(entry, { root: `(process.env.RAILWAY_VOLUME_MOUNT_PATH ?? "/tmp") + "/achq"` })}'`;
 };
-
-/** A group of variables, or how to make it when it's planned. */
-type Values = EnvValues | ((ctx: Context) => EnvValues);
 
 /** One of achq's own services as Railway resources: its service, its groups of variables, and its deploy. */
 export class ServiceParts {
@@ -68,8 +24,7 @@ export class ServiceParts {
   readonly first: Variables;
   private readonly settings: InstanceSettings;
   private readonly at: { projectId: Input<string>; environmentId: Input<string>; serviceId: Input<string> };
-  /** Each group's resource, what it was declared with, and the values it sets, filled in when planned if declared with a function. */
-  private readonly groups: { variables: Variables; declared: Values; values: EnvValues }[] = [];
+  private readonly groups: VariableGroups<Variables>;
   private made?: ManagedResource[];
 
   constructor(
@@ -86,34 +41,19 @@ export class ServiceParts {
       { parent: owner },
     );
     this.at = { ...at, serviceId: this.service.out("serviceId") };
-    this.first = this.group((ctx) => ({ ...own.variables?.(ctx), [ENV.dataDir]: VOLUME, PORT: String(owner.port) }));
+    this.groups = new VariableGroups(this.name, (name, values) => new Variables(name, { at: this.at, service: this.name, values }, { parent: owner }));
+    this.first = this.groups.add((ctx) => ({ ...own.variables?.(ctx), [ENV.dataDir]: VOLUME, PORT: String(owner.port) }));
   }
 
-  variables(values: Values) {
-    return this.group(values).outputs();
-  }
-
-  private group(declared: Values) {
-    if (this.made) throw new Error(`${this.name}: variables declared after it was planned`);
-    const n = this.groups.length;
-    const values = typeof declared === "function" ? {} : declared;
-    const variables = new Variables(n ? `variables-${n + 1}` : "variables", { at: this.at, service: this.name, values }, { parent: this.owner });
-    this.groups.push({ variables, declared, values });
-    return variables;
+  variables(values: VariableValues) {
+    return this.groups.add(values).outputs();
   }
 
   /** Made once, when it's planned: no group of variables can be declared after. */
   children(ctx: Context) {
     if (this.made) return this.made;
-    for (const group of this.groups) {
-      if (typeof group.declared === "function") Object.assign(group.values, group.declared(ctx));
-    }
-    // Two groups setting one variable would undo each other on every apply.
-    const shared = collections.duplicates(this.groups.flatMap(({ values }) => Object.keys(values)));
-    if (shared.length) throw new Error(`${this.name}: ${shared.join(", ")} declared in two groups of variables`);
-    const groups = this.groups.map((g) => g.variables);
     // Over every group's variables as one map, as it hashed before variables came in groups.
-    const variables = all(groups.map((g) => g.outputs())).map((maps): Record<string, string> => Object.assign({}, ...maps));
+    const { groups, variables } = this.groups.resolve(ctx);
     const deploy = new Deployment(
       "deploy",
       { at: this.at, service: this.name, fingerprint: variables.map((v) => fingerprint({ settings: this.settings, variables: v })), wait: this.own.wait },

@@ -2,6 +2,8 @@ export * from "./resources/resource.ts";
 export * from "./resources/config.ts";
 export * from "./resources/infra.ts";
 export * from "./resources/repo-manifest.ts";
+export * from "./resources/variables.ts";
+export * from "./resources/start-script.ts";
 export * from "./engine/values.ts";
 export * from "./engine/plan.ts";
 export * from "./contracts/implementation.ts";
