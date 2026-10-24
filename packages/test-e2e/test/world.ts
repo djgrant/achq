@@ -17,7 +17,6 @@ import { FakeGitHub, makeApp } from "@achq/test-utils/github";
 import { makeOrigin } from "@achq/test-utils/origin";
 import { dirStores } from "@achq/test-utils/stores";
 import { tempDir } from "@achq/test-utils/temp-dir";
-import { privateEnv } from "achq/registry";
 import { APP_EVENTS, APP_ID, APP_PERMISSIONS, BOT, DJ, githubSends, INSTALLATION, KEY, MALLORY, OWNER, REPO, SLUG } from "./github-sends.ts";
 
 export const THREAD = (n: number) => `github:${REPO}#${n}`;
@@ -276,7 +275,7 @@ export const startWorld = async () => {
     owners: [OWNER],
     stores: dirStores(path.join(root, "deployer")),
     codeHost,
-    env: { containerEnv: { CLAUDE_CODE_OAUTH_TOKEN: "claude-oauth-token" }, privateEnv: privateEnv(), key: KEY, routerUrl: routerPrivate, routerPublicUrl: routerPublic, ref: "e2e" },
+    env: { containerEnv: { CLAUDE_CODE_OAUTH_TOKEN: "claude-oauth-token" }, key: KEY, routerUrl: routerPrivate, routerPublicUrl: routerPublic, ref: "e2e" },
     log: (line) => logs.push(`deployer: ${line}`),
   });
   deployerFetch = deployerHandler(deployer, KEY, (line) => logs.push(`deployer: ${line}`));

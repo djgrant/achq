@@ -40,8 +40,13 @@ export const serviceContainerProvider = (env: Env) => {
   return { provider, stores };
 };
 
-/** Every variable only the router and deployer have. */
-export const privateEnv = () => [...new Set([...CHANNEL_PROVIDERS, ...POLICY_PROVIDERS, CODE_HOST, ...CONTAINER_PROVIDERS].flatMap((i) => i.privateEnv))];
+/**
+ * Every variable never given to an agent: the container secret, which proves a
+ * container's identity to the router, so an agent holding it could mint every
+ * credential the container has and post as the channel; the key, which only the
+ * router and deployer have; and every implementation's `privateEnv`.
+ */
+export const privateEnv = () => [...new Set([ENV.containerSecret, ENV.key, ...[...CHANNEL_PROVIDERS, ...POLICY_PROVIDERS, CODE_HOST, ...CONTAINER_PROVIDERS].flatMap((i) => i.privateEnv)])];
 
 export const agentEnv = () => AGENT_PROVIDERS.flatMap((a) => a.containerEnv);
 

@@ -15,8 +15,6 @@ const containerId = (c: { repo: string; name: string }) => `${c.repo}/${c.name}`
 
 export type DeployerEnv = {
   containerEnv: Record<string, string>;
-  /** Variables a container never hands to an agent: every implementation's. */
-  privateEnv: string[];
   /** AGENT_WEBHOOK_KEY, for each container's secret. */
   key: string;
   routerUrl: string;

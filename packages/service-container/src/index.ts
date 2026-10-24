@@ -1,5 +1,5 @@
 export { createAgent } from "./agent.ts";
-export { PRIVATE_ENV, withoutPrivate } from "./agent-env.ts";
+export { withoutPrivate } from "./agent-env.ts";
 export { inRoot } from "./config.ts";
 export { resume, type ResumeOptions } from "./resume.ts";
 export { Runner, type RunnerOptions } from "./runner.ts";

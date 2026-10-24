@@ -73,8 +73,9 @@ export const deploy = async (ctx: DeployerContext, repo: string, dryRun: boolean
     const tree = await client.config();
     commit = tree.commit;
 
-    // What the deployer gives every container, e.g. the agents' tokens: hashed, as it holds secrets.
-    const given = crypto.sha256Hex(json.stableStringify({ ...ctx.env.containerEnv, ref: ctx.env.ref, routerUrl: ctx.env.routerUrl, privateEnv: ctx.env.privateEnv }));
+    // What the deployer gives every container, e.g. the agents' tokens. A change to it redeploys every repo; it's hashed, as it holds secrets.
+    const shared = { ...ctx.env.containerEnv, [ENV.routerUrl]: ctx.env.routerUrl, [ENV.ref]: ctx.env.ref };
+    const given = crypto.sha256Hex(json.stableStringify(shared));
     if (previous?.state === "deployed" && tree.tree && previous.deployed?.tree === tree.tree && previous.deployed.given === given) {
       ctx.log(`${repo}: ${CONFIG_DIR}/ unchanged at ${tree.commit}`);
       return withWarnings({ repo, outcome: "unchanged", manifest: previous.deployed.manifest }, previous.warnings);
@@ -99,14 +100,11 @@ export const deploy = async (ctx: DeployerContext, repo: string, dryRun: boolean
       const { dockerfile, path } = dockerfileOf(c)!;
       const image = { dockerfile, blob: tree.blobs.get(path)!.sha };
       const env = {
-        ...ctx.env.containerEnv,
+        ...shared,
         [ENV.repo]: repo,
         [ENV.repoUrl]: ctx.codeHost.cloneUrl(repo),
         [ENV.container]: c.name,
         [ENV.containerSecret]: containerSecret(ctx.env.key, repo, c.name),
-        [ENV.routerUrl]: ctx.env.routerUrl,
-        [ENV.ref]: ctx.env.ref,
-        [ENV.privateEnv]: ctx.env.privateEnv.join(","),
       };
       urls[c.name] = (await ctx.containerProvider.ensure({ repo, identity: tree.identity, name: c.name, dockerfile, branch: tree.branch, env })).url;
       // Containers load their config and credentials at runtime, so only a changed image needs a build: the router config covers the rest.

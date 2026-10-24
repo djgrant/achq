@@ -1,25 +1,16 @@
-import { ENV } from "@achq/core";
 import { collections } from "@achq/utils/collections";
 import { disk } from "@achq/utils/disk";
 import type { Vars } from "@achq/utils/env";
-import { text } from "@achq/utils/text";
-
-/**
- * Never handed to an agent. The container secret proves the container's
- * identity to the router, so an agent holding it could mint every credential
- * the container has and post as the channel. The key only exists on the router
- * and deployer. Every implementation's own private variables are listed
- * in ENV.privateEnv, which the deployer sets.
- */
-export const PRIVATE_ENV = [ENV.containerSecret, ENV.key, ENV.privateEnv];
+import { privateEnv } from "achq/registry";
 
 /** Only the agent's user reads its credentials. */
 const PRIVATE_FILE_MODE = 0o600;
 const PRIVATE_DIR_MODE = 0o700;
 const GIT_IDENTITY_PREFIXES = ["GIT_AUTHOR_", "GIT_COMMITTER_"];
 
+/** `env` without what's never given to an agent: the registry's `privateEnv`. */
 export const withoutPrivate = (env: Vars) => {
-  const hidden = new Set([...PRIVATE_ENV, ...text.commaList(env[ENV.privateEnv] ?? "")]);
+  const hidden = new Set(privateEnv());
   return Object.fromEntries(Object.entries(env).filter(([name, value]) => value !== undefined && !hidden.has(name))) as Record<string, string>;
 };
 

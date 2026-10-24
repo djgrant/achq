@@ -210,6 +210,7 @@ How GitHub's credentials work. Other channels and policy providers follow the sa
 - Containers never hold App private keys. They ask the router for credentials for their policies.
 - The token endpoint listens on a second port the public can't reach, so only achq's own services do: over Railway's private network, or on Cloudflare through Workers that carry the account's internal key.
 - A container proves its identity with a secret derived from `AGENT_WEBHOOK_KEY` and its repo and container name. The router only mints credentials for that container's policies.
+- A container never gives an agent what's private (the registry's `privateEnv`): its secret, `AGENT_WEBHOOK_KEY`, and each implementation's own `privateEnv`, e.g. the container provider's token, in case any is set. It reads that list from the registry it's built with.
 - Tokens last an hour. A container fetches one when it starts, then refreshes in the background when 30 minutes remain, so a failed refresh retries for half an hour before anything breaks. A stored token with more than 30 minutes left is reused on wake.
 - The token is stored on the container's volume at `/data/github/` (mode `600`). Claude can read it, which is acceptable because it's scoped to the container's policies and expires within an hour.
 - Accepted risk: the App keys sit on the public router. A bug in its webhook handling would expose them. The router is small and only parses JSON and checks signatures.
@@ -244,6 +245,7 @@ The App owns the whole lifecycle, including keeping a repo's deployment in line 
 - The deployer compares the `.achq/` tree at the new head with the one it last deployed. If it's the same, it stops.
 - Otherwise it evaluates the config again and compares the resulting manifest with the deployed one. It redeploys only what changed: a container whose image or policies changed is rebuilt; router config is updated for triggers and workspaces.
 - The deployer starts builds itself; the container provider's own deploys on push are off: Railway's auto-deploy, and on Cloudflare the build trigger's path filters, which match nothing. A container is only rebuilt when it's new, or its image path or Dockerfile changed.
+- What the deployer gives every container (the agents' tokens, the router's URL, ACHQ_REF) is kept as a hash with each deploy. When it changes, every repo redeploys, without a rebuild, so each container gets its new variables.
 - Everything else in the config reaches containers without a rebuild: the router forwards each event with the commit its config came from, and the container loads that commit's `.achq/` from its mirror (cached per commit).
 - Containers removed from the config are handled like uninstalls: kept asleep, deleted only by `achq infra up --prune`.
 - The outcome goes to `ACHQ_STATUS`.

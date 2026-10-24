@@ -17,8 +17,10 @@ test("finds each implementation by id, and names what it knows when it can't", (
   expect(() => vaultProviderNamed("keychain")).toThrow(`achq doesn't know the vault provider "keychain"; it knows 1password`);
 });
 
-test("privateEnv is every implementation's, once each", () => {
+test("privateEnv is the container secret, the key and every implementation's, once each", () => {
   const all = privateEnv();
+  expect(all).toContain("ACHQ_CONTAINER_SECRET");
+  expect(all).toContain("AGENT_WEBHOOK_KEY");
   for (const i of [...CHANNEL_PROVIDERS, ...POLICY_PROVIDERS, CODE_HOST, ...CONTAINER_PROVIDERS]) for (const name of i.privateEnv) expect(all).toContain(name);
   expect(new Set(all).size).toBe(all.length);
 });

@@ -21,7 +21,7 @@ import type { StoredRecord } from "../src/store.ts";
 const KEY = "test-webhook-key";
 const REPO = "notationlabs/yieldstar";
 const APP = "notation-achq";
-const ENV = { containerEnv: { CLAUDE_CODE_OAUTH_TOKEN: "claude-token" }, privateEnv: ["RAILWAY_API_TOKEN", "ACHQ_GITHUB_APPS"], key: KEY, routerUrl: "http://router.internal:8081", routerPublicUrl: "https://router.example", ref: "abc123" };
+const ENV = { containerEnv: { CLAUDE_CODE_OAUTH_TOKEN: "claude-token" }, key: KEY, routerUrl: "http://router.internal:8081", routerPublicUrl: "https://router.example", ref: "abc123" };
 
 const repoFiles = (overrides: Record<string, string | undefined> = {}) => {
   const files: Record<string, string | undefined> = {
@@ -131,7 +131,6 @@ describe("install", () => {
         ACHQ_CONTAINER_SECRET: containerSecret(KEY, REPO, "dev"),
         ACHQ_ROUTER_URL: ENV.routerUrl,
         ACHQ_REF: ENV.ref,
-        ACHQ_PRIVATE_ENV: "RAILWAY_API_TOKEN,ACHQ_GITHUB_APPS",
       },
     });
 

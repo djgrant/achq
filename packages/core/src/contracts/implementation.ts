@@ -6,7 +6,7 @@ export type Check = { label: string; check: () => Promise<void>; remediation?: s
 export type Implementation<T> = {
   readonly id: string;
   create(env: Vars): T;
-  /** Variables only the router and deployer have. A container never hands them to an agent, in case they're set anyway. */
+  /** Variables never given to an agent, e.g. the implementation's own credentials, which only the router and deployer need: a container hides them from its agents, in case they're set anyway. */
   readonly privateEnv: string[];
   /** What the CLI makes sure of before it uses this implementation with `env`. */
   checks?(env: Vars): Check[];
