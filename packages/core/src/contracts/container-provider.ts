@@ -1,11 +1,14 @@
 import type { Vars } from "@achq/utils/env";
 import { ENV } from "../wire/constants.ts";
+import type { RepoIdentity } from "./code-host-provider.ts";
 import type { Implementation } from "./implementation.ts";
 
 export type ContainerSpec = {
   /** The `CodeHostProvider` the repo is on. */
   host: string;
   repo: string;
+  /** The repo as its host identifies it, for a provider whose builds connect to it. */
+  identity: RepoIdentity;
   name: string;
   /** Dockerfile path in the repo, e.g. `.achq/Dockerfile`. */
   dockerfile: string;

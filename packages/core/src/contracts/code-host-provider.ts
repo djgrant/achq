@@ -20,8 +20,17 @@ export const repoName = {
   fromFile: (name: string) => name.replace("__", "/"),
 };
 
+/**
+ * A repo as its host identifies it, for a build service that connects to it
+ * (e.g. Workers Builds): the host's ids for it and its owner, which outlive a
+ * rename, and their names as the host spells them.
+ */
+export type RepoIdentity = { id: string; name: string; owner: { id: string; name: string } };
+
 /** A repo's default branch head, and the `.achq` tree in it. */
 export type ConfigTree = {
+  /** Read with the deployer's credential, so a private repo's too. */
+  identity: RepoIdentity;
   commit: string;
   branch: string;
   /** The `.achq` tree's id, or undefined when the commit has no `.achq/`. */

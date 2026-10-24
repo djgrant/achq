@@ -4,7 +4,6 @@ import { BuildTrigger, CONTAINER_MAIN } from "./build-trigger.ts";
 import { internalKey } from "./cloudflare.ts";
 import { INSTANCE } from "./constants.ts";
 import { containerWorkerName, KV_KEYS } from "./names.ts";
-import type { RepoIds } from "./repo-ids.ts";
 import { Secrets } from "./secrets.ts";
 import { Variables } from "./variables.ts";
 import { Worker } from "./worker.ts";
@@ -29,7 +28,7 @@ export type ContainerPlace = {
  * namespace and set as its secrets, and its trigger. Not its build: the
  * deployer starts those.
  */
-export const containerParts = (spec: ContainerSpec, place: ContainerPlace, repoIds: RepoIds) => {
+export const containerParts = (spec: ContainerSpec, place: ContainerPlace) => {
   const name = containerWorkerName(place.project, spec.repo, spec.name);
   const ref = spec.env[ENV.ref];
   if (!ref) throw new Error(`${spec.repo}'s ${spec.name} has no ${ENV.ref}: the achq Worker its build deploys is taken from that commit`);
@@ -61,9 +60,8 @@ export const containerParts = (spec: ContainerSpec, place: ContainerPlace, repoI
   const config = workerConfig(settings, { main: CONTAINER_MAIN, bucket: place.bucket, images, sshKeys: place.sshKeys });
   const trigger = new BuildTrigger(
     "build",
-    { worker: name, tag: worker.out("tag"), repo: spec.repo, branch: spec.branch, buildToken: place.buildToken, config, ref },
+    { worker: name, tag: worker.out("tag"), repo: spec.repo, identity: spec.identity, branch: spec.branch, buildToken: place.buildToken, config, ref },
     { parent: worker },
-    repoIds,
   );
   return { name, resources: [worker, variables, secrets, trigger] };
 };

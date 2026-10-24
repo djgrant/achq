@@ -161,14 +161,15 @@ class GitHubRepoClient implements RepoClient {
   constructor(private repo: RepoApi) {}
 
   async config(): Promise<ConfigTree> {
-    const { default_branch: branch } = await this.repo.info();
+    const { default_branch: branch, id, name, owner } = await this.repo.info();
+    const identity = { id: String(id), name, owner: { id: String(owner.id), name: owner.login } };
     const commit = await this.repo.headOf(branch);
     const configSha = await this.repo.subtree(commit, CONFIG_DIR);
-    if (!configSha) return { commit, branch, blobs: new Map() };
+    if (!configSha) return { identity, commit, branch, blobs: new Map() };
     const entries = await this.repo.listTree(configSha, `${CONFIG_DIR}/`);
     // Only files with content: symlinks and submodules (`commit`) aren't followed.
     const files = entries.filter((entry) => entry.type === "blob" && entry.mode !== SYMLINK_MODE);
-    return { commit, branch, tree: configSha, blobs: new Map(files.map((entry) => [entry.path, { sha: entry.sha, size: entry.size ?? 0 }])) };
+    return { identity, commit, branch, tree: configSha, blobs: new Map(files.map((entry) => [entry.path, { sha: entry.sha, size: entry.size ?? 0 }])) };
   }
 
   async download(tree: ConfigTree, paths: string[], limits: FileLimits) {

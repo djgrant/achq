@@ -1,8 +1,7 @@
-import { ACHQ_SOURCE, BrowserActionNeeded, type Change, type Context, hasUnknown, type Inputs, known, ManagedResource, type Planned, type ResourceOptions, UNKNOWN } from "@achq/core";
-import { CloudflareError, type Trigger, type TriggerSettings } from "@achq/utils/cloudflare";
+import { ACHQ_SOURCE, BrowserActionNeeded, type Change, type Context, hasUnknown, known, ManagedResource, type Planned, type RepoIdentity, UNKNOWN } from "@achq/core";
+import { CloudflareError, type RepoConnection, type Trigger, type TriggerSettings } from "@achq/utils/cloudflare";
 import { connect } from "./cloudflare.ts";
 import { BUILDS_GITHUB_APP, BUILDS_GITHUB_APP_INSTALL_URL, REPO_UNSEEN } from "./constants.ts";
-import type { RepoIds } from "./repo-ids.ts";
 import { packed, type WorkerConfig } from "./wrangler.ts";
 
 type Props = {
@@ -10,6 +9,8 @@ type Props = {
   /** The Worker's tag, which the trigger builds. Unknown until it exists. */
   tag: string;
   repo: string;
+  /** The repo as GitHub identifies it, which Builds connects to. */
+  identity: RepoIdentity;
   branch: string;
   buildToken: string;
   /** The container Worker's config, which the build writes beside the repo's own files. */
@@ -76,15 +77,6 @@ const sameRepo = (trigger: Trigger, repo: string) => {
 export class BuildTrigger extends ManagedResource<Props, State, Outputs, TriggerChange> {
   readonly kind = "cloudflare-build-trigger";
 
-  constructor(
-    name: string,
-    props: Inputs<Props>,
-    options: ResourceOptions,
-    private readonly repoIds: RepoIds,
-  ) {
-    super(name, props, options);
-  }
-
   async read({ tag, repo }: Props, ctx: Context) {
     if (!known(tag)) return undefined;
     const cf = await connect(ctx.env);
@@ -130,7 +122,7 @@ export class BuildTrigger extends ManagedResource<Props, State, Outputs, Trigger
     for (const change of changes) {
       if (change.kind === "create") {
         for (const stale of current?.stale ?? []) await cf.builds.deleteTrigger(stale);
-        const connection = await cf.builds.connect(await this.repoIds(props.repo)).catch((error) => {
+        const connection = await cf.builds.connect(connectionOf(props.identity)).catch((error) => {
           throw unseen(error) ? cantSee(props.repo, error) : error;
         });
         trigger = (await cf.builds.createTrigger(props.tag, connection, settingsOf(props))).trigger_uuid;
@@ -141,6 +133,15 @@ export class BuildTrigger extends ManagedResource<Props, State, Outputs, Trigger
     return { trigger: trigger! };
   }
 }
+
+/** The repo, as Workers Builds connects to it. */
+const connectionOf = ({ id, name, owner }: RepoIdentity): RepoConnection => ({
+  provider_type: "github",
+  provider_account_id: owner.id,
+  provider_account_name: owner.name,
+  repo_id: id,
+  repo_name: name,
+});
 
 /** Whether Workers Builds couldn't connect a repo because its GitHub App can't see it. */
 const unseen = (error: unknown) => error instanceof CloudflareError && (error.codes.includes(REPO_UNSEEN) || error.status === 404);

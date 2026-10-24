@@ -14,6 +14,7 @@ let host: RailwayContainerProvider;
 const spec = {
   host: "github",
   repo: "NotationLabs/yieldstar",
+  identity: { id: "22", name: "yieldstar", owner: { id: "11", name: "NotationLabs" } },
   name: "dev",
   dockerfile: ".achq/Dockerfile",
   branch: "main",

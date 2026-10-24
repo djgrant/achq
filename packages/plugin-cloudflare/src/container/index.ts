@@ -4,7 +4,6 @@ import { HttpJsonStore } from "@achq/utils/http";
 import { INTERNAL_HOSTS } from "../../worker/settings.ts";
 import { CLOUDFLARE_ENV, CONTAINER_PROVIDER, PRIVATE_ENV } from "../lib/constants.ts";
 import { tokenCheck } from "../lib/cloudflare.ts";
-import { routerRepoIds } from "../lib/repo-ids.ts";
 import { CloudflareContainerProvider, cloudflareShell } from "./provider.ts";
 
 /**
@@ -18,7 +17,6 @@ export const cloudflareContainerProvider: ContainerProviderImplementation = {
   id: CONTAINER_PROVIDER,
   create: (vars) => {
     const env = new Env(vars);
-    const key = env.require(ENV.key);
     return new CloudflareContainerProvider({
       // Its own, from its Worker's secret: never yours.
       token: env.require(CLOUDFLARE_ENV.deployerToken),
@@ -28,8 +26,7 @@ export const cloudflareContainerProvider: ContainerProviderImplementation = {
       bucket: env.require(CLOUDFLARE_ENV.bucket),
       workersDev: env.require(CLOUDFLARE_ENV.workersDev),
       sshKeys: JSON.parse(env.optional(CLOUDFLARE_ENV.sshKeys) ?? "[]"),
-      key,
-      repoIds: routerRepoIds({ routerUrl: env.require(ENV.routerUrl), key, githubApi: env.optional("GITHUB_API_URL") }),
+      key: env.require(ENV.key),
       endpoint: env.optional(CLOUDFLARE_ENV.endpoint),
     });
   },

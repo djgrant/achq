@@ -10,11 +10,11 @@ import { internalKey } from "../src/lib/cloudflare.ts";
 let fake: FakeCloudflare;
 let host: CloudflareContainerProvider;
 let namespaceId: string;
-const looked: string[] = [];
 
 const spec = {
   host: "github",
   repo: "NotationLabs/yieldstar",
+  identity: { id: "22", name: "yieldstar", owner: { id: "11", name: "NotationLabs" } },
   name: "dev",
   dockerfile: ".achq/Dockerfile",
   branch: "main",
@@ -41,10 +41,6 @@ const options = () => ({
   workersDev: "acme.workers.dev",
   sshKeys: ["ssh-ed25519 AAAA achq container ssh"],
   key: "webhook-key",
-  repoIds: async (repo: string) => {
-    looked.push(repo);
-    return { provider_type: "github" as const, provider_account_id: "11", provider_account_name: "NotationLabs", repo_id: "22", repo_name: "yieldstar" };
-  },
   sleep: async () => {},
   log: (line: string) => logs.push(line),
 });
@@ -64,7 +60,6 @@ beforeEach(async () => {
   host = new CloudflareContainerProvider(options());
   fake.mutations.length = 0;
   fake.requests.length = 0;
-  looked.length = 0;
 });
 afterEach(() => fake.stop());
 
@@ -107,9 +102,8 @@ test("ensure makes a placeholder Worker, its variables and secrets, and a trigge
   expect(JSON.parse(fake.kv("achq")!.get(`containers/${worker}`)!)).toEqual(variables);
   expect(made.secrets).toEqual({ ACHQ_ENV: JSON.stringify(variables), ACHQ_INTERNAL_KEY: internalKey("webhook-key") });
 
-  // Connected by GitHub's ids for the repo.
-  expect(looked).toEqual([spec.repo]);
-  expect(fake.connections).toEqual([expect.objectContaining({ provider_account_id: "11", repo_id: "22", repo_name: "yieldstar" })]);
+  // Connected by GitHub's ids for the repo, as its code host gave them.
+  expect(fake.connections).toEqual([expect.objectContaining({ provider_type: "github", provider_account_id: "11", provider_account_name: "NotationLabs", repo_id: "22", repo_name: "yieldstar" })]);
   const trigger = [...fake.triggers.values()][0]!;
   expect(trigger).toMatchObject({
     external_script_id: made.id,

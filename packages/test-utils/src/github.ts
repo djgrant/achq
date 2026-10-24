@@ -29,7 +29,7 @@ type Issue = {
   reactions: string[];
 };
 
-type Repo = { full_name: string; objects: GitObjects; default_branch: string; variables: Map<string, string> };
+type Repo = { id: number; full_name: string; objects: GitObjects; default_branch: string; variables: Map<string, string> };
 
 const RANK: Record<string, number> = { read: 1, write: 2, admin: 3 };
 
@@ -79,7 +79,7 @@ export class FakeGitHub {
   /** Serves `repo`'s git data from `objects`, or from the git repository at that path (bare or not). */
   addRepo(repo: string, objects: GitObjects | string, defaultBranch = "main") {
     const source = typeof objects === "string" ? gitDirObjects(objects) : objects;
-    this.repos.set(repo.toLowerCase(), { full_name: repo, objects: source, default_branch: defaultBranch, variables: new Map() });
+    this.repos.set(repo.toLowerCase(), { id: 1000 + this.repos.size, full_name: repo, objects: source, default_branch: defaultBranch, variables: new Map() });
   }
 
   /** Commits `files`, the repo's whole content, to `branch` of a repo kept in memory, adding it if it's new. Returns the commit's sha. */
@@ -93,6 +93,14 @@ export class FakeGitHub {
   /** Grants `token` to an installation of `app` on `repos`, with `permissions`, as though GitHub had minted it. */
   grant(token: string, repos: string[], permissions: Record<string, string>, app = "app") {
     this.tokens.set(token, { app, installation: 0, repos, permissions });
+  }
+
+  /** A repo as `GET /repos/{owner}/{repo}` shows it: an owner's id is the same for each of its repos. */
+  private summary(repo: Repo) {
+    const [login = "", name = ""] = repo.full_name.split("/");
+    const owners = [...new Set([...this.repos.values()].map((r) => r.full_name.split("/")[0]!.toLowerCase()))];
+    const owner = { id: 500 + owners.indexOf(login.toLowerCase()), login };
+    return { id: repo.id, name, full_name: repo.full_name, owner, default_branch: repo.default_branch, private: true };
   }
 
   /** A repository variable's value, parsed as JSON. */
@@ -232,12 +240,12 @@ export class FakeGitHub {
       const person = this.userTokens.get(auth.replace(/^(token|bearer) /i, ""));
       if (person && repo && !m[2] && method === "GET") {
         const push = person.push.some((r) => r.toLowerCase() === repo.full_name.toLowerCase());
-        return json({ full_name: repo.full_name, default_branch: repo.default_branch, private: true, permissions: { admin: false, maintain: false, push, triage: push, pull: true } });
+        return json({ ...this.summary(repo), permissions: { admin: false, maintain: false, push, triage: push, pull: true } });
       }
       if (!token || !repo || !token.repos.some((r) => r.toLowerCase() === m![1]!.toLowerCase())) return notFound();
       const rest = m[2] ?? "";
       const level = (name: string) => RANK[token.permissions[name] ?? ""] ?? 0;
-      if (rest === "" && method === "GET") return json({ full_name: repo.full_name, default_branch: repo.default_branch, private: true });
+      if (rest === "" && method === "GET") return json(this.summary(repo));
       if (rest.startsWith("/git/")) {
         if (method !== "GET") return notFound();
         if (level("contents") < 1) return json({ message: "Resource not accessible by integration" }, 403);

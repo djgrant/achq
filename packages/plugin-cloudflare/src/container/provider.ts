@@ -10,13 +10,11 @@ import { BUILD_POLL_INTERVAL_MS, BUILD_TIMEOUT_MS, BUILDS_GITHUB_APP_INSTALL_URL
 import { buildToken, registered } from "../lib/build-token.ts";
 import { type ContainerPlace, containerParts } from "../lib/container-parts.ts";
 import { archiveKey, containerUrl, containerWorkerName, KV_KEYS } from "../lib/names.ts";
-import type { RepoIds } from "../lib/repo-ids.ts";
 
 /** Where it puts containers, and its own token, which it builds them with too. */
 export type CloudflareContainerProviderOptions = Omit<ContainerPlace, "buildToken"> & {
   token: string;
   accountId: string;
-  repoIds: RepoIds;
   /** Cloudflare's API, for tests. */
   endpoint?: string;
   sleep?: (ms: number) => Promise<void>;
@@ -47,7 +45,7 @@ export class CloudflareContainerProvider implements ContainerProvider {
 
   /** Not its build: `deploy` starts those. */
   private async parts(spec: ContainerSpec) {
-    return containerParts(spec, { ...this.options, buildToken: await this.ownBuildToken(spec) }, this.options.repoIds);
+    return containerParts(spec, { ...this.options, buildToken: await this.ownBuildToken(spec) });
   }
 
   /** Its Workers Builds token, registered the first time it's asked for. */
@@ -61,7 +59,7 @@ export class CloudflareContainerProvider implements ContainerProvider {
   /** What `ensure` would change. Registers nothing: a token yet to be registered is unknown. */
   async plan(spec: ContainerSpec) {
     const { own } = await registered(this.cf);
-    const parts = containerParts(spec, { ...this.options, buildToken: own ?? new Output<string>([], () => UNKNOWN) }, this.options.repoIds);
+    const parts = containerParts(spec, { ...this.options, buildToken: own ?? new Output<string>([], () => UNKNOWN) });
     return (await plan(parts.resources, this.ctx)).changes;
   }
 

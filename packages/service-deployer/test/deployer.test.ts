@@ -118,6 +118,8 @@ describe("install", () => {
     expect(containerProvider.services.get(`${REPO}/dev`)!.spec).toEqual({
       host: "github",
       repo: REPO,
+      // Read with the minted token, for a provider whose builds connect to the repo.
+      identity: { id: "1000", name: REPO.split("/")[1], owner: { id: "500", name: REPO.split("/")[0] } },
       name: "dev",
       dockerfile: ".achq/Dockerfile",
       branch: "main",
