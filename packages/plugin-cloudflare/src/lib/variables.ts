@@ -7,8 +7,7 @@ type Props = { namespaceId: string; key: string; target: string; values: Declare
 /** Reads a Worker's variables, as JSON in the project's namespace: none until it has some. */
 export const readVariables = async (ctx: Context, namespaceId: string, key: string): Promise<Record<string, string>> => {
   const cf = await connect(ctx.env);
-  const stored = await cf.kv.get(namespaceId, key);
-  return stored ? JSON.parse(stored) : {};
+  return (await cf.kv.getJson<Current>(namespaceId, key)) ?? {};
 };
 
 /**

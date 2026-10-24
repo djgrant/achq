@@ -113,8 +113,7 @@ export class CloudflareContainerProvider implements ContainerProvider {
     const keys = await this.cf.kv.keys(namespaceId, KV_KEYS.containers);
     const containers = await Promise.all(
       keys.map(async (key) => {
-        const stored = await this.cf.kv.get(namespaceId, key);
-        const variables = stored ? (JSON.parse(stored) as Record<string, string>) : {};
+        const variables = (await this.cf.kv.getJson<Record<string, string>>(namespaceId, key)) ?? {};
         const repo = variables[ENV.repo];
         const name = variables[ENV.container];
         return repo && name ? { repo, name } : undefined;

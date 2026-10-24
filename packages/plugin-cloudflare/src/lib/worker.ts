@@ -31,8 +31,8 @@ export class Worker extends ManagedResource<Props, State, Outputs, "create"> {
     const found = await cf.workers.get(name);
     if (!found) return undefined;
     if (!env) return { tag: found.id };
-    const stored = known(env.namespaceId) ? await cf.kv.get(env.namespaceId, KV_KEYS.service(name)) : undefined;
-    return { tag: found.id, env: stored ? (JSON.parse(stored) as Record<string, string>) : {} };
+    const stored = known(env.namespaceId) ? await cf.kv.getJson<Record<string, string>>(env.namespaceId, KV_KEYS.service(name)) : undefined;
+    return { tag: found.id, env: stored ?? {} };
   }
 
   diff(_: Props, current: State | undefined): "create"[] {

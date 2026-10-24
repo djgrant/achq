@@ -129,6 +129,12 @@ class Kv {
     return this.t.text(this.value(namespace, key));
   }
 
+  /** The value, parsed as JSON, or undefined if there's none or it's empty. */
+  async getJson<T>(namespace: string, key: string) {
+    const stored = await this.get(namespace, key);
+    return stored ? (JSON.parse(stored) as T) : undefined;
+  }
+
   async put(namespace: string, key: string, value: string) {
     await this.t.call("PUT", this.value(namespace, key), { body: value });
   }
