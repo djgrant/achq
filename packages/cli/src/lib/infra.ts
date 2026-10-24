@@ -1,8 +1,7 @@
 import * as path from "node:path";
-import { type Check, type Context, Deployer, type Vault, DEPLOYER_PORT, ENV, type Infra, known, plan, type Resource, Router, ROUTER_PRIVATE_PORT, type SyncRequest, type DeployerVersion, type SyncResult, type SyncStarted, type SyncStatus, teardown } from "@achq/core";
+import { type Check, type Context, Deployer, DEPLOYER_PORT, ENV, type Infra, known, plan, type Resource, Router, ROUTER_PRIVATE_PORT, type SyncRequest, type SyncResult, teardown } from "@achq/core";
 import { context } from "@achq/core/context";
-import { adminSecret } from "@achq/core/secrets";
-import { signedFetch } from "@achq/core/signing";
+import { routerAdmin, type RouterAdmin } from "@achq/core/client";
 import { async } from "@achq/utils/async";
 import { collections } from "@achq/utils/collections";
 import { Env, type Vars } from "@achq/utils/env";
@@ -21,32 +20,22 @@ export type InfraResources = {
   resources: Resource[];
 };
 
-export type RouterAccess = { base: string; key: string };
+/** What `routerAdmin` reaches the router with: its public URL and AGENT_WEBHOOK_KEY. */
+export type RouterAccess = { url: string; key: string };
 
 /** The sync's options, and whether to replace the deployer's own token, where it has one. */
 export type UpOptions = Required<Pick<SyncRequest, "prune" | "dryRun">> & { rotateDeployerToken?: boolean };
 
-export type UpDeps = {
-  /** What the resources read their settings and credentials from. */
-  env: Vars;
+/** What planning and applying get from the CLI, as a Context's parts, and what else `up` needs. Parts left undefined keep the CLI's. */
+export type UpDeps = Pick<Context, "env" | "log"> & Partial<Context> & {
   containerEnv: Record<string, string>;
   /** The achq commit the router and deployer run. */
   achqRef: () => Promise<string>;
   /** Opens `url` in your browser to `what`, e.g. to create an App. */
   open: (url: string, what: string) => Promise<void>;
-  /** Asks you for a secret without echoing it, e.g. a token you made in the browser. */
-  prompt?: (message: string) => Promise<string>;
-  /** Where it keeps secrets it makes for reuse, e.g. Apps' keys, if `achq.config.ts` names one. */
-  vault?: Vault;
   /** Rewrites the router's public URL for the sync; tests point it at a fake. */
   routerUrl?: (publicUrl: string) => string;
-  log: (line: string) => void;
-  newSecret?: () => string;
-  sleep?: (ms: number) => Promise<void>;
 };
-
-/** What planning and applying get from the CLI. Tests pass their own secrets and sleep; parts left undefined keep the CLI's. */
-export const cliContext = (parts: Pick<Context, "env" | "log"> & Partial<Context>) => context(parts);
 
 let modulesRegistered = false;
 
@@ -115,7 +104,7 @@ const foundRouter = async ({ router }: InfraResources, ctx: Context): Promise<Ro
   const env = planned.value(router.env);
   const url = planned.value(router.url);
   const key = known(env) ? env[ENV.key] : undefined;
-  return key && known(url) ? { base: url, key } : undefined;
+  return key && known(url) ? { url, key } : undefined;
 };
 
 /** As `foundRouter`, but throws if it isn't there. */
@@ -125,17 +114,9 @@ export const routerAccess = async (infra: InfraResources, ctx: Context) => {
   return found;
 };
 
-/** Throws on anything but 2xx. */
-export const adminRequest = async <T>(router: RouterAccess, method: string, path: string, body?: unknown): Promise<T> => {
-  const res = await signedFetch(adminSecret(router.key), router.base + path, { method, body: body === undefined ? undefined : JSON.stringify(body) });
-  const text = await res.text();
-  if (!res.ok) throw new HttpError(res.status, method, path, text, "Router");
-  return (text ? JSON.parse(text) : undefined) as T;
-};
-
 /** Waits until the deployer runs `ref`. One older than `GET /version` answers 404, which counts as not yet. */
-const deployerRuns = async (router: RouterAccess, ref: string, ctx: Context, log: (line: string) => void) => {
-  const running = () => adminRequest<DeployerVersion>(router, "GET", "/admin/deployer").then((v) => v.ref, () => undefined);
+const deployerRuns = async (admin: RouterAdmin, ref: string, ctx: Context, log: (line: string) => void) => {
+  const running = () => admin.deployerVersion().then((v) => v.ref, () => undefined);
   if ((await running()) === ref) return;
   log(`  waiting for the deployer to run ${ref.slice(0, 7)}…`);
   const found = await async.pollUntil(running, (r) => r === ref, { intervalMs: SYNC_INTERVAL_MS, timeoutMs: DEPLOYER_VERSION_TIMEOUT_MS, sleep: ctx.sleep });
@@ -143,11 +124,12 @@ const deployerRuns = async (router: RouterAccess, ref: string, ctx: Context, log
 };
 
 export const up = async ({ router, deployer, resources }: InfraResources, options: UpOptions, deps: UpDeps) => {
-  const { log } = deps;
-  const ctx = cliContext({ env: deps.env, log, open: deps.open, prompt: deps.prompt, vault: deps.vault, newSecret: deps.newSecret, sleep: deps.sleep });
+  const { containerEnv, achqRef, routerUrl, ...parts } = deps;
+  const { log } = parts;
+  const ctx = context(parts);
   if (options.rotateDeployerToken) deployer.rotateToken();
   // What achq itself gives the router and deployer: how they reach each other, and what they run.
-  const ref = await deps.achqRef();
+  const ref = await achqRef();
   router.variables({
     [ENV.deployerUrl]: deployer.privateUrl(DEPLOYER_PORT),
     [ENV.ref]: ref,
@@ -159,7 +141,7 @@ export const up = async ({ router, deployer, resources }: InfraResources, option
     [ENV.routerUrl]: router.privateUrl(ROUTER_PRIVATE_PORT),
     [ENV.routerPublicUrl]: router.url,
     [ENV.owners]: deployer.inputs.owners.join(","),
-    [ENV.containerEnv]: JSON.stringify(deps.containerEnv),
+    [ENV.containerEnv]: JSON.stringify(containerEnv),
     [ENV.ref]: ref,
     [ENV.containerProvider]: deployer.containerProvider,
   });
@@ -178,10 +160,10 @@ export const up = async ({ router, deployer, resources }: InfraResources, option
     log("  sync: skipped until the router exists");
     return undefined;
   }
-  const base = deps.routerUrl ? deps.routerUrl(url) : url;
+  const admin = routerAdmin({ url: routerUrl ? routerUrl(url) : url, key });
   // A new deployer takes a while to replace the one running, and a sync the old one ran would deploy with what it was given.
-  if (!options.dryRun) await deployerRuns({ base, key }, ref, ctx, log);
-  return sync({ base, key }, { prune: options.prune, dryRun: options.dryRun }, ctx);
+  if (!options.dryRun) await deployerRuns(admin, ref, ctx, log);
+  return sync(admin, { prune: options.prune, dryRun: options.dryRun }, ctx);
 };
 
 /**
@@ -189,13 +171,13 @@ export const up = async ({ router, deployer, resources }: InfraResources, option
  * request. A sync the deployer lost, restarting, is started again: syncing
  * twice changes nothing more than once.
  */
-const sync = async (router: RouterAccess, request: SyncRequest, ctx: Context): Promise<SyncResult> => {
-  const start = () => adminRequest<SyncStarted>(router, "POST", "/admin/sync", request).then(({ id }) => id);
+const sync = async (admin: RouterAdmin, request: SyncRequest, ctx: Context): Promise<SyncResult> => {
+  const start = () => admin.sync(request).then(({ id }) => id);
   let id = await start();
   const status = await async.pollUntil(
     async () => {
       try {
-        return await adminRequest<SyncStatus>(router, "GET", `/admin/sync/${id}`);
+        return await admin.syncStatus(id);
       } catch (e) {
         if (!(e instanceof HttpError && e.status === NOT_FOUND)) throw e;
         id = await start();
@@ -210,17 +192,14 @@ const sync = async (router: RouterAccess, request: SyncRequest, ctx: Context): P
   return status.result;
 };
 
-export type DownDeps = {
-  env: Vars;
+/** What planning and applying get from the CLI, as a Context's parts, and what else `down` needs. Parts left undefined keep the CLI's. */
+export type DownDeps = Pick<Context, "env" | "log"> & Partial<Context> & {
   /** Asks you whether to go ahead, once it's shown what it deletes. */
   confirm: (message: string) => Promise<boolean>;
   /** Opens `url` in your browser to `what`: where you delete what's protected yourself. */
   open: (url: string, what: string) => Promise<void>;
-  vault?: Vault;
   /** Rewrites the router's public URL; tests point it at a fake. */
   routerUrl?: (publicUrl: string) => string;
-  log: (line: string) => void;
-  sleep?: (ms: number) => Promise<void>;
 };
 
 /**
@@ -231,10 +210,12 @@ export type DownDeps = {
  * left, and where you delete each yourself is opened.
  */
 export const down = async (infra: InfraResources, { dryRun }: { dryRun: boolean }, deps: DownDeps) => {
-  const { log } = deps;
-  const ctx = cliContext({ env: deps.env, log, vault: deps.vault, sleep: deps.sleep });
+  const { confirm, open, routerUrl, ...parts } = deps;
+  const { log } = parts;
+  // Teardown opens nothing itself: where you delete what's protected is opened once the rest is deleted.
+  const ctx = context(parts);
   const found = await foundRouter(infra, ctx);
-  const router = found && { ...found, base: deps.routerUrl ? deps.routerUrl(found.base) : found.base };
+  const router = found && routerAdmin({ url: routerUrl ? routerUrl(found.url) : found.url, key: found.key });
   const request: SyncRequest = { empty: true, prune: true };
   const synced = router && (await sync(router, { ...request, dryRun: true }, ctx));
   const planned = await teardown(infra.resources, ctx);
@@ -245,10 +226,10 @@ export const down = async (infra: InfraResources, { dryRun }: { dryRun: boolean 
   for (const line of planLines({ ...planned, warnings: [] })) log(`  ${line}`);
   if (dryRun) return;
   if (!nothing) {
-    if (!(await deps.confirm("Delete all of this?"))) throw new Error("Nothing was deleted");
+    if (!(await confirm("Delete all of this?"))) throw new Error("Nothing was deleted");
     if (router) for (const line of formatSync(await sync(router, { ...request, expect: synced!.pruned }, ctx), false)) log(`  sync: ${line}`);
     await planned.apply();
     log("  deleted");
   }
-  for (const { target, page } of planned.protected) if (page) await deps.open(page, `delete ${target}`);
+  for (const { target, page } of planned.protected) if (page) await open(page, `delete ${target}`);
 };

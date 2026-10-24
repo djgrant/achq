@@ -4,13 +4,14 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { achq, type SyncRequest, type SyncResult } from "@achq/core";
+import { context } from "@achq/core/context";
 import { adminSecret, implementationSecret } from "@achq/core/secrets";
 import { verifySigned } from "@achq/core/signing";
 import * as github from "@achq/github/infra";
 import { type FakeRailway, startFakeRailway } from "@achq/test-utils/railway";
 import * as railway from "@achq/railway/infra";
 import { fakeOp } from "@achq/test-utils/op";
-import { checkInfra, cliContext, configVault, down, type DownDeps, routerAccess, up, type UpDeps } from "../src/lib/infra.ts";
+import { checkInfra, configVault, down, type DownDeps, routerAccess, up, type UpDeps } from "../src/lib/infra.ts";
 
 const { privateKey: pem, publicKey } = generateKeyPairSync("rsa", { modulusLength: 2048, privateKeyEncoding: { type: "pkcs8", format: "pem" }, publicKeyEncoding: { type: "spki", format: "pem" } });
 const pemBody = pem.split("\n")[5]; // a line from the middle of the key
@@ -329,11 +330,11 @@ test("a changed achq ref shows as variables and a deploy, and a dry run applies 
 });
 
 test("`achq infra status` finds the router's URL and key by planning it, and changes nothing", async () => {
-  const ctx = () => cliContext({ env: deps().env, log: () => {} });
+  const ctx = () => context({ env: deps().env });
   await expect(routerAccess(infra(), ctx())).rejects.toThrow("There's no router router. Run `achq infra up`.");
   await up(infra(), { prune: false, dryRun: false }, deps());
   fake.mutations.length = 0;
-  expect(await routerAccess(infra(), ctx())).toEqual({ base: ROUTER_URL, key: fake.service("achq-router")!.variables.AGENT_WEBHOOK_KEY });
+  expect(await routerAccess(infra(), ctx())).toEqual({ url: ROUTER_URL, key: fake.service("achq-router")!.variables.AGENT_WEBHOOK_KEY });
   expect(fake.mutations).toEqual([]);
 });
 
