@@ -17,7 +17,7 @@ export type ChooseOptions<T, F> = {
 
 export const chooseOne = async <T, F>(prompter: Prompter, items: T[], picked: T | undefined, options: ChooseOptions<T, F>) => {
   if (picked) return picked;
-  if (!process.stdin.isTTY || !process.stdout.isTTY) return options.withoutTerminal();
+  if (!interactive()) return options.withoutTerminal();
   const { message, id, label, hint } = options;
   const chosen = await prompter.select({ message, options: items.map((item) => ({ value: id(item), label: label(item), hint: hint?.(item) })) });
   return items.find((item) => id(item) === chosen)!;
@@ -45,19 +45,12 @@ export const clean =
 export const interactive = () => Boolean(process.stdin.isTTY && process.stdout.isTTY);
 
 /** Waits for you to press Enter, e.g. once you've done what the browser was opened to. */
-export const waitForEnter = async (message: string) => {
-  process.stdout.write(`${message} `);
-  for await (const _ of console) break;
+export const waitForEnter = async (prompter: Prompter, message: string) => {
+  await prompter.select({ message, options: [{ value: true, label: "Done" }] });
 };
 
-/** Asks a yes-or-no question: only `y` or `yes` is yes. Without a terminal to ask at, it's no. */
-export const confirm = async (message: string) => {
-  if (!interactive()) return false;
-  process.stdout.write(`  ${message} [y/N] `);
-  let line = "";
-  for await (line of console) break;
-  return ["y", "yes"].includes(line.trim().toLowerCase());
-};
+/** Asks a yes-or-no question, where no is the default. Without a terminal to ask at, it's no. */
+export const confirm = async (prompter: Prompter, message: string) => interactive() && (await prompter.confirm({ message, initialValue: false }));
 
 const ENTER = ["\r", "\n"];
 const CTRL_C = "\u0003";

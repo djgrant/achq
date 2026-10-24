@@ -17,7 +17,7 @@ export const command = defineCommand({
   context: {
     dryRun: { from: "flag", schema: z.boolean().default(false), description: "Preview changes" },
   },
-  run: clean(async (_r, { context }) => {
+  run: clean(async (r, { context }) => {
     const since = new Date();
     const { host, repo, codeHost, apply } = await planInstall("install");
     if (context.dryRun) return;
@@ -40,7 +40,7 @@ export const command = defineCommand({
         console.log(`Opening ${url} to ${what}…`);
         subprocess.openUrl(url);
       },
-      waitForYou: () => waitForEnter("Press Enter once you have."),
+      waitForYou: () => waitForEnter(r.prompter, "Press Enter once you have."),
       redeploy: (router, r) => redeploy(router, { host, repo: r }, codeHost.token()),
       log: (line) => console.log(line),
     });

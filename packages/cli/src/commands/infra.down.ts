@@ -13,10 +13,10 @@ export const command = defineCommand({
     yes: { from: "flag", schema: z.boolean().default(false), description: "Don't ask first, e.g. in CI" },
   },
   pre: async () => infraChecks(needInfra(), process.env),
-  run: clean(async (_r, { context }) => {
+  run: clean(async (r, { context }) => {
     await down(await loadInfra(needInfra()), { dryRun: context.dryRun }, {
       env: process.env,
-      confirm: async (message) => context.yes || (await confirm(message)),
+      confirm: async (message) => context.yes || (await confirm(r.prompter, message)),
       open: openInBrowser,
       vault: configVault(await loadConfig(), process.env),
       log: (line) => console.log(line),
