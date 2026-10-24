@@ -72,14 +72,28 @@ describe("the sandbox has no host access", () => {
     expect(Date.now() - started).toBeLessThan(3000);
   });
 
-  test("a huge allocation hits the memory limit", async () => {
-    await expect(
-      evaluateConfig({ "config.ts": `const a: object[] = []; for (let i = 0; ; i++) a.push({ i, items: new Array(1e4).fill(i) });` }, { memoryBytes: 16 * 1024 * 1024 }),
-    ).rejects.toThrow("ran out of memory");
-    await expect(evaluateConfig({ "config.ts": `const a = []; for (;;) a.push(new Array(1e6).fill(1));` }, { memoryBytes: 16 * 1024 * 1024 })).rejects.toThrow(
-      "ran out of memory",
-    );
-  });
+  /** Filling 16MB takes a few seconds when other packages' tests share the machine. */
+  const OUT_OF_MEMORY_TIMEOUT_MS = 30_000;
+
+  test(
+    "many small allocations hit the memory limit",
+    async () => {
+      await expect(
+        evaluateConfig({ "config.ts": `const a: object[] = []; for (let i = 0; ; i++) a.push({ i, items: new Array(1e4).fill(i) });` }, { memoryBytes: 16 * 1024 * 1024 }),
+      ).rejects.toThrow("ran out of memory");
+    },
+    OUT_OF_MEMORY_TIMEOUT_MS,
+  );
+
+  test(
+    "a huge allocation hits the memory limit",
+    async () => {
+      await expect(evaluateConfig({ "config.ts": `const a = []; for (;;) a.push(new Array(1e6).fill(1));` }, { memoryBytes: 16 * 1024 * 1024 })).rejects.toThrow(
+        "ran out of memory",
+      );
+    },
+    OUT_OF_MEMORY_TIMEOUT_MS,
+  );
 
   test("unbounded recursion overflows the stack, not the deployer", async () => {
     await expect(evaluateConfig({ "config.ts": `const f = (): number => f() + 1; f();` })).rejects.toThrow(/stack|memory/);
