@@ -5,7 +5,6 @@ import {
   type Context,
   type EnvValue,
   type Vault,
-  type EnvValues,
   ManagedResource,
   Output,
   type Placement,
@@ -15,7 +14,8 @@ import {
   Router,
   UNKNOWN,
 } from "@achq/core";
-import { appsVariable, appWebhookSecret } from "../src/lib/apps.ts";
+import { collections } from "@achq/utils/collections";
+import { appWebhookSecret } from "../src/lib/apps.ts";
 import { Channel } from "../src/channel/resource.ts";
 
 const { privateKey: pem, publicKey } = generateKeyPairSync("rsa", { modulusLength: 2048, privateKeyEncoding: { type: "pkcs8", format: "pem" }, publicKeyEncoding: { type: "spki", format: "pem" } });
@@ -99,11 +99,10 @@ class RouterService extends ManagedResource<Service, true, Omit<Service, "exists
   apply = async ({ url, key, env }: Service) => ({ url, key, env });
 }
 
-/** A router whose variable groups are recorded, not set. */
+/** A router that's planned as its service alone. */
 class StubRouter extends Router {
   readonly containerProvider = "stub";
   readonly url: Output<string>;
-  readonly groups: (EnvValues | ((ctx: Context) => EnvValues))[] = [];
   protected readonly placement = undefined as unknown as Placement;
   private readonly service: RouterService;
 
@@ -121,16 +120,14 @@ class StubRouter extends Router {
   override children() {
     return [];
   }
-  variables(values: EnvValues | ((ctx: Context) => EnvValues)) {
-    this.groups.push(values);
-    return new Output<Record<string, string>>([], () => ({}));
-  }
-  apps(ctx: Context): EnvValue {
-    expect(this.groups.length).toBe(1);
-    const group = this.groups[0]!;
-    return (typeof group === "function" ? group(ctx) : group).ACHQ_GITHUB_APPS!;
+  /** ACHQ_GITHUB_APPS as it would be set. */
+  apps(): EnvValue {
+    return this.mapVariables().ACHQ_GITHUB_APPS!;
   }
 }
+
+/** ACHQ_GITHUB_APPS' JSON, as the router sets it: sorted by slug. */
+const appsVariable = (apps: object) => JSON.stringify(collections.sortKeys(apps as Record<string, unknown>));
 
 const KEY = "the-webhook-key";
 const STORED = { "djgrant-claude": { id: "4242", privateKey: pem } };
@@ -183,7 +180,7 @@ test("a new channel plans as a create without calling GitHub, then is created wi
   const log: string[] = [];
   const { router, channel } = infra(OTHER);
   const ctx = context(log);
-  const keys = router.apps(ctx);
+  const keys = router.apps();
   const planned = await plan([channel], ctx);
   expect(summary(planned.changes)).toEqual(["+ djgrant-claude github channel opens GitHub to create its App"]);
   expect(planned.value(keys)).toBe(UNKNOWN);
@@ -207,7 +204,7 @@ test("a known channel's drifted webhook plans as a change and is fixed", async (
   hook = { url: "https://old.example/webhook", content_type: "json", insecure_ssl: "0" };
   const { router, channel } = infra(STORED);
   const ctx = context();
-  const keys = router.apps(ctx);
+  const keys = router.apps();
   const planned = await plan([channel], ctx);
   expect(summary(planned.changes)).toEqual([`~ djgrant-claude webhook → ${HOOK}`]);
   expect(calls.every((c) => c.method === "GET" && c.jwtOk)).toBe(true);
@@ -241,19 +238,19 @@ test("an up-to-date channel plans nothing, and what it lacks shows as warnings",
   expect(calls.some((c) => c.method === "PATCH")).toBe(false);
 });
 
-test("one ACHQ_GITHUB_APPS group per router holds the App of every channel declared on it, even after the group", async () => {
+test("the router's ACHQ_GITHUB_APPS holds the App of every channel declared on it", async () => {
   hook = { url: HOOK, content_type: "json", insecure_ssl: "0" };
   const { router, channel } = infra(STORED);
   const ctx = context();
-  expect((await plan([channel], ctx)).value(router.apps(ctx))).toBe(appsVariable(STORED));
-  // A new channel, declared after the first made the group: the variable waits on it.
-  const later = new Channel("org", { name: "Notation ACHQ", org: "notationlabs", router });
-  expect((await plan([channel, later], ctx)).value(router.apps(ctx))).toBe(UNKNOWN);
+  expect((await plan([channel], ctx)).value(router.apps())).toBe(appsVariable(STORED));
+  // A new channel: the variable waits on its App.
+  const other = new Channel("org", { name: "Notation ACHQ", org: "notationlabs", router });
+  expect((await plan([channel, other], ctx)).value(router.apps())).toBe(UNKNOWN);
 });
 
 test("two channels with one slug are refused", () => {
   const { router } = infra({});
-  expect(() => new Channel("again", { name: "DJGrant Claude", router })).toThrow("Two channels are named djgrant-claude");
+  expect(() => new Channel("again", { name: "DJGrant Claude", router })).toThrow("router: djgrant-claude adds to ACHQ_GITHUB_APPS twice");
 });
 
 describe("with a vault", () => {
@@ -263,7 +260,7 @@ describe("with a vault", () => {
     const vault = memoryVault();
     const { router, channel } = infra({});
     const ctx = context([], true, vault);
-    const keys = router.apps(ctx);
+    const keys = router.apps();
     const applied = await (await plan([channel], ctx)).apply();
     expect(vault.items.get(ITEM)).toEqual({ app_id: "4242", private_key: pem });
     expect(JSON.parse(applied.value(keys) as string)).toEqual(STORED);
@@ -281,7 +278,7 @@ describe("with a vault", () => {
     const vault = memoryVault(new Map([[ITEM, { app_id: "4242", private_key: pem }]]));
     const { router, channel } = infra({});
     const ctx = context([], false, vault);
-    const keys = router.apps(ctx);
+    const keys = router.apps();
     const planned = await plan([channel], ctx);
     expect(summary(planned.changes)).toEqual(["~ djgrant-claude app key from the vault, and its webhook to this router"]);
     expect(planned.value(keys)).toBe(appsVariable(STORED));

@@ -1,6 +1,6 @@
-import { all, type Change, type Context, known, ManagedResource, type Planned, type Router, UNKNOWN } from "@achq/core";
+import { type Change, type Context, known, ManagedResource, type Planned, type Router, UNKNOWN } from "@achq/core";
 import { type AppSettings, GitHub, type HookConfig } from "@achq/utils/gh";
-import { type AppKeys, appsVariable, appWebhookSecret, parseApps, vaultedApp } from "../lib/apps.ts";
+import { type AppKeys, appWebhookSecret, parseApps, vaultedApp } from "../lib/apps.ts";
 import { GITHUB_ENV, githubUrls } from "../lib/constants.ts";
 import { appSlug, manifestFlow } from "../lib/manifest.ts";
 import { APP_EVENTS, APP_PERMISSIONS, lacking } from "../lib/permissions.ts";
@@ -49,8 +49,6 @@ const hookConfig = (url: string, key: string, appId: string | number): HookConfi
   secret: appWebhookSecret(key, appId),
 });
 
-const routerChannels = new WeakMap<Router, Map<string, Channel>>();
-
 /** One of an App's settings pages, e.g. `permissions`, under its owner's settings. */
 const appPage = (web: string, org: string | undefined, slug: string, page: string) =>
   org ? `${web}/organizations/${org}/settings/apps/${slug}/${page}` : `${web}/settings/apps/${slug}/${page}`;
@@ -75,22 +73,9 @@ export class Channel extends ManagedResource<ChannelProps, ChannelState, Channel
       // GitHub has no API to delete an App.
     }, { protect: true });
     this.slug = slug;
-    const channels = routerChannels.get(router) ?? new Map<string, Channel>();
-    if (!routerChannels.has(router)) {
-      routerChannels.set(router, channels);
-      // The router's ACHQ_GITHUB_APPS: the App of every channel declared on it, so
-      // it's declared once, as a function, when the router is planned. Keys of Apps
-      // no longer declared stay: removing a channel from the infra doesn't delete its
-      // App on GitHub.
-      router.variables(() => ({
-        [GITHUB_ENV.apps]: all([router.env, all([...channels.values()].map((channel) => channel.outputs()))]).map(([env, apps]) => {
-          const declared = Object.fromEntries(apps.map((app) => [app.slug, { id: app.id, privateKey: app.privateKey }]));
-          return appsVariable({ ...parseApps(env[GITHUB_ENV.apps]), ...declared });
-        }),
-      }));
-    }
-    if (channels.has(slug)) throw new Error(`Two channels are named ${slug}`);
-    channels.set(slug, this);
+    // Its App's key, under the slug GitHub gave it, in the router's ACHQ_GITHUB_APPS with every other channel's.
+    // It stays once the channel is gone from the infra: that doesn't delete the App on GitHub.
+    router.addToMap(GITHUB_ENV.apps, slug, this.outputs().map((app) => ({ [app.slug]: { id: app.id, privateKey: app.privateKey } })));
   }
 
   static get(slug: string) {

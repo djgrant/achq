@@ -1,6 +1,5 @@
 import { repoName } from "@achq/core";
 import { implementationSecret } from "@achq/core/secrets";
-import { collections } from "@achq/utils/collections";
 import { errors } from "@achq/utils/errors";
 import type { Vars } from "@achq/utils/env";
 import { GitHub, type Installation, type TokenNarrowing } from "@achq/utils/gh";
@@ -29,9 +28,6 @@ export const vaultedApp = {
   keys: (fields: Record<string, string> | undefined): AppKeys[string] | undefined =>
     fields?.app_id && fields.private_key ? { id: fields.app_id, privateKey: fields.private_key } : undefined,
 };
-
-/** ACHQ_GITHUB_APPS' JSON, stable, so the same Apps always make the same variable. */
-export const appsVariable = (apps: AppKeys) => JSON.stringify(collections.sortKeys(apps));
 
 /** The login an App comments and pushes as. */
 export const botLogin = (slug: string) => `${slug}[bot]`;

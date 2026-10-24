@@ -67,39 +67,39 @@ export class CurrentVariables extends DataSource<object, Current> {
   }
 }
 
-/** A group of variables, or how to make it when it's planned. */
-export type VariableValues = EnvValues | ((ctx: Context) => EnvValues);
-
 /**
  * A service's groups of variables: `make` makes each one's resource, named
- * `variables`, `variables-2`, …, from the values it sets. Resolved once, when
- * the service is planned: no group can be declared after.
+ * `variables`, `variables-2`, …, from the values it sets. The first is made
+ * from `first` when it's resolved, so it can take what only planning has, e.g.
+ * a token from your environment. Resolved once, when the service is planned:
+ * no group can be declared after.
  */
 export class VariableGroups<V extends VariableGroup<any>> {
-  /** Each group's resource, what it was declared with, and the values it sets, filled in when resolved if declared with a function. */
-  private readonly groups: { variables: V; declared: VariableValues; values: EnvValues }[] = [];
+  /** Each group's resource, and the values it sets: the first's filled in when resolved. */
+  private readonly groups: { variables: V; values: EnvValues }[] = [];
   private resolved = false;
+  readonly first: V;
 
   constructor(
     /** Names the service in errors. */
     private readonly service: string,
     private readonly make: (name: string, values: EnvValues) => V,
-  ) {}
+    private readonly firstValues: (ctx: Context) => EnvValues,
+  ) {
+    this.first = this.add({});
+  }
 
-  add(declared: VariableValues) {
+  add(values: EnvValues) {
     if (this.resolved) throw new Error(`${this.service}: variables declared after it was planned`);
     const n = this.groups.length;
-    const values = typeof declared === "function" ? {} : declared;
     const variables = this.make(n ? `variables-${n + 1}` : "variables", values);
-    this.groups.push({ variables, declared, values });
+    this.groups.push({ variables, values });
     return variables;
   }
 
   /** Every group's resource, and their variables as one map. */
   resolve(ctx: Context): { groups: V[]; variables: Output<Record<string, string>> } {
-    for (const group of this.groups) {
-      if (typeof group.declared === "function") Object.assign(group.values, group.declared(ctx));
-    }
+    Object.assign(this.groups[0]!.values, this.firstValues(ctx));
     // Two groups setting one variable would undo each other on every apply.
     const shared = collections.duplicates(this.groups.flatMap(({ values }) => Object.keys(values)));
     if (shared.length) throw new Error(`${this.service}: ${shared.join(", ")} declared in two groups of variables`);

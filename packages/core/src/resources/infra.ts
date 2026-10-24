@@ -1,7 +1,8 @@
-import { GENERATED, type Input, type Output } from "../engine/values.ts";
+import { collections } from "@achq/utils/collections";
+import { all, GENERATED, type Input, type Output } from "../engine/values.ts";
 import { DEPLOYER_PORT, ENV, ROUTER_PRIVATE_PORT, ROUTER_PUBLIC_PORT } from "../wire/constants.ts";
 import { type Context, declared, Resource, resetDeclarations } from "./resource.ts";
-import { CurrentVariables, type VariableGroup, VariableGroups, type VariableValues } from "./variables.ts";
+import { CurrentVariables, type VariableGroup, VariableGroups } from "./variables.ts";
 
 /** A variable's value: a string, another resource's output, or generated once and then kept. */
 export type EnvValue = Input<string> | typeof GENERATED;
@@ -41,8 +42,8 @@ export abstract class Service extends Resource {
   /** Where it runs: set by its plugin's constructor. */
   protected abstract readonly placement: Placement;
 
-  /** Its groups of variables and its first, made when they're first asked for: by then its placement is set. */
-  private ownGroups?: { groups: VariableGroups<VariableGroup<any>>; first: VariableGroup<any> };
+  /** Its groups of variables, made when they're first asked for: by then its placement is set. */
+  private ownGroups?: VariableGroups<VariableGroup<any>>;
   private made?: Resource[];
 
   /** What achq itself puts at the start of its first group. */
@@ -56,14 +57,14 @@ export abstract class Service extends Resource {
   }
 
   private get variableGroups() {
-    if (!this.ownGroups) {
-      const { placement } = this;
-      const groups = new VariableGroups(placement.name, (name, values) => placement.group(name, values));
-      // What every service has: where it keeps what it stores, and the port it listens on.
-      const first = groups.add((ctx) => ({ ...this.achqVariables(), ...this.providerVariables(ctx), [ENV.dataDir]: placement.dataDir, PORT: String(this.port) }));
-      this.ownGroups = { groups, first };
-    }
-    return this.ownGroups;
+    const { placement } = this;
+    // What every service has, in its first group: where it keeps what it stores, and the port it listens on.
+    return (this.ownGroups ??= new VariableGroups(placement.name, (name, values) => placement.group(name, values), (ctx) => ({
+      ...this.achqVariables(),
+      ...this.providerVariables(ctx),
+      [ENV.dataDir]: placement.dataDir,
+      PORT: String(this.port),
+    })));
   }
 
   /** Its first group of variables: what every service has. */
@@ -79,19 +80,18 @@ export abstract class Service extends Resource {
   /**
    * Declares a group of its variables, set as one resource. A later group can
    * take values from resources that depend on an earlier one: the router's
-   * key → a GitHub App → the App's key on the router. A function is called
-   * when the service is planned, so it can take from resources declared after.
-   * It's redeployed whenever its settings or any of its variables change.
+   * key → a GitHub App → the App's key on the router. It's redeployed
+   * whenever its settings or any of its variables change.
    */
-  variables(values: VariableValues): Output<Record<string, string>> {
-    return this.variableGroups.groups.add(values).outputs();
+  variables(values: EnvValues): Output<Record<string, string>> {
+    return this.variableGroups.add(values).outputs();
   }
 
   /** Made once, when it's planned: no group of variables can be declared after. */
   children(ctx: Context): Resource[] {
     if (this.made) return this.made;
     // Deployed over every group's variables as one map, as it was before variables came in groups.
-    const { groups, variables } = this.variableGroups.groups.resolve(ctx);
+    const { groups, variables } = this.variableGroups.resolve(ctx);
     return (this.made = this.placement.resources(groups, variables));
   }
 }
@@ -106,6 +106,9 @@ export abstract class Router extends Service {
   /** Its public URL: unknown until it has one. */
   abstract readonly url: Output<string>;
   private current?: CurrentVariables;
+  /** What's added to each JSON-map variable, by what adds it, by the variable's name: declared, all as one group, when it's planned. */
+  private readonly maps = new Map<string, Map<string, Output<Record<string, unknown>>>>();
+  private mapsDeclared = false;
 
   /** AGENT_WEBHOOK_KEY, generated once, in its first group of variables: known only once it's set, so a known key means the router exists. */
   get key(): Output<string> {
@@ -122,8 +125,36 @@ export abstract class Router extends Service {
     return this.currentVariables.outputs();
   }
 
-  /** Its variables as they are come first, so they're read before any group is set, even when this run makes it. */
+  /**
+   * Adds `entries` to its variable `name`, a JSON map: e.g. a channel adds its
+   * App's key, under the App's slug, to ACHQ_GITHUB_APPS. `from` names what
+   * adds them, which only one may. Entries stored there that nothing adds any
+   * more stay.
+   */
+  addToMap(name: string, from: string, entries: Output<Record<string, unknown>>) {
+    if (this.mapsDeclared) throw new Error(`${this.name}: ${name} added to after it was planned`);
+    const added = this.maps.get(name) ?? new Map<string, Output<Record<string, unknown>>>();
+    if (added.has(from)) throw new Error(`${this.name}: ${from} adds to ${name} twice`);
+    this.maps.set(name, added.set(from, entries));
+  }
+
+  /** Each JSON-map variable: what's added over what's stored, keys sorted, so the same entries always make the same variable. */
+  protected mapVariables(): EnvValues {
+    return collections.mapValues(Object.fromEntries(this.maps), (added, name) =>
+      all([this.env, all([...added.values()])]).map(([env, entries]) =>
+        JSON.stringify(collections.sortKeys(Object.assign(env[name] ? JSON.parse(env[name]) : {}, ...entries))),
+      ),
+    );
+  }
+
+  /**
+   * Its JSON-map variables are declared now, once everything that adds to
+   * them has. Its variables as they are come first, so they're read before
+   * any group is set, even when this run makes it.
+   */
   children(ctx: Context): Resource[] {
+    if (!this.mapsDeclared && this.maps.size) this.variables(this.mapVariables());
+    this.mapsDeclared = true;
     return [this.currentVariables, ...super.children(ctx)];
   }
 

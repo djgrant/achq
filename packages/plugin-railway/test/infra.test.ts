@@ -190,17 +190,14 @@ test("each variable is in one group, checked when planned, and groups are declar
   const ref = declare();
   ref.router.variables({ ACHQ_REF: "b" });
   await expect(plan([ref.router], ctx)).rejects.toThrow("achq-router: ACHQ_REF declared in two groups of variables");
-  // A group declared with a function is made when it's planned.
+  // The first group is made when it's planned: its token comes from your environment then.
   const { router, deployer } = declare();
-  deployer.variables(() => ({ ACHQ_REF: "b" }));
-  await expect(plan([router, deployer], ctx)).rejects.toThrow("achq-deployer: ACHQ_REF declared in two groups of variables");
+  deployer.variables({ RAILWAY_API_TOKEN: "b" });
+  await expect(plan([router, deployer], ctx)).rejects.toThrow("achq-deployer: RAILWAY_API_TOKEN declared in two groups of variables");
   expect(router.children(ctx).map((r) => r.name)).toEqual(["project", "env", "service", "variables", "variables-2", "variables-3", "deploy"]);
 
   const fresh = declare();
-  const late = fresh.router.variables((c) => ({ LATE: c.env.RAILWAY_WORKSPACE_ID! }));
-  const planned = await plan(fresh.resources, ctx);
-  expect(summary(planned.changes)).toContain("~ achq-router variables LATE");
-  expect(planned.value(late)).toEqual({ LATE: "ws" });
+  await plan(fresh.resources, ctx);
   expect(() => fresh.router.variables({ OTHER: "x" })).toThrow("achq-router: variables declared after it was planned");
 });
 
