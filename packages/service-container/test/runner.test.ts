@@ -7,7 +7,7 @@ import { signedHeaders } from "@achq/core/signing";
 import { flock } from "@achq/utils/flock";
 import { CHANNEL_TOKEN } from "@achq/test-utils/container-router";
 import { keepAwake, Runner } from "../src/runner.ts";
-import { readState } from "../src/volume.ts";
+import { formatSessions, readState, sessionsFor } from "../src/volume.ts";
 import { SECRET, world } from "./world.ts";
 
 const branchOf = async (dir: string) => (await $`git -C ${dir} branch --show-current`.quiet().text()).trim();
@@ -55,6 +55,22 @@ describe("the workspace the router names", () => {
     expect(second!.cwd).toBe(w.paths.worktree("docs", threadKey(w.channel.ref(6))));
     expect(w.claude.flag(second!, "--resume")).toBeUndefined();
     expect(w.claude.flag(second!, "--session-id")).not.toBe(w.claude.flag(first!, "--session-id"));
+  });
+
+  test("a thread file from before sessions named their workspace takes the thread's: it lists, and its session resumes", async () => {
+    const w = await world();
+    w.channel.open(5, { labels: ["docs"] });
+    await w.send(w.channel.comment(5, "@claude hi"), w.git.first, "docs");
+    const file = w.paths.thread(threadKey(w.channel.ref(5)));
+    const { sessions, ...thread } = readState(file)!;
+    const { workspace: _, ...coder } = sessions.coder!;
+    fs.writeFileSync(file, JSON.stringify({ ...thread, workspace: "docs", sessions: { coder } }));
+
+    expect(sessionsFor(w.paths, "5").map((s) => s.workspace)).toEqual(["docs"]);
+    expect(JSON.parse(formatSessions(sessionsFor(w.paths)))[0].workspace).toBe("docs");
+    await w.send(w.channel.comment(5, "@claude again"), w.git.first, "docs");
+    const [first, second] = w.claude.calls();
+    expect(w.claude.flag(second!, "--resume")).toBe(w.claude.flag(first!, "--session-id"));
   });
 
   test("a workspace the loaded config doesn't have is skipped, saying so", async () => {

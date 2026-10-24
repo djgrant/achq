@@ -61,8 +61,18 @@ export type ThreadState = {
   sessions: Record<string, SessionState>;
 };
 
-/** The thread's state, or undefined before its first run. */
-export const readState = (file: string) => disk.readJsonSync<ThreadState>(file);
+/**
+ * The thread's state, or undefined before its first run. Files written before
+ * sessions named their workspace have it once, on the thread; it's copied onto
+ * each session here, so listing, `resume` and the runner all see it per session.
+ */
+export const readState = (file: string) => {
+  const state = disk.readJsonSync<ThreadState & { workspace?: string }>(file);
+  if (!state) return undefined;
+  const { workspace, ...rest } = state;
+  if (workspace !== undefined) for (const s of Object.values(rest.sessions)) s.workspace ??= workspace;
+  return rest as ThreadState;
+};
 
 /** Atomic, so a crash mid-write leaves the previous state. */
 export const writeState = (file: string, state: ThreadState) => disk.writeJsonSync(file, state, { pretty: true });
