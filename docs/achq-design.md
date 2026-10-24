@@ -153,11 +153,11 @@ Repo config is code. It never runs anywhere that holds secrets.
 1. The deployer downloads `.achq/` from the default branch, with a repo-scoped token from the router, minted through whichever App is installed on the repo.
 2. It strips the types from each file on its own with `Bun.Transpiler`, with macros off. That doesn't run the config's code.
 3. It runs the files as ES modules in QuickJS compiled to WebAssembly, which has no filesystem, network or environment access. The only modules there are the repo's `.achq/` files and a prebuilt `achq` (`achq`, `achq/github`, `achq/claude`), so any other import fails. A Bun subprocess isn't enough: it runs as the same user and could read the deployer's secrets from `/proc/<pid>/environ`.
-4. The config returns a plain-data manifest: every resource and its inputs. The deployer creates the containers and pushes events, thread selectors and policies to the router. Each container runs its own config again at runtime for the agent settings, which can be code.
+4. The config returns a plain-data manifest: every resource and its inputs, which refer to each other by name. Outside the sandbox, the deployer checks it against a strict schema, as the config could forge it: no unknown keys, size limits, names unique per kind, every name referred to declared, and at least one container. Then it creates the containers and pushes events, thread selectors and policies to the router. Each container runs its own config again at runtime for the agent settings, which can be code.
 
 Config can only import `achq`, `achq/github`, `achq/claude` and its own files under `.achq/`.
 
-In the container, the config runs natively (step 4), in the runner's process. That process holds the container secret, so code in the repo's own `.achq/` can mint the container's credentials, including the runner's channel credential. Anyone who can push to the default branch can already change what the agent does, so this doesn't widen who can act, but it's an exception to "never runs anywhere that holds secrets". Running it in a separate process without the secret would close it.
+In the container, the config runs natively (step 4), in the runner's process, and its manifest gets the same checks. That process holds the container secret, so code in the repo's own `.achq/` can mint the container's credentials, including the runner's channel credential. Anyone who can push to the default branch can already change what the agent does, so this doesn't widen who can act, but it's an exception to "never runs anywhere that holds secrets". Running it in a separate process without the secret would close it.
 
 ## Services
 

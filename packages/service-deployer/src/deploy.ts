@@ -126,7 +126,7 @@ export const deploy = async (ctx: DeployerContext, hostId: string, repo: string,
       host: hostId,
       repo,
       commit: tree.commit,
-      // parseManifest has made sure each of a container's policies is there.
+      // validateManifest has made sure each of a container's policies is there.
       containers: manifest.containers.map((c) => ({ name: c.name, url: urls[c.name]!, policies: c.policies.map((name) => manifest.policies.find((p) => p.name === name)!.policy) })),
       workspaces: manifest.workspaces,
       triggers: manifest.triggers.map((t) => ({ name: t.name, event: t.event })),

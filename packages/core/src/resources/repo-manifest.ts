@@ -1,4 +1,3 @@
-import { collections } from "@achq/utils/collections";
 import { type Json, json } from "@achq/utils/json";
 import { Agent, Container, Policy, type PolicyData, type SelectorData, Trigger, Workspace } from "./config.ts";
 import { declared, type Resource } from "./resource.ts";
@@ -18,21 +17,24 @@ export type RepoManifest = {
 
 type ResourceClass<T extends Resource> = abstract new (...args: any[]) => T;
 
-/** Turns the declared resources into a manifest, checking names and references. */
+/** The error for `from` referring to a `kind` named `ref` that the config doesn't declare. */
+export const undeclaredRef = (from: string, kind: string, ref: string) => new Error(`${from} refers to ${kind} "${ref}", which isn't declared in this config`);
+
+/**
+ * Turns the declared resources into a manifest. It only checks what needs the
+ * resources themselves: that each one referred to is declared in this config,
+ * not just named like one. validateManifest (`@achq/core/manifest-schema`)
+ * checks the rest, on what this returns.
+ */
 export const collectManifest = (resources: Resource[] = declared()): RepoManifest => {
-  // Names are unique per kind.
-  const id = (r: Resource) => `${r.kind}:${r.name}`;
-  const [repeated] = collections.duplicates(resources.map(id));
-  const named = resources.find((r) => id(r) === repeated);
-  if (named) throw new Error(`Two ${named.kind}s are named "${named.name}"`);
   const ofKind = <T extends Resource>(type: ResourceClass<T>) => resources.filter((r): r is T => r instanceof type);
   /** `r`'s name, for `from` to refer to it by. It has to be declared in this config. */
   const refName = (r: Resource, from: string) => {
-    if (!resources.includes(r)) throw new Error(`${from} refers to ${r.kind} "${r.name}", which isn't declared in this config`);
+    if (!resources.includes(r)) throw undeclaredRef(from, r.kind, r.name);
     return r.name;
   };
 
-  const manifest: RepoManifest = {
+  return {
     policies: ofKind(Policy).map((p) => ({ name: p.name, policy: p.policy })),
     containers: ofKind(Container).map((c) => ({
       name: c.name,
@@ -54,6 +56,4 @@ export const collectManifest = (resources: Resource[] = declared()): RepoManifes
       agent: refName(t.inputs.agent, `trigger ${t.name}`),
     })),
   };
-  if (!manifest.containers.length) throw new Error("The config declares no containers");
-  return manifest;
 };

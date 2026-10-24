@@ -4,7 +4,6 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DOC_CONFIG, DOC_PLAN } from "@achq/test-utils/config";
 import { evaluateConfig } from "../src/config/evaluate.ts";
-import { parseManifest } from "../src/config/manifest-schema.ts";
 
 /** A config that declares a container, then runs `body`, then exports whatever `body` left in `leak`. */
 const probe = (body: string) => ({
@@ -172,9 +171,12 @@ describe("errors read well in ACHQ_STATUS", () => {
     await expect(evaluateConfig({ "config.ts": `const a = 1;\nconst x = ;` })).rejects.toThrow(".achq/config.ts:2:11: Unexpected ;");
   });
 
-  test("a throw in config, and collectManifest's own checks", async () => {
+  test("a throw in config, and the manifest's checks", async () => {
     await expect(evaluateConfig({ "config.ts": `throw new Error("nope");` })).rejects.toThrow("The config threw: Error: nope");
-    await expect(evaluateConfig({ "config.ts": `import "achq";` })).rejects.toThrow("The config threw: Error: The config declares no containers");
+    await expect(evaluateConfig({ "config.ts": `import "achq";` })).rejects.toThrow("The config declares no containers");
+    await expect(evaluateConfig({ "config.ts": `import { Container } from "achq"; new Container("dev", { image: "x" }); new Container("dev", { image: "y" });` })).rejects.toThrow(
+      'Two containers are named "dev"',
+    );
     await expect(evaluateConfig({ "config.ts": `import { Container } from "achq"; new Container("Bad", { image: "x" });` })).rejects.toThrow("must be lowercase");
   });
 
@@ -186,18 +188,7 @@ describe("errors read well in ACHQ_STATUS", () => {
     await expect(forge(`s({ policies: [] })`)).rejects.toThrow("invalid at containers");
     await expect(
       forge(`s({ policies: [], containers: [{ name: "dev", image: "x", policies: ["ghost"], files: {} }], workspaces: [], agents: [], triggers: [] })`),
-    ).rejects.toThrow(`refers to policy "ghost"`);
+    ).rejects.toThrow(`container dev refers to policy "ghost", which isn't declared in this config`);
     await expect(forge(`({ toString() { return "x" } })`)).rejects.toThrow("The config returned an object, not a string");
-  });
-});
-
-describe("parseManifest", () => {
-  test("rejects extra fields, bad names, missing channels and non-finite data", () => {
-    const base = JSON.parse(JSON.stringify(DOC_PLAN));
-    expect(parseManifest(JSON.stringify(base))).toEqual(base);
-    expect(() => parseManifest(JSON.stringify({ ...base, extra: 1 }))).toThrow("invalid");
-    expect(() => parseManifest(JSON.stringify({ ...base, agents: [{ name: "Bad Name", runtime: "claude" }] }))).toThrow("agents.0.name");
-    expect(() => parseManifest(JSON.stringify({ ...base, workspaces: [{ ...base.workspaces[0], threads: { source: "x" } }] }))).toThrow(`needs "channel"`);
-    expect(() => parseManifest(JSON.stringify({ ...base, policies: [{ name: "p", policy: { provider: "" } }] }))).toThrow(`needs "provider"`);
   });
 });

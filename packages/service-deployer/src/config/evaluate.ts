@@ -1,9 +1,9 @@
 import { posix } from "node:path";
 import { CONFIG_DIR, CONFIG_ENTRY, type RepoManifest } from "@achq/core";
+import { validateManifest } from "@achq/core/manifest-schema";
 import { errors } from "@achq/utils/errors";
 import { type Limits, sandbox } from "@achq/utils/sandbox";
 import { CONFIG_MODULES } from "achq/registry";
-import { parseManifest } from "./manifest-schema.ts";
 
 export class ConfigError extends Error {}
 
@@ -75,6 +75,14 @@ const achqModules = () =>
     return out;
   })());
 
+const parseJson = (text: string): unknown => {
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new Error("The config's manifest isn't valid JSON");
+  }
+};
+
 /** `files` are `.achq/`'s files, keyed by path relative to it (`config.ts`, `lib/x.ts`). Other than source files, they're skipped. */
 export const evaluateConfig = async (files: Record<string, string>, limits: Partial<Limits> = {}) => {
   const modules = { ...(await achqModules()) };
@@ -105,7 +113,7 @@ export const evaluateConfig = async (files: Record<string, string>, limits: Part
     throw new ConfigError(`The config ${error.message.replaceAll(SANDBOX_ROOT, CONFIG_DIR)}`);
   });
   try {
-    return parseManifest(result);
+    return validateManifest(parseJson(result));
   } catch (error) {
     const tail = logs.length ? ` (config logged: ${logs.slice(-LOG_LINES_QUOTED).join(" | ")})` : "";
     throw new ConfigError(`${errors.message(error)}${tail}`);

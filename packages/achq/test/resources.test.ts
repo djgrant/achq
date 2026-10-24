@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import * as claude from "@achq/claude";
 import * as github from "@achq/github";
-import { collectManifest, Container, declared, resetDeclarations, Trigger, Workspace } from "@achq/core";
+import { collectManifest, Container, resetDeclarations, Trigger, Workspace } from "@achq/core";
 
 beforeEach(resetDeclarations);
 
@@ -36,31 +36,18 @@ describe("collectManifest", () => {
     expect(channel.issues.data.labels).toBeUndefined();
   });
 
-  test("rejects duplicate names within a kind, but not across kinds", () => {
-    new Container("dev", { image: "./Dockerfile" });
-    new claude.Agent("dev", {});
-    expect(() => collectManifest()).not.toThrow();
-    new Container("dev", { image: "./Other" });
-    expect(() => collectManifest()).toThrow('Two containers are named "dev"');
-  });
-
   test("rejects references to resources from another config", () => {
     const stray = new Container("stray", { image: "./Dockerfile" });
     const channel = github.Channel.get("a");
     resetDeclarations();
     new Container("dev", { image: "./Dockerfile" });
     new Workspace("w", { container: stray, threads: channel.issues, branch: "b", base: "main" });
-    expect(() => collectManifest()).toThrow('workspace w refers to container "stray"');
+    expect(() => collectManifest()).toThrow(`workspace w refers to container "stray", which isn't declared in this config`);
   });
 
   test("rejects non-data in files, and bad names", () => {
     new Container("dev", { image: "./Dockerfile", files: { x: { when: new Date() } as never } });
     expect(() => collectManifest()).toThrow("container dev files.x.when is not plain data");
     expect(() => new Container("Dev", { image: "x" })).toThrow("must be lowercase");
-  });
-
-  test("needs at least one container", () => {
-    expect(declared()).toEqual([]);
-    expect(() => collectManifest()).toThrow("no containers");
   });
 });
