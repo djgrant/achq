@@ -275,6 +275,7 @@ export const startWorld = async () => {
     env: { containerEnv: { CLAUDE_CODE_OAUTH_TOKEN: "claude-oauth-token" }, key: KEY, routerUrl: routerPrivate, routerPublicUrl: routerPublic, ref: "e2e" },
     log: (line) => logs.push(`deployer: ${line}`),
   });
+  await deployer.start();
   deployerFetch = deployerHandler(deployer, KEY, (line) => logs.push(`deployer: ${line}`));
 
   const container = (name: string) => containerProvider.get(REPO, name);

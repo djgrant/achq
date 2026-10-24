@@ -24,16 +24,7 @@ export const wireRecord = ({ deployed: _deployed, ...record }: StoredRecord): De
 
 /** In its container provider's store: a record per repo, by `repoName.key`, and the deliveries it's handled. */
 export const createStore = (stores: Stores) => {
-  const store = stores<StoredRecord>("records");
-  // Once only, before the first use: records were kept under file names (`owner__name`). Delete once deployed infras have run it.
-  let renamed: Promise<void> | undefined;
-  const records = async () => {
-    await (renamed ??= renameStored(store, (_name, record) => repoName.key(record.repo)).catch((error) => {
-      renamed = undefined;
-      throw error;
-    }));
-    return store;
-  };
+  const records = stores<StoredRecord>("records");
   const handled = stores<string[]>("deliveries");
   let deliveries: string[] | undefined;
   const loadDeliveries = async () => (deliveries ??= (await handled.read(HANDLED)) ?? []);
@@ -41,10 +32,12 @@ export const createStore = (stores: Stores) => {
   const inOrder = async.serial();
 
   return {
-    get: async (repo: string) => (await records()).read(repoName.key(repo)),
-    put: async (record: StoredRecord) => (await records()).write(repoName.key(record.repo), record),
+    /** Once only, before the first use: records were kept under file names (`owner__name`). Delete once deployed infras have run it. */
+    migrate: () => renameStored(records, (_name, record) => repoName.key(record.repo)),
+    get: (repo: string) => records.read(repoName.key(repo)),
+    put: (record: StoredRecord) => records.write(repoName.key(record.repo), record),
     /** Every record, in name order. */
-    all: async () => (await records()).all(),
+    all: () => records.all(),
     handled: async (delivery: string) => (await loadDeliveries()).includes(delivery),
     async markHandled(delivery: string) {
       const list = await loadDeliveries();

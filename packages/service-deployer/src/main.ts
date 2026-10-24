@@ -9,7 +9,7 @@ import { deployerHandler } from "./server.ts";
 /** Bun's longest: a deploy that builds images can keep `/events` busy for minutes. */
 const IDLE_TIMEOUT_S = 255;
 
-export const main = () => {
+export const main = async () => {
   const env = new Env(process.env);
   const key = env.require(ENV.key);
   const routerUrl = env.require(ENV.routerUrl);
@@ -29,8 +29,9 @@ export const main = () => {
     },
   });
 
+  await deployer.start();
   Bun.serve({ port: DEPLOYER_PORT, hostname: "::", idleTimeout: IDLE_TIMEOUT_S, fetch: deployerHandler(deployer, key) });
   console.log(`deployer listening on ${DEPLOYER_PORT}`);
 };
 
-if (import.meta.main) main();
+if (import.meta.main) await main();

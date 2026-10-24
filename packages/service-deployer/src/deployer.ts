@@ -110,6 +110,9 @@ export const createDeployer = (deps: DeployerDeps) => {
     /** The achq commit it runs. */
     ref: ctx.env.ref,
 
+    /** Readies its store. Call before serving. */
+    start: () => ctx.store.migrate(),
+
     /** False for a delivery it had already handled. */
     handle: async ({ event }: DeployerEnvelope) => {
       // Claimed synchronously, so a concurrent duplicate sees it before either awaits.

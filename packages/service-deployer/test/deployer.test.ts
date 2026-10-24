@@ -263,7 +263,7 @@ describe("checks", () => {
 
 describe("config changes", () => {
   // Delete with renameStored, once deployed infras have run it.
-  test("records kept under their old file names move to their repo keys before the deployer first reads one", async () => {
+  test("records kept under their old file names move to their repo keys when the deployer starts", async () => {
     github.commit(REPO, repoFiles());
     expect((await makeDeployer().deploy(REPO)).outcome).toBe("deployed");
     // As an older deployer kept them: `owner__name`, and a name that's no repo's made safe as a file name.
@@ -272,8 +272,10 @@ describe("config changes", () => {
     await records.remove(REPO);
     await records.write("_hidden", { repo: ".Hidden", state: "failed", at: "2026-10-17T10:00:00Z", error: "no such repo" });
 
-    expect((await makeDeployer().deploy(REPO)).outcome).toBe("unchanged");
+    const deployer = makeDeployer();
+    await deployer.start();
     expect(await records.list()).toEqual([".hidden", REPO]);
+    expect((await deployer.deploy(REPO)).outcome).toBe("unchanged");
   });
 
   test("a new token for the agents deploys again, with the same .achq tree, and builds nothing", async () => {
