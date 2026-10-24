@@ -36,11 +36,11 @@ export type FlowDeps = {
  * ACHQ_STATUS naming one, and no `installation` when nothing answers there: a
  * 404, as from a router torn down, or one that doesn't have the source.
  */
-const askRouter = async ({ host, repo, codeHost }: RepoHere, source: string): Promise<{ router: string; installation?: RepoInstallation } | undefined> => {
+const askRouter = async ({ repo, codeHost }: RepoHere, source: string): Promise<{ router: string; installation?: RepoInstallation } | undefined> => {
   const router = (await codeHost.status(repo))?.router;
   if (!router) return undefined;
   try {
-    return { router, installation: await routerForPusher({ url: router, token: codeHost.token() }).installation({ host, repo, source }) };
+    return { router, installation: await routerForPusher({ url: router, token: codeHost.token() }).installation({ repo, source }) };
   } catch (error) {
     if (error instanceof HttpError && error.status === NOT_FOUND) return { router };
     throw error;

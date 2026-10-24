@@ -78,8 +78,6 @@ export const ANSWER_TIMEOUT_MS = 5 * time.MINUTE_MS;
 /** How much of a failed build's log its error quotes. */
 export const LOG_TAIL_LINES = 30;
 
-/** Workers Builds builds containers from their repos through its GitHub App. */
-export const SOURCE_HOST = "github";
 /** Cloudflare's GitHub App, "Cloudflare Workers and Pages", which Workers Builds clones repos with. */
 export const BUILDS_GITHUB_APP = "cloudflare-workers-and-pages";
 /** Where you install it: only Cloudflare can tell whether it sees a repo, when the deployer connects the repo to Workers Builds. */

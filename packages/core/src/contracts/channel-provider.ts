@@ -31,7 +31,7 @@ export type ChannelEvent = {
 };
 
 /**
- * For the deployer: repos on the `CodeHostProvider` `host` to deploy, because
+ * For the deployer: repos on the infra's code host to deploy, because
  * a source was installed on them or their `.achq/` may have changed on their
  * default branch, and repos to uninstall, because it was removed from them.
  * What the router forwards, once it has decided which repos.
@@ -41,7 +41,6 @@ export type DeployerEvent = {
   delivery: string;
   /** e.g. "push", "installation_repositories.added", "deploy.requested" */
   type: string;
-  host: string;
   deploy: string[];
   uninstall: string[];
 };

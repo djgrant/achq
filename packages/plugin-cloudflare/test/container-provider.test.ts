@@ -12,7 +12,6 @@ let host: CloudflareContainerProvider;
 let namespaceId: string;
 
 const spec = {
-  host: "github",
   repo: "NotationLabs/yieldstar",
   identity: { id: "22", name: "yieldstar", owner: { id: "11", name: "NotationLabs" } },
   name: "dev",
@@ -224,8 +223,7 @@ test("list reads containers' repo and name, locate says where, remove deletes th
   expect(registeredToken()).toBeDefined();
 });
 
-test("only builds repos on GitHub, at a known achq commit", async () => {
-  await expect(host.ensure({ ...spec, host: "gitlab" })).rejects.toThrow("Cloudflare builds containers from github repos, not gitlab");
+test("only builds at a known achq commit", async () => {
   const { ACHQ_REF: _, ...withoutRef } = spec.env;
   await expect(host.ensure({ ...spec, env: withoutRef })).rejects.toThrow("has no ACHQ_REF");
 });

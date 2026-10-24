@@ -41,8 +41,6 @@ export const ENV = {
 
 /** Where achq's own code is. The router and deployer run it from there. */
 export const ACHQ_SOURCE = {
-  /** The `CodeHostProvider` it lives on. */
-  host: "github",
   repo: "djgrant/achq",
   branch: "main",
   /** A tarball of it, followed by a commit. */

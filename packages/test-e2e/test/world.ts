@@ -235,7 +235,7 @@ export const startWorld = async () => {
   // The router: the side that holds the App's key.
   const routerDir = path.join(root, "router");
   const githubEnv = { ACHQ_GITHUB_APPS: JSON.stringify(github.keys()), GITHUB_API_URL: github.url, AGENT_WEBHOOK_KEY: KEY };
-  const codeHostProviders = { github: githubCodeHostProvider.create(githubEnv) };
+  const codeHost = githubCodeHostProvider.create(githubEnv);
   let deployerFetch: (req: Request) => Response | Promise<Response> = async () => new Response("starting", { status: 503 });
   const deployerUrl = serve(stops, (req) => deployerFetch(req));
   const router = createRouter({
@@ -246,7 +246,7 @@ export const startWorld = async () => {
     deployerUrl,
     delays: [20, 50, 100, 200],
     attemptTimeout: 30_000,
-    codeHostProviders,
+    codeHost,
     log: (line) => logs.push(`router: ${line}`),
   });
   await router.start();
@@ -275,7 +275,7 @@ export const startWorld = async () => {
     router: routerAdmin({ url: routerPrivate, key: KEY }),
     owners: [OWNER],
     stores: dirStores(path.join(root, "deployer")),
-    codeHostProviders,
+    codeHost,
     env: { containerEnv: { CLAUDE_CODE_OAUTH_TOKEN: "claude-oauth-token" }, privateEnv: privateEnv(), key: KEY, routerUrl: routerPrivate, routerPublicUrl: routerPublic, ref: "e2e" },
     log: (line) => logs.push(`deployer: ${line}`),
   });

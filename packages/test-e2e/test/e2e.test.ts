@@ -44,7 +44,6 @@ describe("installing", () => {
     expect(w.github.minted.some((m) => m.body.permissions?.actions_variables === "write" && m.body.repositories?.join() === "yieldstar")).toBe(true);
 
     expect(status()).toEqual({
-      host: "github",
       repo: REPO,
       state: "deployed",
       at: expect.any(String),
@@ -66,7 +65,6 @@ describe("installing", () => {
     const [config, ...others] = await repos();
     expect(others).toEqual([]);
     expect(config).toEqual({
-      host: "github",
       repo: REPO,
       commit: w.repo.first,
       containers: [
@@ -96,7 +94,7 @@ describe("installing", () => {
       fetch(`${w.routerPublic}/wake`, {
         method: "POST",
         headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
-        body: JSON.stringify({ host: "github", repo: REPO, container: "dev" } satisfies WakeRequest),
+        body: JSON.stringify({ repo: REPO, container: "dev" } satisfies WakeRequest),
       });
     const refused = await wake("gho_mallory");
     expect([refused.status, await refused.text()]).toEqual([403, "no push access"]);
@@ -529,7 +527,7 @@ describe("the repo CLI, through the router", () => {
     fetch(`${w.routerPublic}${path}`, { method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" }, body: JSON.stringify(body) });
 
   test("`achq repo install` asks the router whether the App is installed, which only its key can tell, if you can push to the repo", async () => {
-    const ask = { host: "github", repo: REPO, source: SLUG } satisfies InstallationRequest;
+    const ask = { repo: REPO, source: SLUG } satisfies InstallationRequest;
     expect((await asYou("/installation", "gho_mallory", ask)).status).toBe(403);
     const res = await asYou("/installation", "gho_djgrant", ask);
     expect(await res.json()).toEqual({ installed: true, url: `https://github.com/organizations/notationlabs/settings/installations/${INSTALLATION}` });
@@ -545,8 +543,8 @@ describe("the repo CLI, through the router", () => {
     expect(status()).toMatchObject({ state: "failed", commit: after, action });
 
     w.containerProvider.needsYou = undefined;
-    expect((await asYou("/deploy", "gho_mallory", { host: "github", repo: REPO })).status).toBe(403);
-    const res = await asYou("/deploy", "gho_djgrant", { host: "github", repo: REPO });
+    expect((await asYou("/deploy", "gho_mallory", { repo: REPO })).status).toBe(403);
+    const res = await asYou("/deploy", "gho_djgrant", { repo: REPO });
     expect([res.status, await res.text()]).toEqual([202, "accepted"]);
     await w.settle();
     expect(status()).toMatchObject({ state: "deployed", commit: after });

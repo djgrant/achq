@@ -1,6 +1,5 @@
-import { BrowserActionNeeded, CONFIG_DIR, CONFIG_ENTRY, type CodeHostProvider, type DeployRecord, ENV, type RepoClient, type RepoManifest, repoName, type Status } from "@achq/core";
+import { BrowserActionNeeded, CONFIG_DIR, CONFIG_ENTRY, type DeployRecord, ENV, type RepoClient, type RepoManifest, repoName, type Status } from "@achq/core";
 import { containerSecret } from "@achq/core/secrets";
-import { collections } from "@achq/utils/collections";
 import { crypto } from "@achq/utils/crypto";
 import { errors } from "@achq/utils/errors";
 import { json } from "@achq/utils/json";
@@ -34,15 +33,15 @@ const withWarnings = <T extends object>(value: T, warnings: string[] | undefined
   warnings?.length ? { ...value, warnings } : value;
 
 /** The repo as the deployer's own credential, which the router mints, reaches it. */
-export const repoClient = async (ctx: DeployerContext, host: CodeHostProvider, repo: string) => {
-  const policy = host.deployerPolicy(repo);
+export const repoClient = async (ctx: DeployerContext, repo: string) => {
+  const policy = ctx.codeHost.deployerPolicy(repo);
   const credential = (await ctx.router.mint({ repo, policies: [policy] })).find((c) => c.provider === policy.provider);
   if (!credential) throw new Error(`the router minted no ${policy.provider} credential for ${repo}`);
-  return host.repo(repo, credential);
+  return ctx.codeHost.repo(repo, credential);
 };
 
-/** One deploy of one repo, from `hostId`. Run one per repo at a time. */
-export const deploy = async (ctx: DeployerContext, hostId: string, repo: string, dryRun: boolean): Promise<DeployOutcome> => {
+/** One deploy of one repo. Run one per repo at a time. */
+export const deploy = async (ctx: DeployerContext, repo: string, dryRun: boolean): Promise<DeployOutcome> => {
   const previous = await ctx.store.get(repo);
   // What the deploy has reached, so a failure records as much: the client that writes ACHQ_STATUS, and the commit it read.
   let client: RepoClient | undefined;
@@ -60,16 +59,14 @@ export const deploy = async (ctx: DeployerContext, hostId: string, repo: string,
   };
 
   try {
-    const host = collections.own(ctx.codeHostProviders, hostId);
-    if (!host) throw new DeployFailure(`achq doesn't know the code host "${hostId}"`);
-    if (!host.repoName.test(repo)) throw new DeployFailure(`"${repo}" isn't a repository name on ${hostId}`);
+    if (!ctx.codeHost.repoName.test(repo)) throw new DeployFailure(`"${repo}" isn't a repository name`);
     // A stranger can install a public App. Their repo is recorded as failed but
     // never touched: no token is minted and nothing is read or evaluated.
     const { owner } = repoName.split(repo);
     if (!ctx.owners.has(owner.toLowerCase())) throw new DeployFailure(`${owner} isn't an owner this deployer serves`);
 
     try {
-      client = await repoClient(ctx, host, repo);
+      client = await repoClient(ctx, repo);
     } catch (error) {
       throw new DeployFailure(`couldn't get a token for ${repo}: ${errors.message(error)}`);
     }
@@ -78,7 +75,7 @@ export const deploy = async (ctx: DeployerContext, hostId: string, repo: string,
 
     // What the deployer gives every container, e.g. the agents' tokens: hashed, as it holds secrets.
     const given = crypto.sha256Hex(json.stableStringify({ ...ctx.env.containerEnv, ref: ctx.env.ref, routerUrl: ctx.env.routerUrl, privateEnv: ctx.env.privateEnv }));
-    if (previous?.state === "deployed" && previous.host === hostId && tree.tree && previous.deployed?.tree === tree.tree && previous.deployed.given === given) {
+    if (previous?.state === "deployed" && tree.tree && previous.deployed?.tree === tree.tree && previous.deployed.given === given) {
       ctx.log(`${repo}: ${CONFIG_DIR}/ unchanged at ${tree.commit}`);
       return withWarnings({ repo, outcome: "unchanged", manifest: previous.deployed.manifest }, previous.warnings);
     }
@@ -104,14 +101,14 @@ export const deploy = async (ctx: DeployerContext, hostId: string, repo: string,
       const env = {
         ...ctx.env.containerEnv,
         [ENV.repo]: repo,
-        [ENV.repoUrl]: host.cloneUrl(repo),
+        [ENV.repoUrl]: ctx.codeHost.cloneUrl(repo),
         [ENV.container]: c.name,
         [ENV.containerSecret]: containerSecret(ctx.env.key, repo, c.name),
         [ENV.routerUrl]: ctx.env.routerUrl,
         [ENV.ref]: ctx.env.ref,
         [ENV.privateEnv]: ctx.env.privateEnv.join(","),
       };
-      urls[c.name] = (await ctx.containerProvider.ensure({ host: hostId, repo, identity: tree.identity, name: c.name, dockerfile, branch: tree.branch, env })).url;
+      urls[c.name] = (await ctx.containerProvider.ensure({ repo, identity: tree.identity, name: c.name, dockerfile, branch: tree.branch, env })).url;
       // Containers load their config and credentials at runtime, so only a changed image needs a build: the router config covers the rest.
       const before = previous?.deployed?.images[c.name];
       if (!before || before.dockerfile !== image.dockerfile || before.blob !== image.blob) {
@@ -123,7 +120,6 @@ export const deploy = async (ctx: DeployerContext, hostId: string, repo: string,
 
     // Containers removed from the config are left alone, asleep; only `sync({ prune })` deletes them.
     await ctx.router.putRepo({
-      host: hostId,
       repo,
       commit: tree.commit,
       // validateManifest has made sure each of a container's policies is there.
@@ -136,7 +132,7 @@ export const deploy = async (ctx: DeployerContext, hostId: string, repo: string,
     const containers: NonNullable<DeployRecord["containers"]> = [];
     for (const c of manifest.containers) containers.push({ name: c.name, location: await ctx.containerProvider.locate(repo, c.name) });
 
-    const record: StoredRecord = { host: hostId, repo, state: "deployed", at: ctx.now().toISOString(), commit: tree.commit, containers };
+    const record: StoredRecord = { repo, state: "deployed", at: ctx.now().toISOString(), commit: tree.commit, containers };
     await save({ ...withWarnings(record, checked.warnings), deployed: { tree: tree.tree, manifest, images, given } });
     ctx.log(`${repo}: deployed ${tree.commit}`);
     return withWarnings({ repo, outcome: "deployed", manifest }, checked.warnings);
@@ -148,7 +144,7 @@ export const deploy = async (ctx: DeployerContext, hostId: string, repo: string,
       // A failed deploy keeps the last one that succeeded, so the next can tell what changed.
       // What only a person can fix, e.g. a vendor's App missing from the repo, goes with it, for `achq repo install` to open.
       const action = failure instanceof BrowserActionNeeded ? failure.action : undefined;
-      const record: StoredRecord = { host: hostId, repo, state: "failed", at: ctx.now().toISOString(), error, ...(commit && { commit }), ...(action && { action }) };
+      const record: StoredRecord = { repo, state: "failed", at: ctx.now().toISOString(), error, ...(commit && { commit }), ...(action && { action }) };
       await save({ ...withWarnings(record, warnings), ...(previous?.deployed && { deployed: previous.deployed }) });
     }
     return withWarnings({ repo, outcome: "failed", error }, warnings);

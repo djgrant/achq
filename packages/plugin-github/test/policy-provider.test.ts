@@ -135,10 +135,10 @@ describe("installed repos and sources", () => {
   test("every repo of every unsuspended installation, once", async () => {
     const all = await api.codeHost.installed();
     expect(all.sort((a, b) => a.repo.localeCompare(b.repo))).toEqual([
-      { host: "github", repo: "djgrant/notes" },
-      { host: "github", repo: "djgrant/site" },
-      { host: "github", repo: "notationlabs/shared" },
-      { host: "github", repo: "notationlabs/yieldstar" },
+      { repo: "djgrant/notes" },
+      { repo: "djgrant/site" },
+      { repo: "notationlabs/shared" },
+      { repo: "notationlabs/yieldstar" },
     ]);
   });
 

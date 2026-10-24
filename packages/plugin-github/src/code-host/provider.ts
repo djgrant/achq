@@ -5,7 +5,7 @@ import { type CommitSummary, GitHub, type RepoApi } from "@achq/utils/gh";
 import { text } from "@achq/utils/text";
 import type { Apps } from "../lib/apps.ts";
 import { configNeeds, configSource } from "../lib/config-needs.ts";
-import { appInstallPage, CODE_HOST, githubUrls, type GitHubUrls, POLICY_PROVIDER, REPO_NAME } from "../lib/constants.ts";
+import { appInstallPage, githubUrls, type GitHubUrls, POLICY_PROVIDER, REPO_NAME } from "../lib/constants.ts";
 import { DEPLOYER_PERMISSIONS, lacking } from "../lib/permissions.ts";
 import { asYou } from "../lib/you.ts";
 import type { GitHubPolicyData } from "../policy/resource.ts";
@@ -59,7 +59,7 @@ export class GitHubCodeHostProvider implements CodeHostProvider {
     );
     // Each repo once, compared as GitHub does; the last spelling wins.
     const repos = new Map(perApp.flat().map((repo) => [repoName.key(repo), repo]));
-    return [...repos.values()].map((repo) => ({ host: CODE_HOST, repo }));
+    return [...repos.values()].map((repo) => ({ repo }));
   }
 
   /** As the App: its installation on the repo's owner, if any, and whether it reaches the repo. A suspended one doesn't. */
@@ -90,7 +90,7 @@ export class GitHubCodeHostAsYou implements CodeHostAsYou {
     this.urls = githubUrls(env);
   }
 
-  /** Logged in on first use: finding which host a remote is on needs no login. */
+  /** Logged in on first use: finding which repo a remote names needs no login. */
   private get gh() {
     return (this.you ??= asYou(this.env));
   }

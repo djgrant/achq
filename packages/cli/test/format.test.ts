@@ -5,13 +5,13 @@ import { failedSection, formatReplay, formatStatus, infraStatusTable, planLines 
 test("the infra status lists installed and deployed repos, with errors underneath", () => {
   const table = infraStatusTable(
     [
-      { host: "github", repo: "notationlabs/yieldstar", state: "deployed", at: "2026-10-17T10:00:00Z", containers: [{ name: "dev", location: {} }] },
-      { host: "github", repo: "djgrant/rfcs", state: "failed", at: "2026-10-17T11:00:00Z", error: "no .achq/config.ts" },
+      { repo: "notationlabs/yieldstar", state: "deployed", at: "2026-10-17T10:00:00Z", containers: [{ name: "dev", location: {} }] },
+      { repo: "djgrant/rfcs", state: "failed", at: "2026-10-17T11:00:00Z", error: "no .achq/config.ts" },
     ],
     [
-      { host: "github", repo: "NotationLabs/yieldstar" },
-      { host: "github", repo: "djgrant/rfcs" },
-      { host: "github", repo: "djgrant/new" },
+      { repo: "NotationLabs/yieldstar" },
+      { repo: "djgrant/rfcs" },
+      { repo: "djgrant/new" },
     ],
   );
   expect(table.split("\n")).toEqual([
@@ -70,7 +70,7 @@ test("a plan collapses changes that do the same to the same target, counting the
 
 test("a status says what only you can fix, and where", () => {
   const action = { url: "https://github.com/apps/cloudflare-workers-and-pages/installations/new", what: "install cloudflare-workers-and-pages on a/b" };
-  expect(formatStatus({ host: "github", repo: "a/b", state: "failed", at: "2026-10-17T10:00:00Z", error: "Workers Builds can't see a/b", router: "https://r", action })).toEqual([
+  expect(formatStatus({ repo: "a/b", state: "failed", at: "2026-10-17T10:00:00Z", error: "Workers Builds can't see a/b", router: "https://r", action })).toEqual([
     "failed at 2026-10-17T10:00:00Z: Workers Builds can't see a/b",
     `to fix: install cloudflare-workers-and-pages on a/b, at ${action.url}`,
   ]);

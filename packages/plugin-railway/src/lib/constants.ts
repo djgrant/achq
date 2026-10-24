@@ -35,9 +35,6 @@ export const DEPLOYED = "ACHQ_DEPLOYED";
 export const DEPLOY_POLL_INTERVAL_MS = 5000;
 export const DEPLOY_TIMEOUT_MS = 5 * time.MINUTE_MS;
 
-/** Railway builds a container's service from its repo through its GitHub integration. */
-export const SOURCE_HOST = "github";
-
 /** Railway's GitHub App, which has to be installed on a repo for Railway to build it. */
 export const SOURCE_GITHUB_APP = "railway-app";
 export const SOURCE_GITHUB_APP_INSTALL_URL = `https://github.com/apps/${SOURCE_GITHUB_APP}/installations/new`;

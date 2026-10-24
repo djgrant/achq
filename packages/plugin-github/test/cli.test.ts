@@ -105,7 +105,7 @@ test("the App's install page is on the env's web URL, and what to do there names
 
 test("ACHQ_STATUS is read from the repository variable, and is undefined before the first deploy; clearing it deletes it", async () => {
   expect(await you().status(REPO)).toBeUndefined();
-  fake.status = { value: JSON.stringify({ host: "github", repo: REPO, state: "deployed", at: "2026-10-17T10:02:00Z" }) };
+  fake.status = { value: JSON.stringify({ repo: REPO, state: "deployed", at: "2026-10-17T10:02:00Z" }) };
   expect((await you().status(REPO))?.state).toBe("deployed");
   await you().clearStatus(REPO);
   expect(fake.status).toBeUndefined();

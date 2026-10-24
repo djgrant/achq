@@ -1,7 +1,7 @@
 import { defineCommand } from "@pokit/core";
 import { ACHQ_SOURCE } from "@achq/core";
 import { Env } from "@achq/utils/env";
-import { agentEnv, codeHostProviderNamed } from "achq/registry";
+import { agentEnv, CODE_HOST } from "achq/registry";
 import { z } from "zod";
 import { ACHQ_CODE_PATHS } from "../constants.ts";
 import { formatSync } from "../lib/format.ts";
@@ -21,8 +21,8 @@ export const command = defineCommand({
   pre: async () => [...(await infraChecks(needInfra(), process.env)), agentEnvCheck(process.env)],
   run: clean(async (r, { context }) => {
     const infra = await loadInfra(needInfra());
-    // Where the router and deployer's code comes from: achq's own repo, on its code host.
-    const source = codeHostProviderNamed(ACHQ_SOURCE.host).asYou(process.env);
+    // Where the router and deployer's code comes from: achq's own repo, on the code host.
+    const source = CODE_HOST.asYou(process.env);
     const env = new Env(process.env);
     const result = await up(infra, { prune: context.prune, dryRun: context.dryRun, rotateDeployerToken: context.rotateDeployerToken }, {
       env: process.env,

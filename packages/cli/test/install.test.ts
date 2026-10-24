@@ -55,7 +55,7 @@ test("a real config evaluates the same in the sandbox as imported with Bun", asy
   expect(sandboxed.workspaces[0].threads).toMatchObject({ channel: "github", source: "notation-achq" });
 });
 
-const status = (at: string): Status => ({ host: "github", repo: "notationlabs/yieldstar", state: "deployed", at, router: "https://achq-router.up.railway.app" });
+const status = (at: string): Status => ({ repo: "notationlabs/yieldstar", state: "deployed", at, router: "https://achq-router.up.railway.app" });
 
 test("polling the status stops at the first result newer than the install", async () => {
   const since = new Date("2026-10-17T10:00:00Z");
@@ -205,7 +205,7 @@ describe("install and uninstall", () => {
 
   /** The repo deployed before, so ACHQ_STATUS names the router, which says this of the App. */
   const routerSays = (...answers: { installed: boolean; url: string }[]) => {
-    fake.status = { value: JSON.stringify({ host: "github", repo: REPO, state: "deployed", at: "2026-10-17T10:02:00Z", router: `${api()}/router` }) };
+    fake.status = { value: JSON.stringify({ repo: REPO, state: "deployed", at: "2026-10-17T10:02:00Z", router: `${api()}/router` }) };
     fake.router = answers;
   };
 
@@ -214,7 +214,7 @@ describe("install and uninstall", () => {
     const log: string[] = [];
     const opened: string[] = [];
     const codeHost = githubCodeHostProvider.asYou({ GITHUB_API_URL: api(), GITHUB_WEB_URL: web(), GH_TOKEN: "gho_t" });
-    const here = { host: "github", repo: REPO, codeHost };
+    const here = { repo: REPO, codeHost };
     const deps = { log: (line: string) => void log.push(line), open: async (url: string) => void opened.push(url), wait: { sleep: async () => {} } };
     return {
       log,
@@ -252,7 +252,7 @@ describe("install and uninstall", () => {
     routerSays({ installed: false, url: SETTINGS });
     const { install, log, opened } = cli();
     expect(await install()).toBe(SETTINGS);
-    expect(fake.asked).toEqual([{ body: { host: "github", repo: REPO, source: "notation-achq" }, auth: "Bearer gho_t" }]);
+    expect(fake.asked).toEqual([{ body: { repo: REPO, source: "notation-achq" }, auth: "Bearer gho_t" }]);
     expect(opened).toEqual([SETTINGS]);
     expect(log).toEqual([`+ notation-achq on ${REPO}: opens your browser to install it`, `Install notation-achq on ${REPO} at ${SETTINGS}: on notationlabs, with ${REPO} among its repos.`]);
     expect(writes()).toEqual([]);
@@ -321,7 +321,7 @@ describe("install and uninstall", () => {
     routerSays({ installed: true, url: SETTINGS });
     const codeHost = githubCodeHostProvider.asYou({ GITHUB_API_URL: api(), GITHUB_WEB_URL: web(), GH_TOKEN: "gho_t" });
     const deps = { log: () => {}, open: async () => {}, wait: { sleep: async () => {}, timeoutMs: 15_000, intervalMs: 5000 } };
-    await expect(removeAndWait({ host: "github", repo: REPO, codeHost }, "notation-achq", SETTINGS, deps)).rejects.toThrow(`notation-achq is still installed on ${REPO} after`);
+    await expect(removeAndWait({ repo: REPO, codeHost }, "notation-achq", SETTINGS, deps)).rejects.toThrow(`notation-achq is still installed on ${REPO} after`);
     expect(fake.status).toBeDefined();
   });
 

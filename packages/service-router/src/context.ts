@@ -6,8 +6,8 @@ export type RouterDeps = {
   /** Each one's sources are what the deployer checks. */
   channelProviders: ChannelProvider[];
   policyProviders: PolicyProvider[];
-  /** Where repos live, by code host id: `/wake` checks push access with them, and the repos each has installed are what the deployer serves. */
-  codeHostProviders: Record<string, CodeHostProvider>;
+  /** Where repos live: `/wake` checks push access with it, and the repos installed on it are what the deployer serves. */
+  codeHost: CodeHostProvider;
   /** AGENT_WEBHOOK_KEY. */
   key: string;
   /** Where it keeps what outlives a crash: its container provider's store. */

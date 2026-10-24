@@ -33,7 +33,7 @@ export const pickContainer = (containers: Located[], wanted?: string, repo = "Th
 };
 
 /** The repo's container, picked and woken through the router. */
-export const reachContainer = async (prompter: Prompter, { host, repo, codeHost }: RepoHere, wanted?: string) => {
+export const reachContainer = async (prompter: Prompter, { repo, codeHost }: RepoHere, wanted?: string) => {
   // ACHQ_STATUS says where the repo's containers are, and which router fronts them.
   const status = await codeHost.status(repo);
   if (!status) throw new Error(notSetUp(repo));
@@ -46,8 +46,8 @@ export const reachContainer = async (prompter: Prompter, { host, repo, codeHost 
       throw new Error(`${repo} has several containers; pick one with --container (${containers.map((c) => c.name).join(", ")})`);
     },
   });
-  // The router checks, on the repo's host, that you can push to the repo.
-  await routerForPusher({ url: status.router, token: codeHost.token() }).wake({ host, repo, container: container.name });
+  // The router checks, on the code host, that you can push to the repo.
+  await routerForPusher({ url: status.router, token: codeHost.token() }).wake({ repo, container: container.name });
   return container;
 };
 

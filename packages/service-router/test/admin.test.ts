@@ -31,8 +31,8 @@ describe("admin", () => {
     // A segment that's only dots isn't a repo name, so no route takes it; dotted names are.
     expect((await r.admin("PUT", "/admin/repos/.../widgets", config(r.dev, r.docsbox))).status).toBe(404);
     expect((await r.admin("PUT", "/admin/repos/acme.co/wid.gets", config(r.dev, r.docsbox))).status).toBe(400);
-    const { host: _host, ...hostless } = config(r.dev, r.docsbox);
-    expect((await r.admin("PUT", `/admin/repos/${repo}`, hostless)).status).toBe(400);
+    const { commit: _commit, ...uncommitted } = config(r.dev, r.docsbox);
+    expect((await r.admin("PUT", `/admin/repos/${repo}`, uncommitted)).status).toBe(400);
   });
 
   test("mint, validate, installed repos and sources", async () => {
@@ -41,7 +41,7 @@ describe("admin", () => {
     expect(minted.map((c: any) => c.value)).toEqual(["token:deploy"]);
     const validated = await (await r.admin("POST", "/admin/validate", { repo, policies: [policy("ok"), { ...policy("bad"), ok: false }, { provider: "nope" }] })).json();
     expect(validated).toEqual({ problems: ["bad isn't allowed", 'No policy provider "nope"'] });
-    expect(await (await r.admin("GET", "/admin/installed")).json()).toEqual([{ host: "test", repo }]);
+    expect(await (await r.admin("GET", "/admin/installed")).json()).toEqual([{ repo }]);
     expect(((await (await r.admin("GET", "/admin/sources")).json()) as { source: string }[])[0].source).toBe("app");
   });
 

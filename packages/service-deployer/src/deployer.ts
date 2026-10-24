@@ -1,7 +1,6 @@
 import { type CodeHostProvider, type ContainerProvider, type Stores, type DeployerEnvelope, type FileLimits, type RepoManifest, repoName, type SyncRequest, type SyncResult } from "@achq/core";
 import type { RouterAdmin } from "@achq/core/client";
 import { async } from "@achq/utils/async";
-import { collections } from "@achq/utils/collections";
 import { errors } from "@achq/utils/errors";
 import { HttpError } from "@achq/utils/http";
 import { type Evaluate, evaluateConfig } from "./config/evaluate.ts";
@@ -30,7 +29,8 @@ export type DeployerDeps = {
   containerProvider: ContainerProvider;
   /** The router, at its private URL. */
   router: RouterAdmin;
-  codeHostProviders: Record<string, CodeHostProvider>;
+  /** Where the repos it deploys live. */
+  codeHost: CodeHostProvider;
   owners: string[];
   /** Where it keeps its records: its container provider's store. */
   stores: Stores;
@@ -82,17 +82,16 @@ export const createDeployer = (deps: DeployerDeps) => {
   };
 
   const actions = {
-    deploy: (host: string, repo: string, { dryRun = false }: ActionOptions = {}) => perRepo(repoName.key(repo), () => deploy(ctx, host, repo, dryRun)),
+    deploy: (repo: string, { dryRun = false }: ActionOptions = {}) => perRepo(repoName.key(repo), () => deploy(ctx, repo, dryRun)),
 
-    uninstall: (host: string, repo: string, { dryRun = false, clearStatus = false }: UninstallOptions = {}) =>
+    uninstall: (repo: string, { dryRun = false, clearStatus = false }: UninstallOptions = {}) =>
       perRepo(repoName.key(repo), async () => {
         if (dryRun) return;
         const previous = await ctx.store.get(repo);
         // Before the router forgets it, as minting needs it. A failure is only logged: the repo goes either way.
         if (clearStatus) {
-          const provider = collections.own(ctx.codeHostProviders, host);
           try {
-            if (provider) await (await repoClient(ctx, provider, repo)).clearStatus();
+            await (await repoClient(ctx, repo)).clearStatus();
           } catch (error) {
             ctx.log(`${repo}: couldn't delete ACHQ_STATUS: ${errors.message(error)}`);
           }
@@ -102,7 +101,7 @@ export const createDeployer = (deps: DeployerDeps) => {
           if (!(error instanceof HttpError && error.status === NOT_FOUND)) throw error;
         });
         // Containers and volumes are kept, asleep. Reinstalling brings it all back.
-        await ctx.store.put({ ...previous, error: undefined, warnings: undefined, action: undefined, host, repo, state: "uninstalled", at: ctx.now().toISOString() });
+        await ctx.store.put({ ...previous, error: undefined, warnings: undefined, action: undefined, repo, state: "uninstalled", at: ctx.now().toISOString() });
         ctx.log(`${repo}: uninstalled`);
       }),
   };
@@ -120,10 +119,9 @@ export const createDeployer = (deps: DeployerDeps) => {
       inflight.add(event.delivery);
       try {
         if (await ctx.store.handled(event.delivery)) return false;
-        const { host } = event;
         // One by one: each repo gets its own deploy and its own ACHQ_STATUS.
-        for (const repo of event.deploy) await actions.deploy(host, repo);
-        for (const repo of event.uninstall) await actions.uninstall(host, repo);
+        for (const repo of event.deploy) await actions.deploy(repo);
+        for (const repo of event.uninstall) await actions.uninstall(repo);
         // Marked only once handled, so a crash part-way lets the router's replay finish the job.
         await ctx.store.markHandled(event.delivery);
         return true;
@@ -140,11 +138,11 @@ export const createDeployer = (deps: DeployerDeps) => {
      */
     sync: async ({ prune = false, dryRun = false, empty = false, expect }: SyncRequest = {}) => {
       const result: SyncResult = { deployed: [], unchanged: [], uninstalled: [], pruned: [], failed: [] };
-      // By repo key: one per repo, however the code hosts spell its name.
+      // By repo key: one per repo, however the code host spells its name.
       const installed = new Map(empty ? [] : (await ctx.router.installed()).map((i) => [repoName.key(i.repo), i]));
       const manifests = new Map<string, RepoManifest>();
-      for (const { host, repo } of installed.values()) {
-        const outcome = await actions.deploy(host, repo, { dryRun });
+      for (const { repo } of installed.values()) {
+        const outcome = await actions.deploy(repo, { dryRun });
         if (outcome.outcome === "failed") result.failed.push({ repo, error: outcome.error ?? "failed" });
         else result[outcome.outcome].push(repo);
         if (outcome.manifest) manifests.set(repoName.key(repo), outcome.manifest);
@@ -157,7 +155,7 @@ export const createDeployer = (deps: DeployerDeps) => {
 
       for (const record of records) {
         if (record.state === "uninstalled" || installed.has(repoName.key(record.repo))) continue;
-        await actions.uninstall(record.host, record.repo, { dryRun, clearStatus: empty });
+        await actions.uninstall(record.repo, { dryRun, clearStatus: empty });
         result.uninstalled.push(record.repo);
       }
       for (const c of doomed) {

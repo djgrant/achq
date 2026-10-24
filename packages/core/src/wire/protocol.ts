@@ -13,7 +13,6 @@ const channelEvent = z.custom<ChannelEvent>((value) => json.isPlainObject(value)
 const repoEvent = z.object({
   delivery: z.string(),
   type: z.string(),
-  host: z.string(),
   deploy: z.array(z.string()),
   uninstall: z.array(z.string()),
 }) satisfies z.ZodType<DeployerEvent>;
@@ -32,8 +31,6 @@ export const ContainerEnvelope = z.object({
 export type ContainerEnvelope = z.infer<typeof ContainerEnvelope>;
 
 export const RouterRepoConfig = z.object({
-  /** The `CodeHostProvider` the repo is on. */
-  host: z.string(),
   repo: z.string(),
   /** The commit whose `.achq/` config this is. Forwarded with events so containers run the same config. */
   commit: z.string(),
@@ -43,8 +40,8 @@ export const RouterRepoConfig = z.object({
 });
 export type RouterRepoConfig = z.infer<typeof RouterRepoConfig>;
 
-/** A repo, on the `CodeHostProvider` `host`: what the router's public endpoints for the repo CLI take, with your code host token as the bearer. */
-export const RepoRequest = z.object({ host: z.string(), repo: z.string() });
+/** A repo, on the infra's code host: what the router's public endpoints for the repo CLI take, with your code host token as the bearer. */
+export const RepoRequest = z.object({ repo: z.string() });
 export type RepoRequest = z.infer<typeof RepoRequest>;
 
 export const WakeRequest = RepoRequest.extend({ container: z.string() });
@@ -93,7 +90,7 @@ export type CredentialsResponse = {
   channels: ChannelCredential[];
 };
 
-export type InstalledRepo = { host: string; repo: string };
+export type InstalledRepo = { repo: string };
 
 /**
  * A source's installation on a repo, as the router's code host sees it: whether
@@ -120,8 +117,6 @@ export type DeployState = "deployed" | "failed" | "uninstalled";
 
 /** The deployer's record of a repo, as ACHQ_STATUS and `/admin/status` show it. */
 export type DeployRecord = {
-  /** The `CodeHostProvider` the repo is on. */
-  host: string;
   repo: string;
   state: DeployState;
   at: string;

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { config, deployed, repo } from "./harness.ts";
+import { deployed, repo } from "./harness.ts";
 
-const wakeDev = { host: "test", repo, container: "dev" };
+const wakeDev = { repo, container: "dev" };
 
 describe("wake", () => {
   test("rejects a missing token or one without push access, without waking anything", async () => {
@@ -12,20 +12,9 @@ describe("wake", () => {
     expect(r.dev.wakes).toBe(0);
   });
 
-  test("rejects a request without a host, or naming one the router doesn't know", async () => {
+  test("rejects a request without a container", async () => {
     const r = await deployed();
-    expect((await r.wake({ repo, container: "dev" }, "push-token")).status).toBe(400);
-    const unknown = await r.wake({ ...wakeDev, host: "elsewhere" }, "push-token");
-    expect([unknown.status, await unknown.text()]).toEqual([400, "unknown host"]);
-    expect(r.dev.wakes).toBe(0);
-  });
-
-  test("a repo deployed from another host isn't woken", async () => {
-    const r = await deployed();
-    const elsewhere = { ...config(r.dev, r.docsbox), host: "other" };
-    expect((await r.admin("PUT", `/admin/repos/${repo}`, elsewhere)).status).toBe(204);
-    const res = await r.wake(wakeDev, "push-token");
-    expect([res.status, await res.text()]).toEqual([404, "not deployed"]);
+    expect((await r.wake({ repo }, "push-token")).status).toBe(400);
     expect(r.dev.wakes).toBe(0);
   });
 

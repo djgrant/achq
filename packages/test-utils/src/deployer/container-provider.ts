@@ -8,7 +8,7 @@ export class MemoryContainerProvider implements ContainerProvider {
 
   /** Containers that exist without the deployer having made them in this test, e.g. from an earlier run. */
   seed(repo: string, name: string) {
-    this.services.set(this.id(repo, name), { spec: { host: "github", repo, identity: { id: "1", name: repo.split("/")[1]!, owner: { id: "1", name: repo.split("/")[0]! } }, name, dockerfile: ".achq/Dockerfile", branch: "main", env: {} }, builds: 1 });
+    this.services.set(this.id(repo, name), { spec: { repo, identity: { id: "1", name: repo.split("/")[1]!, owner: { id: "1", name: repo.split("/")[0]! } }, name, dockerfile: ".achq/Dockerfile", branch: "main", env: {} }, builds: 1 });
   }
 
   ops(op?: "ensure" | "deploy" | "remove") {

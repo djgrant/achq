@@ -22,7 +22,7 @@ export const command = defineCommand({
   run: clean(async (r, { context }) => {
     const since = new Date();
     const here = needRepo();
-    const { host, repo, codeHost } = here;
+    const { repo, codeHost } = here;
     const log = (line: string) => console.log(line);
     const { source, url } = await planInstall(here, await loadRepoManifest(repoRoot()), { log });
     if (context.dryRun) return;
@@ -46,7 +46,7 @@ export const command = defineCommand({
         subprocess.openUrl(url);
       },
       waitForYou: () => waitForEnter(r.prompter, "Press Enter once you have."),
-      redeploy: (router, r) => routerForPusher({ url: router, token: codeHost.token() }).deploy({ host, repo: r }),
+      redeploy: (router, r) => routerForPusher({ url: router, token: codeHost.token() }).deploy({ repo: r }),
       log,
     });
     if (!status) {

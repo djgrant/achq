@@ -136,7 +136,7 @@ describe("persisted events", () => {
     const deployer = fakeDeployer();
     deployer.respond = () => new Response("down", { status: 503 });
     const r = await boot({ deployer: deployer.url });
-    const install = { delivery: "inst-failed", type: "installed", host: "test", deploy: ["acme/new", "acme/newer"], uninstall: ["acme/old"] };
+    const install = { delivery: "inst-failed", type: "installed", deploy: ["acme/new", "acme/newer"], uninstall: ["acme/old"] };
     await r.webhook(install);
     await r.router.settled();
     expect(readJson(join(r.dir, "failed", "inst-failed.json"))).toMatchObject({ to: "deployer", error: "gave up after 3 attempts (503 down)" });

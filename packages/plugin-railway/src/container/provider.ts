@@ -2,7 +2,7 @@ import { BrowserActionNeeded, type Context, type ContainerProvider, type Contain
 import { context } from "@achq/core/context";
 import { RAILWAY_API, Railway, RailwayError, type RailwayProject } from "@achq/utils/railway";
 import { subprocess } from "@achq/utils/subprocess";
-import { BRANCH, CONNECTED, CONTAINER_PROVIDER, RAILWAY_ENV, REPO_UNSEEN, SOURCE_GITHUB_APP, SOURCE_GITHUB_APP_INSTALL_URL, SOURCE_HOST } from "../lib/constants.ts";
+import { BRANCH, CONNECTED, CONTAINER_PROVIDER, RAILWAY_ENV, REPO_UNSEEN, SOURCE_GITHUB_APP, SOURCE_GITHUB_APP_INSTALL_URL } from "../lib/constants.ts";
 import { containerServiceName, containerUrl } from "../lib/names.ts";
 import { containerService } from "../lib/service-parts.ts";
 
@@ -41,8 +41,6 @@ export class RailwayContainerProvider implements ContainerProvider {
   }
 
   async ensure(spec: ContainerSpec) {
-    // Railway builds only from its source host.
-    if (spec.host !== SOURCE_HOST) throw new Error(`Railway builds containers from ${SOURCE_HOST} repos, not ${spec.host}`);
     await (await plan(this.resources(spec), this.ctx)).apply();
     return { url: containerUrl(containerServiceName(spec.repo, spec.name)) };
   }

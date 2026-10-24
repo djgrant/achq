@@ -4,7 +4,6 @@ import { containersOf, parseSessions, pickContainer, pickSession, sessionTable }
 
 const location = (service: string) => ({ containerProvider: "railway", project: "p1", environment: "e1", service });
 const status: Status = {
-  host: "github",
   repo: "notationlabs/yieldstar",
   state: "deployed",
   at: "2026-10-17T10:02:00Z",

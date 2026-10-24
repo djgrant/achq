@@ -2,7 +2,7 @@ import { DEPLOYER_PORT, ENV } from "@achq/core";
 import { routerAdmin } from "@achq/core/client";
 import { Env } from "@achq/utils/env";
 import { text } from "@achq/utils/text";
-import { codeHostProviders, privateEnv, serviceContainerProvider } from "achq/registry";
+import { CODE_HOST, privateEnv, serviceContainerProvider } from "achq/registry";
 import { createDeployer } from "./deployer.ts";
 import { deployerHandler } from "./server.ts";
 
@@ -17,7 +17,7 @@ export const main = () => {
   const deployer = createDeployer({
     containerProvider: containerProvider.provider.create(env.vars),
     router: routerAdmin({ url: routerUrl, key }),
-    codeHostProviders: codeHostProviders(env.vars),
+    codeHost: CODE_HOST.create(env.vars),
     owners: text.commaList(env.require(ENV.owners)),
     stores: containerProvider.stores,
     env: {

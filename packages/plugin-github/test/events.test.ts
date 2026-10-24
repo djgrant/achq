@@ -80,7 +80,7 @@ describe("parse", () => {
     // Not a prefix match on the name alone.
     expect(changed([{ added: [".achqx/config.ts", "docs/.achq/x"] }])).toBe(false);
     expect(changed([{ added: [".achq/config.ts"] }], "refs/heads/feature")).toBe(false);
-    expect(parseRepo("push", push([{ added: [".achq/config.ts"] }]))).toEqual({ delivery: "d-1", type: "push", host: "github", deploy: ["notationlabs/yieldstar"], uninstall: [], onlyIfDeployed: true });
+    expect(parseRepo("push", push([{ added: [".achq/config.ts"] }]))).toEqual({ delivery: "d-1", type: "push", deploy: ["notationlabs/yieldstar"], uninstall: [], onlyIfDeployed: true });
   });
 
   test("a push listing GitHub's maximum of 2048 commits may have changed the config", () => {
@@ -96,7 +96,7 @@ describe("parse", () => {
       repositories: [{ id: 1, name: "a", full_name: "notationlabs/a", private: true }, { id: 2, name: "b", full_name: "notationlabs/b", private: false }],
       sender: user("dan"),
     })!;
-    expect(created).toEqual({ delivery: "d-1", type: "installation.created", host: "github", deploy: ["notationlabs/a", "notationlabs/b"], uninstall: [], onlyIfDeployed: false });
+    expect(created).toEqual({ delivery: "d-1", type: "installation.created", deploy: ["notationlabs/a", "notationlabs/b"], uninstall: [], onlyIfDeployed: false });
     const deleted = parseRepo("installation", { action: "deleted", installation: { id: 77, account }, repositories: [{ full_name: "notationlabs/a" }] })!;
     expect([deleted.deploy, deleted.uninstall]).toEqual([[], ["notationlabs/a"]]);
     const suspended = parseRepo("installation", { action: "suspend", installation: { id: 77, account }, repositories: [{ full_name: "notationlabs/a" }] })!;

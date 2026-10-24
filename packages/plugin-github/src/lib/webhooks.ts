@@ -1,7 +1,7 @@
 import { type ChannelEvent, CONFIG_DIR, type ParsedEvent, type RepoEvent } from "@achq/core";
 import { collections } from "@achq/utils/collections";
 import type { Json } from "@achq/utils/json";
-import { CHANNEL, CODE_HOST } from "./constants.ts";
+import { CHANNEL } from "./constants.ts";
 import { issueThreadId, labelNames, messageId, OPENING_POST_ID, TRUSTED } from "./threads.ts";
 
 /**
@@ -65,7 +65,7 @@ const parsePushEvent = ({ base, payload }: Delivery): RepoEvent | undefined => {
   const touchesConfig = commits.some((commit) => [...(commit.added ?? []), ...(commit.modified ?? []), ...(commit.removed ?? [])].some((file: string) => file.startsWith(`${CONFIG_DIR}/`)));
   const truncated = commits.length >= PUSH_COMMIT_CAP;
   if (!touchesConfig && !truncated) return undefined;
-  return { delivery: base.delivery, type: "push", host: CODE_HOST, deploy: [repo], uninstall: [], onlyIfDeployed: true };
+  return { delivery: base.delivery, type: "push", deploy: [repo], uninstall: [], onlyIfDeployed: true };
 };
 
 const parseInstallationEvent = ({ name, base, payload }: Delivery): RepoEvent | undefined => {
@@ -75,7 +75,7 @@ const parseInstallationEvent = ({ name, base, payload }: Delivery): RepoEvent | 
   const listed = fullNames(payload.repositories);
   const adds = action === "created" || action === "unsuspend";
   const [deploy, uninstall] = name === "installation" ? (adds ? [listed, []] : [[], listed]) : [fullNames(payload.repositories_added), fullNames(payload.repositories_removed)];
-  return { delivery: base.delivery, type: `${name}.${action}`, host: CODE_HOST, deploy, uninstall, onlyIfDeployed: false };
+  return { delivery: base.delivery, type: `${name}.${action}`, deploy, uninstall, onlyIfDeployed: false };
 };
 
 const forContainers = (parse: (delivery: Delivery) => ChannelEvent | undefined) => (delivery: Delivery): ParsedEvent | undefined => {

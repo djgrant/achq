@@ -6,7 +6,7 @@ import { subprocess } from "@achq/utils/subprocess";
 import { text } from "@achq/utils/text";
 import { ENV_FILE } from "../../worker/lifecycle.ts";
 import { archiveKey, SERVICE_CLASS } from "../../worker/settings.ts";
-import { BUILD_POLL_INTERVAL_MS, BUILD_TIMEOUT_MS, BUILDS_GITHUB_APP_INSTALL_URL, CLOUDFLARE_ENV, CONTAINER_PROVIDER, LOG_TAIL_LINES, SOURCE_HOST, WRANGLER } from "../lib/constants.ts";
+import { BUILD_POLL_INTERVAL_MS, BUILD_TIMEOUT_MS, BUILDS_GITHUB_APP_INSTALL_URL, CLOUDFLARE_ENV, CONTAINER_PROVIDER, LOG_TAIL_LINES, WRANGLER } from "../lib/constants.ts";
 import { buildToken, registered } from "../lib/build-token.ts";
 import { type ContainerPlace, containerParts } from "../lib/container-parts.ts";
 import { containerUrl, containerWorkerName, KV_KEYS } from "../lib/names.ts";
@@ -57,8 +57,6 @@ export class CloudflareContainerProvider implements ContainerProvider {
   }
 
   async ensure(spec: ContainerSpec) {
-    // Workers Builds builds only from its source host.
-    if (spec.host !== SOURCE_HOST) throw new Error(`Cloudflare builds containers from ${SOURCE_HOST} repos, not ${spec.host}`);
     const { name, resources } = await this.parts(spec);
     await (await plan(resources, this.ctx)).apply();
     return { url: containerUrl(name) };

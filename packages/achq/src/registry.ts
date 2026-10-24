@@ -1,17 +1,18 @@
 import { onePasswordVaultProvider } from "@achq/1password/vault";
 import { claudeAgentProvider } from "@achq/claude/agent";
 import { cloudflareContainerProvider } from "@achq/cloudflare/container";
-import { type AgentProvider, type ChannelProvider, type CodeHostImplementation, type CodeHostProvider, type ContainerProviderImplementation, ENV, type Implementation, type PolicyProvider, type Stores, type VaultProvider } from "@achq/core";
+import { type AgentProvider, type ChannelProvider, type CodeHostImplementation, type ContainerProviderImplementation, ENV, type Implementation, type PolicyProvider, type Stores, type VaultProvider } from "@achq/core";
 import { githubChannelProvider } from "@achq/github/channel";
 import { githubPolicyProvider } from "@achq/github/policy";
 import { githubCodeHostProvider } from "@achq/github/code-host";
 import { railwayContainerProvider } from "@achq/railway/container";
-import type { Env, Vars } from "@achq/utils/env";
+import type { Env } from "@achq/utils/env";
 import * as infra from "./infra.ts";
 
 export const CHANNEL_PROVIDERS: Implementation<ChannelProvider>[] = [githubChannelProvider];
 export const POLICY_PROVIDERS: Implementation<PolicyProvider>[] = [githubPolicyProvider];
-export const CODE_HOST_PROVIDERS: CodeHostImplementation[] = [githubCodeHostProvider];
+/** Where every repo an infra serves lives, and achq's own code: an infra has one code host, so repos are told apart by `owner/name` alone. */
+export const CODE_HOST: CodeHostImplementation = githubCodeHostProvider;
 export const CONTAINER_PROVIDERS: ContainerProviderImplementation[] = [railwayContainerProvider, cloudflareContainerProvider];
 export const AGENT_PROVIDERS: AgentProvider[] = [claudeAgentProvider];
 /** Where `achq infra up` can keep secrets for reuse, as `achq.config.ts` names one. */
@@ -27,14 +28,10 @@ const lookup =
 
 export const channelProviderNamed = lookup("channel provider", CHANNEL_PROVIDERS);
 export const policyProviderNamed = lookup("policy provider", POLICY_PROVIDERS);
-export const codeHostProviderNamed = lookup("code host provider", CODE_HOST_PROVIDERS);
 export const containerProviderNamed = lookup("container provider", CONTAINER_PROVIDERS);
 export const vaultProviderNamed = lookup("vault provider", VAULT_PROVIDERS);
 /** For a location's `containerProvider`, which may name a provider this build doesn't have. */
 export const findContainerProvider = (id: string | undefined) => CONTAINER_PROVIDERS.find((h) => h.id === id);
-
-/** Every code host provider, made from `vars`, by id. */
-export const codeHostProviders = (vars: Vars): Record<string, CodeHostProvider> => Object.fromEntries(CODE_HOST_PROVIDERS.map((h) => [h.id, h.create(vars)]));
 
 /** The container provider a router or deployer runs on, as ENV.containerProvider names it, and the stores it keeps what outlives a restart in. */
 export const serviceContainerProvider = (env: Env) => {
@@ -44,7 +41,7 @@ export const serviceContainerProvider = (env: Env) => {
 };
 
 /** Every variable only the router and deployer have. */
-export const privateEnv = () => [...new Set([...CHANNEL_PROVIDERS, ...POLICY_PROVIDERS, ...CODE_HOST_PROVIDERS, ...CONTAINER_PROVIDERS].flatMap((i) => i.privateEnv))];
+export const privateEnv = () => [...new Set([...CHANNEL_PROVIDERS, ...POLICY_PROVIDERS, CODE_HOST, ...CONTAINER_PROVIDERS].flatMap((i) => i.privateEnv))];
 
 export const agentEnv = () => AGENT_PROVIDERS.flatMap((a) => a.containerEnv);
 

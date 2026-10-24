@@ -1,4 +1,4 @@
-import { type ChannelProvider, type CodeHostProvider, type CredentialsResponse, type DeployerEvent, repoName } from "@achq/core";
+import { type ChannelProvider, type CredentialsResponse, type DeployerEvent, repoName } from "@achq/core";
 import { CredentialsRequest, InstallationRequest, MintRequest, RepoRequest, RouterRepoConfig, ValidateRequest, WakeRequest } from "@achq/core/protocol";
 import { adminSecret, containerSecret } from "@achq/core/secrets";
 import { isSigned, signedBy } from "@achq/core/signing";
@@ -56,7 +56,7 @@ export const createRouter = (deps: RouterDeps) => {
       const { policies, repo } = c.req.valid("json");
       return c.json({ problems: await validate(ctx, policies, repo) });
     })
-    .get("/installed", async (c) => c.json((await Promise.all(Object.values(ctx.codeHostProviders).map((h) => h.installed()))).flat()))
+    .get("/installed", async (c) => c.json(await ctx.codeHost.installed()))
     .get("/sources", async (c) => c.json((await Promise.all(ctx.channelProviders.map((channel) => channel.sources()))).flat()))
     .post("/sync", async (c) => toDeployer("POST", "/sync", await c.req.text()))
     .get("/sync/:id", (c) => toDeployer("GET", `/sync/${encodeURIComponent(c.req.param("id"))}`))
@@ -66,18 +66,15 @@ export const createRouter = (deps: RouterDeps) => {
     .post("/failed/replay", async (c) => c.json(await replayFailed(ctx)));
 
   /**
-   * The repo's code host, if the request's bearer token can push to the repo;
-   * otherwise the response refusing it. Checked before saying anything about
-   * the repo, so strangers learn nothing.
+   * The response refusing the request, unless its bearer token can push to the
+   * repo on the code host. Checked before saying anything about the repo, so
+   * strangers learn nothing.
    */
-  const pusher = async (req: Request, request: RepoRequest): Promise<CodeHostProvider | Response> => {
+  const refusal = async (req: Request, request: RepoRequest): Promise<Response | undefined> => {
     const token = http.bearerToken(req);
     if (!token) return new Response("missing token", { status: 401 });
     if (!repoName.pattern.test(request.repo)) return new Response("bad request", { status: 400 });
-    const host = collections.own(ctx.codeHostProviders, request.host);
-    if (!host) return new Response("unknown host", { status: 400 });
-    if (!(await host.canPush(request.repo, token))) return new Response("no push access", { status: 403 });
-    return host;
+    if (!(await ctx.codeHost.canPush(request.repo, token))) return new Response("no push access", { status: 403 });
   };
 
   /** The channel whose signature a delivery carries, and the source it's from. */
@@ -131,13 +128,12 @@ export const createRouter = (deps: RouterDeps) => {
       }
       return c.text(accepted ? "accepted" : "duplicate", 202);
     })
-    // For `achq container ssh`: wakes a container for someone who can push to its repo, on the host it's deployed from.
+    // For `achq container ssh`: wakes a container for someone who can push to its repo.
     .post("/wake", zValidator("json", WakeRequest), async (c) => {
       const request = c.req.valid("json");
-      const refused = await pusher(c.req.raw, request);
-      if (refused instanceof Response) return refused;
-      const config = configOf(ctx, request.repo);
-      const container = config?.host === request.host ? config.containers.find((x) => x.name === request.container) : undefined;
+      const refused = await refusal(c.req.raw, request);
+      if (refused) return refused;
+      const container = configOf(ctx, request.repo)?.containers.find((x) => x.name === request.container);
       if (!container) return c.text("not deployed", 404);
 
       // Any request wakes it; its health check answers once it's up.
@@ -149,17 +145,17 @@ export const createRouter = (deps: RouterDeps) => {
     // For `achq repo install` and `uninstall`: whether the config's source is installed on the repo, which only the App's key can tell.
     .post("/installation", zValidator("json", InstallationRequest), async (c) => {
       const request = c.req.valid("json");
-      const host = await pusher(c.req.raw, request);
-      if (host instanceof Response) return host;
-      const found = await host.installation(request.repo, request.source);
+      const refused = await refusal(c.req.raw, request);
+      if (refused) return refused;
+      const found = await ctx.codeHost.installation(request.repo, request.source);
       return found ? c.json(found) : c.text("unknown source", 404);
     })
     // For `achq repo install`, once you've fixed what failed its deploy: deploys the repo again, as installing it does.
     .post("/deploy", zValidator("json", RepoRequest), async (c) => {
       const request = c.req.valid("json");
-      const refused = await pusher(c.req.raw, request);
-      if (refused instanceof Response) return refused;
-      const event: DeployerEvent = { delivery: `deploy-${crypto.randomUUID()}`, type: "deploy.requested", host: request.host, deploy: [request.repo], uninstall: [] };
+      const refused = await refusal(c.req.raw, request);
+      if (refused) return refused;
+      const event: DeployerEvent = { delivery: `deploy-${crypto.randomUUID()}`, type: "deploy.requested", deploy: [request.repo], uninstall: [] };
       // Through the inbox, as an install event goes, so a deployer that's asleep or restarting still gets it.
       await acceptDelivery(ctx, { to: "deployer", event });
       return c.text("accepted", 202);

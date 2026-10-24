@@ -73,7 +73,7 @@ export const testHost: CodeHostProvider = {
   },
   canPush: async (forRepo, token) => forRepo === repo && token === "push-token",
   cloneUrl: (forRepo) => `https://test.example/${forRepo}.git`,
-  installed: async () => [{ host: "test", repo }],
+  installed: async () => [{ repo }],
   // `app` is installed on `repo`; the router has no other source.
   installation: async (forRepo, source) => (source === "app" ? { installed: forRepo === repo, url: `https://test.example/settings/${source}` } : undefined),
 };
@@ -144,7 +144,7 @@ export const boot = async ({ dir = mkdtempSync(join(tmpdir(), "achq-router-")), 
   const router = createRouter({
     channelProviders: [testChannel],
     policyProviders: [testPolicyProvider],
-    codeHostProviders: { test: testHost },
+    codeHost: testHost,
     key,
     stores,
     deployerUrl: deployer,
@@ -181,7 +181,6 @@ export const boot = async ({ dir = mkdtempSync(join(tmpdir(), "achq-router-")), 
 export const selector = (labels?: string[]): SelectorData => ({ channel: "test", source: "app", ...(labels && { labels }) });
 export const policy = (name: string): PolicyData => ({ provider: "test", name });
 export const config = (dev: { url: string }, docsbox: { url: string }): RouterRepoConfig => ({
-  host: "test",
   repo,
   commit: "abc123",
   containers: [

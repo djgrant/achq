@@ -12,7 +12,6 @@ let fake: FakeRailway;
 let host: RailwayContainerProvider;
 
 const spec = {
-  host: "github",
   repo: "NotationLabs/yieldstar",
   identity: { id: "22", name: "yieldstar", owner: { id: "11", name: "NotationLabs" } },
   name: "dev",
@@ -126,10 +125,6 @@ test("list reads services' repo and container, locate says where, remove deletes
   expect(project.services.map((s) => s.name)).toEqual(["notationlabs-yieldstar-docs"]);
   expect(project.volumes).toHaveLength(1);
   await host.remove(spec.repo, "dev"); // already gone: nothing to do
-});
-
-test("only builds repos on GitHub", async () => {
-  await expect(host.ensure({ ...spec, host: "gitlab" })).rejects.toThrow("Railway builds containers from github repos, not gitlab");
 });
 
 test("the deployer makes it from its environment: the token and the project", async () => {
