@@ -1,3 +1,5 @@
+import { time } from "@achq/utils/time";
+
 /** The ACHQ infra file, at the infra repo's root. */
 export const INFRA_FILE = "achq.infra.ts";
 
@@ -15,13 +17,13 @@ export const CLI_ENV = {
 export const ACHQ_CODE_PATHS = ["packages", "package.json", "bun.lock"];
 
 /** How long `achq repo install` waits for the deploy's result, and how often it looks: a deploy can build images for minutes. */
-export const STATUS_TIMEOUT_MS = 20 * 60_000;
+export const STATUS_TIMEOUT_MS = 20 * time.MINUTE_MS;
 export const STATUS_INTERVAL_MS = 5000;
 /** How long `achq infra up` waits for the sync, which deploys every repo, and how often it asks. */
-export const SYNC_TIMEOUT_MS = 60 * 60_000;
+export const SYNC_TIMEOUT_MS = 60 * time.MINUTE_MS;
 export const SYNC_INTERVAL_MS = 5000;
 /** How long `achq infra up` waits for a new deployer to replace the one running. */
-export const DEPLOYER_VERSION_TIMEOUT_MS = 10 * 60_000;
+export const DEPLOYER_VERSION_TIMEOUT_MS = 10 * time.MINUTE_MS;
 /** How many times `achq repo install` opens what a failed deploy says only you can fix, and deploys again. */
 export const FIX_ATTEMPTS = 3;
 

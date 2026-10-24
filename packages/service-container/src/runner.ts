@@ -9,10 +9,10 @@ import type { Vars } from "@achq/utils/env";
 import { errors } from "@achq/utils/errors";
 import { flock } from "@achq/utils/flock";
 import { http } from "@achq/utils/http";
+import { time } from "@achq/utils/time";
 import { zValidator } from "@hono/zod-validator";
 import { agentEnv, saveAgentEnv } from "./agent-env.ts";
 import type { LoadedConfig } from "./config.ts";
-import { MINUTE_MS } from "./constants.ts";
 import { Credentials } from "./credentials.ts";
 import { configLoadFailed, failureReply, NOTHING_TO_COMPACT, runFailed, runInterrupted, unrunnableAgent, worktreeFailed } from "./messages.ts";
 import { buildPrompt, type Command, parseCommand } from "./prompt.ts";
@@ -20,7 +20,7 @@ import { describeHead, ensureWorktree, fetchMirror, fillBranch } from "./repo.ts
 import { containerContext, defaultRuntimes, writeFiles } from "./runtime-context.ts";
 import { allStates, firstDelivery, paths as layout, type Paths, readState, type ThreadState, writeState } from "./volume.ts";
 
-const KEEP_AWAKE_INTERVAL_MS = 3 * MINUTE_MS;
+const KEEP_AWAKE_INTERVAL_MS = 3 * time.MINUTE_MS;
 
 export type RunnerOptions = {
   repo: string;

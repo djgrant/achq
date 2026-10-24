@@ -1,6 +1,7 @@
 /** The container provider id: the router and deployer run on it, and the deployer puts containers on it. */
 export const CONTAINER_PROVIDER = "cloudflare";
 
+import { time } from "@achq/utils/time";
 import { DEPLOYER_TOKEN } from "../../worker/settings.ts";
 
 /** Where the CLI and the deployer read their Cloudflare settings from. */
@@ -52,7 +53,7 @@ export const DEPLOYER_TOKEN_NAME = "achq-deployer";
 export const TOKEN_ATTEMPTS = 3;
 
 /** How long Wrangler's OAuth token is used before asking Wrangler again, which refreshes it: it lasts an hour. */
-export const WRANGLER_TOKEN_REUSE_MS = 5 * 60_000;
+export const WRANGLER_TOKEN_REUSE_MS = 5 * time.MINUTE_MS;
 
 /** Workers' names double as hostnames, so they fit a DNS label. */
 export const MAX_WORKER_NAME = 63;
@@ -70,10 +71,10 @@ export const DEPLOYED = "deployed";
 
 /** How often a deploy is checked on, and how long it can take: Builds take 1.5 to 3 minutes, with no layer cache. */
 export const BUILD_POLL_INTERVAL_MS = 10_000;
-export const BUILD_TIMEOUT_MS = 30 * 60_000;
+export const BUILD_TIMEOUT_MS = 30 * time.MINUTE_MS;
 /** How often the router is checked while waiting for it to answer after a deploy, and how long to wait in all: its first start installs Bun and achq. */
 export const ANSWER_POLL_INTERVAL_MS = 5000;
-export const ANSWER_TIMEOUT_MS = 5 * 60_000;
+export const ANSWER_TIMEOUT_MS = 5 * time.MINUTE_MS;
 /** How much of a failed build's log its error quotes. */
 export const LOG_TAIL_LINES = 30;
 

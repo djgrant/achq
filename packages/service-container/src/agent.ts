@@ -1,8 +1,9 @@
 import { ENV } from "@achq/core";
 import { Env, type Vars } from "@achq/utils/env";
+import { time } from "@achq/utils/time";
 import { CHANNEL_PROVIDERS, POLICY_PROVIDERS } from "achq/registry";
 import { createConfigLoader } from "./config.ts";
-import { DEFAULT_MAX_RUNS, DEFAULT_RUN_TIMEOUT_MINUTES, MINUTE_MS } from "./constants.ts";
+import { DEFAULT_MAX_RUNS, DEFAULT_RUN_TIMEOUT_MINUTES } from "./constants.ts";
 import { fetchMirror } from "./repo.ts";
 import { Runner } from "./runner.ts";
 import { paths as layout } from "./volume.ts";
@@ -20,7 +21,7 @@ export const settings = (env: Env) => ({
 /** How many runs go at once and how long each may take, from the container's environment or their defaults. */
 export const runLimits = (env: Env) => ({
   maxRuns: env.positiveInt(ENV.maxRuns, DEFAULT_MAX_RUNS),
-  runTimeoutMs: env.positiveInt(ENV.runTimeoutMinutes, DEFAULT_RUN_TIMEOUT_MINUTES) * MINUTE_MS,
+  runTimeoutMs: env.positiveInt(ENV.runTimeoutMinutes, DEFAULT_RUN_TIMEOUT_MINUTES) * time.MINUTE_MS,
 });
 
 export const createAgent = (vars: Vars, options: { log?: (line: string) => void } = {}) => {

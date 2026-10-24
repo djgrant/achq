@@ -1,4 +1,5 @@
 import type { Vars } from "@achq/utils/env";
+import { time } from "@achq/utils/time";
 
 export const GITHUB_API = "https://api.github.com";
 export const GITHUB_WEB = "https://github.com";
@@ -30,4 +31,4 @@ export const PRIVATE_ENV = [GITHUB_ENV.apps, "GITHUB_APP_PRIVATE_KEY", "GITHUB_W
 
 /** How often `achq repo uninstall` asks the router whether you've removed the repo on GitHub, and how long it waits for you. */
 export const FLOW_POLL_INTERVAL_MS = 5000;
-export const FLOW_TIMEOUT_MS = 15 * 60_000;
+export const FLOW_TIMEOUT_MS = 15 * time.MINUTE_MS;

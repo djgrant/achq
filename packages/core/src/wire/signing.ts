@@ -1,8 +1,9 @@
 import { crypto } from "@achq/utils/crypto";
+import { time } from "@achq/utils/time";
 import type { Context } from "hono";
 import { createMiddleware } from "hono/factory";
 
-const MAX_SKEW_MS = 5 * 60_000;
+const MAX_SKEW_MS = 5 * time.MINUTE_MS;
 const TIMESTAMP_HEADER = "x-achq-timestamp";
 const SIGNATURE_HEADER = "x-achq-signature";
 

@@ -3,11 +3,11 @@ import { routerForContainer } from "@achq/core/client";
 import { async } from "@achq/utils/async";
 import { disk } from "@achq/utils/disk";
 import { errors } from "@achq/utils/errors";
-import { MINUTE_MS } from "./constants.ts";
+import { time } from "@achq/utils/time";
 import type { Paths } from "./volume.ts";
 
 /** Refresh when this little is left, so a failing refresh has half an hour of retries before anything breaks. */
-const REFRESH_BEFORE_MS = 30 * MINUTE_MS;
+const REFRESH_BEFORE_MS = 30 * time.MINUTE_MS;
 
 /** Only the container's user reads installed credentials. */
 const PRIVATE_DIR_MODE = 0o700;

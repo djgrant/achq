@@ -1,3 +1,5 @@
+import { time } from "@achq/utils/time";
+
 /** The container provider id: the router and deployer run on it, and the deployer puts containers on it. */
 export const CONTAINER_PROVIDER = "railway";
 
@@ -31,7 +33,7 @@ export const DEPLOYED = "ACHQ_DEPLOYED";
 
 /** How often the router's deploy is checked while waiting for it to go live, and how long to wait in all. */
 export const DEPLOY_POLL_INTERVAL_MS = 5000;
-export const DEPLOY_TIMEOUT_MS = 5 * 60_000;
+export const DEPLOY_TIMEOUT_MS = 5 * time.MINUTE_MS;
 
 /** Railway builds a container's service from its repo through its GitHub integration. */
 export const SOURCE_HOST = "github";
