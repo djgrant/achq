@@ -1,24 +1,10 @@
 import { CONTAINER_PORT } from "@achq/core";
-import { crypto } from "@achq/utils/crypto";
+import { names } from "@achq/utils/names";
 import { INTERNAL_DOMAIN } from "../../worker/settings.ts";
 import { MAX_WORKER_NAME } from "./constants.ts";
 
-/** How much of a too-long name's hash tells it apart from others cut to the same prefix. */
-const NAME_HASH_CHARS = 8;
-
 /** A Worker name (and workers.dev hostname): lowercase letters, digits and dashes, at most 63 characters. */
-export const workerName = (...parts: string[]) => {
-  const name = parts
-    .join("-")
-    .toLowerCase()
-    .replace(/[^a-z0-9-]+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "");
-  if (name.length <= MAX_WORKER_NAME) return name;
-  // Cut to fit, ending in a hash of the whole of it.
-  const prefix = name.slice(0, MAX_WORKER_NAME - NAME_HASH_CHARS - 1).replace(/-$/, "");
-  return `${prefix}-${crypto.sha256Hex(name, NAME_HASH_CHARS)}`;
-};
+export const workerName = (...parts: string[]) => names.slug(parts, MAX_WORKER_NAME);
 
 /** Worker names are the account's, so each is its project's: the router of project `achq` is `achq-router`. */
 export const serviceWorkerName = (project: string, resource: string) => workerName(project, resource);

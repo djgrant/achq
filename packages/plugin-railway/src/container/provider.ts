@@ -1,5 +1,5 @@
 import { BrowserActionNeeded, type Context, type ContainerProvider, type ContainerShell, type ContainerSpec, ENV, plan, repoName } from "@achq/core";
-import { crypto } from "@achq/utils/crypto";
+import { context } from "@achq/core/context";
 import { RAILWAY_API, Railway, RailwayError, type RailwayProject } from "@achq/utils/railway";
 import { subprocess } from "@achq/utils/subprocess";
 import { BRANCH, CONNECTED, CONTAINER_PROVIDER, RAILWAY_ENV, REPO_UNSEEN, SOURCE_GITHUB_APP, SOURCE_GITHUB_APP_INSTALL_URL, SOURCE_HOST } from "../lib/constants.ts";
@@ -13,8 +13,6 @@ export type RailwayContainerProviderOptions = {
   /** Railway's GraphQL endpoint, for tests. */
   endpoint?: string;
 };
-
-const SECRET_BYTES = 32;
 
 /** A branch as CONNECTED records it: `owner/repo@branch`. */
 const connection = (repo: string, branch: string) => `${repo}@${branch}`;
@@ -34,12 +32,7 @@ export class RailwayContainerProvider implements ContainerProvider {
   constructor(readonly options: RailwayContainerProviderOptions) {
     const endpoint = options.endpoint ?? RAILWAY_API;
     this.project = new Railway(options.token, endpoint).project({ projectId: options.projectId, environmentId: options.environmentId });
-    this.ctx = {
-      env: { [RAILWAY_ENV.token]: options.token, [RAILWAY_ENV.endpoint]: endpoint },
-      log: () => {},
-      newSecret: () => crypto.randomHex(SECRET_BYTES),
-      sleep: (ms) => Bun.sleep(ms),
-    };
+    this.ctx = context({ env: { [RAILWAY_ENV.token]: options.token, [RAILWAY_ENV.endpoint]: endpoint } });
   }
 
   /** Not its deploy: `deploy` starts builds. */

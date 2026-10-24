@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./context": "./src/resources/context.ts",
     "./protocol": "./src/wire/protocol.ts",
     "./secrets": "./src/wire/secrets.ts",
     "./signing": "./src/wire/signing.ts"

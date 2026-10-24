@@ -1,7 +1,7 @@
 import { type Context, type ContainerProvider, type ContainerShell, type ContainerSpec, ENV, Output, plan, UNKNOWN } from "@achq/core";
+import { context } from "@achq/core/context";
 import { async } from "@achq/utils/async";
 import { BUILD_STOPPED, BUILD_SUCCEEDED, CLOUDFLARE_API, Cloudflare } from "@achq/utils/cloudflare";
-import { crypto } from "@achq/utils/crypto";
 import { subprocess } from "@achq/utils/subprocess";
 import { text } from "@achq/utils/text";
 import { ENV_FILE } from "../../worker/lifecycle.ts";
@@ -23,8 +23,6 @@ export type CloudflareContainerProviderOptions = Omit<ContainerPlace, "buildToke
   log?: (line: string) => void;
 };
 
-const SECRET_BYTES = 32;
-
 /** What a build's failure says to check first, when its log doesn't. */
 const cloneHint = (repo: string) => `If it couldn't clone ${repo}, install Cloudflare's GitHub App on it: ${BUILDS_GITHUB_APP_INSTALL_URL}`;
 
@@ -37,12 +35,10 @@ export class CloudflareContainerProvider implements ContainerProvider {
   constructor(readonly options: CloudflareContainerProviderOptions) {
     const endpoint = options.endpoint ?? CLOUDFLARE_API;
     this.cf = new Cloudflare(options.token, options.accountId, endpoint);
-    this.ctx = {
+    this.ctx = context({
       env: { [CLOUDFLARE_ENV.token]: options.token, [CLOUDFLARE_ENV.accountId]: options.accountId, [CLOUDFLARE_ENV.endpoint]: endpoint },
-      log: () => {},
-      newSecret: () => crypto.randomHex(SECRET_BYTES),
-      sleep: options.sleep ?? ((ms) => Bun.sleep(ms)),
-    };
+      sleep: options.sleep,
+    });
   }
 
   private worker(repo: string, name: string) {

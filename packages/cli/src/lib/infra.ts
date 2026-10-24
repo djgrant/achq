@@ -1,18 +1,16 @@
 import * as path from "node:path";
 import { type Check, type Context, Deployer, type Vault, DEPLOYER_PORT, ENV, type Infra, known, plan, type Resource, Router, ROUTER_PRIVATE_PORT, type SyncRequest, type DeployerVersion, type SyncResult, type SyncStarted, type SyncStatus, teardown } from "@achq/core";
+import { context } from "@achq/core/context";
 import { adminSecret } from "@achq/core/secrets";
 import { signedFetch } from "@achq/core/signing";
 import { async } from "@achq/utils/async";
 import { collections } from "@achq/utils/collections";
-import { crypto } from "@achq/utils/crypto";
 import { Env, type Vars } from "@achq/utils/env";
 import { HttpError } from "@achq/utils/http";
 import { agentEnv, containerProviderNamed, INFRA_MODULES, vaultProviderNamed } from "achq/registry";
 import { DEPLOYER_VERSION_TIMEOUT_MS, SYNC_INTERVAL_MS, SYNC_TIMEOUT_MS } from "../constants.ts";
 import type { CliConfig } from "./config.ts";
 import { formatSync, planLines } from "./format.ts";
-
-const SECRET_BYTES = 32;
 
 const NOT_FOUND = 404;
 
@@ -48,11 +46,7 @@ export type UpDeps = {
 };
 
 /** What planning and applying get from the CLI. Tests pass their own secrets and sleep; parts left undefined keep the CLI's. */
-export const cliContext = (parts: Pick<Context, "env" | "log"> & Partial<Context>): Context => ({
-  ...parts,
-  newSecret: parts.newSecret ?? (() => crypto.randomHex(SECRET_BYTES)),
-  sleep: parts.sleep ?? ((ms) => Bun.sleep(ms)),
-});
+export const cliContext = (parts: Pick<Context, "env" | "log"> & Partial<Context>) => context(parts);
 
 let modulesRegistered = false;
 
