@@ -144,7 +144,7 @@ Each folder in `packages/` is a workspace package, prefixed with its kind. Packa
 | Plugin | `plugin-github`, `plugin-railway`, `plugin-cloudflare`, `plugin-claude`, `plugin-1password` | Implementations of core's contracts for one vendor |
 | Service | `service-router`, `service-deployer`, `service-container` | What runs: `main.ts` reads its settings from the environment and wires it up from the registry. Each serves its routes with Hono, and has a module per theme, e.g. the router's `router.ts` is its whole HTTP API and `deliveries.ts` an event's way to its targets |
 | Tool | `cli` | `commands/` (one per command), `lib/` (a module per side: `infra`, `repo`, `container`, `workdir`, its own `config`, the `terminal`, and what it prints, `format`) |
-| Facade | `achq` | What configs import (`achq`, `achq/github`, `achq/claude`) and what the infra imports (`achq/infra`), and `achq/registry`: one list of implementations per contract |
+| Facade | `achq` | What configs import (`achq`, `achq/github`, `achq/claude`) and what the infra imports (`achq/infra`), and `achq/registry`: one list of implementations per contract, but one code host, `CODE_HOST` |
 | Library | `utils` | Know nothing about achq. A module per domain, exporting one namespace (`errors`, `json`, `text`, `collections`, `graph`, `async`, `crypto`, `disk`, `subprocess`, `http`, `flock`, `sandbox`), or classes where it builds on something (`Env`, `Git`, `GitHub` over Octokit, `Railway`, `Cloudflare`, `JsonDirStore`, `HttpJsonStore`). Callers keep the namespace, `json.from(…)`, `async.retry(…)`, so where a helper comes from is plain |
 | Testing | `test-utils`, `test-e2e` | Fakes shared across packages; the whole system end to end |
 
@@ -165,7 +165,7 @@ GitHub's are `channel/` (`github.Channel` and `GitHubChannelProvider`), `policy/
 
 `src/index.ts` is what repo configs import: it runs in the deployer's sandbox, so it and everything it imports is typechecked without Bun or Node types (`tsconfig.sandbox.json`). `src/infra.ts` is what the infra file imports.
 
-The services and the CLI never import a plugin. They use core's contracts and find implementations by id in `achq/registry`. Adding one means implementing the contract in its concept's folder and listing it there.
+The services and the CLI never import a plugin. They use core's contracts and find implementations by id in `achq/registry`, or for the code host, the one it has. Adding one means implementing the contract in its concept's folder and listing it there.
 
 ```sh
 bun install
