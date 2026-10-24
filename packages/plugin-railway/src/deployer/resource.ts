@@ -1,5 +1,5 @@
 import * as core from "@achq/core";
-import type { Output } from "@achq/core";
+import type { Context, EnvValues, Output } from "@achq/core";
 import { Env } from "@achq/utils/env";
 import { CONTAINER_PROVIDER, RAILWAY_ENV } from "../lib/constants.ts";
 import type { Project } from "../lib/project.ts";
@@ -25,14 +25,16 @@ export class Deployer extends core.Deployer {
     const { router } = inputs;
     if (!(router instanceof Router)) throw new Error(`railway.Deployer ${name} runs in its router's Railway project, so ${router.name} must be a railway.Router`);
     this.project = router.project;
-    this.placement = new ServiceParts(this, this.project.at(), {
-      variables: (ctx) => ({
-        [RAILWAY_ENV.token]: new Env(ctx.env).require(RAILWAY_ENV.token),
-        [RAILWAY_ENV.projectId]: this.project.out("projectId"),
-        [RAILWAY_ENV.environmentId]: this.project.out("environmentId"),
-      }),
-      wait: false,
-    });
+    this.placement = new ServiceParts(this, this.project.at(), { wait: false });
     this.env = this.placement.service.out("env").map((env) => env!);
+  }
+
+  /** What its container provider needs: the token and the project. */
+  protected providerVariables(ctx: Context): EnvValues {
+    return {
+      [RAILWAY_ENV.token]: new Env(ctx.env).require(RAILWAY_ENV.token),
+      [RAILWAY_ENV.projectId]: this.project.out("projectId"),
+      [RAILWAY_ENV.environmentId]: this.project.out("environmentId"),
+    };
   }
 }

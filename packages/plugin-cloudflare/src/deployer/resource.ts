@@ -1,5 +1,5 @@
 import * as core from "@achq/core";
-import { type Context, Output } from "@achq/core";
+import { type Context, type EnvValues, Output } from "@achq/core";
 import { CLOUDFLARE_ENV, CONTAINER_PROVIDER } from "../lib/constants.ts";
 import { DeployerToken } from "../lib/deployer-token.ts";
 import { ServiceParts } from "../lib/service-parts.ts";
@@ -28,6 +28,7 @@ export class Deployer extends core.Deployer {
   readonly env: Output<Record<string, string>>;
   protected readonly placement: ServiceParts;
   private readonly token: DeployerToken;
+  private readonly router: Router;
   private rotating = false;
 
   constructor(
@@ -37,17 +38,8 @@ export class Deployer extends core.Deployer {
     super(name);
     const { router } = inputs;
     if (!(router instanceof Router)) throw new Error(`cloudflare.Deployer ${name} runs in its router's Cloudflare project, so ${router.name} must be a cloudflare.Router`);
-    const project = router.project;
-    const at = project.at();
-    this.placement = new ServiceParts(this, { name: router.inputs.project, resource: project }, {
-      variables: () => ({
-        [CLOUDFLARE_ENV.accountId]: at.accountId,
-        [CLOUDFLARE_ENV.project]: router.inputs.project,
-        [CLOUDFLARE_ENV.namespace]: at.namespaceId,
-        [CLOUDFLARE_ENV.bucket]: at.bucket,
-        [CLOUDFLARE_ENV.workersDev]: at.workersDev,
-        [CLOUDFLARE_ENV.sshKeys]: JSON.stringify(inputs.sshKeys ?? []),
-      }),
+    this.router = router;
+    this.placement = new ServiceParts(this, { name: router.inputs.project, resource: router.project }, {
       wait: false,
       // It starts with its token.
       deployAfter: () => [this.token],
@@ -59,6 +51,19 @@ export class Deployer extends core.Deployer {
       // No sign-in can delete an API token.
       { parent: this, after: [this.placement.worker], protect: true },
     );
+  }
+
+  /** Where its containers go: its router's project, and the keys `achq container ssh` connects with. */
+  protected providerVariables(): EnvValues {
+    const at = this.router.project.at();
+    return {
+      [CLOUDFLARE_ENV.accountId]: at.accountId,
+      [CLOUDFLARE_ENV.project]: this.router.inputs.project,
+      [CLOUDFLARE_ENV.namespace]: at.namespaceId,
+      [CLOUDFLARE_ENV.bucket]: at.bucket,
+      [CLOUDFLARE_ENV.workersDev]: at.workersDev,
+      [CLOUDFLARE_ENV.sshKeys]: JSON.stringify(this.inputs.sshKeys ?? []),
+    };
   }
 
   rotateToken() {

@@ -16,8 +16,6 @@ export interface Placement {
   readonly name: string;
   /** Where it keeps what it stores, as ACHQ_DATA_DIR. */
   readonly dataDir: string;
-  /** Its container provider's own variables, at the start of its first group, e.g. a token: called when it's planned. */
-  variables?(ctx: Context): EnvValues;
   /** The URL the other services reach it on at `port`. Known before it exists. */
   privateUrl(port: number): string;
   /** Makes the resource that sets a group of its variables, named `name`. */
@@ -54,12 +52,17 @@ export abstract class Service extends Resource {
     return {};
   }
 
+  /** Its container provider's own variables, e.g. a token: in its first group, after `achqVariables`. Called when it's planned. */
+  protected providerVariables(_ctx: Context): EnvValues {
+    return {};
+  }
+
   private get variableGroups() {
     if (!this.ownGroups) {
       const { placement } = this;
       const groups = new VariableGroups(placement.name, (name, values) => placement.group(name, values));
       // What every service has: where it keeps what it stores, and the port it listens on.
-      const first = groups.add((ctx) => ({ ...this.achqVariables(), ...placement.variables?.(ctx), [ENV.dataDir]: placement.dataDir, PORT: String(this.port) }));
+      const first = groups.add((ctx) => ({ ...this.achqVariables(), ...this.providerVariables(ctx), [ENV.dataDir]: placement.dataDir, PORT: String(this.port) }));
       this.ownGroups = { groups, first };
     }
     return this.ownGroups;

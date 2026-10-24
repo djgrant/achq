@@ -1,4 +1,4 @@
-import { achqStartScript, CONTAINER_PORT, type ContainerSpec, type Context, ENV, type EnvValues, type Input, type Output, type Placement, type Service as AchqService } from "@achq/core";
+import { achqStartScript, CONTAINER_PORT, type ContainerSpec, ENV, type EnvValues, type Input, type Output, type Placement, type Service as AchqService } from "@achq/core";
 import type { InstanceSettings, ProjectAt } from "@achq/utils/railway";
 import { BRANCH, BUN_IMAGE, VOLUME } from "./constants.ts";
 import { Deployment, fingerprint } from "./deployment.ts";
@@ -27,7 +27,7 @@ export class ServiceParts implements Placement {
   constructor(
     private readonly owner: AchqService,
     at: { projectId: Input<string>; environmentId: Input<string> },
-    private readonly own: { variables?: (ctx: Context) => EnvValues; wait: boolean },
+    private readonly own: { wait: boolean },
   ) {
     this.name = hostServiceName(owner.name);
     // Its settings' key order is part of the deploy's fingerprint: reordering them redeploys.
@@ -38,10 +38,6 @@ export class ServiceParts implements Placement {
       { parent: owner },
     );
     this.at = { ...at, serviceId: this.service.out("serviceId") };
-  }
-
-  variables(ctx: Context) {
-    return this.own.variables?.(ctx) ?? {};
   }
 
   privateUrl(port: number) {

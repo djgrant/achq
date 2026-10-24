@@ -1,4 +1,4 @@
-import { achqStartScript, all, type Context, type EnvValues, type ManagedResource, type Output, type Placement, type Service as AchqService } from "@achq/core";
+import { achqStartScript, all, type EnvValues, type ManagedResource, type Output, type Placement, type Service as AchqService } from "@achq/core";
 import * as path from "node:path";
 import { DATA_DIR, MANAGED_IMAGE, type WorkerSettings } from "../../worker/settings.ts";
 import { BUN_VERSION, INSTANCE } from "./constants.ts";
@@ -33,16 +33,12 @@ export class ServiceParts implements Placement {
     private readonly owner: AchqService,
     private readonly project: { name: string; resource: Project },
     /** `deployAfter`: what its deploy follows, e.g. a secret it starts with, asked for when it's planned. */
-    private readonly own: { variables?: (ctx: Context) => EnvValues; wait: boolean; sshKeys?: string[]; deployAfter?: () => ManagedResource[] },
+    private readonly own: { wait: boolean; sshKeys?: string[]; deployAfter?: () => ManagedResource[] },
   ) {
     this.name = serviceWorkerName(project.name, owner.name);
     const at = project.resource.at();
     this.namespaceId = at.namespaceId;
     this.worker = new Worker("worker", { name: this.name, workersDev: at.workersDev, env: { namespaceId: this.namespaceId } }, { parent: owner });
-  }
-
-  variables(ctx: Context) {
-    return this.own.variables?.(ctx) ?? {};
   }
 
   privateUrl(port: number) {
