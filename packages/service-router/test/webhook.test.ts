@@ -238,7 +238,7 @@ describe("routing events to the deployer", () => {
     expect(await (await r.webhook(push("p-undeployed", "acme/other"))).text()).toBe("no match");
     await r.router.settled();
     expect(deliveryIds(deployer)).toEqual(["p-deployed"]);
-    expect(deployer.events[0]!.event).toEqual({ delivery: "p-deployed", type: "push", host: "test", deploy: [repo], uninstall: [], onlyIfDeployed: true });
+    expect(deployer.events[0]!.event).toEqual({ delivery: "p-deployed", type: "push", host: "test", deploy: [repo], uninstall: [] });
     expect(r.dev.attempts).toBe(0);
   });
 });

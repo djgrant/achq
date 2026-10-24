@@ -1,4 +1,4 @@
-import { type ChannelProvider, type CodeHostProvider, type CredentialsResponse, isRepoEvent, type RepoEvent, repoName } from "@achq/core";
+import { type ChannelProvider, type CodeHostProvider, type CredentialsResponse, type DeployerEvent, isRepoEvent, repoName } from "@achq/core";
 import { CredentialsRequest, InstallationRequest, MintRequest, RepoRequest, RouterRepoConfig, ValidateRequest, WakeRequest } from "@achq/core/protocol";
 import { adminSecret, containerSecret } from "@achq/core/secrets";
 import { isSigned, signedBy } from "@achq/core/signing";
@@ -106,7 +106,9 @@ export const createRouter = (deps: RouterDeps) => {
       if (isRepoEvent(event)) {
         // A repo isn't deployed until its install is handled, so installs always go through; a push only for a repo that's deployed.
         const deployed = (repos: string[]) => repos.filter((repo) => configOf(ctx, repo));
-        const forDeployer = event.onlyIfDeployed ? { ...event, deploy: deployed(event.deploy), uninstall: deployed(event.uninstall) } : event;
+        // onlyIfDeployed is the router's to act on, so it isn't forwarded.
+        const { onlyIfDeployed, ...decided } = event;
+        const forDeployer: DeployerEvent = onlyIfDeployed ? { ...decided, deploy: deployed(decided.deploy), uninstall: deployed(decided.uninstall) } : decided;
         if (!forDeployer.deploy.length && !forDeployer.uninstall.length) return c.text("no match");
         entry = { event: forDeployer, targets: [{ kind: "deployer" }] };
       } else {
@@ -156,7 +158,7 @@ export const createRouter = (deps: RouterDeps) => {
       const request = c.req.valid("json");
       const refused = await pusher(c.req.raw, request);
       if (refused instanceof Response) return refused;
-      const event: RepoEvent = { delivery: `deploy-${crypto.randomUUID()}`, type: "deploy.requested", host: request.host, deploy: [request.repo], uninstall: [], onlyIfDeployed: false };
+      const event: DeployerEvent = { delivery: `deploy-${crypto.randomUUID()}`, type: "deploy.requested", host: request.host, deploy: [request.repo], uninstall: [] };
       // Through the inbox, as an install event goes, so a deployer that's asleep or restarting still gets it.
       await acceptDelivery(ctx, { event, targets: [{ kind: "deployer" }] });
       return c.text("accepted", 202);

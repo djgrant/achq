@@ -1,6 +1,6 @@
 import { json } from "@achq/utils/json";
 import { z } from "zod";
-import type { ChannelCredential, ChannelEvent, RepoEvent, ThreadRef } from "../contracts/channel-provider.ts";
+import type { ChannelCredential, ChannelEvent, DeployerEvent, ThreadRef } from "../contracts/channel-provider.ts";
 import type { BrowserAction } from "../contracts/browser-action.ts";
 import type { PolicyCredential } from "../contracts/policy-provider.ts";
 import type { PolicyData, SelectorData } from "../resources/config.ts";
@@ -16,8 +16,7 @@ const repoEvent = z.object({
   host: z.string(),
   deploy: z.array(z.string()),
   uninstall: z.array(z.string()),
-  onlyIfDeployed: z.boolean(),
-}) satisfies z.ZodType<RepoEvent>;
+}) satisfies z.ZodType<DeployerEvent>;
 
 /** What the router forwards to the deployer: which repos to deploy and uninstall. */
 export const DeployerEnvelope = z.object({ event: repoEvent });

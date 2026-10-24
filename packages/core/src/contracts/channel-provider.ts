@@ -34,8 +34,9 @@ export type ChannelEvent = {
  * For the deployer: repos on the `CodeHostProvider` `host` to deploy, because
  * a source was installed on them or their `.achq/` may have changed on their
  * default branch, and repos to uninstall, because it was removed from them.
+ * What the router forwards, once it has decided which repos.
  */
-export type RepoEvent = {
+export type DeployerEvent = {
   /** Unique per delivery; the deployer ignores ones it's handled. */
   delivery: string;
   /** e.g. "push", "installation_repositories.added", "deploy.requested" */
@@ -43,11 +44,15 @@ export type RepoEvent = {
   host: string;
   deploy: string[];
   uninstall: string[];
-  /** For a push: only repos already deployed are deployed again. An install is what deploys a repo first. */
+};
+
+/** A `DeployerEvent` as its channel parses it, before the router decides which repos go to the deployer. */
+export type RepoEvent = DeployerEvent & {
+  /** For a push: only repos already deployed are deployed again. An install is what deploys a repo first. The router filters on it, and doesn't forward it. */
   onlyIfDeployed: boolean;
 };
 
-export const isRepoEvent = (event: ChannelEvent | RepoEvent): event is RepoEvent => "deploy" in event;
+export const isRepoEvent = (event: ChannelEvent | DeployerEvent): event is DeployerEvent => "deploy" in event;
 
 export type Thread = {
   ref: ThreadRef;

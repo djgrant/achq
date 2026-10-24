@@ -1,4 +1,4 @@
-import { type ChannelEvent, type ChannelProvider, type ContainerEnvelope, type DeployerEnvelope, type FailedDelivery, isRepoEvent, type RepoEvent, type ReplayResult, repoName, type RouterRepoConfig, threadKey } from "@achq/core";
+import { type ChannelEvent, type ChannelProvider, type ContainerEnvelope, type DeployerEnvelope, type DeployerEvent, type FailedDelivery, isRepoEvent, type ReplayResult, repoName, type RouterRepoConfig, threadKey } from "@achq/core";
 import { adminSecret, containerSecret } from "@achq/core/secrets";
 import { errors } from "@achq/utils/errors";
 import { configOf, type RouterContext } from "./context.ts";
@@ -17,10 +17,10 @@ export type Target = DeployerTarget | ContainerTarget;
 export type Claims = Record<string, Record<string, string>>;
 
 /** A repo event goes to the deployer, a channel event to containers. `told`: the thread has been told its delivery failed, so a failed replay doesn't tell it again. */
-export type InboxEntry = ({ event: RepoEvent; targets: DeployerTarget[] } | { event: ChannelEvent; targets: ContainerTarget[] }) & { told?: boolean };
-export type FailedEntry = { event: RepoEvent | ChannelEvent; targets: (Target & { error: string })[]; told?: boolean };
+export type InboxEntry = ({ event: DeployerEvent; targets: DeployerTarget[] } | { event: ChannelEvent; targets: ContainerTarget[] }) & { told?: boolean };
+export type FailedEntry = { event: DeployerEvent | ChannelEvent; targets: (Target & { error: string })[]; told?: boolean };
 
-const isForDeployer = (entry: InboxEntry): entry is Extract<InboxEntry, { event: RepoEvent }> => isRepoEvent(entry.event);
+const isForDeployer = (entry: InboxEntry): entry is Extract<InboxEntry, { event: DeployerEvent }> => isRepoEvent(entry.event);
 
 export const targetsFor = (channel: ChannelProvider, event: ChannelEvent, config: RouterRepoConfig | undefined, claims: Claims): ContainerTarget[] => {
   if (!config) return [];
@@ -189,7 +189,7 @@ export const settled = async (ctx: RouterContext) => {
 };
 
 /** The repos an event is about, as `GET /admin/failed` names them. */
-const reposOf = (event: RepoEvent | ChannelEvent) => (isRepoEvent(event) ? [...event.deploy, ...event.uninstall].join(", ") : event.repo);
+const reposOf = (event: DeployerEvent | ChannelEvent) => (isRepoEvent(event) ? [...event.deploy, ...event.uninstall].join(", ") : event.repo);
 
 export const listFailed = async (ctx: RouterContext): Promise<FailedDelivery[]> =>
   (await ctx.store.failed.all()).map(({ event, targets }) => {
