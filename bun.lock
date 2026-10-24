@@ -95,6 +95,7 @@
         "@achq/core": "workspace:*",
         "@achq/utils": "workspace:*",
         "@octokit/webhooks-methods": "^6.0.0",
+        "zod": "^4.3.6",
       },
       "devDependencies": {
         "@achq/test-utils": "workspace:*",

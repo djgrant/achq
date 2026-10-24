@@ -1,17 +1,9 @@
 import { Policy as CorePolicy } from "@achq/core";
 import { POLICY_PROVIDER } from "../lib/constants.ts";
 import type { ChannelRef } from "../channel/config.ts";
+import type { GitHubPolicyData, Permission } from "../lib/schemas.ts";
 
-export type Permission = "read" | "write";
-
-export type GitHubPolicyData = {
-  provider: typeof POLICY_PROVIDER;
-  /** Without one, whichever App is installed on the repo. */
-  source?: string;
-  /** Null for the repo the config is in. */
-  repo: string | null;
-  permissions: Record<string, Permission>;
-};
+export type { GitHubPolicyData, Permission };
 
 export class Policy extends CorePolicy {
   constructor(name: string, inputs: { channel: ChannelRef; repo?: string; permissions: Record<string, Permission> }) {

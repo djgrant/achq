@@ -1,24 +1,24 @@
 import { repoName } from "@achq/core";
 import { implementationSecret } from "@achq/core/secrets";
+import { collections } from "@achq/utils/collections";
 import { errors } from "@achq/utils/errors";
 import type { Vars } from "@achq/utils/env";
 import { GitHub, type Installation, type TokenNarrowing } from "@achq/utils/gh";
 import { GITHUB_API, GITHUB_ENV, githubUrls } from "./constants.ts";
+import { AppKeys } from "./schemas.ts";
 
 /** The least a token can ask for: enough to prove the installation reaches a repo. */
 const PROBE_PERMISSIONS = { metadata: "read" };
 
-/** From ACHQ_GITHUB_APPS. */
-export type AppKeys = Record<string, { id: string; privateKey: string }>;
-
-const isAppKey = (app: any) => Boolean(app) && typeof app.privateKey === "string" && (typeof app.id === "string" || typeof app.id === "number");
+export { AppKeys };
 
 /** Reads ACHQ_GITHUB_APPS. */
 export const parseApps = (json: string | undefined): AppKeys => {
   if (!json) return {};
-  const parsed = Object.entries<any>(JSON.parse(json));
-  for (const [slug, app] of parsed) if (!isAppKey(app)) throw new Error(`GitHub App "${slug}" needs an id and a privateKey`);
-  return Object.fromEntries(parsed.map(([slug, app]) => [slug, { id: String(app.id), privateKey: app.privateKey }]));
+  const parsed = AppKeys.safeParse(JSON.parse(json));
+  if (parsed.success) return parsed.data;
+  const [slug] = parsed.error.issues[0]!.path;
+  throw new Error(slug === undefined ? `${GITHUB_ENV.apps} must map each App's slug to its id and privateKey` : `GitHub App "${String(slug)}" needs an id and a privateKey`);
 };
 
 /** An App's key in a vault: its item, and its fields. */
@@ -31,7 +31,7 @@ export const vaultedApp = {
 };
 
 /** ACHQ_GITHUB_APPS' JSON, stable, so the same Apps always make the same variable. */
-export const appsVariable = (apps: AppKeys) => JSON.stringify(Object.fromEntries(Object.entries(apps).sort(([a], [b]) => a.localeCompare(b))));
+export const appsVariable = (apps: AppKeys) => JSON.stringify(collections.sortKeys(apps));
 
 /** The login an App comments and pushes as. */
 export const botLogin = (slug: string) => `${slug}[bot]`;

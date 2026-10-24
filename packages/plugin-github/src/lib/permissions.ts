@@ -14,8 +14,6 @@ export const lacking = (app: AppSettings, wanted: AppSettings) => ({
 export const maxLevel = (a: string | undefined, b: string) =>
   a !== undefined && (PERMISSION_RANK[a] ?? 0) >= (PERMISSION_RANK[b] ?? 0) ? a : b;
 
-export const POLICY_LEVELS = new Set(["read", "write"]);
-
 /** What every channel's App sends and is allowed. Installation events are always sent. */
 export const APP_EVENTS = ["issues", "issue_comment", "push"];
 export const APP_PERMISSIONS: Permissions = {
