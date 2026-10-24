@@ -85,14 +85,6 @@ const builtConfig = () => {
 };
 
 test("ensure makes a placeholder Worker, its variables and secrets, and a trigger that only the deployer starts; a second ensure changes nothing", async () => {
-  expect((await host.plan(spec)).map((c) => `${c.op} ${c.target} ${c.what}`)).toEqual([
-    `+ ${worker} worker`,
-    `~ ${worker} variables`,
-    `~ ${worker} secrets`,
-    `+ ${worker} build trigger`,
-  ]);
-  expect(fake.mutations).toEqual([]);
-
   expect(await host.ensure(spec)).toEqual({ url: `http://3000.${worker}.achq.internal` });
   // Its own token, registered with Workers Builds by its id.
   expect(fake.tokens.at(-1)).toMatchObject({ build_token_name: "achq-deployer", cloudflare_token_id: "tok-deployer" });
@@ -138,7 +130,6 @@ test("ensure makes a placeholder Worker, its variables and secrets, and a trigge
   expect(builtConfig().vars.ACHQ_SERVICE.publicPort).toBeUndefined();
 
   fake.mutations.length = 0;
-  expect(await host.plan(spec)).toEqual([]);
   await host.ensure(spec);
   expect(fake.mutations).toEqual([]);
 });
@@ -170,14 +161,17 @@ test("ensure sets only what changed: a variable and its secrets, or the branch",
   await host.ensure(spec);
   fake.mutations.length = 0;
   const changed = { ...spec, branch: "trunk", env: { ...spec.env, CLAUDE_CODE_OAUTH_TOKEN: "new" } };
-  expect((await host.plan(changed)).map((c) => `${c.op} ${c.what} ${c.detail ?? c.names}`)).toEqual([
-    "~ variables CLAUDE_CODE_OAUTH_TOKEN", // names, never values
-    "~ secrets ACHQ_ENV,ACHQ_INTERNAL_KEY",
-    "~ build trigger branch_includes",
-  ]);
   await host.ensure(changed);
+  expect(JSON.parse(fake.kv("achq")!.get(`containers/${worker}`)!).CLAUDE_CODE_OAUTH_TOKEN).toBe("new");
   expect([...fake.triggers.values()][0]!.branch_includes).toEqual(["trunk"]);
-  expect(fake.mutations.filter((m) => m.includes("triggers"))).toEqual([`PATCH /builds/triggers/${[...fake.triggers.keys()][0]}`]);
+  // The variables, kept and as secrets, and the trigger's branch: no new Worker or trigger.
+  expect(fake.mutations).toEqual([
+    `PUT /storage/kv/namespaces/${namespaceId}/values/containers%2F${worker}`,
+    `PUT /workers/scripts/${worker}/secrets`,
+    `PUT /workers/scripts/${worker}/secrets`,
+    `PUT /storage/kv/namespaces/${namespaceId}/values/deployed%2F${worker}`,
+    `PATCH /builds/triggers/${[...fake.triggers.keys()][0]}`,
+  ]);
 });
 
 test("deploy builds the trigger's branch and waits for its version; a failed build throws with the end of its log", async () => {

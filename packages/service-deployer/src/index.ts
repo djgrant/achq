@@ -3,4 +3,3 @@ export * from "./deploy.ts";
 export * from "./checks.ts";
 export * from "./server.ts";
 export * from "./store.ts";
-export * from "./router-client.ts";

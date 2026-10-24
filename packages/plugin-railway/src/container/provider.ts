@@ -40,10 +40,6 @@ export class RailwayContainerProvider implements ContainerProvider {
     return containerService(container, { projectId: this.project.id, environmentId: this.project.environmentId });
   }
 
-  async plan(spec: ContainerSpec) {
-    return (await plan(this.resources(spec), this.ctx)).changes;
-  }
-
   async ensure(spec: ContainerSpec) {
     // Railway builds only from its source host.
     if (spec.host !== SOURCE_HOST) throw new Error(`Railway builds containers from ${SOURCE_HOST} repos, not ${spec.host}`);

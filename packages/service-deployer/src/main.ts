@@ -1,9 +1,9 @@
 import { DEPLOYER_PORT, ENV } from "@achq/core";
+import { routerAdmin } from "@achq/core/client";
 import { Env } from "@achq/utils/env";
 import { text } from "@achq/utils/text";
 import { codeHostProviders, privateEnv, serviceContainerProvider } from "achq/registry";
 import { createDeployer } from "./deployer.ts";
-import { routerClient } from "./router-client.ts";
 import { deployerHandler } from "./server.ts";
 
 /** Bun's longest: a deploy that builds images can keep `/events` busy for minutes. */
@@ -16,7 +16,7 @@ export const main = () => {
   const containerProvider = serviceContainerProvider(env);
   const deployer = createDeployer({
     containerProvider: containerProvider.provider.create(env.vars),
-    router: routerClient({ url: routerUrl, key }),
+    router: routerAdmin({ url: routerUrl, key }),
     codeHostProviders: codeHostProviders(env.vars),
     owners: text.commaList(env.require(ENV.owners)),
     stores: containerProvider.stores,

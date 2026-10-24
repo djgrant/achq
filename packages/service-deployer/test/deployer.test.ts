@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
+import { routerAdmin } from "@achq/core/client";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { BrowserActionNeeded, isRepoEvent, STATUS_VARIABLE, type DeployerEnvelope } from "@achq/core";
@@ -14,7 +15,6 @@ import { FakeGitHub } from "@achq/test-utils/github";
 import { FakeRouter } from "@achq/test-utils/deployer/router";
 import { MemoryContainerProvider } from "@achq/test-utils/deployer/container-provider";
 import { dirStores } from "@achq/test-utils/stores";
-import { routerClient } from "../src/router-client.ts";
 import { deployerHandler } from "../src/server.ts";
 
 const KEY = "test-webhook-key";
@@ -55,7 +55,7 @@ let logs: string[];
 const makeDeployer = (options: { owners?: string[]; env?: typeof ENV } = {}) =>
   createDeployer({
     containerProvider,
-    router: routerClient({ url: router.url, key: KEY }),
+    router: routerAdmin({ url: router.url, key: KEY }),
     owners: options.owners ?? ["NotationLabs", "djgrant"],
     stores: dirStores(dataDir),
     ...githubDeps(),
@@ -191,7 +191,7 @@ describe("install", () => {
     github.commit(REPO, repoFiles({ ".achq/config.ts": `import { Container } from "achq"; while (true) {}` }));
     const deployer = createDeployer({
       containerProvider,
-      router: routerClient({ url: router.url, key: KEY }),
+      router: routerAdmin({ url: router.url, key: KEY }),
       owners: ["notationlabs"],
       stores: dirStores(dataDir),
       ...githubDeps(),
@@ -270,7 +270,7 @@ describe("config changes", () => {
     const github2 = githubCodeHostProvider.create({ GITHUB_API_URL: github.url });
     const deployer = createDeployer({
       containerProvider,
-      router: routerClient({ url: router.url, key: KEY }),
+      router: routerAdmin({ url: router.url, key: KEY }),
       ...githubDeps(),
       codeHostProviders: { ...githubDeps().codeHostProviders, mirror: github2 },
       owners: ["notationlabs"],
@@ -444,7 +444,7 @@ describe("deliveries", () => {
     let most = 0;
     const deployer = createDeployer({
       containerProvider,
-      router: routerClient({ url: router.url, key: KEY }),
+      router: routerAdmin({ url: router.url, key: KEY }),
       owners: ["notationlabs"],
       stores: dirStores(dataDir),
       ...githubDeps(),
@@ -585,7 +585,7 @@ describe("HTTP", () => {
     }
 
     // The fake router refuses anything not signed with the admin secret.
-    await expect(routerClient({ url: router.url, key: "wrong" }).installed()).rejects.toThrow("401");
+    await expect(routerAdmin({ url: router.url, key: "wrong" }).installed()).rejects.toThrow("401");
     expect(router.rejected).toBe(1);
   });
 });

@@ -1,12 +1,13 @@
 import { expect } from "bun:test";
 import { $ } from "bun";
+import { routerAdmin } from "@achq/core/client";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { type BrowserAction, BrowserActionNeeded, type ContainerProvider, type ContainerSpec, repoName } from "@achq/core";
 import { adminSecret } from "@achq/core/secrets";
 import { signedFetch } from "@achq/core/signing";
 import { createAgent, type Runner, readState } from "@achq/container";
-import { createDeployer, deployerHandler, routerClient } from "@achq/deployer";
+import { createDeployer, deployerHandler } from "@achq/deployer";
 import { githubChannelProvider } from "@achq/github/channel";
 import { githubCodeHostProvider } from "@achq/github/code-host";
 import { githubPolicyProvider } from "@achq/github/policy";
@@ -271,7 +272,7 @@ export const startWorld = async () => {
   // The deployer, reaching the router on its private port.
   const deployer = createDeployer({
     containerProvider,
-    router: routerClient({ url: routerPrivate, key: KEY }),
+    router: routerAdmin({ url: routerPrivate, key: KEY }),
     owners: [OWNER],
     stores: dirStores(path.join(root, "deployer")),
     codeHostProviders,

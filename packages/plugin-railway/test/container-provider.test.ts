@@ -38,12 +38,6 @@ beforeEach(async () => {
 afterEach(() => fake.stop());
 
 test("ensure creates a private service with a volume, and a second ensure changes nothing", async () => {
-  expect((await host.plan(spec)).map((c) => `${c.op} ${c.target} ${c.what}`)).toEqual([
-    "+ notationlabs-yieldstar-dev service",
-    "+ notationlabs-yieldstar-dev volume",
-    "~ notationlabs-yieldstar-dev variables",
-  ]);
-  expect(fake.mutations).toEqual([]);
   const result = await host.ensure(spec);
   expect(result).toEqual({ url: "http://notationlabs-yieldstar-dev.railway.internal:3000" });
   const service = fake.service("notationlabs-yieldstar-dev")!;
@@ -60,7 +54,6 @@ test("ensure creates a private service with a volume, and a second ensure change
   expect(fake.mutations).not.toContain("serviceConnect"); // ensure doesn't build
 
   const before = fake.mutations.length;
-  expect(await host.plan(spec)).toEqual([]);
   await host.ensure(spec);
   expect(fake.mutations.length).toBe(before);
 });
@@ -85,17 +78,10 @@ test("ensure removes a public domain and fixes the private hostname, and only ch
   service.endpoint!.dnsName = "old-name";
   fake.mutations.length = 0;
 
-  const changes = await host.plan({ ...spec, env: { ...spec.env, CLAUDE_CODE_OAUTH_TOKEN: "new" } });
-  expect(changes.map((c) => `${c.op} ${c.target} ${c.what} ${c.detail ?? c.names}`)).toEqual([
-    "~ notationlabs-yieldstar-dev private hostname old-name → notationlabs-yieldstar-dev",
-    "- notationlabs-yieldstar-dev public domain leaked.up.railway.app",
-    "~ notationlabs-yieldstar-dev variables CLAUDE_CODE_OAUTH_TOKEN", // names, never values
-  ]);
-  expect(fake.mutations).toEqual([]); // planning mutates nothing
-
   await host.ensure({ ...spec, env: { ...spec.env, CLAUDE_CODE_OAUTH_TOKEN: "new" } });
   expect(service.domains).toEqual([]);
   expect(service.endpoint!.dnsName).toBe("notationlabs-yieldstar-dev");
+  expect(service.variables.CLAUDE_CODE_OAUTH_TOKEN).toBe("new");
   expect(fake.mutations).toEqual(["privateNetworkEndpointRename", "serviceDomainDelete", "variableCollectionUpsert"]);
 });
 
@@ -115,7 +101,6 @@ test("the first deploy connects the repo and turns automatic deploys off; later 
 
   // Someone turned automatic deploys back on: ensure turns them off, and builds nothing.
   service.autoDeploy = true;
-  expect(await host.plan(spec)).toEqual([{ op: "-", target: "notationlabs-yieldstar-dev", what: "automatic deploys" }]);
   fake.mutations.length = 0;
   await host.ensure(spec);
   expect(fake.mutations).toEqual(["serviceInstanceAutoDeployUpdate"]);

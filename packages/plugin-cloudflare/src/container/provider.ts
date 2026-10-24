@@ -1,4 +1,4 @@
-import { type Context, type ContainerProvider, type ContainerShell, type ContainerSpec, containerOf, Output, plan, UNKNOWN } from "@achq/core";
+import { type Context, type ContainerProvider, type ContainerShell, type ContainerSpec, containerOf, plan } from "@achq/core";
 import { context } from "@achq/core/context";
 import { async } from "@achq/utils/async";
 import { BUILD_STOPPED, BUILD_SUCCEEDED, CLOUDFLARE_API, Cloudflare } from "@achq/utils/cloudflare";
@@ -54,13 +54,6 @@ export class CloudflareContainerProvider implements ContainerProvider {
       this.buildToken = undefined;
       throw e;
     }));
-  }
-
-  /** What `ensure` would change. Registers nothing: a token yet to be registered is unknown. */
-  async plan(spec: ContainerSpec) {
-    const { own } = await registered(this.cf);
-    const parts = containerParts(spec, { ...this.options, buildToken: own ?? new Output<string>([], () => UNKNOWN) });
-    return (await plan(parts.resources, this.ctx)).changes;
   }
 
   async ensure(spec: ContainerSpec) {

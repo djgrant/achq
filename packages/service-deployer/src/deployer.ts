@@ -1,11 +1,11 @@
 import { type CodeHostProvider, type ContainerProvider, type Stores, type DeployerEnvelope, type FileLimits, type RepoManifest, repoName, type SyncRequest, type SyncResult } from "@achq/core";
+import type { RouterAdmin } from "@achq/core/client";
 import { async } from "@achq/utils/async";
 import { collections } from "@achq/utils/collections";
 import { errors } from "@achq/utils/errors";
 import { HttpError } from "@achq/utils/http";
 import { type Evaluate, evaluateConfig } from "./config/evaluate.ts";
 import { deploy, repoClient } from "./deploy.ts";
-import type { RouterClient } from "./router-client.ts";
 import { createStore, type Store, type StoredRecord, wireRecord } from "./store.ts";
 
 export const DEFAULT_FILE_LIMITS: FileLimits = { maxFiles: 200, maxBytes: 1024 * 1024 };
@@ -28,7 +28,8 @@ export type DeployerEnv = {
 
 export type DeployerDeps = {
   containerProvider: ContainerProvider;
-  router: RouterClient;
+  /** The router, at its private URL. */
+  router: RouterAdmin;
   codeHostProviders: Record<string, CodeHostProvider>;
   owners: string[];
   /** Where it keeps its records: its container provider's store. */
