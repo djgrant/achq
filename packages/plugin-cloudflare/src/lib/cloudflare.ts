@@ -3,7 +3,6 @@ import { implementationSecret } from "@achq/core/secrets";
 import { CLOUDFLARE_API, Cloudflare, CloudflareError } from "@achq/utils/cloudflare";
 import { Env, type Vars } from "@achq/utils/env";
 import { subprocess } from "@achq/utils/subprocess";
-import { text } from "@achq/utils/text";
 import { CLOUDFLARE_ENV, CONTAINER_PROVIDER, DEPLOYER_TOKEN_NAME, DEPLOYER_TOKEN_PERMISSIONS, LOG_TAIL_LINES, WRANGLER, WRANGLER_TOKEN_REUSE_MS } from "./constants.ts";
 
 /** Where your API tokens are made and deleted. */
@@ -30,10 +29,9 @@ const askWrangler = async (command: string[]) => {
   const env = { ...process.env };
   // Its own sign-in, not a token: `connect` only asks it without one.
   delete env[CLOUDFLARE_ENV.token];
-  const { ok, stdout, stderr } = await subprocess.collect([...command, "auth", "token", "--json"], { env });
-  const output = text.tailLines(`${stdout}\n${stderr}`.trim(), LOG_TAIL_LINES).join("\n");
-  if (!ok) throw new Error(`Wrangler isn't signed in to Cloudflare. Run \`${SIGN_IN}\`, or set ${CLOUDFLARE_ENV.token}:\n${output}`);
-  const printed = JSON.parse(stdout.slice(stdout.indexOf("{"))) as { type?: string; token?: string };
+  const result = await subprocess.collect([...command, "auth", "token", "--json"], { env });
+  if (!result.ok) throw new Error(`Wrangler isn't signed in to Cloudflare. Run \`${SIGN_IN}\`, or set ${CLOUDFLARE_ENV.token}:\n${subprocess.tail(result, LOG_TAIL_LINES)}`);
+  const printed = JSON.parse(result.stdout.slice(result.stdout.indexOf("{"))) as { type?: string; token?: string };
   if (!printed.token) throw new Error(`Wrangler gave no token (${printed.type ?? "nothing"}). Run \`${SIGN_IN}\`, or set ${CLOUDFLARE_ENV.token}`);
   return printed.token;
 };

@@ -124,8 +124,6 @@ export const railwayShell: ContainerShell = {
 
   async run(location, command) {
     requireRailwayCli();
-    const { ok, stdout, stderr } = await subprocess.collect(["railway", ...sshArgs(location, command)]);
-    if (!ok) throw new Error(`${command.join(" ")} failed in ${location.service}: ${stderr.trim() || stdout.trim()}`);
-    return stdout;
+    return subprocess.output(["railway", ...sshArgs(location, command)], {}, `${command.join(" ")} failed in ${location.service}`);
   },
 };

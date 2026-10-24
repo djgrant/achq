@@ -171,8 +171,7 @@ const wrangler = (location: Record<string, string>, args: string[]) => ({
 /** The application's running instance: a Durable Object runs one. */
 const runningInstance = async (location: Record<string, string>) => {
   const { argv, env } = wrangler(location, ["containers", "instances", location.application!, "--json"]);
-  const { ok, stdout, stderr } = await subprocess.collect(argv, { env });
-  if (!ok) throw new Error(`Couldn't list ${location.worker}'s instances: ${stderr.trim() || stdout.trim()}`);
+  const stdout = await subprocess.output(argv, { env }, `Couldn't list ${location.worker}'s instances`);
   const instances = JSON.parse(stdout.slice(stdout.indexOf("["))) as { id: string; state?: string }[];
   const running = instances.find((i) => i.state === "running") ?? instances[0];
   if (!running) throw new Error(`${location.worker} has no running instance`);
@@ -192,8 +191,6 @@ export const cloudflareShell: ContainerShell = {
 
   async run(location, command) {
     const { argv, env } = wrangler(location, sshArgs(await runningInstance(location), command, false));
-    const { ok, stdout, stderr } = await subprocess.collect(argv, { env });
-    if (!ok) throw new Error(`${command.join(" ")} failed in ${location.worker}: ${stderr.trim() || stdout.trim()}`);
-    return stdout;
+    return subprocess.output(argv, { env }, `${command.join(" ")} failed in ${location.worker}`);
   },
 };

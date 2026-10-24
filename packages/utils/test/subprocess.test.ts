@@ -47,6 +47,22 @@ describe("spawnCollect", () => {
   });
 });
 
+describe("what a command printed", () => {
+  test("said is its stderr, or its stdout if stderr is blank", () => {
+    expect(subprocess.said({ stdout: "out\n", stderr: " err \n" })).toBe("err");
+    expect(subprocess.said({ stdout: " out\n", stderr: "\n" })).toBe("out");
+  });
+
+  test("tail is the last non-blank lines of stdout then stderr", () => {
+    expect(subprocess.tail({ stdout: "a\nb\n\n", stderr: "c\n" }, 2)).toBe("b\nc");
+  });
+
+  test("output gives stdout, or throws the failure with what it said", async () => {
+    expect(await subprocess.output(["sh", "-c", "echo hi"], {}, "nope")).toBe("hi\n");
+    await expect(subprocess.output(["sh", "-c", "echo bad >&2; exit 1"], {}, "Couldn't")).rejects.toThrow("Couldn't: bad");
+  });
+});
+
 test("forwardSignals passes signals on until disposed", () => {
   const sent: string[] = [];
   const stop = subprocess.forwardSignals({ kill: (s) => void sent.push(s!) }, ["SIGUSR2"]);

@@ -1,6 +1,7 @@
 import type { Subprocess } from "bun";
 import { async } from "./async.ts";
 import type { Vars } from "./env.ts";
+import { text } from "./text.ts";
 
 export type RunOptions = { cwd?: string; env?: Vars };
 export type RunResult = { ok: boolean; exitCode: number; stdout: string; stderr: string };
@@ -14,6 +15,9 @@ export type CollectOptions = RunOptions & {
 };
 
 export type Collected = RunResult & { signalCode: Subprocess["signalCode"] };
+
+/** What a command printed. */
+export type Printed = Pick<RunResult, "stdout" | "stderr">;
 
 type Killable = { kill(signal?: NodeJS.Signals): void };
 
@@ -60,6 +64,19 @@ export const subprocess = {
     } finally {
       signal?.removeEventListener("abort", kill);
     }
+  },
+
+  /** What a failed command said: its stderr, or its stdout if it said nothing there. Trimmed. */
+  said: ({ stdout, stderr }: Printed) => stderr.trim() || stdout.trim(),
+
+  /** The last `lines` non-blank lines of what it printed, stdout then stderr: for a command whose long log ends with why it failed. */
+  tail: ({ stdout, stderr }: Printed, lines: number) => text.tailLines(`${stdout}\n${stderr}`, lines).join("\n"),
+
+  /** Runs `argv` to the end and gives its stdout. If it fails, throws `failure` and what it said. */
+  output: async (argv: string[], options: CollectOptions, failure: string) => {
+    const result = await subprocess.collect(argv, options);
+    if (!result.ok) throw new Error(`${failure}: ${subprocess.said(result)}`);
+    return result.stdout;
   },
 
   forwardSignals: (proc: Killable, signals: readonly NodeJS.Signals[]): (() => void) => {

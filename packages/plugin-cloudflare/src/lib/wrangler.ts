@@ -5,7 +5,6 @@ import { gzipSync } from "node:zlib";
 import { crypto } from "@achq/utils/crypto";
 import { Env, type Vars } from "@achq/utils/env";
 import { subprocess } from "@achq/utils/subprocess";
-import { text } from "@achq/utils/text";
 import { COMPATIBILITY, SERVICE_CLASS, VERSION_BINDING, type WorkerSettings } from "../../worker/settings.ts";
 import { wranglerCommand } from "./cloudflare.ts";
 import { CLOUDFLARE_ENV, LOG_TAIL_LINES } from "./constants.ts";
@@ -83,8 +82,8 @@ export const wranglerDeploy = async (env: Vars, accountId: string, config: Worke
     const wranglerEnv: Vars = { ...process.env, [CLOUDFLARE_ENV.accountId]: accountId };
     if (token) wranglerEnv[CLOUDFLARE_ENV.token] = token;
     else delete wranglerEnv[CLOUDFLARE_ENV.token];
-    const { ok, stdout, stderr } = await subprocess.collect([...wranglerCommand(env), "deploy", "--config", configFile, "--secrets-file", secretsFile], { cwd: dir, env: wranglerEnv });
-    if (!ok) throw new Error(`Wrangler couldn't deploy ${config.name}:\n${text.tailLines(`${stdout}\n${stderr}`, LOG_TAIL_LINES).join("\n")}`);
+    const result = await subprocess.collect([...wranglerCommand(env), "deploy", "--config", configFile, "--secrets-file", secretsFile], { cwd: dir, env: wranglerEnv });
+    if (!result.ok) throw new Error(`Wrangler couldn't deploy ${config.name}:\n${subprocess.tail(result, LOG_TAIL_LINES)}`);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }

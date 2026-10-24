@@ -15,12 +15,17 @@ export class Op {
     return subprocess.collect([...this.command, ...args], { env: process.env });
   }
 
+  /** Its stdout, or throws `failure` and what `op` said. */
+  private async output(args: string[], failure: string) {
+    return subprocess.output([...this.command, ...args], { env: process.env }, failure);
+  }
+
   /** The item, or undefined if `vault` has none named `title`. */
   async get(vault: string, title: string): Promise<OpItem | undefined> {
-    const { ok, stdout, stderr } = await this.op(["item", "get", title, "--vault", vault, "--format", "json", "--reveal"]);
-    if (!ok && NOT_AN_ITEM.test(stderr)) return undefined;
-    if (!ok) throw new Error(`1Password couldn't read "${title}" from vault ${vault}: ${stderr.trim() || stdout.trim()}`);
-    return JSON.parse(stdout) as OpItem;
+    const result = await this.op(["item", "get", title, "--vault", vault, "--format", "json", "--reveal"]);
+    if (!result.ok && NOT_AN_ITEM.test(result.stderr)) return undefined;
+    if (!result.ok) throw new Error(`1Password couldn't read "${title}" from vault ${vault}: ${subprocess.said(result)}`);
+    return JSON.parse(result.stdout) as OpItem;
   }
 
   /**
@@ -38,8 +43,7 @@ export class Op {
     try {
       const file = path.join(dir, "item.json");
       fs.writeFileSync(file, JSON.stringify(template), { mode: 0o600 });
-      const { ok, stdout, stderr } = await this.op(["item", "create", "--vault", vault, "--template", file, "--format", "json"]);
-      if (!ok) throw new Error(`1Password couldn't make "${title}" in vault ${vault}: ${stderr.trim() || stdout.trim()}`);
+      await this.output(["item", "create", "--vault", vault, "--template", file, "--format", "json"], `1Password couldn't make "${title}" in vault ${vault}`);
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }
@@ -47,7 +51,6 @@ export class Op {
 
   /** Archives it, where it can still be restored from. */
   async archive(vault: string, id: string) {
-    const { ok, stdout, stderr } = await this.op(["item", "delete", id, "--vault", vault, "--archive"]);
-    if (!ok) throw new Error(`1Password couldn't archive item ${id} in vault ${vault}: ${stderr.trim() || stdout.trim()}`);
+    await this.output(["item", "delete", id, "--vault", vault, "--archive"], `1Password couldn't archive item ${id} in vault ${vault}`);
   }
 }
