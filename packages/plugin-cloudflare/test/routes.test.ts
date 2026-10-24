@@ -42,8 +42,9 @@ test("the store lists, reads, writes and removes JSON by collection and name", a
   expect(values.has("store/repos/acme/w")).toBe(true);
   await storeRequest("DELETE", "/inbox?name=d-1", "", memory);
   expect((await storeRequest("GET", "/inbox?name=d-1", "", memory)).status).toBe(404);
-  expect((await storeRequest("GET", "/inbox/a", "", memory)).status).toBe(400);
+  expect((await storeRequest("GET", "/inbox/a/b", "", memory)).status).toBe(400);
   expect((await storeRequest("GET", "/", "", memory)).status).toBe(400);
+  expect((await storeRequest("GET", "/in%zzbox", "", memory)).status).toBe(400);
 
   // Through HttpJsonStore, as the router and deployer reach it: any name round-trips, and none leaves its collection.
   const store = (collection: string) =>
@@ -56,4 +57,23 @@ test("the store lists, reads, writes and removes JSON by collection and name", a
   expect(await store("odd").list()).toEqual([...odd].sort());
   for (const [i, name] of odd.entries()) expect(await store("odd").read(name)).toBe(i);
   expect(await (await storeRequest("GET", "/inbox", "", memory)).json()).toEqual(["d-0"]);
+});
+
+// Delete with the path form, once deployed infras run services past cb7a2f1.
+test("the store also takes a name in the path, as services before names went in the query gave it, under the same key", async () => {
+  const values = new Map<string, string>();
+  const memory = {
+    get: async (key: string) => values.get(key),
+    put: async (key: string, value: string) => void values.set(key, value),
+    delete: async (key: string) => values.delete(key),
+    list: async (prefix: string) => [...values.keys()].filter((k) => k.startsWith(prefix)),
+  };
+  expect((await storeRequest("PUT", "/repos/acme__w", `{"a":1}`, memory)).status).toBe(204);
+  expect(await (await storeRequest("GET", "/repos/acme__w", "", memory)).json()).toEqual({ a: 1 });
+  expect(await (await storeRequest("GET", "/repos?name=acme__w", "", memory)).json()).toEqual({ a: 1 });
+  expect(await (await storeRequest("GET", "/repos", "", memory)).json()).toEqual(["acme__w"]);
+  expect((await storeRequest("DELETE", "/repos/acme__w", "", memory)).status).toBe(204);
+  expect((await storeRequest("GET", "/repos/acme__w", "", memory)).status).toBe(404);
+  expect((await storeRequest("GET", "/repos/a%2Fb", "", memory)).status).toBe(400);
+  expect((await storeRequest("GET", "/repos/%zz", "", memory)).status).toBe(400);
 });

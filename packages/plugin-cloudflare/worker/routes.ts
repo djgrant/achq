@@ -44,11 +44,19 @@ const SEGMENT = /^[^/]+$/;
 /** Answers a store request, for `pathAndQuery`, from `memory`. A write is kept once it's answered, as Durable Object storage keeps it. */
 export const storeRequest = async (method: string, pathAndQuery: string, body: string, memory: StoreMemory): Promise<Response> => {
   const url = new URL(pathAndQuery, "http://store");
-  const collection = decodeURIComponent(url.pathname.slice(1));
-  if (!SEGMENT.test(collection)) return new Response("bad path", { status: 400 });
+  let segments: string[];
+  try {
+    segments = url.pathname.slice(1).split("/").map(decodeURIComponent);
+  } catch {
+    return new Response("bad path", { status: 400 });
+  }
+  // `/<collection>/<name>` is how services before cb7a2f1 named a value; the Worker is deployed from your checkout, and they run at
+  // ACHQ_REF, so it takes both. Drop the path form once deployed infras run services past cb7a2f1.
+  const [collection = "", pathName, ...rest] = segments;
+  if (!SEGMENT.test(collection) || rest.length || (pathName !== undefined && !SEGMENT.test(pathName))) return new Response("bad path", { status: 400 });
   // A key is the collection's prefix and the name, whatever it is: listing by the prefix finds it.
   const prefix = `${STORE_PREFIX}${collection}/`;
-  const name = url.searchParams.get("name");
+  const name = url.searchParams.get("name") ?? pathName ?? null;
   if (name === null) {
     if (method !== "GET") return new Response("method not allowed", { status: 405 });
     const keys = await memory.list(prefix);
