@@ -120,12 +120,15 @@ export const fakeContainer = (name: string, forRepo = repo) => {
 
 /** The deployer: admin-signed in, as the protocol says. */
 export const fakeDeployer = () => {
-  const fake = { events: [] as DeployerEnvelope[], syncs: 0, url: "" };
+  const fake = { events: [] as DeployerEnvelope[], syncs: 0, url: "", respond: accepted as Respond };
   fake.url = serve(async (req) => {
     const { pathname } = new URL(req.url);
     const body = await req.text();
     if (!verifySigned(adminSecret(key), req.method, pathname, body, req.headers)) return new Response("bad signature", { status: 401 });
-    if (pathname === "/events") fake.events.push(JSON.parse(body));
+    if (pathname === "/events") {
+      fake.events.push(JSON.parse(body));
+      return fake.respond(req);
+    }
     if (pathname === "/sync") return ++fake.syncs < 2 ? new Response("waking", { status: 503 }) : Response.json({ id: "s1" }, { status: 202 });
     if (pathname === "/sync/s1") return Response.json({ state: "done", result: { deployed: [repo], unchanged: [], uninstalled: [], pruned: [], failed: [] } });
     if (pathname === "/status") return Response.json([{ repo, state: "deployed" }]);

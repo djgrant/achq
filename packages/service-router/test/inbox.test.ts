@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { accepted, boot, channelReplies, comment, config, deployed, deliveryIds, fakeContainer, readJson, hold, repo } from "./harness.ts";
+import { accepted, boot, channelReplies, comment, config, deployed, deliveryIds, fakeContainer, fakeDeployer, readJson, hold, repo } from "./harness.ts";
 
 describe("persisted events", () => {
   test("the delivery is on the volume before the router answers, and gone once delivered", async () => {
@@ -130,5 +130,24 @@ describe("persisted events", () => {
     expect(await (await r.admin("POST", "/admin/failed/replay")).json()).toEqual({ replayed: [], dropped: [event.delivery] });
     expect(existsSync(join(r.dir, "failed", `${event.delivery}.json`))).toBe(false);
     expect(r.dev.attempts).toBe(3);
+  });
+
+  test("a repo event the deployer never answers lands in failed/, is listed with its repos, and replays to the deployer", async () => {
+    const deployer = fakeDeployer();
+    deployer.respond = () => new Response("down", { status: 503 });
+    const r = await boot({ deployer: deployer.url });
+    const install = { delivery: "inst-failed", type: "installed", host: "test", deploy: ["acme/new", "acme/newer"], uninstall: ["acme/old"] };
+    await r.webhook(install);
+    await r.router.settled();
+    expect(readJson(join(r.dir, "failed", "inst-failed.json")).targets).toEqual([{ kind: "deployer", error: "gave up after 3 attempts (503 down)" }]);
+    expect(await (await r.admin("GET", "/admin/failed")).json()).toEqual([
+      { delivery: "inst-failed", type: "installed", repo: "acme/new, acme/newer, acme/old", targets: [{ target: "deployer", error: "gave up after 3 attempts (503 down)" }] },
+    ]);
+
+    deployer.respond = accepted;
+    expect(await (await r.admin("POST", "/admin/failed/replay")).json()).toEqual({ replayed: ["inst-failed"], dropped: [] });
+    await r.router.settled();
+    expect(deployer.events.map((e) => e.event.delivery)).toEqual(["inst-failed", "inst-failed", "inst-failed", "inst-failed"]);
+    expect(await (await r.admin("GET", "/admin/failed")).json()).toEqual([]);
   });
 });
