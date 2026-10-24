@@ -106,13 +106,11 @@ export const deploy = async (ctx: DeployerContext, repo: string, dryRun: boolean
         [ENV.container]: c.name,
         [ENV.containerSecret]: containerSecret(ctx.env.key, repo, c.name),
       };
-      urls[c.name] = (await ctx.containerProvider.ensure({ repo, identity: tree.identity, name: c.name, dockerfile, branch: tree.branch, env })).url;
-      // Containers load their config and credentials at runtime, so only a changed image needs a build: the router config covers the rest.
+      // Containers load their config and credentials at runtime, so only a new container or a changed image needs a build: the router config covers the rest.
       const before = previous?.deployed?.images[c.name];
-      if (!before || before.dockerfile !== image.dockerfile || before.blob !== image.blob) {
-        ctx.log(`${repo}: building ${c.name} from ${dockerfile}`);
-        await ctx.containerProvider.deploy(repo, c.name);
-      }
+      const build = !before || before.dockerfile !== image.dockerfile || before.blob !== image.blob;
+      if (build) ctx.log(`${repo}: building ${c.name} from ${dockerfile}`);
+      urls[c.name] = (await ctx.containerProvider.ensure({ repo, identity: tree.identity, name: c.name, dockerfile, branch: tree.branch, env }, { build })).url;
       images[c.name] = image;
     }
 

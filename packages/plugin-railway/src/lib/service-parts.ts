@@ -1,6 +1,6 @@
 import { achqStartScript, CONTAINER_PORT, type ContainerSpec, ENV, type EnvValues, type Input, type Output, type Placement, type Service as AchqService } from "@achq/core";
 import type { InstanceSettings, ProjectAt } from "@achq/utils/railway";
-import { BRANCH, BUN_IMAGE, VOLUME } from "./constants.ts";
+import { BUN_IMAGE, VOLUME } from "./constants.ts";
 import { Deployment, fingerprint } from "./deployment.ts";
 import { containerServiceName, hostServiceName, privateUrl } from "./names.ts";
 import { Service } from "./service.ts";
@@ -60,7 +60,7 @@ export class ServiceParts implements Placement {
 
 /**
  * One Railway service per repo and container: private, sleeping when idle,
- * and its variables. Not its deploy: the deployer starts its builds.
+ * and its variables. Not its build: `ensure` starts one when the deployer asks.
  */
 export const containerService = (container: ContainerSpec, at: ProjectAt) => {
   const name = containerServiceName(container.repo, container.name);
@@ -89,7 +89,6 @@ export const containerService = (container: ContainerSpec, at: ProjectAt) => {
       service: name,
       values: {
         ...container.env,
-        [BRANCH]: container.branch,
         [ENV.dataDir]: VOLUME,
         PORT: String(CONTAINER_PORT),
         // Railway sleeps a service 5–10 minutes after its last outbound packet, and private traffic counts.
@@ -98,5 +97,5 @@ export const containerService = (container: ContainerSpec, at: ProjectAt) => {
     },
     { parent: service },
   );
-  return [service, variables];
+  return { service, resources: [service, variables] };
 };

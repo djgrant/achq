@@ -8,6 +8,9 @@ import { RailwayContainerProvider } from "../src/container/provider.ts";
 import { Railway } from "@achq/utils/railway";
 import { BrowserActionNeeded } from "@achq/core";
 
+const NO_BUILD = { build: false };
+const BUILD = { build: true };
+
 let fake: FakeRailway;
 let host: RailwayContainerProvider;
 
@@ -37,13 +40,12 @@ beforeEach(async () => {
 afterEach(() => fake.stop());
 
 test("ensure creates a private service with a volume, and a second ensure changes nothing", async () => {
-  const result = await host.ensure(spec);
+  const result = await host.ensure(spec, NO_BUILD);
   expect(result).toEqual({ url: "http://notationlabs-yieldstar-dev.railway.internal:3000" });
   const service = fake.service("notationlabs-yieldstar-dev")!;
   expect(service.settings).toMatchObject({ dockerfilePath: ".achq/Dockerfile", healthcheckPath: "/", sleepApplication: true });
   expect(service.variables).toEqual({
     ...spec.env,
-    ACHQ_BRANCH: "main",
     DATA_DIR: "/data",
     PORT: "3000",
     ACHQ_KEEP_AWAKE_URL: "http://router.internal:8081/",
@@ -53,62 +55,60 @@ test("ensure creates a private service with a volume, and a second ensure change
   expect(fake.mutations).not.toContain("serviceConnect"); // ensure doesn't build
 
   const before = fake.mutations.length;
-  await host.ensure(spec);
+  await host.ensure(spec, NO_BUILD);
   expect(fake.mutations.length).toBe(before);
 });
 
-test("a deploy of a repo Railway's GitHub App can't see fails with where to install it, and builds once it can", async () => {
-  await host.ensure(spec);
+test("a build of a repo Railway's GitHub App can't see fails with where to install it, and builds once it can", async () => {
   fake.unseenRepos.add(spec.repo);
-  const failure = await host.deploy(spec.repo, "dev").catch((e) => e);
+  const failure = await host.ensure(spec, BUILD).catch((e) => e);
   expect(failure).toBeInstanceOf(BrowserActionNeeded);
   expect(failure.action).toEqual({ url: "https://github.com/apps/railway-app/installations/new", what: "install railway-app on NotationLabs/yieldstar" });
 
   fake.unseenRepos.clear();
-  await host.deploy(spec.repo, "dev");
+  await host.ensure(spec, BUILD);
   expect(fake.service("notationlabs-yieldstar-dev")!.deployments).toEqual([expect.objectContaining({ status: "SUCCESS" })]);
 });
 
 test("ensure removes a public domain and fixes the private hostname, and only changes what differs", async () => {
-  await host.ensure(spec);
-  await host.deploy(spec.repo, "dev");
+  await host.ensure(spec, BUILD);
   const service = fake.service("notationlabs-yieldstar-dev")!;
   service.domains.push({ id: "dom-x", domain: "leaked.up.railway.app", targetPort: 3000 });
   service.endpoint!.dnsName = "old-name";
   fake.mutations.length = 0;
 
-  await host.ensure({ ...spec, env: { ...spec.env, CLAUDE_CODE_OAUTH_TOKEN: "new" } });
+  await host.ensure({ ...spec, env: { ...spec.env, CLAUDE_CODE_OAUTH_TOKEN: "new" } }, NO_BUILD);
   expect(service.domains).toEqual([]);
   expect(service.endpoint!.dnsName).toBe("notationlabs-yieldstar-dev");
   expect(service.variables.CLAUDE_CODE_OAUTH_TOKEN).toBe("new");
   expect(fake.mutations).toEqual(["privateNetworkEndpointRename", "serviceDomainDelete", "variableCollectionUpsert"]);
 });
 
-test("the first deploy connects the repo and turns automatic deploys off; later ones deploy the latest commit", async () => {
-  await host.ensure(spec);
+test("the first build connects the repo to the spec's branch and turns automatic deploys off; later ones deploy the latest commit", async () => {
+  await host.ensure(spec, NO_BUILD);
   const service = fake.service("notationlabs-yieldstar-dev")!;
   expect(service.deployments).toEqual([]);
-  await host.deploy(spec.repo, "dev");
+  await host.ensure(spec, BUILD);
   expect(service.source.repo).toBe(spec.repo);
   expect(service.branch).toBe("main");
   expect(service.autoDeploy).toBe(false);
   expect(service.deployments).toEqual([expect.objectContaining({ status: "SUCCESS" })]); // connecting built it; no second build
 
   fake.mutations.length = 0;
-  await host.deploy(spec.repo, "dev");
+  await host.ensure(spec, BUILD);
   expect(fake.mutations).toEqual(["serviceInstanceDeploy"]);
 
   // Someone turned automatic deploys back on: ensure turns them off, and builds nothing.
   service.autoDeploy = true;
   fake.mutations.length = 0;
-  await host.ensure(spec);
+  await host.ensure(spec, NO_BUILD);
   expect(fake.mutations).toEqual(["serviceInstanceAutoDeployUpdate"]);
   expect(service.autoDeploy).toBe(false);
 });
 
 test("list reads services' repo and container, locate says where, remove deletes the volume too", async () => {
-  await host.ensure(spec);
-  await host.ensure({ ...spec, name: "docs", env: { ...spec.env, ACHQ_CONTAINER: "docs" } });
+  await host.ensure(spec, NO_BUILD);
+  await host.ensure({ ...spec, name: "docs", env: { ...spec.env, ACHQ_CONTAINER: "docs" } }, NO_BUILD);
   expect(await host.list()).toEqual([
     { repo: spec.repo, name: "dev" },
     { repo: spec.repo, name: "docs" },
@@ -137,7 +137,7 @@ test("the deployer makes it from its environment: the token and the project", as
     ACHQ_RAILWAY_PROJECT_ID: host.options.projectId,
     ACHQ_RAILWAY_ENVIRONMENT_ID: host.options.environmentId,
   });
-  expect(await made.ensure(spec)).toEqual({ url: "http://notationlabs-yieldstar-dev.railway.internal:3000" });
+  expect(await made.ensure(spec, NO_BUILD)).toEqual({ url: "http://notationlabs-yieldstar-dev.railway.internal:3000" });
   expect(fake.service("notationlabs-yieldstar-dev")).toBeDefined();
 });
 

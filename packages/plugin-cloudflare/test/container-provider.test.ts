@@ -7,6 +7,9 @@ import { cloudflareContainerProvider } from "../src/container/index.ts";
 import { CloudflareContainerProvider } from "../src/container/provider.ts";
 import { internalKey } from "../src/lib/cloudflare.ts";
 
+const NO_BUILD = { build: false };
+const BUILD = { build: true };
+
 let fake: FakeCloudflare;
 let host: CloudflareContainerProvider;
 let namespaceId: string;
@@ -64,7 +67,7 @@ afterEach(() => fake.stop());
 
 test("a repo Cloudflare's GitHub App can't see fails ensure with what only you can do: install the App, at its install page", async () => {
   fake.unseen.add("NotationLabs/yieldstar");
-  const failure = await host.ensure(spec).catch((e) => e);
+  const failure = await host.ensure(spec, NO_BUILD).catch((e) => e);
   expect(failure).toBeInstanceOf(BrowserActionNeeded);
   expect(failure.action).toEqual({ url: "https://github.com/apps/cloudflare-workers-and-pages/installations/new", what: "install cloudflare-workers-and-pages on NotationLabs/yieldstar" });
   expect(failure.message).toContain("Workers Builds can't see NotationLabs/yieldstar");
@@ -73,7 +76,7 @@ test("a repo Cloudflare's GitHub App can't see fails ensure with what only you c
 
   // Once it's installed, the same ensure connects it.
   fake.unseen.clear();
-  await host.ensure(spec);
+  await host.ensure(spec, NO_BUILD);
   expect(fake.triggers.size).toBe(1);
 });
 
@@ -84,7 +87,7 @@ const builtConfig = () => {
 };
 
 test("ensure makes a placeholder Worker, its variables and secrets, and a trigger that only the deployer starts; a second ensure changes nothing", async () => {
-  expect(await host.ensure(spec)).toEqual({ url: `http://3000.${worker}.achq.internal` });
+  expect(await host.ensure(spec, NO_BUILD)).toEqual({ url: `http://3000.${worker}.achq.internal` });
   // Its own token, registered with Workers Builds by its id.
   expect(fake.tokens.at(-1)).toMatchObject({ build_token_name: "achq-deployer", cloudflare_token_id: "tok-deployer" });
   const made = fake.workers.get(worker)!;
@@ -129,15 +132,15 @@ test("ensure makes a placeholder Worker, its variables and secrets, and a trigge
   expect(builtConfig().vars.ACHQ_SERVICE.publicPort).toBeUndefined();
 
   fake.mutations.length = 0;
-  await host.ensure(spec);
+  await host.ensure(spec, NO_BUILD);
   expect(fake.mutations).toEqual([]);
 });
 
 test("the deployer registers its token with Workers Builds once, and keeps it", async () => {
-  await host.ensure(spec);
+  await host.ensure(spec, NO_BUILD);
   const uuid = registeredToken()!;
   // Another deployer process, as after a restart.
-  await new CloudflareContainerProvider(options()).ensure({ ...spec, name: "docs", env: { ...spec.env, ACHQ_CONTAINER: "docs" } });
+  await new CloudflareContainerProvider(options()).ensure({ ...spec, name: "docs", env: { ...spec.env, ACHQ_CONTAINER: "docs" } }, NO_BUILD);
   expect(fake.tokens.filter((t) => t.cloudflare_token_id === "tok-deployer")).toHaveLength(1);
   expect([...fake.triggers.values()].map((t) => t.build_token_uuid)).toEqual([uuid, uuid]);
   // All of it with its own token.
@@ -146,21 +149,21 @@ test("the deployer registers its token with Workers Builds once, and keeps it", 
 
 test("if Workers Builds won't register its token, the deployer builds with the account's newest; with none, it says where to make one", async () => {
   fake.registerFails = true;
-  await host.ensure(spec);
+  await host.ensure(spec, NO_BUILD);
   expect([...fake.triggers.values()][0]!.build_token_uuid).toBe("bt-1");
   expect(logs).toEqual(["Workers Builds wouldn't take the deployer's token (Cloudflare POST /accounts/acct/builds/tokens: 400 Unable to create build token (400)); building with Workers Builds"]);
 
   fake.tokens.length = 0;
-  await expect(new CloudflareContainerProvider(options()).ensure(spec)).rejects.toThrow(
+  await expect(new CloudflareContainerProvider(options()).ensure(spec, NO_BUILD)).rejects.toThrow(
     `and the account has no other. Make one at https://dash.cloudflare.com/acct/workers/services/view/${worker}/production/settings`,
   );
 });
 
 test("ensure sets only what changed: a variable and its secrets, or the branch", async () => {
-  await host.ensure(spec);
+  await host.ensure(spec, NO_BUILD);
   fake.mutations.length = 0;
   const changed = { ...spec, branch: "trunk", env: { ...spec.env, CLAUDE_CODE_OAUTH_TOKEN: "new" } };
-  await host.ensure(changed);
+  await host.ensure(changed, NO_BUILD);
   expect(JSON.parse(fake.kv("achq")!.get(`containers/${worker}`)!).CLAUDE_CODE_OAUTH_TOKEN).toBe("new");
   expect([...fake.triggers.values()][0]!.branch_includes).toEqual(["trunk"]);
   // The variables, kept and as secrets, and the trigger's branch: no new Worker or trigger.
@@ -173,34 +176,31 @@ test("ensure sets only what changed: a variable and its secrets, or the branch",
   ]);
 });
 
-test("deploy builds the trigger's branch and waits for its version; a failed build throws with the end of its log", async () => {
-  await host.ensure(spec);
-  await host.deploy(spec.repo, "dev");
+test("a build builds the spec's branch with the trigger and waits for its version; a failed build throws with the end of its log", async () => {
+  await host.ensure(spec, BUILD);
   const [build] = fake.builds.values();
   expect(build!.branch).toBe("main");
   expect(await host.image(worker, build!.build_uuid)).toStartWith(`registry.cloudflare.com/${fake.accountId}/${worker}-app@sha256:`);
 
   fake.nextBuild = { outcome: "fail", log: ["Cloning repository...", "#5 ERROR: failed to solve: apt-get exited 100"], deploysVersion: false };
-  const failed = host.deploy(spec.repo, "dev");
+  const failed = host.ensure(spec, BUILD);
   await expect(failed).rejects.toThrow(`${worker}'s build fail:\nCloning repository...\n#5 ERROR: failed to solve: apt-get exited 100`);
 
   // Wrangler pushed the image, but the Worker upload failed.
   fake.nextBuild = { outcome: "success", log: [], deploysVersion: false };
-  await expect(host.deploy(spec.repo, "dev")).rejects.toThrow("deployed no version with a container image");
-
-  await expect(host.deploy(spec.repo, "docs")).rejects.toThrow("No Cloudflare Worker achq-notationlabs-yieldstar-docs; ensure it first");
+  await expect(host.ensure(spec, BUILD)).rejects.toThrow("deployed no version with a container image");
 });
 
 test("list reads containers' repo and name, locate says where, remove deletes the Worker and all that's kept for it", async () => {
-  await host.ensure(spec);
-  await host.ensure({ ...spec, name: "docs", env: { ...spec.env, ACHQ_CONTAINER: "docs" } });
+  await host.ensure(spec, NO_BUILD);
+  await host.ensure({ ...spec, name: "docs", env: { ...spec.env, ACHQ_CONTAINER: "docs" } }, NO_BUILD);
   expect(await host.list()).toEqual([
     { repo: spec.repo, name: "dev" },
     { repo: spec.repo, name: "docs" },
   ]);
   // Its container application only exists once a build has deployed it.
   expect(await host.locate(spec.repo, "dev")).toEqual({ containerProvider: "cloudflare", account: fake.accountId, worker });
-  await host.deploy(spec.repo, "dev");
+  await host.ensure(spec, BUILD);
   const application = fake.applications.find((a) => a.name === worker)!;
   expect(await host.locate(spec.repo, "dev")).toEqual({ containerProvider: "cloudflare", account: fake.accountId, worker, application: application.id });
 
@@ -219,13 +219,13 @@ test("list reads containers' repo and name, locate says where, remove deletes th
   await host.remove(spec.repo, "docs");
   expect(registeredToken()).toBeUndefined();
   expect(fake.tokens.map((t) => t.build_token_uuid)).toEqual(["bt-1"]);
-  await host.ensure(spec);
+  await host.ensure(spec, NO_BUILD);
   expect(registeredToken()).toBeDefined();
 });
 
 test("only builds at a known achq commit", async () => {
   const { ACHQ_REF: _, ...withoutRef } = spec.env;
-  await expect(host.ensure({ ...spec, env: withoutRef })).rejects.toThrow("has no ACHQ_REF");
+  await expect(host.ensure({ ...spec, env: withoutRef }, NO_BUILD)).rejects.toThrow("has no ACHQ_REF");
 });
 
 test("the deployer makes it from its environment", async () => {

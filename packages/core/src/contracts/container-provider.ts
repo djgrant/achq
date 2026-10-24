@@ -30,12 +30,11 @@ export const containerOf = (variables: Record<string, string>): ContainerRef | u
 
 export interface ContainerProvider {
   /**
-   * Creates or updates the container, and what keeps its DATA_DIR across restarts and sleep. Doesn't build.
+   * Creates or updates the container, and what keeps its DATA_DIR across restarts and sleep.
+   * With `build`, then builds and deploys it from the head of its branch, and only then resolves.
    * Returns the URL the router reaches it on: one only achq's services reach, which wakes it.
    */
-  ensure(spec: ContainerSpec): Promise<{ url: string }>;
-  /** Builds and deploys the container from the head of its branch. */
-  deploy(repo: string, name: string): Promise<void>;
+  ensure(spec: ContainerSpec, options: { build: boolean }): Promise<{ url: string }>;
   list(): Promise<ContainerRef[]>;
   /** Deletes the container and its data. Only `achq infra up --prune` and `achq infra down` call this. */
   remove(repo: string, name: string): Promise<void>;

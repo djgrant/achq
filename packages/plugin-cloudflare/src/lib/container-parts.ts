@@ -25,8 +25,8 @@ export type ContainerPlace = {
 /**
  * One Worker per repo and container, sleeping when idle, built from the repo
  * by its Builds trigger: the Worker, its variables, kept readable in the
- * namespace and set as its secrets, and its trigger. Not its build: the
- * deployer starts those.
+ * namespace and set as its secrets, and its trigger. Not its build: `ensure`
+ * starts one with the trigger when the deployer asks.
  */
 export const containerParts = (spec: ContainerSpec, place: ContainerPlace) => {
   const name = containerWorkerName(place.project, spec.repo, spec.name);
@@ -63,5 +63,5 @@ export const containerParts = (spec: ContainerSpec, place: ContainerPlace) => {
     { worker: name, tag: worker.out("tag"), repo: spec.repo, identity: spec.identity, branch: spec.branch, buildToken: place.buildToken, config, ref },
     { parent: worker },
   );
-  return { name, resources: [worker, variables, secrets, trigger] };
+  return { name, trigger, resources: [worker, variables, secrets, trigger] };
 };

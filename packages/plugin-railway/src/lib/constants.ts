@@ -43,4 +43,3 @@ export const REPO_UNSEEN = "does not have access to the repo";
 
 /** The branch a container's service was last connected to, as `owner/repo@branch`. */
 export const CONNECTED = "ACHQ_CONNECTED";
-export const BRANCH = "ACHQ_BRANCH";

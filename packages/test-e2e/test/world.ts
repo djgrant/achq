@@ -111,7 +111,7 @@ class TestContainerProvider implements ContainerProvider {
     return createAgent({ ...spec.env, ...this.local(spec) }, { log: (line) => this.logs.push(`${spec.name}: ${line}`) });
   }
 
-  async ensure(spec: ContainerSpec) {
+  async ensure(spec: ContainerSpec, { build }: { build: boolean }) {
     if (this.needsYou) throw new BrowserActionNeeded(`the container provider can't see ${spec.repo}`, this.needsYou);
     this.specs.push(spec);
     const id = this.id(spec.repo, spec.name);
@@ -134,11 +134,8 @@ class TestContainerProvider implements ContainerProvider {
       this.containers.set(id, hosted);
     }
     hosted.spec = spec;
+    if (build) this.builds.push(id);
     return { url: `http://localhost:${hosted.server.port}` };
-  }
-  async deploy(repo: string, name: string) {
-    this.get(repo, name);
-    this.builds.push(this.id(repo, name));
   }
   async list() {
     return [...this.containers.values()].map(({ spec }) => ({ repo: spec.repo, name: spec.name }));

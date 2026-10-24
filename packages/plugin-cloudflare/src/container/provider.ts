@@ -43,11 +43,6 @@ export class CloudflareContainerProvider implements ContainerProvider {
     return containerWorkerName(this.options.project, repo, name);
   }
 
-  /** Not its build: `deploy` starts those. */
-  private async parts(spec: ContainerSpec) {
-    return containerParts(spec, { ...this.options, buildToken: await this.ownBuildToken(spec) });
-  }
-
   /** Its Workers Builds token, registered the first time it's asked for. */
   private ownBuildToken(spec: ContainerSpec) {
     return (this.buildToken ??= buildToken(this.cf, this.options.token, this.worker(spec.repo, spec.name), this.options.log ?? ((line) => console.log(line))).catch((e) => {
@@ -56,22 +51,16 @@ export class CloudflareContainerProvider implements ContainerProvider {
     }));
   }
 
-  async ensure(spec: ContainerSpec) {
-    const { name, resources } = await this.parts(spec);
-    await (await plan(resources, this.ctx)).apply();
+  async ensure(spec: ContainerSpec, { build }: { build: boolean }) {
+    const { name, trigger, resources } = containerParts(spec, { ...this.options, buildToken: await this.ownBuildToken(spec) });
+    const applied = await (await plan(resources, this.ctx)).apply();
+    if (build) await this.build(name, applied.value(trigger.out("trigger")), spec);
     return { url: containerUrl(name) };
   }
 
   /** Builds the branch's head with the Worker's trigger, waiting for it to deploy. A build that fails throws with the end of its log. */
-  async deploy(repo: string, name: string) {
-    const worker = this.worker(repo, name);
-    const found = await this.cf.workers.get(worker);
-    if (!found) throw new Error(`No Cloudflare Worker ${worker}; ensure it first`);
-    const [trigger] = await this.cf.builds.triggers(found.id);
-    const branch = trigger?.branch_includes[0];
-    if (!trigger || !branch) throw new Error(`${worker} has no build trigger; ensure it first`);
-
-    const started = await this.cf.builds.start(trigger.trigger_uuid, branch);
+  private async build(worker: string, trigger: string, { repo, branch }: ContainerSpec) {
+    const started = await this.cf.builds.start(trigger, branch);
     const build = await async.pollOrThrow(
       () => this.cf.builds.get(started.build_uuid),
       (b) => b.status === BUILD_STOPPED,

@@ -1,8 +1,8 @@
 import { BrowserActionNeeded, type Context, type ContainerProvider, type ContainerShell, type ContainerSpec, containerOf, plan, repoName } from "@achq/core";
 import { context } from "@achq/core/context";
-import { RAILWAY_API, Railway, RailwayError, type RailwayProject } from "@achq/utils/railway";
+import { RAILWAY_API, Railway, RailwayError, type RailwayProject, type RailwayService } from "@achq/utils/railway";
 import { subprocess } from "@achq/utils/subprocess";
-import { BRANCH, CONNECTED, CONTAINER_PROVIDER, RAILWAY_ENV, REPO_UNSEEN, SOURCE_GITHUB_APP, SOURCE_GITHUB_APP_INSTALL_URL } from "../lib/constants.ts";
+import { CONNECTED, CONTAINER_PROVIDER, RAILWAY_ENV, REPO_UNSEEN, SOURCE_GITHUB_APP, SOURCE_GITHUB_APP_INSTALL_URL } from "../lib/constants.ts";
 import { containerServiceName, containerUrl } from "../lib/names.ts";
 import { containerService } from "../lib/service-parts.ts";
 
@@ -35,24 +35,16 @@ export class RailwayContainerProvider implements ContainerProvider {
     this.ctx = context({ env: { [RAILWAY_ENV.token]: options.token, [RAILWAY_ENV.endpoint]: endpoint } });
   }
 
-  /** Not its deploy: `deploy` starts builds. */
-  private resources(container: ContainerSpec) {
-    return containerService(container, { projectId: this.project.id, environmentId: this.project.environmentId });
-  }
-
-  async ensure(spec: ContainerSpec) {
-    await (await plan(this.resources(spec), this.ctx)).apply();
+  async ensure(spec: ContainerSpec, { build }: { build: boolean }) {
+    const { service, resources } = containerService(spec, { projectId: this.project.id, environmentId: this.project.environmentId });
+    const applied = await (await plan(resources, this.ctx)).apply();
+    if (build) await this.build(this.project.service(applied.value(service.out("serviceId"))), spec);
     return { url: containerUrl(containerServiceName(spec.repo, spec.name)) };
   }
 
-  async deploy(repo: string, name: string) {
-    const serviceName = containerServiceName(repo, name);
-    const found = await this.project.serviceByName(serviceName);
-    if (!found) throw new Error(`No Railway service ${serviceName}; ensure it first`);
-    const { service } = found;
+  /** Builds the head of the spec's branch: by connecting the service to it the first time, then by deploying its latest commit. */
+  private async build(service: RailwayService, { repo, branch }: ContainerSpec) {
     const [before, variables] = await Promise.all([service.instance(), service.variables()]);
-    const branch = variables[BRANCH];
-    if (!branch) throw new Error(`${serviceName} has no ${BRANCH}; ensure it first`);
     // It already builds from `repo`'s `branch` when Railway has the repo (in any case), and CONNECTED the branch.
     const source = before.source?.repo;
     if (source && repoName.same(source, repo) && variables[CONNECTED] === connection(repo, branch)) return service.deployLatestCommit();

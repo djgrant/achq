@@ -114,7 +114,7 @@ describe("install", () => {
 
     expect(containerProvider.ops()).toEqual([
       { op: "ensure", repo: REPO, name: "dev" },
-      { op: "deploy", repo: REPO, name: "dev" },
+      { op: "build", repo: REPO, name: "dev" },
     ]);
     expect(containerProvider.services.get(`${REPO}/dev`)!.spec).toEqual({
       repo: REPO,
@@ -279,11 +279,11 @@ describe("config changes", () => {
   test("a new token for the agents deploys again, with the same .achq tree, and builds nothing", async () => {
     github.commit(REPO, repoFiles());
     expect((await makeDeployer().deploy(REPO)).outcome).toBe("deployed");
-    const builds = containerProvider.ops().filter((o) => o.op === "deploy").length;
+    const builds = containerProvider.ops().filter((o) => o.op === "build").length;
     const renewed = { ...ENV, containerEnv: { CLAUDE_CODE_OAUTH_TOKEN: "new-token" } };
     expect((await makeDeployer({ env: renewed }).deploy(REPO)).outcome).toBe("deployed");
     expect(containerProvider.services.get(`${REPO}/dev`)!.spec.env.CLAUDE_CODE_OAUTH_TOKEN).toBe("new-token");
-    expect(containerProvider.ops().filter((o) => o.op === "deploy").length).toBe(builds);
+    expect(containerProvider.ops().filter((o) => o.op === "build").length).toBe(builds);
     expect((await makeDeployer({ env: renewed }).deploy(REPO)).outcome).toBe("unchanged");
   });
 
@@ -318,7 +318,7 @@ describe("config changes", () => {
     const commit = github.commit(REPO, repoFiles({ ".achq/prompts/system.md": "You are a careful coder." }));
     expect((await deployer.deploy(REPO)).outcome).toBe("deployed");
     expect(router.repos.get(REPO)!.commit).toBe(commit);
-    expect(containerProvider.ops("deploy")).toHaveLength(1);
+    expect(containerProvider.ops("build")).toHaveLength(1);
     expect(containerProvider.services.get(`${REPO}/dev`)!.builds).toBe(1);
     expect(github.variable(REPO, STATUS_VARIABLE)).toMatchObject({ state: "deployed", commit });
   });
@@ -329,12 +329,12 @@ describe("config changes", () => {
     await deployer.deploy(REPO);
     github.commit(REPO, repoFiles({ ".achq/Dockerfile": "FROM oven/bun:1.4\n" }));
     await deployer.deploy(REPO);
-    expect(containerProvider.ops("deploy")).toHaveLength(2);
+    expect(containerProvider.ops("build")).toHaveLength(2);
 
     const moved = DOC_CONFIG["config.ts"].replace(`image: "./Dockerfile"`, `image: "./images/dev.Dockerfile"`);
     github.commit(REPO, repoFiles({ ".achq/config.ts": moved, ".achq/images/dev.Dockerfile": "FROM oven/bun:1.4\n" }));
     await deployer.deploy(REPO);
-    expect(containerProvider.ops("deploy")).toHaveLength(3);
+    expect(containerProvider.ops("build")).toHaveLength(3);
     expect(containerProvider.services.get(`${REPO}/dev`)!.spec.dockerfile).toBe(".achq/images/dev.Dockerfile");
   });
 
@@ -345,7 +345,7 @@ describe("config changes", () => {
     const two = `${DOC_CONFIG["config.ts"]}\nnew Container("ci", { image: "./Dockerfile" });`;
     github.commit(REPO, repoFiles({ ".achq/config.ts": two }));
     await deployer.deploy(REPO);
-    expect(containerProvider.ops("deploy").map((c) => c.name)).toEqual(["dev", "ci"]);
+    expect(containerProvider.ops("build").map((c) => c.name)).toEqual(["dev", "ci"]);
 
     github.commit(REPO, repoFiles());
     await deployer.deploy(REPO);
@@ -365,7 +365,7 @@ describe("config changes", () => {
     router.problems = () => [];
     expect((await deployer.deploy(REPO)).outcome).toBe("deployed");
     expect(router.repos.get(REPO)!.commit).toBe(commit);
-    expect(containerProvider.ops("deploy")).toHaveLength(1);
+    expect(containerProvider.ops("build")).toHaveLength(1);
   });
 });
 
@@ -398,7 +398,7 @@ describe("uninstall", () => {
 
     await deployer.handle(event("installation_repositories.added", [REPO]));
     expect(router.repos.get(REPO)).toBeDefined();
-    expect(containerProvider.ops("deploy")).toHaveLength(1);
+    expect(containerProvider.ops("build")).toHaveLength(1);
     expect((await deployer.status())[0]!.state).toBe("deployed");
   });
 
