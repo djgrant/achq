@@ -1,4 +1,4 @@
-import { BrowserActionNeeded, type Context, type ContainerProvider, type ContainerShell, type ContainerSpec, ENV, plan, repoName } from "@achq/core";
+import { BrowserActionNeeded, type Context, type ContainerProvider, type ContainerShell, type ContainerSpec, containerOf, plan, repoName } from "@achq/core";
 import { context } from "@achq/core/context";
 import { RAILWAY_API, Railway, RailwayError, type RailwayProject } from "@achq/utils/railway";
 import { subprocess } from "@achq/utils/subprocess";
@@ -78,12 +78,7 @@ export class RailwayContainerProvider implements ContainerProvider {
   async list() {
     const { services } = await this.project.snapshot();
     const containers = await Promise.all(
-      services.map(async ({ id }) => {
-        const variables = await this.project.service(id).variables();
-        const repo = variables[ENV.repo];
-        const name = variables[ENV.container];
-        return repo && name ? { repo, name } : undefined;
-      }),
+      services.map(async ({ id }) => containerOf(await this.project.service(id).variables())),
     );
     return containers.filter((c) => c !== undefined);
   }

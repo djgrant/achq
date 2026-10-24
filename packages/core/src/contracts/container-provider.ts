@@ -1,4 +1,5 @@
 import type { Vars } from "@achq/utils/env";
+import { ENV } from "../wire/constants.ts";
 import type { Implementation } from "./implementation.ts";
 
 export type ContainerSpec = {
@@ -16,6 +17,16 @@ export type ContainerSpec = {
   env: Record<string, string>;
 };
 
+/** A container, as `ContainerProvider.list` gives it. */
+export type ContainerRef = { repo: string; name: string };
+
+/** The container whose `ContainerSpec.env` these variables are, by its ACHQ_REPO and ACHQ_CONTAINER, or undefined if they aren't a container's. */
+export const containerOf = (variables: Record<string, string>): ContainerRef | undefined => {
+  const repo = variables[ENV.repo];
+  const name = variables[ENV.container];
+  return repo && name ? { repo, name } : undefined;
+};
+
 export interface ContainerProvider {
   /**
    * Creates or updates the container, and what keeps its DATA_DIR across restarts and sleep. Doesn't build.
@@ -24,7 +35,7 @@ export interface ContainerProvider {
   ensure(spec: ContainerSpec): Promise<{ url: string }>;
   /** Builds and deploys the container from the head of its branch. */
   deploy(repo: string, name: string): Promise<void>;
-  list(): Promise<{ repo: string; name: string }[]>;
+  list(): Promise<ContainerRef[]>;
   /** Deletes the container and its data. Only `achq infra up --prune` and `achq infra down` call this. */
   remove(repo: string, name: string): Promise<void>;
   /** Where to find it, for the repo CLI (`ssh`, `resume`). Not secret. */

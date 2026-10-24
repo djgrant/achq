@@ -1,4 +1,4 @@
-import { type Context, type ContainerProvider, type ContainerShell, type ContainerSpec, ENV, Output, plan, UNKNOWN } from "@achq/core";
+import { type Context, type ContainerProvider, type ContainerShell, type ContainerSpec, containerOf, Output, plan, UNKNOWN } from "@achq/core";
 import { context } from "@achq/core/context";
 import { async } from "@achq/utils/async";
 import { BUILD_STOPPED, BUILD_SUCCEEDED, CLOUDFLARE_API, Cloudflare } from "@achq/utils/cloudflare";
@@ -112,12 +112,7 @@ export class CloudflareContainerProvider implements ContainerProvider {
     const { namespaceId } = this.options;
     const keys = await this.cf.kv.keys(namespaceId, KV_KEYS.containers);
     const containers = await Promise.all(
-      keys.map(async (key) => {
-        const variables = (await this.cf.kv.getJson<Record<string, string>>(namespaceId, key)) ?? {};
-        const repo = variables[ENV.repo];
-        const name = variables[ENV.container];
-        return repo && name ? { repo, name } : undefined;
-      }),
+      keys.map(async (key) => containerOf((await this.cf.kv.getJson<Record<string, string>>(namespaceId, key)) ?? {})),
     );
     return containers.filter((c) => c !== undefined);
   }
