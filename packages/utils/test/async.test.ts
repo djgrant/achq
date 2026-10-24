@@ -92,6 +92,23 @@ describe("pollUntil", () => {
   });
 });
 
+describe("pollOrThrow", () => {
+  const noSleep = async () => {};
+
+  test("answers the value done accepts, even an undefined one", async () => {
+    const values = [1, undefined];
+    const found = await async.pollOrThrow(async () => values.shift(), (v) => v === undefined, { intervalMs: 10, timeoutMs: 1000, sleep: noSleep, timedOut: () => "never" });
+    expect(found).toBeUndefined();
+    expect(values).toEqual([]);
+  });
+
+  test("throws timedOut of how long it polled, in minutes", async () => {
+    const options = { intervalMs: 60_000, sleep: noSleep, timedOut: (after: string) => `not done after ${after}` };
+    await expect(async.pollOrThrow(async () => 0, () => false, { ...options, timeoutMs: 5 * 60_000 })).rejects.toThrow("not done after 5 minutes");
+    await expect(async.pollOrThrow(async () => 0, () => false, { ...options, timeoutMs: 60_000 })).rejects.toThrow("not done after 1 minute");
+  });
+});
+
 describe("retry", () => {
   test("tries once, then after each delay, until one succeeds", async () => {
     const slept: number[] = [];

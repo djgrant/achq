@@ -1,4 +1,5 @@
 import { errors } from "./errors.ts";
+import { time } from "./time.ts";
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
@@ -7,6 +8,22 @@ export type PollOptions = {
   /** How long to keep trying, counted as the time slept between probes, so a fake `sleep` makes it exact. */
   timeoutMs: number;
   sleep?: (ms: number) => Promise<void>;
+};
+
+export type PollOrThrowOptions = PollOptions & {
+  /** The error's message, given how long it polled, as `5 minutes`. */
+  timedOut: (after: string) => string;
+};
+
+/** The first value `done` accepts, boxed so a value that is itself undefined can be told from giving up. */
+const poll = async <T>(probe: () => Promise<T>, done: (value: T) => boolean, options: PollOptions): Promise<{ value: T } | undefined> => {
+  const { intervalMs, timeoutMs, sleep: wait = sleep } = options;
+  for (let slept = 0; ; slept += intervalMs) {
+    const value = await probe();
+    if (done(value)) return { value };
+    if (slept >= timeoutMs) return undefined;
+    await wait(intervalMs);
+  }
 };
 
 export type Attempt<T> = { ok: true; value: T } | { ok: false; error: string };
@@ -74,14 +91,14 @@ export const async = {
   },
 
   /** Undefined once `timeoutMs` has been slept without success. A throw from `probe` stops polling. */
-  pollUntil: async <T>(probe: () => Promise<T>, done: (value: T) => boolean, options: PollOptions) => {
-    const { intervalMs, timeoutMs, sleep: wait = sleep } = options;
-    for (let slept = 0; ; slept += intervalMs) {
-      const value = await probe();
-      if (done(value)) return value;
-      if (slept >= timeoutMs) return undefined;
-      await wait(intervalMs);
-    }
+  pollUntil: async <T>(probe: () => Promise<T>, done: (value: T) => boolean, options: PollOptions): Promise<T | undefined> =>
+    (await poll(probe, done, options))?.value,
+
+  /** As `pollUntil`, but on timing out throws an Error saying `timedOut` of how long it polled, as `5 minutes`. */
+  pollOrThrow: async <T>(probe: () => Promise<T>, done: (value: T) => boolean, options: PollOrThrowOptions): Promise<T> => {
+    const found = await poll(probe, done, options);
+    if (!found) throw new Error(options.timedOut(time.minutes(options.timeoutMs)));
+    return found.value;
   },
 
   /**

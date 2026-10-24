@@ -21,7 +21,8 @@
     "./railway": "./src/railway/index.ts",
     "./sandbox": "./src/sandbox.ts",
     "./subprocess": "./src/subprocess.ts",
-    "./text": "./src/text.ts"
+    "./text": "./src/text.ts",
+    "./time": "./src/time.ts"
   },
   "dependencies": {
     "@octokit/auth-app": "^8.3.1",
