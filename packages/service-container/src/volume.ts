@@ -48,6 +48,8 @@ export type SessionState = {
   lastRun: string;
   /** The config commit it last ran with, so `resume` opens it with the same agent config. */
   commit: string;
+  /** The workspace whose worktree it runs in, so `resume` opens it there. */
+  workspace: string;
 };
 
 export type ThreadState = {
@@ -56,12 +58,10 @@ export type ThreadState = {
   source: string;
   /** e.g. the issue number, for `sessions <n>` and `resume <n>`. */
   number: string;
-  /** The workspace that claimed the thread. It sticks. */
-  workspace: string;
   sessions: Record<string, SessionState>;
 };
 
-/** The thread's state, or undefined before it's claimed. */
+/** The thread's state, or undefined before its first run. */
 export const readState = (file: string) => disk.readJsonSync<ThreadState>(file);
 
 /** Atomic, so a crash mid-write leaves the previous state. */
@@ -78,7 +78,7 @@ export const sessionsFor = (paths: Paths, number?: string) =>
   allStates(paths.threads)
     .filter(({ state }) => number === undefined || state.number === number)
     .flatMap(({ state }) =>
-      Object.entries(state.sessions).map(([agent, s]) => ({ id: s.id, thread: state.number, agent, workspace: state.workspace, lastRun: s.lastRun, state, commit: s.commit })),
+      Object.entries(state.sessions).map(([agent, s]) => ({ id: s.id, thread: state.number, agent, workspace: s.workspace, lastRun: s.lastRun, state, commit: s.commit })),
     )
     .sort((a, b) => b.lastRun.localeCompare(a.lastRun));
 

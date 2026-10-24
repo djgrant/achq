@@ -31,9 +31,9 @@ describe("credentials", () => {
     expect((await r.asContainer("acme/gadgets", "dev", "/credentials", ask("dev"))).status).toBe(401);
     // A captured request, replayed ten minutes later.
     expect((await r.asContainer(repo, "dev", "/credentials", ask("dev"), Date.now() - 10 * 60_000)).status).toBe(401);
-    // Signed for /claims, sent to /credentials.
+    // Signed for another path, sent to /credentials.
     const body = JSON.stringify(ask("dev"));
-    const headers = signedHeaders(containerSecret(key, repo, "dev"), "POST", "/claims", body);
+    const headers = signedHeaders(containerSecret(key, repo, "dev"), "POST", "/other", body);
     expect((await fetch(`${r.priv}/credentials`, { method: "POST", body, headers })).status).toBe(401);
     // A container the repo doesn't have, with a genuine secret for that name.
     expect((await r.asContainer(repo, "ghost", "/credentials", ask("ghost"))).status).toBe(404);

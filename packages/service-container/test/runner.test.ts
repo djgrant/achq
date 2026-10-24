@@ -12,40 +12,58 @@ import { SECRET, world } from "./world.ts";
 
 const branchOf = async (dir: string) => (await $`git -C ${dir} branch --show-current`.quiet().text()).trim();
 
-describe("claiming threads", () => {
-  test("a labelled thread is worked in the docs workspace, on docs/<n> from origin/docs, and stays there when relabelled", async () => {
+describe("the workspace the router names", () => {
+  test("a thread is worked in the named workspace, on docs/<n> from origin/docs, and its session resumes there", async () => {
     const w = await world();
     w.channel.open(42, { labels: ["docs"] });
-    expect(await w.send(w.channel.comment(42, "@claude fix the docs"))).toBe(202);
+    expect(await w.send(w.channel.comment(42, "@claude fix the docs"), w.git.first, "docs")).toBe(202);
 
     const docs = w.paths.worktree("docs", threadKey(w.channel.ref(42)));
     expect(await branchOf(docs)).toBe("docs/42");
     expect(fs.readFileSync(path.join(docs, "docs.txt"), "utf8")).toBe("docs branch\n");
     const [first] = w.claude.calls();
     expect(first!.cwd).toBe(docs);
-    expect(w.state(42).workspace).toBe("docs");
-    expect(w.router.claims).toEqual([{ repo: "acme/widgets", container: "dev", workspace: "docs", thread: w.channel.ref(42) }]);
-    expect(w.channel.replies.map((r) => r.body)).toEqual([`Reply for ${w.claude.flag(first!, "--session-id")}`]);
+    const id = w.claude.flag(first!, "--session-id");
+    expect(w.state(42).sessions.coder!.workspace).toBe("docs");
+    expect(w.channel.replies.map((r) => r.body)).toEqual([`Reply for ${id}`]);
 
-    // Relabelled: it would now fall to `issues`, but it sticks with `docs`.
+    // The container doesn't look at labels: the router decides.
     w.channel.threads.get(w.channel.ref(42).id)!.labels = [];
-    await w.send(w.channel.comment(42, "@claude and the readme"));
+    await w.send(w.channel.comment(42, "@claude and the readme"), w.git.first, "docs");
     const calls = w.claude.calls();
     expect(calls).toHaveLength(2);
     expect(calls[1]!.cwd).toBe(docs);
-    expect(w.state(42).workspace).toBe("docs");
-    expect(w.router.claims).toHaveLength(1);
+    expect(w.claude.flag(calls[1]!, "--resume")).toBe(id);
     expect(fs.existsSync(w.paths.worktree("issues", threadKey(w.channel.ref(42))))).toBe(false);
   });
 
-  test("an unlabelled thread falls through to the catch-all workspace, from origin/main", async () => {
+  test("the catch-all workspace works from origin/main", async () => {
     const w = await world();
     w.channel.open(7);
-    await w.send(w.channel.comment(7, "@claude hi"));
+    await w.send(w.channel.comment(7, "@claude hi"), w.git.first, "issues");
     const wt = w.paths.worktree("issues", threadKey(w.channel.ref(7)));
     expect(await branchOf(wt)).toBe("issue-7");
     expect(fs.existsSync(path.join(wt, "docs.txt"))).toBe(false);
-    expect(w.router.claims).toEqual([{ repo: "acme/widgets", container: "dev", workspace: "issues", thread: w.channel.ref(7) }]);
+  });
+
+  test("a session started in another workspace isn't resumed in this one's worktree", async () => {
+    const w = await world();
+    w.channel.open(6);
+    await w.send(w.channel.comment(6, "@claude hi"), w.git.first, "issues");
+    await w.send(w.channel.comment(6, "@claude again"), w.git.first, "docs");
+    const [first, second] = w.claude.calls();
+    expect(second!.cwd).toBe(w.paths.worktree("docs", threadKey(w.channel.ref(6))));
+    expect(w.claude.flag(second!, "--resume")).toBeUndefined();
+    expect(w.claude.flag(second!, "--session-id")).not.toBe(w.claude.flag(first!, "--session-id"));
+  });
+
+  test("a workspace the loaded config doesn't have is skipped, saying so", async () => {
+    const w = await world();
+    w.channel.open(9);
+    await w.send(w.channel.comment(9, "@claude hi"), w.git.first, "renamed");
+    expect(w.claude.calls()).toHaveLength(0);
+    expect(w.channel.replies).toHaveLength(0);
+    expect(w.logs.some((l) => l.includes(`no workspace "renamed" in this container`))).toBe(true);
   });
 
   test("events no trigger matches don't run, and untrusted or bot actors are ignored", async () => {
@@ -56,7 +74,6 @@ describe("claiming threads", () => {
     await w.send({ ...w.channel.event(1, "comment", "@claude"), actor: { login: "bot", trusted: true, bot: true } });
     expect(w.claude.calls()).toHaveLength(0);
     expect(w.channel.replies).toHaveLength(0);
-    expect(w.router.claims).toHaveLength(0);
   });
 });
 
@@ -219,7 +236,7 @@ describe("POST /events", () => {
   test("rejects unsigned and wrongly signed events", async () => {
     const w = await world();
     w.channel.open(1);
-    const body = JSON.stringify({ event: w.channel.comment(1, "@claude go"), commit: w.git.first });
+    const body = JSON.stringify({ event: w.channel.comment(1, "@claude go"), commit: w.git.first, workspace: "issues" });
     expect((await w.post(body, {})).status).toBe(401);
     expect((await w.post(body, signedHeaders("another-secret", "POST", "/events", body))).status).toBe(401);
     expect((await w.post(body, signedHeaders(SECRET, "POST", "/other", body))).status).toBe(401);
@@ -235,7 +252,7 @@ describe("POST /events", () => {
     expect(await w.send(event)).toBe(202);
     expect(await w.send(event)).toBe(202);
     const again = new Runner({ ...(w.runner as any).opts });
-    await again.handle({ event, commit: w.git.first });
+    await again.handle({ event, commit: w.git.first, workspace: "issues" });
     await again.idle();
     expect(w.claude.calls()).toHaveLength(1);
   });
@@ -262,17 +279,17 @@ describe("concurrency", () => {
     w.channel.open(1);
     w.channel.open(2);
     w.channel.open(3);
-    await w.post(JSON.stringify({ event: w.channel.comment(1, "@claude a"), commit: w.git.first }));
+    await w.post(JSON.stringify({ event: w.channel.comment(1, "@claude a"), commit: w.git.first, workspace: "issues" }));
     // The second arrives while the first is running, so it has something new to say.
     while (!fs.existsSync(path.join(w.paths.agent("coder"), "settings.json"))) await Bun.sleep(10);
     await Bun.sleep(100);
-    await w.post(JSON.stringify({ event: w.channel.comment(1, "@claude b"), commit: w.git.first }));
+    await w.post(JSON.stringify({ event: w.channel.comment(1, "@claude b"), commit: w.git.first, workspace: "issues" }));
     await w.runner.idle();
     const same = w.claude.calls();
     expect(same).toHaveLength(2);
     expect(overlap(same[0]!, same[1]!)).toBe(false);
 
-    await Promise.all([w.channel.comment(2, "@claude x"), w.channel.comment(3, "@claude y")].map((e) => w.post(JSON.stringify({ event: e, commit: w.git.first }))));
+    await Promise.all([w.channel.comment(2, "@claude x"), w.channel.comment(3, "@claude y")].map((e) => w.post(JSON.stringify({ event: e, commit: w.git.first, workspace: "issues" }))));
     await w.runner.idle();
     const [, , x, y] = w.claude.calls();
     expect(overlap(x!, y!)).toBe(true);

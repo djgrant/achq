@@ -2,7 +2,6 @@
 import { HttpError } from "@achq/utils/http";
 import type { PolicyCredential } from "../contracts/policy-provider.ts";
 import type {
-  ClaimRequest,
   CredentialsRequest,
   CredentialsResponse,
   DeployerVersion,
@@ -72,7 +71,5 @@ export const routerForContainer = ({ url, secret }: { url: string; secret: strin
   const { call } = signedClient({ secret, base: url, service: "Router" });
   return {
     credentials: (request: CredentialsRequest) => call<CredentialsResponse>("POST", "/credentials", request),
-    /** Records that the container claimed a thread, so the router sends it the thread's events. */
-    claim: (request: ClaimRequest) => call("POST", "/claims", request),
   };
 };

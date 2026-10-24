@@ -128,7 +128,7 @@ The runner posts the agent's final message as a comment. Only messages from user
 /data/mirror.git                      bare mirror
 /data/config/<commit>/                `.achq/` as of each deployed commit
 /data/worktrees/<workspace>/<thread>  one worktree per thread, left as the agent leaves it
-/data/threads/<thread>.json           the claiming workspace, and each agent's session
+/data/threads/<thread>.json           each agent's session, and the workspace it runs in
 /data/github/                         tokens for the container's policies, refreshed before they expire
 ```
 

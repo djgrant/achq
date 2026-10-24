@@ -1,6 +1,6 @@
 /** The router's public port: webhooks, `/wake`, signed admin requests. */
 export const ROUTER_PUBLIC_PORT = 8080;
-/** Only achq's own services reach it, never the public. Serves credentials and claims to containers, and admin to the deployer. */
+/** Only achq's own services reach it, never the public. Serves credentials to containers, and admin to the deployer. */
 export const ROUTER_PRIVATE_PORT = 8081;
 export const DEPLOYER_PORT = 3000;
 export const CONTAINER_PORT = 3000;

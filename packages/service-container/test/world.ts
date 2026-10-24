@@ -60,9 +60,9 @@ export const world = async (opts: { maxRuns?: number } = {}) => {
     keepAwake: async () => {},
     log: (line) => logs.push(line),
   });
-  /** POSTs a signed event and waits for everything it started. */
-  const send = async (event: ChannelEvent, commit = git.first) => {
-    const res = await post(JSON.stringify({ event, commit }));
+  /** POSTs a signed event, as the router does for `workspace`, and waits for everything it started. */
+  const send = async (event: ChannelEvent, commit = git.first, workspace = "issues") => {
+    const res = await post(JSON.stringify({ event, commit, workspace }));
     await runner.idle();
     return res.status;
   };

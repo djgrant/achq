@@ -16,7 +16,7 @@ export class EventSelector {
   }
 }
 
-/** Which threads a workspace claims. Plain data, matched in the router and the container. */
+/** Which threads a workspace claims. Plain data, matched in the router. */
 export class ThreadSelector {
   constructor(readonly data: SelectorData) {
     json.from(data, "thread selector");

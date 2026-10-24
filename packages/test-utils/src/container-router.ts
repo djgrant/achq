@@ -3,9 +3,8 @@ import { verifySigned } from "@achq/core/signing";
 
 export const CHANNEL_TOKEN = "channel-token-never-for-agents";
 
-/** The router's side of `/claims` and `/credentials`, checking container signatures. Mints `test-policy-provider` credentials. */
+/** The router's side of `/credentials`, checking container signatures. Mints `test-policy-provider` credentials. */
 export const fakeRouter = (secret: string, opts: { expiresIn?: () => number; now?: () => number } = {}) => {
-  const claims: unknown[] = [];
   const rejected: string[] = [];
   let mints = 0;
   const server = Bun.serve({
@@ -16,10 +15,6 @@ export const fakeRouter = (secret: string, opts: { expiresIn?: () => number; now
       if (!verifySigned(secret, req.method, url.pathname, body, req.headers)) {
         rejected.push(url.pathname);
         return new Response("bad signature", { status: 401 });
-      }
-      if (url.pathname === "/claims") {
-        claims.push(JSON.parse(body));
-        return new Response(null, { status: 204 });
       }
       if (url.pathname === "/credentials") {
         mints++;
@@ -33,5 +28,5 @@ export const fakeRouter = (secret: string, opts: { expiresIn?: () => number; now
       return new Response("not found", { status: 404 });
     },
   });
-  return { url: `http://localhost:${server.port}`, claims, rejected, mints: () => mints, stop: () => server.stop(true) };
+  return { url: `http://localhost:${server.port}`, rejected, mints: () => mints, stop: () => server.stop(true) };
 };

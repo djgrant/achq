@@ -119,14 +119,12 @@ describe("mentions", () => {
     await w.settle();
     expect(w.events()).toBe(1);
 
-    // The container claimed the thread for the docs workspace, and the router stored the claim.
-    await w.until("the router to store the claim", () => w.routerClaims()[THREAD(42)]?.dev === "docs");
+    // The router claimed the thread for dev's docs workspace, and the container ran it there.
     expect(w.routerClaims()).toEqual({ [THREAD(42)]: { dev: "docs" } });
-    expect(w.threadState(42)?.workspace).toBe("docs");
+    expect(w.threadState(42)?.sessions.coder?.workspace).toBe("docs");
 
     // It fetched its credentials from the router's private port, never the public one.
     expect(w.routerRequests.filter((r) => r.path === "/credentials").map((r) => r.port)).toEqual(["private"]);
-    expect(w.routerRequests.filter((r) => r.path === "/claims").map((r) => r.port)).toEqual(["private"]);
 
     // Claude ran once, in the docs/42 worktree cut from origin/docs.
     const [call, ...more] = calls();
@@ -181,7 +179,7 @@ describe("mentions", () => {
     const asked = w.sends.comment(43, DJ, "@claude can you find out why this is flaky?");
     expect(await said(asked.sent)).toEqual(ACCEPTED);
     await w.settle();
-    await w.until("the router to store the claim", () => w.routerClaims()[THREAD(43)]?.dev === "issues");
+    expect(w.routerClaims()[THREAD(43)]).toEqual({ dev: "issues" });
 
     const call = lastCall();
     expect(call.cwd).toBe(w.worktree("issues", 43));
@@ -500,7 +498,7 @@ describe("pushes", () => {
       ["review", `http://localhost:${w.container("review").server.port}`],
     ]);
 
-    // Each container decides on its own: review's workspace claims the labelled issue, and so does dev's catch-all.
+    // Each container is decided on its own: review's workspace claims the labelled issue, and so does dev's catch-all.
     expect(await ask(46, "@claude check the new fee table")).toEqual(ACCEPTED);
     await w.settle();
     expect(w.events("review")).toBe(1);

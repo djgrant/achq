@@ -1,7 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { type ChannelClient, type ChannelEvent, type ChannelProvider, type ClaimRequest, ENV, type PolicyProvider, type RepoManifest, type RuntimeContext, type RuntimeFactory, type Thread, type ThreadRef, threadKey } from "@achq/core";
+import { type ChannelClient, type ChannelEvent, type ChannelProvider, ENV, type PolicyProvider, type RepoManifest, type RuntimeContext, type RuntimeFactory, type Thread, type ThreadRef, threadKey } from "@achq/core";
 import { ContainerEnvelope } from "@achq/core/protocol";
-import { routerForContainer } from "@achq/core/client";
 import { signedBy } from "@achq/core/signing";
 import { async } from "@achq/utils/async";
 import { disk } from "@achq/utils/disk";
@@ -55,6 +54,8 @@ type TriggerRun = {
   client: ChannelClient;
   thread: Thread;
   state: ThreadState;
+  /** The workspace whose worktree `cwd` is. */
+  workspace: string;
   cwd: string;
   env: Record<string, string>;
   log: (line: string) => void;
@@ -104,7 +105,6 @@ class RunSlots {
 export class Runner {
   readonly paths: Paths;
   readonly credentials: Credentials;
-  private router: ReturnType<typeof routerForContainer>;
   readonly fetch: (req: Request) => Response | Promise<Response>;
   /** One thread's runs go one after another. */
   private enqueue = async.keyedQueue();
@@ -121,7 +121,6 @@ export class Runner {
     this.log = opts.log ?? ((line) => console.log(line));
     this.runtimes = opts.runtimes ?? defaultRuntimes;
     this.runTimeoutMs = opts.runTimeoutMs;
-    this.router = routerForContainer({ url: opts.routerUrl, secret: opts.containerSecret });
     this.credentials = new Credentials({
       routerUrl: opts.routerUrl,
       containerSecret: opts.containerSecret,
@@ -172,7 +171,7 @@ export class Runner {
     return this.opts.env ?? process.env;
   }
 
-  async handle({ event, commit }: ContainerEnvelope) {
+  async handle({ event, commit, workspace: name }: ContainerEnvelope) {
     const tag = `[${event.delivery}]`;
     if (!firstDelivery(this.paths.deliveries, event.delivery)) return this.log(`${tag} already handled`);
     const channel = this.opts.channelProviders.find((c) => c.id === event.channel);
@@ -188,12 +187,14 @@ export class Runner {
       await reply(await this.client(channel, event.source), ref, configLoadFailed(commit, message), this.log);
     });
     if (!config) return;
-    const workspaces = config.manifest.workspaces.filter((w) => w.container === this.opts.container && w.threads.channel === channel.id);
     const triggers = config.manifest.triggers.filter((t) => t.event.channel === channel.id && channel.matchEvent(t.event, event));
-    if (!workspaces.length || !triggers.length) return this.log(`${tag} no trigger here matches ${event.type}`);
+    if (!triggers.length) return this.log(`${tag} no trigger here matches ${event.type}`);
+    // The router decides the workspace; it's only missing from a config that has moved on since.
+    const workspace = config.manifest.workspaces.find((w) => w.name === name && w.container === this.opts.container && w.threads.channel === channel.id);
+    if (!workspace) return this.log(`${tag} skipped: the config at ${config.commit} has no workspace "${name}" in this container`);
 
     const key = threadKey(ref);
-    const queued = this.enqueue(key, () => this.slots.run(() => this.work(event, ref, config, channel, workspaces, triggers)));
+    const queued = this.enqueue(key, () => this.slots.run(() => this.work(event, ref, config, channel, workspace, triggers)));
     this.track(queued.catch((e) => this.log(`[${key}] ${errors.detail(e)}`)));
   }
 
@@ -201,28 +202,13 @@ export class Runner {
     return channel.client(await this.credentials.channel(channel.id, source));
   }
 
-  /** Claims the thread, then runs each matched trigger in its worktree, holding the thread's lock. */
-  private async work(event: ChannelEvent, ref: ThreadRef, config: LoadedConfig, channel: ChannelProvider, workspaces: Workspace[], triggers: Trigger[]) {
+  /** Runs each matched trigger in the workspace's worktree for the thread, holding the thread's lock there. */
+  private async work(event: ChannelEvent, ref: ThreadRef, config: LoadedConfig, channel: ChannelProvider, workspace: Workspace, triggers: Trigger[]) {
     const key = threadKey(ref);
     const log = (line: string) => this.log(`[${key}] ${line}`);
     const client = await this.client(channel, event.source);
     const thread = await client.thread(ref);
-
-    // The workspace that claimed the thread, or the first of this container's that matches it now.
-    const file = this.paths.thread(key);
-    const claimed = readState(file);
-    let state: ThreadState;
-    if (claimed && workspaces.some((w) => w.name === claimed.workspace)) state = claimed;
-    else {
-      const claiming = workspaces.find((w) => channel.matchThread(w.threads, { ref, labels: thread.labels }));
-      if (!claiming) return log("no workspace in this container claims it");
-      state = { thread: ref, source: event.source, number: thread.vars.number, workspace: claiming.name, sessions: {} };
-      writeState(file, state);
-      // Recorded on the router, so it sends the thread's events here.
-      const claim: ClaimRequest = { repo: this.opts.repo, container: this.opts.container, workspace: claiming.name, thread: ref };
-      void logFailure(this.router.claim(claim), this.log, "claim not recorded");
-    }
-    const workspace = workspaces.find((w) => w.name === state.workspace)!;
+    const state: ThreadState = readState(this.paths.thread(key)) ?? { thread: ref, source: event.source, number: thread.vars.number, sessions: {} };
 
     await logFailure(client.acknowledge(event), log, "acknowledge failed");
     await flock.withLock(this.paths.lock(workspace.name, key), async () => {
@@ -239,11 +225,11 @@ export class Runner {
       // Saved for `resume`, which opens sessions outside the runner.
       const env = agentEnv(this.baseEnv, this.paths.home, credentialEnv, await client.identity());
       saveAgentEnv(this.paths.agentEnv, credentialEnv, env);
-      for (const trigger of triggers) await this.runTrigger({ trigger, event, config, ctx, client, thread, state, cwd, env, log });
+      for (const trigger of triggers) await this.runTrigger({ trigger, event, config, ctx, client, thread, state, workspace: workspace.name, cwd, env, log });
     });
   }
 
-  private async runTrigger({ trigger, event, config, ctx, client, thread, state, cwd, env, log }: TriggerRun) {
+  private async runTrigger({ trigger, event, config, ctx, client, thread, state, workspace, cwd, env, log }: TriggerRun) {
     const agent = config.agents.find((a) => a.name === trigger.agent);
     const factory = agent && this.runtimes[agent.runtime];
     if (!agent || !factory) return reply(client, thread.ref, unrunnableAgent(trigger), log);
@@ -262,9 +248,9 @@ export class Runner {
     try {
       const runtime = factory(agent, ctx);
       const key = await runtime.sessionKey();
-      // `/new`, no session yet, or a changed session key start afresh. Compacting needs a session to compact.
+      // `/new`, no session yet, a changed session key, or another workspace start afresh. Compacting needs a session to compact.
       const previous = state.sessions[agent.name];
-      const fresh = command.mode === "new" || !previous || previous.key !== key;
+      const fresh = command.mode === "new" || !previous || previous.key !== key || previous.workspace !== workspace;
       if (command.mode === "compact" && fresh) throw new Error(NOTHING_TO_COMPACT);
       const id = fresh ? randomUUID() : previous!.id;
 
@@ -288,7 +274,7 @@ export class Runner {
       }
 
       // Marked running first, so a restart mid-run can say so.
-      state.sessions[agent.name] = { key, id, lastMessage: prompt.lastMessage, opening: prompt.opening, status: "running", lastRun: new Date(this.now()).toISOString(), commit: config.commit };
+      state.sessions[agent.name] = { key, id, lastMessage: prompt.lastMessage, opening: prompt.opening, status: "running", lastRun: new Date(this.now()).toISOString(), commit: config.commit, workspace };
       saveState();
       agentLog(`${fresh ? "new" : "resumed"} session ${id} (trigger ${trigger.name})`);
       const configDir = this.paths.agent(agent.name);

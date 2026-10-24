@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
-import { repo, fakeDeployer, boot, selector, config, trusted, comment, deployed, deliveryIds, readJson, hold } from "./harness.ts";
+import { repo, fakeDeployer, boot, selector, config, trusted, comment, deployed, deliveryIds, readJson, hold, accepted } from "./harness.ts";
 
 describe("routing events to containers", () => {
   test("an event reaches only the containers with a workspace that would claim its thread", async () => {
@@ -29,49 +29,90 @@ describe("routing events to containers", () => {
     gate.release();
   });
 
+  test("the container is told the workspace the router routed the thread to", async () => {
+    const r = await deployed();
+    await r.webhook(comment(3, ["docs"]));
+    await r.router.settled();
+    expect(r.dev.events.map((e) => e.workspace)).toEqual(["dev-docs"]);
+    expect(r.docsbox.events.map((e) => e.workspace)).toEqual(["docs"]);
+  });
+
   test("a claim keeps its container after relabelling, and another container whose workspace now matches also runs it", async () => {
     const r = await deployed();
-    const thread = { channel: "test", id: `${repo}#4` };
-    // dev claimed the unlabelled thread with its catch-all.
-    expect((await r.asContainer(repo, "dev", "/claims", { repo, container: "dev", workspace: "dev-all", thread })).status).toBe(204);
-    // docsbox claimed a docs thread that then loses its label.
-    const docsThread = { channel: "test", id: `${repo}#5` };
-    expect((await r.asContainer(repo, "docsbox", "/claims", { repo, container: "docsbox", workspace: "docs", thread: docsThread })).status).toBe(204);
-
+    const targets = (id: string) => readJson(join(r.dir, "inbox", `${id}.json`)).targets.map((t: any) => `${t.container}:${t.workspace}`);
     hold(r.dev);
     hold(r.docsbox);
+    // dev claims the unlabelled thread with its catch-all; both containers claim a docs thread.
+    await r.webhook(comment(4));
+    await r.webhook(comment(5, ["docs"]));
+
     const relabelled = comment(4, ["docs"]);
     await r.webhook(relabelled);
     const unlabelled = comment(5, []);
     await r.webhook(unlabelled);
-    const targets = (id: string) => readJson(join(r.dir, "inbox", `${id}.json`)).targets.map((t: any) => `${t.container}:${t.workspace}`);
     // dev stays on dev-all (the claim), not dev-docs; docsbox joins because its workspace matches now.
     expect(targets(relabelled.delivery!)).toEqual(["dev:dev-all", "docsbox:docs"]);
-    // docsbox keeps the thread it claimed, though its selector no longer matches.
-    expect(targets(unlabelled.delivery!)).toEqual(["dev:dev-all", "docsbox:docs"]);
+    // Both keep the thread they claimed, though their selectors no longer pick those workspaces.
+    expect(targets(unlabelled.delivery!)).toEqual(["dev:dev-docs", "docsbox:docs"]);
   });
 
-  test("claims are container-signed and only for that repo's own containers and workspaces", async () => {
+  test("a thread is claimed when its event is accepted, so it keeps its container after relabelling even if that container never answered", async () => {
+    const r = await deployed();
+    r.docsbox.respond = () => new Response("down", { status: 503 });
+    await r.webhook(comment(10, ["docs"]));
+    await r.router.settled();
+    expect(readdirSync(join(r.dir, "failed"))).toHaveLength(1);
+
+    // The docs label goes: docsbox has no workspace that matches now, but it claimed the thread.
+    r.docsbox.respond = accepted;
+    const relabelled = comment(10, []);
+    await r.webhook(relabelled);
+    await r.router.settled();
+    expect(r.docsbox.events.at(-1)).toMatchObject({ event: { delivery: relabelled.delivery }, workspace: "docs" });
+  });
+
+  test("events that wake nothing claim nothing", async () => {
+    const r = await deployed();
+    await r.webhook(comment(11, ["docs"], { actor: { login: "stranger", trusted: false, bot: false } }));
+    await r.webhook(comment(11, ["docs"], { type: "issue.opened" }));
+    const relabelled = comment(11, []);
+    await r.webhook(relabelled);
+    await r.router.settled();
+    expect(deliveryIds(r.dev)).toEqual([relabelled.delivery!]);
+    expect(r.dev.events[0]!.workspace).toBe("dev-all");
+    expect(r.docsbox.events).toEqual([]);
+  });
+
+  test("a claim on a workspace the config no longer has gives way to the first that matches now", async () => {
+    const r = await deployed();
+    await r.webhook(comment(12, ["docs"]));
+    await r.router.settled();
+    const renamed = config(r.dev, r.docsbox);
+    renamed.workspaces = renamed.workspaces.map((w) => (w.name === "dev-docs" ? { ...w, name: "dev-docs2" } : w));
+    expect((await r.admin("PUT", `/admin/repos/${repo}`, renamed)).status).toBe(204);
+    await r.webhook(comment(12, []));
+    await r.router.settled();
+    expect(r.dev.events.map((e) => e.workspace)).toEqual(["dev-docs", "dev-all"]);
+  });
+
+  test("/claims is gone: containers don't claim threads", async () => {
     const r = await deployed();
     const thread = { channel: "test", id: `${repo}#6` };
-    const claim = (container: string, workspace: string) => ({ repo, container, workspace, thread });
-    // Signed as docsbox, claiming as dev.
-    expect((await r.asContainer(repo, "docsbox", "/claims", claim("dev", "dev-all"))).status).toBe(401);
-    expect((await r.asContainer(repo, "ghost", "/claims", claim("ghost", "dev-all"))).status).toBe(404);
-    // A workspace of another container.
-    expect((await r.asContainer(repo, "dev", "/claims", claim("dev", "docs"))).status).toBe(404);
-    expect((await r.asContainer(repo, "dev", "/claims", claim("dev", "dev-all"), undefined, r.pub)).status).toBe(404);
+    expect((await r.asContainer(repo, "dev", "/claims", { repo, container: "dev", workspace: "dev-all", thread })).status).toBe(404);
   });
 
-  test("claims survive a restart", async () => {
+  test("claims survive a restart, and an uninstall and reinstall", async () => {
     const r = await deployed();
-    const thread = { channel: "test", id: `${repo}#7` };
-    await r.asContainer(repo, "docsbox", "/claims", { repo, container: "docsbox", workspace: "docs", thread });
+    await r.webhook(comment(7, ["docs"]));
+    await r.router.settled();
     const again = await boot({ dir: r.dir });
+    expect((await again.admin("DELETE", `/admin/repos/${repo}`)).status).toBe(204);
+    expect((await again.admin("PUT", `/admin/repos/${repo}`, config(r.dev, r.docsbox))).status).toBe(204);
     const event = comment(7);
     await again.webhook(event);
     await again.router.settled();
-    expect(deliveryIds(r.docsbox)).toEqual([event.delivery!]);
+    expect(deliveryIds(r.docsbox).at(-1)).toBe(event.delivery!);
+    expect(r.dev.events.at(-1)!.workspace).toBe("dev-docs");
   });
 
   test("untrusted, bot, unmatched and threadless events wake nothing", async () => {

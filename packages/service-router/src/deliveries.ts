@@ -1,4 +1,4 @@
-import { type ChannelEvent, type ChannelProvider, type ContainerEnvelope, type DeployerEnvelope, type FailedDelivery, type ReplayResult, type RouterRepoConfig, threadKey } from "@achq/core";
+import { type ChannelEvent, type ChannelProvider, type ContainerEnvelope, type DeployerEnvelope, type FailedDelivery, type ReplayResult, repoName, type RouterRepoConfig, threadKey } from "@achq/core";
 import { adminSecret, containerSecret } from "@achq/core/secrets";
 import { errors } from "@achq/utils/errors";
 import { configOf, type RouterContext } from "./context.ts";
@@ -7,12 +7,12 @@ import { fetchSigned, reach } from "./reach.ts";
 export type Target =
   | { kind: "deployer" }
   /**
-   * `workspace` is the one that claimed the thread, or would claim it now. It's there for inspecting the inbox.
+   * `workspace` is the container's workspace the thread is worked in: the one that claimed it, or the first that matches it now. The container works it there.
    * `commit` is the one whose config the router holds, so the container runs the same config.
    */
   | { kind: "container"; repo: string; container: string; url: string; workspace: string; commit: string };
 
-/** Per thread key, per container: the workspace the container says claimed it. */
+/** Per thread key, per container: the workspace that claimed it. The router is the only one that decides and records claims. */
 export type Claims = Record<string, Record<string, string>>;
 
 /** `told`: the thread has been told its delivery failed, so a failed replay doesn't tell it again. */
@@ -33,12 +33,26 @@ export const targetsFor = (channel: ChannelProvider, event: ChannelEvent, config
   const claimed = claims[threadKey(event.thread)] ?? {};
   // Each container is decided on its own: a claim sticks within the container that
   // made it, and doesn't stop another container's workspace claiming the thread too.
+  // A claim on a workspace the config no longer has is passed over.
   return config.containers.flatMap((c): Target[] => {
-    const workspace =
-      claimed[c.name] ??
-      config.workspaces.find((w) => w.container === c.name && w.threads.channel === channel.id && channel.matchThread(w.threads, thread))?.name;
-    return workspace ? [{ kind: "container", repo: config.repo, container: c.name, url: c.url, workspace, commit: config.commit }] : [];
+    const workspaces = config.workspaces.filter((w) => w.container === c.name && w.threads.channel === channel.id);
+    const workspace = workspaces.find((w) => w.name === claimed[c.name]) ?? workspaces.find((w) => channel.matchThread(w.threads, thread));
+    return workspace ? [{ kind: "container", repo: config.repo, container: c.name, url: c.url, workspace: workspace.name, commit: config.commit }] : [];
   });
+};
+
+/** Records each container target's workspace as its claim on the event's thread, where it isn't already. */
+export const recordClaims = async (ctx: RouterContext, event: ChannelEvent, targets: Target[]) => {
+  if (!event.repo || !event.thread) return;
+  const repo = repoName.key(event.repo);
+  const thread = threadKey(event.thread);
+  const repoClaims = ctx.claims.get(repo) ?? {};
+  const claimed = repoClaims[thread] ?? {};
+  const fresh = targets.flatMap((t) => (t.kind === "container" && claimed[t.container] !== t.workspace ? [[t.container, t.workspace]] : []));
+  if (!fresh.length) return;
+  repoClaims[thread] = { ...claimed, ...Object.fromEntries(fresh) };
+  ctx.claims.set(repo, repoClaims);
+  await ctx.store.claims.write(repoName.file(repo), repoClaims);
 };
 
 const targetLabel = (t: Target) => (t.kind === "deployer" ? "deployer" : `${t.repo}/${t.container}`);
@@ -50,7 +64,7 @@ const endpointOf = (ctx: RouterContext, target: Target, event: ChannelEvent) => 
     if (event.host === undefined) throw new Error(`${event.delivery} isn't one for the deployer`);
     return { url: `${ctx.deployerUrl}/events`, secret: adminSecret(ctx.key), body: JSON.stringify({ event } satisfies DeployerEnvelope) };
   }
-  const envelope = { event, commit: target.commit } satisfies ContainerEnvelope;
+  const envelope = { event, commit: target.commit, workspace: target.workspace } satisfies ContainerEnvelope;
   return { url: `${target.url}/events`, secret: containerSecret(ctx.key, target.repo, target.container), body: JSON.stringify(envelope) };
 };
 

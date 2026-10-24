@@ -9,7 +9,6 @@ import type { PolicyData, SelectorData } from "../resources/config.ts";
 const policyData = z.custom<PolicyData>((value) => json.isPlainObject(value) && typeof value.provider === "string");
 const selectorData = z.custom<SelectorData>((value) => json.isPlainObject(value) && typeof value.channel === "string" && typeof value.source === "string");
 const channelEvent = z.custom<ChannelEvent>((value) => json.isPlainObject(value) && typeof value.delivery === "string" && typeof value.type === "string");
-const threadRef = z.object({ channel: z.string(), id: z.string() }) satisfies z.ZodType<ThreadRef>;
 
 /** What the router forwards to the deployer: install and config events, which name the `CodeHostProvider` they're about. */
 export const DeployerEnvelope = z.object({ event: channelEvent.refine((event): event is Extract<ChannelEvent, { host: string }> => typeof event.host === "string") });
@@ -19,6 +18,8 @@ export const ContainerEnvelope = z.object({
   event: channelEvent,
   /** The commit whose `.achq/` config the router was given, so the container runs the same one. */
   commit: z.string(),
+  /** The container's workspace the router routed the thread to: the one that claimed it, or the first that matches it now. */
+  workspace: z.string(),
 });
 export type ContainerEnvelope = z.infer<typeof ContainerEnvelope>;
 
@@ -49,8 +50,6 @@ export type InstallationRequest = z.infer<typeof InstallationRequest>;
 export const CredentialsRequest = z.object({ repo: z.string(), container: z.string() });
 export type CredentialsRequest = z.infer<typeof CredentialsRequest>;
 
-export const ClaimRequest = CredentialsRequest.extend({ workspace: z.string(), thread: threadRef });
-export type ClaimRequest = z.infer<typeof ClaimRequest>;
 
 export const MintRequest = z.object({ repo: z.string(), policies: z.array(policyData) });
 export type MintRequest = z.infer<typeof MintRequest>;

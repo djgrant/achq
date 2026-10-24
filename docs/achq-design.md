@@ -103,6 +103,7 @@ An event finds its container through its thread: event → thread (issue 42) →
 - `branch` and `base` set up the worktree the first time the thread appears. A branch can't be named under another branch (`docs/42` next to `docs`): git can't hold both refs.
 - Several workspaces can claim the same kind of thread with filters. Declaration order decides; the first match wins, and one with no filter catches the rest.
 - A thread sticks to the workspace that claimed it first, so relabelling an issue doesn't move it to another branch.
+- Only the router decides and records claims. It claims the thread for each container's workspace when it accepts an event bound for it, and forwards the event naming that workspace; the container works the thread there. A claim on a workspace the config no longer has gives way to the first that matches now. Claims are kept when a repo is uninstalled, so reinstalling brings them back.
 - Workspaces in two containers can claim the same thread; events on it then run in both. Each replies on the thread as the same App, and branch templates should differ so they don't push to the same branch.
 - One run per thread per workspace at a time, across all agents, since they share the worktree.
 
@@ -176,7 +177,7 @@ In the container, the config runs natively (step 4), in the runner's process, an
 ## Router config
 
 - The deployer pushes the router's config to an endpoint signed with `AGENT_WEBHOOK_KEY`. The router keeps it in its container provider's store, so it changes without a redeploy.
-- The config says which repos are deployed, and each repo's triggers and workspaces. The router drops everything else, so it doesn't wake containers that would ignore the event. The container checks again.
+- The config says which repos are deployed, and each repo's triggers and workspaces. The router drops everything else, so it doesn't wake containers that would ignore the event. The container checks the triggers again, and skips an event for a workspace its config doesn't have.
 
 ## Persisted events
 

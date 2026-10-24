@@ -1,5 +1,5 @@
-import { type ChannelEvent, type ChannelProvider, type CodeHostProvider, type CredentialsResponse, repoName, threadKey } from "@achq/core";
-import { ClaimRequest, CredentialsRequest, InstallationRequest, MintRequest, RepoRequest, RouterRepoConfig, ValidateRequest, WakeRequest } from "@achq/core/protocol";
+import { type ChannelEvent, type ChannelProvider, type CodeHostProvider, type CredentialsResponse, repoName } from "@achq/core";
+import { CredentialsRequest, InstallationRequest, MintRequest, RepoRequest, RouterRepoConfig, ValidateRequest, WakeRequest } from "@achq/core/protocol";
 import { adminSecret, containerSecret } from "@achq/core/secrets";
 import { isSigned, signedBy } from "@achq/core/signing";
 import { collections } from "@achq/utils/collections";
@@ -11,7 +11,7 @@ import { createMiddleware } from "hono/factory";
 import { REPO, REPO_PATH } from "./constants.ts";
 import { claimsOf, configOf, createContext, type RouterDeps } from "./context.ts";
 import { mint, mintClients, validate } from "./credentials.ts";
-import { acceptDelivery, listFailed, replay, replayFailed, settled, targetsFor } from "./deliveries.ts";
+import { acceptDelivery, listFailed, recordClaims, replay, replayFailed, settled, targetsFor } from "./deliveries.ts";
 import { fetchSigned, reach } from "./reach.ts";
 
 type Container = RouterRepoConfig["containers"][number];
@@ -108,8 +108,9 @@ export const createRouter = (deps: RouterDeps) => {
       if (!targets.length) return c.text("no match");
       // Persisted before answering, so a crash or restart doesn't lose it. Answered
       // without waiting for the targets: the channel gives up after seconds, and a
-      // waking service takes longer.
-      const accepted = await acceptDelivery(ctx, { event, targets });
+      // waking service takes longer. The thread is claimed once the event is in the
+      // inbox, bound for the claiming workspace, so the next event goes there too.
+      const accepted = await acceptDelivery(ctx, { event, targets }, { onPersisted: () => recordClaims(ctx, event, targets) });
       return c.text(accepted ? "accepted" : "duplicate", 202);
     })
     // For `achq container ssh`: wakes a container for someone who can push to its repo, on the host it's deployed from.
@@ -169,7 +170,7 @@ export const createRouter = (deps: RouterDeps) => {
     await next();
   });
 
-  // Credentials and claims are only for achq's own services, on the port the public can't reach.
+  // Credentials are only for achq's own services, on the port the public can't reach.
   const privateApp = http
     .service(ctx.log)
     .route("/admin", admin)
@@ -178,18 +179,6 @@ export const createRouter = (deps: RouterDeps) => {
       const credentials = await mint(ctx, container.policies, config.repo);
       const channels = await mintClients(ctx, config, container.name);
       return c.json({ credentials, channels } satisfies CredentialsResponse);
-    })
-    .post("/claims", fromContainer, zValidator("json", ClaimRequest), async (c) => {
-      const { config } = c.var;
-      const claim = c.req.valid("json");
-      if (!config.workspaces.some((w) => w.name === claim.workspace && w.container === claim.container)) return c.text("no such workspace", 404);
-      const repo = repoName.key(config.repo);
-      const repoClaims = ctx.claims.get(repo) ?? {};
-      const thread = threadKey(claim.thread);
-      repoClaims[thread] = { ...repoClaims[thread], [claim.container]: claim.workspace };
-      ctx.claims.set(repo, repoClaims);
-      await ctx.store.claims.write(repoName.file(repo), repoClaims);
-      return c.body(null, 204);
     });
 
   return {
