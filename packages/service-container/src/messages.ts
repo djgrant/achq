@@ -1,3 +1,5 @@
+import { CONFIG_DIR } from "@achq/core";
+
 const WARNING = "⚠️";
 const SHORT_COMMIT = 7;
 
@@ -14,7 +16,7 @@ const resumeHint = (mention: string | undefined) =>
 export const runFailed = (error: string, mention: string | undefined) =>
   `${WARNING} **The run failed.**\n\n<details><summary>Error output</summary>\n\n\`\`\`\n${error}\n\`\`\`\n\n</details>${resumeHint(mention)}`;
 
-export const configLoadFailed = (commit: string, message: string) => failureReply(`Couldn't load \`.achq/\` at ${commit.slice(0, SHORT_COMMIT)}: ${message}`);
+export const configLoadFailed = (commit: string, message: string) => failureReply(`Couldn't load \`${CONFIG_DIR}/\` at ${commit.slice(0, SHORT_COMMIT)}: ${message}`);
 
 export const worktreeFailed = (message: string) => failureReply(`Couldn't set up the worktree: ${message}`);
 

@@ -1,12 +1,11 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { Agent, collectManifest, declared, type RepoManifest, resetDeclarations } from "@achq/core";
+import { Agent, CONFIG_DIR, CONFIG_ENTRY, collectManifest, declared, type RepoManifest, resetDeclarations } from "@achq/core";
 import { async } from "@achq/utils/async";
 import { disk } from "@achq/utils/disk";
 import { CONFIG_MODULES } from "achq/registry";
 import { extractTree, hasCommit } from "./repo.ts";
 
-const CONFIG_DIR = ".achq";
 const MODULES = Object.fromEntries(CONFIG_MODULES.map((specifier) => [specifier, Bun.resolveSync(specifier, import.meta.dir)]));
 const ALLOWED = `${CONFIG_MODULES.join(", ")} and its own files`;
 const BARE_IMPORT = /^[^./]/;
@@ -30,14 +29,14 @@ export type ConfigLoaderOptions = {
 /** A path in `.achq/`, refusing anything that leaves it. */
 export const inRoot = (root: string, relative: string) => {
   const file = disk.resolveWithin(root, relative);
-  if (!file) throw new Error(`${relative} is outside .achq/`);
+  if (!file) throw new Error(`${relative} is outside ${CONFIG_DIR}/`);
   return file;
 };
 
 /** Bundles `.achq/config.ts`, refusing imports other than CONFIG_MODULES and files in `.achq/`. */
 export const bundleConfig = async (root: string, outdir: string) => {
-  const entry = path.join(root, "config.ts");
-  if (!fs.existsSync(entry)) throw new Error("There's no .achq/config.ts");
+  const entry = path.join(root, CONFIG_ENTRY);
+  if (!fs.existsSync(entry)) throw new Error(`There's no ${CONFIG_DIR}/${CONFIG_ENTRY}`);
   const realRoot = fs.realpathSync(root);
   const result = await Bun.build({
     entrypoints: [entry],
@@ -52,25 +51,25 @@ export const bundleConfig = async (root: string, outdir: string) => {
           // same module instance the runner reads them from.
           build.onResolve({ filter: BARE_IMPORT }, (args) => {
             const target = MODULES[args.path];
-            if (!target) throw new Error(`.achq/ can only import ${ALLOWED}, not "${args.path}"`);
+            if (!target) throw new Error(`${CONFIG_DIR}/ can only import ${ALLOWED}, not "${args.path}"`);
             return { path: target, external: true };
           });
           build.onResolve({ filter: RELATIVE_IMPORT }, (args) => {
             const file = path.resolve(path.dirname(fs.realpathSync(args.importer)), args.path);
-            if (!disk.isWithin(realRoot, file)) throw new Error(`.achq/ can only import its own files, not "${args.path}"`);
+            if (!disk.isWithin(realRoot, file)) throw new Error(`${CONFIG_DIR}/ can only import its own files, not "${args.path}"`);
             return undefined;
           });
         },
       },
     ],
   });
-  if (!result.success) throw new AggregateError(result.logs, "Bundling .achq/config.ts failed");
+  if (!result.success) throw new AggregateError(result.logs, `Bundling ${CONFIG_DIR}/${CONFIG_ENTRY} failed`);
   const bundle = result.outputs[0]!.path;
   // Builtins (`node:fs`, `bun`) skip resolve plugins, so check what the bundle still imports.
   const allowed = new Set(Object.values(MODULES));
   const imports = new Bun.Transpiler({ loader: "js" }).scanImports(fs.readFileSync(bundle, "utf8"));
   const refused = imports.map((i) => i.path).filter((p) => !allowed.has(p));
-  if (refused.length) throw new Error(`.achq/ can only import ${ALLOWED}, not ${refused.map((p) => `"${p}"`).join(", ")}`);
+  if (refused.length) throw new Error(`${CONFIG_DIR}/ can only import ${ALLOWED}, not ${refused.map((p) => `"${p}"`).join(", ")}`);
   return bundle;
 };
 

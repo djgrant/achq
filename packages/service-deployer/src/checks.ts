@@ -1,5 +1,5 @@
-import type { ConfigTree, RepoManifest, SourceSettings } from "@achq/core";
-import { CONFIG_DIR, normaliseRepoPath } from "./config/evaluate.ts";
+import { CONFIG_DIR, type ConfigTree, type RepoManifest, type SourceSettings } from "@achq/core";
+import { normaliseRepoPath } from "./config/evaluate.ts";
 
 /** A policy names only its source, so with no channel any channel's will do. */
 const findSource = (sources: SourceSettings[], channel: string | undefined, source: string) =>

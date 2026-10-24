@@ -1,5 +1,5 @@
 import { posix } from "node:path";
-import type { RepoManifest } from "@achq/core";
+import { CONFIG_DIR, CONFIG_ENTRY, type RepoManifest } from "@achq/core";
 import { errors } from "@achq/utils/errors";
 import { type Limits, sandbox } from "@achq/utils/sandbox";
 import { CONFIG_MODULES } from "achq/registry";
@@ -9,13 +9,10 @@ export class ConfigError extends Error {}
 
 export type Evaluate = (files: Record<string, string>) => Promise<RepoManifest>;
 
-export const CONFIG_DIR = ".achq";
-export const CONFIG_ENTRY = "config.ts";
-
 const LOADERS = { ts: "ts", mts: "ts", tsx: "tsx", js: "js", mjs: "js", json: "json" } as const;
 
 /** Where `.achq/`, achq's own modules and the entry module sit in the sandbox's module names. */
-const SANDBOX_ROOT = "/.achq";
+const SANDBOX_ROOT = `/${CONFIG_DIR}`;
 const SANDBOX_LIB = "/achq";
 const SANDBOX_ENTRY = "/entry.js";
 /** What a config's bare imports resolve to: `achq` is the package's index, `achq/<x>` its `<x>` module. */
@@ -83,16 +80,16 @@ export const evaluateConfig = async (files: Record<string, string>, limits: Part
   const modules = { ...(await achqModules()) };
   for (const [path, contents] of Object.entries(files)) {
     const normal = normaliseRepoPath(path);
-    if (!normal) throw new ConfigError(`.achq/${path} is not a valid path`);
+    if (!normal) throw new ConfigError(`${CONFIG_DIR}/${path} is not a valid path`);
     if (!isSourceFile(normal)) continue;
     try {
       modules[posix.join(SANDBOX_ROOT, normal)] = transpile(normal, contents);
     } catch (error) {
       const { message, position } = error as TranspileError;
-      throw new ConfigError(`.achq/${normal}${position ? `:${position.line}:${position.column}` : ""}: ${message}`);
+      throw new ConfigError(`${CONFIG_DIR}/${normal}${position ? `:${position.line}:${position.column}` : ""}: ${message}`);
     }
   }
-  if (!(CONFIG_MODULE in modules)) throw new ConfigError("There's no .achq/config.ts");
+  if (!(CONFIG_MODULE in modules)) throw new ConfigError(`There's no ${CONFIG_DIR}/${CONFIG_ENTRY}`);
   modules[SANDBOX_ENTRY] = ENTRY_SOURCE;
 
   /** achq's own modules by name, and paths to the module they mean: the file itself, then with each extension, then its index. Anything else can't be imported. */

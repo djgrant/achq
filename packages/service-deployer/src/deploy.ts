@@ -1,10 +1,10 @@
-import { BrowserActionNeeded, type CodeHostProvider, type DeployRecord, ENV, type RepoClient, type RepoManifest, repoName, type Status } from "@achq/core";
+import { BrowserActionNeeded, CONFIG_DIR, CONFIG_ENTRY, type CodeHostProvider, type DeployRecord, ENV, type RepoClient, type RepoManifest, repoName, type Status } from "@achq/core";
 import { containerSecret } from "@achq/core/secrets";
 import { crypto } from "@achq/utils/crypto";
 import { errors } from "@achq/utils/errors";
 import { json } from "@achq/utils/json";
 import { checkManifest, dockerfileOf } from "./checks.ts";
-import { CONFIG_DIR, CONFIG_ENTRY, isSourceFile } from "./config/evaluate.ts";
+import { isSourceFile } from "./config/evaluate.ts";
 import type { DeployerContext } from "./deployer.ts";
 import { type ImageRecord, type StoredRecord, wireRecord } from "./store.ts";
 

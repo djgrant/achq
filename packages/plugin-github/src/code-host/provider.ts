@@ -1,4 +1,4 @@
-import { type CodeHostProvider, type ConfigTree, type Credential, type FileLimits, type InstallationRequest, type RepoClient, type RepoInstallation, type RepoManifest, repoName, STATUS_VARIABLE, type Status } from "@achq/core";
+import { CONFIG_DIR, type CodeHostProvider, type ConfigTree, type Credential, type FileLimits, type InstallationRequest, type RepoClient, type RepoInstallation, type RepoManifest, repoName, STATUS_VARIABLE, type Status } from "@achq/core";
 import type { Vars } from "@achq/utils/env";
 import { http } from "@achq/utils/http";
 import { type CommitSummary, GitHub, type RepoApi } from "@achq/utils/gh";
@@ -11,7 +11,6 @@ import { asYou } from "../lib/you.ts";
 import type { GitHubPolicyData } from "../policy/resource.ts";
 import { CodeHost } from "./resource.ts";
 
-const CONFIG_DIR = ".achq";
 /** A git tree entry's mode for a symlink, whose blob is only the path it points to. */
 const SYMLINK_MODE = "120000";
 const LIST_PERMISSIONS = { metadata: "read" };

@@ -45,6 +45,11 @@ export const ACHQ_SOURCE = {
   archive: "https://codeload.github.com/djgrant/achq/tar.gz/",
 };
 
+/** The directory at a repo's root that holds its achq config. Only its changes redeploy the repo. */
+export const CONFIG_DIR = ".achq";
+/** The module in CONFIG_DIR that declares the repo's resources. */
+export const CONFIG_ENTRY = "config.ts";
+
 /** The repository variable the deployer reports each deploy's outcome in. */
 export const STATUS_VARIABLE = "ACHQ_STATUS";
 

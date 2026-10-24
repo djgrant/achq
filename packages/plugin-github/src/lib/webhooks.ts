@@ -1,10 +1,7 @@
-import type { ChannelEvent } from "@achq/core";
+import { type ChannelEvent, CONFIG_DIR } from "@achq/core";
 import type { Json } from "@achq/utils/json";
 import { CHANNEL, CODE_HOST } from "./constants.ts";
 import { issueThreadId, labelNames, messageId, OPENING_POST_ID, TRUSTED } from "./threads.ts";
-
-/** The directory whose changes redeploy a repo. */
-const CONFIG_DIR = ".achq/";
 
 /**
  * A webhook `push` payload's `commits` array "includes a maximum of 2048
@@ -63,7 +60,7 @@ const parsePushEvent = ({ base, payload }: Delivery): ChannelEvent | undefined =
   const repo: string | undefined = payload.repository?.full_name;
   if (!repo) return undefined;
   const commits: any[] = Array.isArray(payload.commits) ? payload.commits : [];
-  const touchesConfig = commits.some((commit) => [...(commit.added ?? []), ...(commit.modified ?? []), ...(commit.removed ?? [])].some((file: string) => file.startsWith(CONFIG_DIR)));
+  const touchesConfig = commits.some((commit) => [...(commit.added ?? []), ...(commit.modified ?? []), ...(commit.removed ?? [])].some((file: string) => file.startsWith(`${CONFIG_DIR}/`)));
   const truncated = commits.length >= PUSH_COMMIT_CAP;
   const onDefaultBranch = payload.ref === `refs/heads/${payload.repository?.default_branch}`;
   return {

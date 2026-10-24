@@ -1,6 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { plan, type RepoRequest, type Status } from "@achq/core";
+import { CONFIG_DIR, CONFIG_ENTRY, plan, type RepoRequest, type Status } from "@achq/core";
 import { context } from "@achq/core/context";
 import { evaluateConfig } from "@achq/deployer/config";
 import { async } from "@achq/utils/async";
@@ -12,8 +12,6 @@ import { planLines } from "./format.ts";
 import { openInBrowser } from "./terminal.ts";
 import { needRepo, repoRoot } from "./workdir.ts";
 
-const CONFIG_DIR = ".achq";
-const CONFIG_ENTRY = "config.ts";
 /** Installed packages under `.achq/` are not part of the config. */
 const SKIPPED_DIRS = ["node_modules"];
 
