@@ -59,7 +59,7 @@ test("ensure creates a private service with a volume, and a second ensure change
   expect(fake.mutations.length).toBe(before);
 });
 
-// Delete with dropStale, once deployed infras have run it.
+// Delete with dropStale.
 test("ensure deletes the variables containers were once given, ACHQ_PRIVATE_ENV and ACHQ_BRANCH, where they're left", async () => {
   await host.ensure(spec, NO_BUILD);
   const service = fake.service("notationlabs-yieldstar-dev")!;

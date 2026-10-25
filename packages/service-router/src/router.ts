@@ -190,10 +190,9 @@ export const createRouter = (deps: RouterDeps) => {
     privateFetch: privateApp.fetch,
     /** Loads config and claims from the store, then replays the inbox in the background. Call before serving. */
     start: async () => {
-      // Once only: stores were given repos as `owner__name`. Delete once deployed infras have started with it.
+      // Once only; deleted with renameStored and tagStored.
       await renameStored(ctx.store.repos, (_name, config) => repoName.key(config.repo));
       await renameStored(ctx.store.claims, (name) => (name.includes("/") ? name : name.replace("__", "/")));
-      // Once only: entries were kept untagged, each target saying what it was. Delete once deployed infras have started with it.
       await tagStored(ctx.store.inbox);
       await tagStored(ctx.store.failed);
 

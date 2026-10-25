@@ -117,7 +117,8 @@ export const routerAccess = async (infra: InfraResources, ctx: Context) => {
 /** The router's admin API, for the infra file `file`, as `achq infra status` and `replay` reach it. */
 export const adminClient = async (file: string, parts: Pick<Context, "env" | "log">) => routerAdmin(await routerAccess(await loadInfra(file), context(parts)));
 
-/** Waits until the deployer runs `ref`. One older than `GET /version` answers 404, which counts as not yet. */
+/** Waits until the deployer runs `ref`. */
+// compat: delete once deployed infras run past 8ace431. A deployer older than `GET /version` answers 404, which counts as not yet.
 const deployerRuns = async (admin: RouterAdmin, ref: string, ctx: Context, log: (line: string) => void) => {
   const running = () => admin.deployerVersion().then((v) => v.ref, () => undefined);
   if ((await running()) === ref) return;
@@ -156,11 +157,7 @@ export const up = async ({ router, deployer, resources }: InfraResources, option
   return sync(admin, { prune: options.prune, dryRun: options.dryRun }, ctx);
 };
 
-/**
- * Has the deployer sync, and asks after it until it's done: it can outlast a
- * request. A sync the deployer lost, restarting, is started again: syncing
- * twice changes nothing more than once.
- */
+/** Has the deployer sync, and asks after it until it's done: it can outlast a request. */
 const sync = async (admin: RouterAdmin, request: SyncRequest, ctx: Context): Promise<SyncResult> => {
   const start = () => admin.sync(request).then(({ id }) => id);
   let id = await start();
@@ -169,6 +166,7 @@ const sync = async (admin: RouterAdmin, request: SyncRequest, ctx: Context): Pro
       try {
         return await admin.syncStatus(id);
       } catch (e) {
+        // compat: delete once deployed infras run past the deployer's `syncs` jobs (RFC 001, step 6). Starts again a sync a restarted deployer lost, which answers 404.
         if (!(e instanceof HttpError && e.status === NOT_FOUND)) throw e;
         id = await start();
         return { state: "running" } as const;

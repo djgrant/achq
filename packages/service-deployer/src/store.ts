@@ -32,7 +32,7 @@ export const createStore = (stores: Stores) => {
   const inOrder = async.serial();
 
   return {
-    /** Once only, before the first use: records were kept under file names (`owner__name`). Delete once deployed infras have run it. */
+    /** Once only, before the first use; deleted with renameStored. */
     migrate: () => renameStored(records, (_name, record) => repoName.key(record.repo)),
     get: (repo: string) => records.read(repoName.key(repo)),
     put: (record: StoredRecord) => records.write(repoName.key(record.repo), record),

@@ -50,8 +50,7 @@ export const storeRequest = async (method: string, pathAndQuery: string, body: s
   } catch {
     return new Response("bad path", { status: 400 });
   }
-  // `/<collection>/<name>` is how services before cb7a2f1 named a value; the Worker is deployed from your checkout, and they run at
-  // ACHQ_REF, so it takes both. Drop the path form once deployed infras run services past cb7a2f1.
+  // compat: delete once deployed infras run past cb7a2f1. The path form `/<collection>/<name>`, as services at an older ACHQ_REF name a value.
   const [collection = "", pathName, ...rest] = segments;
   if (!SEGMENT.test(collection) || rest.length || (pathName !== undefined && !SEGMENT.test(pathName))) return new Response("bad path", { status: 400 });
   // A key is the collection's prefix and the name, whatever it is: listing by the prefix finds it.

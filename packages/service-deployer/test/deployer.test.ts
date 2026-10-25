@@ -262,7 +262,7 @@ describe("checks", () => {
 });
 
 describe("config changes", () => {
-  // Delete with renameStored, once deployed infras have run it.
+  // Delete with renameStored.
   test("records kept under their old file names move to their repo keys when the deployer starts", async () => {
     github.commit(REPO, repoFiles());
     expect((await makeDeployer().deploy(REPO)).outcome).toBe("deployed");

@@ -61,7 +61,7 @@ test("the router keeps its inbox, config and claims in its container provider's 
   await r.router.settled();
 });
 
-// Delete with renameStored, once deployed infras have run it.
+// Delete with renameStored.
 test("a router started on a store with repos under their old file names moves them to their keys, on disk or over HTTP, and routes by them", async () => {
   store = startStore();
   const dir = mkdtempSync(join(tmpdir(), "achq-router-"));

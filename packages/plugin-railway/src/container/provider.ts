@@ -24,11 +24,7 @@ const cantSee = (repo: string, error: RailwayError) =>
     what: `install ${SOURCE_GITHUB_APP} on ${repo}`,
   });
 
-/**
- * Variables containers were once given, which a variable group never deletes:
- * ACHQ_PRIVATE_ENV, which an agent would now see, and ACHQ_BRANCH. Deletes
- * them where they're left. Delete once deployed infras have run it.
- */
+// compat: delete once deployed infras run past ed5cfe9. Deletes ACHQ_PRIVATE_ENV, which an agent would now see, and ACHQ_BRANCH where an older deployer left them: a variable group never deletes them.
 const STALE = ["ACHQ_PRIVATE_ENV", "ACHQ_BRANCH"];
 const dropStale = async (service: RailwayService) => {
   const variables = await service.variables();

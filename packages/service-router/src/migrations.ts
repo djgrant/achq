@@ -13,9 +13,8 @@ type UntaggedEntry = {
  * Rewrites each entry in an inbox or failed store that doesn't say where it
  * goes to say so: to the deployer, with its one error if it failed, or to
  * containers, with its targets. Run before anything else reads the store.
- *
- * For the one-time move off untagged entries; delete it once deployed infras have run it.
  */
+// compat: delete once deployed infras run past 90784b2. Tags inbox and failed entries an older router kept untagged.
 export const tagStored = async <T extends { to: string }>(store: JsonStore<T>) => {
   for (const name of await store.list()) {
     const entry = (await store.read(name)) as T | UntaggedEntry | undefined;

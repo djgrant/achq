@@ -59,7 +59,7 @@ test("the store lists, reads, writes and removes JSON by collection and name", a
   expect(await (await storeRequest("GET", "/inbox", "", memory)).json()).toEqual(["d-0"]);
 });
 
-// Delete with the path form, once deployed infras run services past cb7a2f1.
+// Delete with the path form in worker/routes.ts.
 test("the store also takes a name in the path, as services before names went in the query gave it, under the same key", async () => {
   const values = new Map<string, string>();
   const memory = {
