@@ -1,12 +1,11 @@
+import { DATA_DIR, MANAGED_IMAGE, type WorkerSettings } from "@achq/cloudflare-worker/settings";
 import { achqStartScript, all, type EnvValues, type ManagedResource, type Output, type Placement, type Service as AchqService } from "@achq/core";
-import * as path from "node:path";
-import { DATA_DIR, MANAGED_IMAGE, type WorkerSettings } from "../../worker/settings.ts";
 import { BUN_VERSION, INSTANCE } from "./constants.ts";
 import { Deployment } from "./deployment.ts";
 import { KV_KEYS, privateUrl, serviceWorkerName } from "./names.ts";
 import type { Project } from "./project.ts";
 import { Variables } from "./variables.ts";
-import { WORKER_DIR, workerConfig } from "./wrangler.ts";
+import { WORKER_MAIN, workerConfig } from "./wrangler.ts";
 import { Worker } from "./worker.ts";
 
 /**
@@ -73,7 +72,7 @@ export class ServiceParts implements Placement {
   resources(groups: Variables[], variables: Output<Record<string, string>>) {
     const at = this.project.resource.at();
     const config = all([at.workersDev, at.bucket]).map(([workersDev, bucket]) =>
-      workerConfig(this.settings(workersDev), { main: path.join(WORKER_DIR, "index.ts"), bucket, sshKeys: this.own.sshKeys }),
+      workerConfig(this.settings(workersDev), { main: WORKER_MAIN, bucket, sshKeys: this.own.sshKeys }),
     );
     const deploy = new Deployment(
       "deploy",

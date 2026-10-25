@@ -1,8 +1,8 @@
 /** The container provider id: the router and deployer run on it, and the deployer puts containers on it. */
 export const CONTAINER_PROVIDER = "cloudflare";
 
+import { DEPLOYER_TOKEN } from "@achq/cloudflare-worker/settings";
 import { time } from "@achq/utils/time";
-import { DEPLOYER_TOKEN } from "../../worker/settings.ts";
 
 /** Where the CLI and the deployer read their Cloudflare settings from. */
 export const CLOUDFLARE_ENV = {

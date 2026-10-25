@@ -1,7 +1,7 @@
+import { INTERNAL_HOSTS } from "@achq/cloudflare-worker/settings";
 import { type ContainerProviderImplementation, ENV } from "@achq/core";
 import { Env } from "@achq/utils/env";
 import { HttpJsonStore } from "@achq/utils/http";
-import { INTERNAL_HOSTS } from "../../worker/settings.ts";
 import { CLOUDFLARE_ENV, CONTAINER_PROVIDER, PRIVATE_ENV } from "../lib/constants.ts";
 import { tokenCheck } from "../lib/cloudflare.ts";
 import { CloudflareContainerProvider, cloudflareShell } from "./provider.ts";

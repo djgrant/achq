@@ -1,6 +1,6 @@
+import { COMPATIBILITY } from "@achq/cloudflare-worker/settings";
 import { type Context, CreateOnlyResource, type Planned, UNKNOWN } from "@achq/core";
 import { connect } from "./cloudflare.ts";
-import { COMPATIBILITY } from "../../worker/settings.ts";
 import { publicUrl } from "./names.ts";
 
 type Props = { name: string; workersDev: string };

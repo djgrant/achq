@@ -5,7 +5,7 @@
 // against `Box` and `Memory` rather than Cloudflare's own objects, so it runs
 // in tests too.
 
-import { DATA_DIR, INTERNAL_HOSTS, MANAGED_IMAGE, type WorkerSettings } from "./settings.ts";
+import { DATA_DIR, ENV_FILE, INTERNAL_HOSTS, MANAGED_IMAGE, type WorkerSettings } from "./settings.ts";
 
 const MINUTE_MS = 60_000;
 /** How often the Durable Object looks at its container while it runs. */
@@ -24,9 +24,6 @@ const READY_POLL_MS = 250;
 
 /** Runs a container with nothing but a shell, for archiving and restoring /data. */
 const IDLE_ENTRYPOINT = ["sleep", "infinity"];
-
-/** Where the container's environment is written, for shells: `wrangler containers ssh` doesn't pass it on. */
-export const ENV_FILE = "/run/achq/env";
 
 /** Uploads /data as a gzipped tar to the container's archive, with curl or else Node: empty, if it never ran. */
 const ARCHIVE_SCRIPT = [

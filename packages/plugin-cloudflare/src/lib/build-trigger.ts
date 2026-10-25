@@ -32,7 +32,7 @@ const CONFIG_FILE = ".achq-wrangler.json";
 /** The Worker at ACHQ_REF, from achq's archive as the router's start command gets achq, and the config from its variable. */
 const BUILD_COMMAND = [
   `mkdir -p ${WORKER_DIR}`,
-  `curl -fsSL "${ACHQ_SOURCE.archive}$ACHQ_REF" | tar -xz --strip-components=4 -C ${WORKER_DIR} --wildcards '*/packages/plugin-cloudflare/worker/*'`,
+  `curl -fsSL "${ACHQ_SOURCE.archive}$ACHQ_REF" | tar -xz --strip-components=4 -C ${WORKER_DIR} --wildcards '*/packages/cloudflare-worker/src/*'`,
   `echo "$ACHQ_WRANGLER_CONFIG" | base64 -d | gunzip > ${CONFIG_FILE}`,
 ].join(" && ");
 

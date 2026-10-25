@@ -183,7 +183,7 @@ test("a new project plans in one pass and writes nothing, with the router's URL 
     },
     containers: [{ class_name: "Service", name: "achq-router", scheduling_policy: "durable_object" }],
   });
-  expect(deployed.config.main).toEndWith("plugin-cloudflare/worker/index.ts");
+  expect(deployed.config.main).toEndWith("cloudflare-worker/src/index.ts");
   const deployerWorker = fake.workers.get("achq-deployer")!;
   expect(deployerWorker.config.vars.ACHQ_SERVICE).toMatchObject({ port: 3000, sleeps: true });
   expect(deployerWorker.config.vars.ACHQ_SERVICE.publicPort).toBeUndefined();

@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
-import { type Box, envFile, IDLE_MS, Lifecycle, type Memory, SNAPSHOT_EVERY_MS, type StartOptions, TICK_MS } from "../worker/lifecycle.ts";
-import { APP_IMAGE, MANAGED_IMAGE, type WorkerSettings } from "../worker/settings.ts";
+import { type Box, envFile, IDLE_MS, Lifecycle, type Memory, SNAPSHOT_EVERY_MS, type StartOptions, TICK_MS } from "../src/lifecycle.ts";
+import { APP_IMAGE, MANAGED_IMAGE, type WorkerSettings } from "../src/settings.ts";
 
 /** A container as its Durable Object sees it: what it was started from, what it ran, its snapshots and its archive. */
 const fakeBox = (images: Record<string, string> = { app: "img-1" }) => {

@@ -1,5 +1,5 @@
+import { APP_IMAGE, DATA_DIR, INTERNAL_HOSTS, type WorkerSettings } from "@achq/cloudflare-worker/settings";
 import { CONTAINER_PORT, type ContainerSpec, ENV, type Input } from "@achq/core";
-import { APP_IMAGE, DATA_DIR, INTERNAL_HOSTS, type WorkerSettings } from "../../worker/settings.ts";
 import { BuildTrigger, CONTAINER_MAIN } from "./build-trigger.ts";
 import { workerSecrets } from "./cloudflare.ts";
 import { INSTANCE } from "./constants.ts";

@@ -8,6 +8,7 @@
     "./container": "./src/container/index.ts"
   },
   "dependencies": {
+    "@achq/cloudflare-worker": "workspace:*",
     "@achq/core": "workspace:*",
     "@achq/utils": "workspace:*"
   },

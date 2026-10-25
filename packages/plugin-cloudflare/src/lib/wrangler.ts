@@ -1,16 +1,19 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { fileURLToPath } from "node:url";
 import { gzipSync } from "node:zlib";
+import { COMPATIBILITY, SERVICE_CLASS, VERSION_BINDING, type WorkerSettings } from "@achq/cloudflare-worker/settings";
 import { crypto } from "@achq/utils/crypto";
 import { disk } from "@achq/utils/disk";
 import { Env, type Vars } from "@achq/utils/env";
 import { subprocess } from "@achq/utils/subprocess";
-import { COMPATIBILITY, SERVICE_CLASS, VERSION_BINDING, type WorkerSettings } from "../../worker/settings.ts";
 import { wranglerCommand } from "./cloudflare.ts";
 import { CLOUDFLARE_ENV, LOG_TAIL_LINES } from "./constants.ts";
 
-/** The achq Worker's source in this checkout, which the CLI deploys the router and deployer from. */
-export const WORKER_DIR = path.join(import.meta.dir, "../../worker");
+/** The achq Worker's entry in this checkout, @achq/cloudflare-worker's, which the CLI deploys the router and deployer from. */
+export const WORKER_MAIN = fileURLToPath(import.meta.resolve("@achq/cloudflare-worker"));
+/** The Worker's source, beside its entry. */
+const WORKER_DIR = path.dirname(WORKER_MAIN);
 
 /** A hash of the Worker's source, so a change to it redeploys. */
 export const workerSourceHash = () =>

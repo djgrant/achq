@@ -1,11 +1,10 @@
+import { archiveKey, ENV_FILE, SERVICE_CLASS } from "@achq/cloudflare-worker/settings";
 import { type Context, type ContainerProvider, type ContainerShell, type ContainerSpec, containerOf, plan } from "@achq/core";
 import { context } from "@achq/core/context";
 import { async } from "@achq/utils/async";
 import { BUILD_STOPPED, BUILD_SUCCEEDED, CLOUDFLARE_API, Cloudflare } from "@achq/utils/cloudflare";
 import { subprocess } from "@achq/utils/subprocess";
 import { text } from "@achq/utils/text";
-import { ENV_FILE } from "../../worker/lifecycle.ts";
-import { archiveKey, SERVICE_CLASS } from "../../worker/settings.ts";
 import { BUILD_POLL_INTERVAL_MS, BUILD_TIMEOUT_MS, BUILDS_GITHUB_APP_INSTALL_URL, CLOUDFLARE_ENV, CONTAINER_PROVIDER, LOG_TAIL_LINES, WRANGLER } from "../lib/constants.ts";
 import { buildToken, registered } from "../lib/build-token.ts";
 import { type ContainerPlace, containerParts } from "../lib/container-parts.ts";

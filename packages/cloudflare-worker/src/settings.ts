@@ -40,6 +40,9 @@ export const archiveKey = (worker: string) => `${worker}/data.tar.gz`;
 /** Where a container keeps what outlives a restart: in its snapshots, and its archive. */
 export const DATA_DIR = "/data";
 
+/** Where the container's environment is written, for shells: `wrangler containers ssh` doesn't pass it on. */
+export const ENV_FILE = "/run/achq/env";
+
 export type WorkerSettings = {
   /** Its Worker's name, which other Workers' containers reach it by. */
   name: string;

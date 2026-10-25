@@ -1,6 +1,6 @@
+import { INTERNAL_DOMAIN } from "@achq/cloudflare-worker/settings";
 import { CONTAINER_PORT } from "@achq/core";
 import { names } from "@achq/utils/names";
-import { INTERNAL_DOMAIN } from "../../worker/settings.ts";
 import { MAX_WORKER_NAME } from "./constants.ts";
 
 /** A Worker name (and workers.dev hostname): lowercase letters, digits and dashes, at most 63 characters. */

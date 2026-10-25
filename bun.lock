@@ -47,6 +47,13 @@
         "@achq/test-utils": "workspace:*",
       },
     },
+    "packages/cloudflare-worker": {
+      "name": "@achq/cloudflare-worker",
+      "version": "0.1.0",
+      "devDependencies": {
+        "@achq/utils": "workspace:*",
+      },
+    },
     "packages/core": {
       "name": "@achq/core",
       "version": "0.1.0",
@@ -82,6 +89,7 @@
       "name": "@achq/cloudflare",
       "version": "0.1.0",
       "dependencies": {
+        "@achq/cloudflare-worker": "workspace:*",
         "@achq/core": "workspace:*",
         "@achq/utils": "workspace:*",
       },
@@ -214,6 +222,8 @@
     "@achq/cli": ["@achq/cli@workspace:packages/cli"],
 
     "@achq/cloudflare": ["@achq/cloudflare@workspace:packages/plugin-cloudflare"],
+
+    "@achq/cloudflare-worker": ["@achq/cloudflare-worker@workspace:packages/cloudflare-worker"],
 
     "@achq/container": ["@achq/container@workspace:packages/service-container"],
 

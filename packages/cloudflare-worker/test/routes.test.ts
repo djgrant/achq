@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { HttpJsonStore } from "@achq/utils/http";
-import { inbound, outbound, storeRequest, workerUrl } from "../worker/routes.ts";
-import type { WorkerSettings } from "../worker/settings.ts";
+import { inbound, outbound, storeRequest, workerUrl } from "../src/routes.ts";
+import type { WorkerSettings } from "../src/settings.ts";
 
 const router: WorkerSettings = { name: "achq-router", port: 8080, publicPort: 8080, sleeps: false, restartOnChange: true, image: "cloudflare/debian-trixie", instance: "standard-1", workersDev: "acme.workers.dev" };
 const deployer: WorkerSettings = { ...router, name: "achq-deployer", port: 3000, publicPort: undefined };
@@ -59,7 +59,7 @@ test("the store lists, reads, writes and removes JSON by collection and name", a
   expect(await (await storeRequest("GET", "/inbox", "", memory)).json()).toEqual(["d-0"]);
 });
 
-// Delete with the path form in worker/routes.ts.
+// Delete with the path form in src/routes.ts.
 test("the store also takes a name in the path, as services before names went in the query gave it, under the same key", async () => {
   const values = new Map<string, string>();
   const memory = {
