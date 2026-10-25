@@ -7,6 +7,7 @@
     ".": "./src/index.ts",
     "./clients/deployer": "./src/wire/clients/deployer.ts",
     "./clients/router": "./src/wire/clients/router.ts",
+    "./commands": "./src/wire/commands.ts",
     "./context": "./src/engine/context.ts",
     "./manifest": "./src/model/manifest.ts",
     "./protocol": "./src/wire/protocol.ts",

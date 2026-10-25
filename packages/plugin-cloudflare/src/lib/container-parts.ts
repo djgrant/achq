@@ -1,5 +1,6 @@
 import { APP_IMAGE, DATA_DIR, INTERNAL_HOSTS, type WorkerSettings } from "@achq/cloudflare-worker/settings";
 import { CONTAINER_PORT, type ContainerSpec, ENV, type Input } from "@achq/core";
+import { serve } from "@achq/core/commands";
 import { BuildTrigger, CONTAINER_MAIN } from "./build-trigger.ts";
 import { workerSecrets } from "./cloudflare.ts";
 import { INSTANCE } from "./constants.ts";
@@ -52,6 +53,8 @@ export const containerParts = (spec: ContainerSpec, place: ContainerPlace) => {
     sleeps: true,
     restartOnChange: false,
     image: APP_IMAGE,
+    // In place of the image's command, so the repo's Dockerfile doesn't name the runner.
+    entrypoint: serve(),
     instance: INSTANCE,
     workersDev: place.workersDev,
   };

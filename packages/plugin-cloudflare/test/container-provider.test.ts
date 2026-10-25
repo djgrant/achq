@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, expect, test } from "bun:test";
 import { BrowserActionNeeded } from "@achq/core";
+import { serve } from "@achq/core/commands";
 import { gunzipSync } from "node:zlib";
 import { type FakeCloudflare, startFakeCloudflare } from "@achq/test-utils/cloudflare";
 import { Cloudflare } from "@achq/utils/cloudflare";
@@ -117,7 +118,8 @@ test("ensure makes a placeholder Worker, its variables and secrets, and a trigge
     name: worker,
     main: ".achq-worker/cloudflare-worker/src/index.ts",
     compatibility_flags: ["global_fetch_strictly_public"],
-    vars: { ACHQ_SERVICE: { name: worker, port: 3000, sleeps: true, restartOnChange: false, image: "app", instance: "standard-1", workersDev: "acme.workers.dev" } },
+    // Its Durable Object starts it with the runner, not the Dockerfile's CMD.
+    vars: { ACHQ_SERVICE: { name: worker, port: 3000, sleeps: true, restartOnChange: false, image: "app", entrypoint: serve(), instance: "standard-1", workersDev: "acme.workers.dev" } },
     r2_buckets: [{ binding: "ARCHIVE", bucket_name: "achq" }],
     containers: [
       {

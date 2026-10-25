@@ -3,7 +3,7 @@
 # Usage in a repo's .achq/Dockerfile:
 #   ARG ACHQ_REF=main
 #   RUN curl -fsSL "https://raw.githubusercontent.com/djgrant/achq/$ACHQ_REF/install.sh" | sh -s "$ACHQ_REF"
-#   CMD ["achq-agent"]
+# No CMD: the container provider starts the runner itself.
 # Set ACHQ_SOURCE to a local achq checkout to install from it instead.
 set -eu
 

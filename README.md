@@ -85,10 +85,9 @@ FROM node:22.18-bookworm
 RUN npm install -g bun@1.4.3
 ARG ACHQ_REF=main
 RUN curl -fsSL "https://raw.githubusercontent.com/djgrant/achq/$ACHQ_REF/install.sh" | sh -s "$ACHQ_REF"
-CMD ["achq-agent"]
 ```
 
-It must be Debian-based (the install script uses apt), with `bun` on `PATH`, and tools installed system-wide: the agent runs as the unprivileged `agent` user.
+It must be Debian-based (the install script uses apt), with `bun` on `PATH`, and tools installed system-wide: the agent runs as the unprivileged `agent` user. It needs no `CMD`: the container provider starts the runner itself, and ignores one.
 
 Pushing a change to `.achq/` on the default branch redeploys what changed. Only a new container or a changed Dockerfile rebuilds; other changes apply from the next event. Each deploy's outcome is in the repo's `ACHQ_STATUS` variable.
 

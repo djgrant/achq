@@ -91,7 +91,7 @@ export const SyncRequest = z.object({
 });
 export type SyncRequest = z.infer<typeof SyncRequest>;
 
-/** A thread's session, as `achq-agent sessions [n]` prints them (a JSON array, most recently run first) for `achq container resume`. `thread` is e.g. the issue number. */
+/** A thread's session, as the runner's `sessions` command prints them (wire/commands.ts) (a JSON array, most recently run first) for `achq container resume`. `thread` is e.g. the issue number. */
 export const SessionSummary = z.looseObject({ id: z.string(), thread: z.string(), agent: z.string(), workspace: z.string(), lastRun: z.string() });
 export type SessionSummary = z.infer<typeof SessionSummary>;
 

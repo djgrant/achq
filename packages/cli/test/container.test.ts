@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
 import type { Status } from "@achq/core";
-import { containersOf, parseSessions, pickContainer, pickSession, sessionTable } from "../src/lib/container.ts";
+import { parseSessions } from "@achq/core/commands";
+import { containersOf, pickContainer, pickSession, sessionTable } from "../src/lib/container.ts";
 
 const location = (service: string) => ({ containerProvider: "railway", project: "p1", environment: "e1", service });
 const status: Status = {

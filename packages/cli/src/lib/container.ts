@@ -1,15 +1,12 @@
 import type { Prompter } from "@pokit/core";
 import type { ContainerShell, Status } from "@achq/core";
 import { routerForPusher } from "@achq/core/clients/router";
-import { SessionSummary } from "@achq/core/protocol";
+import type { SessionSummary } from "@achq/core/protocol";
 import { text } from "@achq/utils/text";
 import { findContainerProvider } from "achq/registry";
-import { z } from "zod";
 import { chooseOne } from "./terminal.ts";
 import { notSetUp, type RepoHere } from "./workdir.ts";
 
-/** How much of unexpected output goes into the error: enough to see what answered. */
-const UNEXPECTED_OUTPUT_CHARS = 200;
 const SESSION_COLUMNS = ["ID", "THREAD", "AGENT", "LAST RUN"];
 
 export type Located = { name: string; location: Record<string, string>; shell: ContainerShell };
@@ -49,18 +46,6 @@ export const reachContainer = async (prompter: Prompter, { repo, codeHost }: Rep
   // The router checks, on the code host, that you can push to the repo.
   await routerForPusher({ url: status.router, token: codeHost.token() }).wake({ body: { repo, container: container.name } });
   return container;
-};
-
-/**
- * `achq-agent sessions [n]`'s output: a JSON array of sessions, most recently
- * run first. Anything before the JSON (an SSH banner) is skipped.
- */
-export const parseSessions = (out: string) => {
-  const start = out.indexOf("[");
-  if (start < 0) throw new Error(`Unexpected output from achq-agent sessions: ${out.trim().slice(0, UNEXPECTED_OUTPUT_CHARS)}`);
-  const sessions = z.array(SessionSummary).safeParse(JSON.parse(out.slice(start)));
-  if (!sessions.success) throw new Error(`achq-agent sessions didn't return a list of sessions: ${z.prettifyError(sessions.error)}`);
-  return sessions.data;
 };
 
 /** The session to open: the one asked for, the only one, or `undefined` to ask. */

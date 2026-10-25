@@ -1,4 +1,5 @@
 import { CONTAINER_PORT, type ContainerSpec, ENV } from "@achq/core";
+import { serve } from "@achq/core/commands";
 import type { ProjectAt } from "@achq/utils/railway";
 import { VOLUME } from "./constants.ts";
 import { containerServiceName } from "./names.ts";
@@ -19,6 +20,9 @@ export const containerParts = (container: ContainerSpec, at: ProjectAt) => {
       settings: {
         // Setting a Dockerfile path is what makes Railway build with Docker.
         dockerfilePath: container.dockerfile,
+        // In place of the image's CMD, so the repo's Dockerfile doesn't name the runner. Railway runs it in exec form,
+        // splitting it like a shell but expanding no variables, which the runner's argv has none of.
+        startCommand: serve().join(" "),
         healthcheckPath: "/",
         // Sleeps when idle; the router wakes it over the private network.
         sleepApplication: true,

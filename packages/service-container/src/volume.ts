@@ -93,7 +93,7 @@ export const sessionsFor = (paths: Paths, number?: string) =>
     .sort((a, b) => b.lastRun.localeCompare(a.lastRun));
 
 /**
- * A JSON array of their summaries, only: the laptop's `achq container resume` parses it (parseSessions in packages/cli/src/lib/container.ts).
+ * A JSON array of their summaries, only: the laptop's `achq container resume` parses it (parseSessions in packages/core/src/wire/commands.ts).
  * SessionSummary is loose, for reading what another version printed, so the summary's own shape strips the rest.
  */
 const summaries = z.array(z.object(SessionSummary.shape));

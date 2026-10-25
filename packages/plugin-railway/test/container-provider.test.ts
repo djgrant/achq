@@ -7,6 +7,7 @@ import { railwayContainerProvider } from "../src/container/index.ts";
 import { RailwayContainerProvider } from "../src/container/provider.ts";
 import { Railway } from "@achq/utils/railway";
 import { BrowserActionNeeded } from "@achq/core";
+import { serve } from "@achq/core/commands";
 
 const NO_BUILD = { build: false };
 const BUILD = { build: true };
@@ -44,6 +45,8 @@ test("ensure creates a private service with a volume, and a second ensure change
   expect(result).toEqual({ url: "http://notationlabs-yieldstar-dev.railway.internal:3000" });
   const service = fake.service("notationlabs-yieldstar-dev")!;
   expect(service.settings).toMatchObject({ dockerfilePath: ".achq/Dockerfile", healthcheckPath: "/", sleepApplication: true });
+  // Railway starts it with the runner, not the Dockerfile's CMD.
+  expect(service.settings.startCommand).toBe(serve().join(" "));
   expect(service.variables).toEqual({
     ...spec.env,
     DATA_DIR: "/data",
