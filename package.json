@@ -10,7 +10,10 @@
     "typecheck": "tsc && tsc -p tsconfig.sandbox.json"
   },
   "devDependencies": {
+    "@pokit/core": "^0.10.0",
+    "@pokit/terminal": "^0.10.0",
     "@types/bun": "^1.3.14",
+    "pok-plugins": "github:djgrant/pok-plugins",
     "typescript": "^7.0.2"
   },
   "patchedDependencies": {

@@ -1,0 +1,32 @@
+diff --git a/dist/lib/args.js b/dist/lib/args.js
+index d349ae542c6f2630e8004dd23b7bbf0a42fad473..1c33e4d7e87facddfdeb4cf5d5b8a6a1ebdc3b4e 100644
+--- a/dist/lib/args.js
++++ b/dist/lib/args.js
+@@ -849,8 +849,9 @@ export async function resolveInteractiveContext(context, contextDef, choices, pr
+         // Determine if we should prompt for this field
+         let shouldPrompt = false;
+         if (fromMenu) {
+-            // From menu: prompt for ALL fields
+-            shouldPrompt = true;
++            // From menu: prompt for every field there's something to pick, but not an
++            // optional one only free text would fill: the command has its own default.
++            shouldPrompt = !info.isOptional || Boolean(fieldDef.resolve) || Boolean(fieldChoices?.length) || info.type === 'boolean';
+         }
+         else if (!info.isOptional) {
+             // Direct invocation: only prompt for required fields that are missing
+diff --git a/src/lib/args.ts b/src/lib/args.ts
+index 74d02bc074a898e6bcf70cd7e9154bff49177232..b47273456a50e47375eeea2ad8e0508e69718df8 100644
+--- a/src/lib/args.ts
++++ b/src/lib/args.ts
+@@ -1114,8 +1114,9 @@ export async function resolveInteractiveContext<C extends ContextDef>(
+     let shouldPrompt = false;
+ 
+     if (fromMenu) {
+-      // From menu: prompt for ALL fields
+-      shouldPrompt = true;
++      // From menu: prompt for every field there's something to pick, but not an
++      // optional one only free text would fill: the command has its own default.
++      shouldPrompt = !info.isOptional || Boolean(fieldDef.resolve) || Boolean(fieldChoices?.length) || info.type === 'boolean';
+     } else if (!info.isOptional) {
+       // Direct invocation: only prompt for required fields that are missing
+       const isMissing = currentValue === undefined || currentValue === '';
