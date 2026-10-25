@@ -1,12 +1,13 @@
-import { CONFIG_DIR, type CodeHostAsYou, type CodeHostProvider, type ConfigTree, type Credential, type FileLimits, type RepoClient, type RepoInstallation, repoName, STATUS_VARIABLE, type Status } from "@achq/core";
+import { CONFIG_DIR, type CodeHostAsYou, type CodeHostProvider, type ConfigTree, type Credential, type FileLimits, type RepoClient, type RepoInstallation, repoName } from "@achq/core";
 import type { RepoManifest } from "@achq/core/manifest";
+import { Status } from "@achq/core/protocol";
 import type { Vars } from "@achq/utils/env";
 import { errors } from "@achq/utils/errors";
 import { type CommitSummary, GitHub, type RepoApi } from "@achq/utils/gh";
 import { text } from "@achq/utils/text";
 import type { Apps } from "../lib/apps.ts";
 import { configNeeds, configSource } from "../lib/config-needs.ts";
-import { appInstallPage, githubUrls, type GitHubUrls, POLICY_PROVIDER, REPO_NAME } from "../lib/constants.ts";
+import { appInstallPage, githubUrls, type GitHubUrls, POLICY_PROVIDER, REPO_NAME, STATUS_VARIABLE } from "../lib/constants.ts";
 import { DEPLOYER_PERMISSIONS, lacking } from "../lib/permissions.ts";
 import { asYou } from "../lib/you.ts";
 import type { GitHubPolicyData } from "../policy/resource.ts";
@@ -14,7 +15,23 @@ import type { GitHubPolicyData } from "../policy/resource.ts";
 /** A git tree entry's mode for a symlink, whose blob is only the path it points to. */
 const SYMLINK_MODE = "120000";
 const LIST_PERMISSIONS = { metadata: "read" };
-const STATUS_EXCERPT_CHARS = 200;
+
+/** Anyone who can push can edit the variable, so what it holds is checked, and an unreadable one says how to fix it. */
+const parseStatus = (repo: string, value: string): Status => {
+  const unreadable = (why: string) =>
+    new Error(`${repo}'s ${STATUS_VARIABLE} isn't a status achq can read: ${why}.\nDeploying again rewrites it, or delete it with \`gh variable delete ${STATUS_VARIABLE} -R ${repo}\`.`);
+  let raw: unknown;
+  try {
+    raw = JSON.parse(value);
+  } catch {
+    throw unreadable("it isn't JSON");
+  }
+  // Short messages: the path says where, the expected type what.
+  const parsed = Status.safeParse(raw, { error: (issue) => (issue.code === "invalid_type" ? `expected ${issue.expected}` : undefined) });
+  if (parsed.success) return parsed.data;
+  const issue = parsed.error.issues[0]!;
+  throw unreadable(issue.path.length ? `${issue.path.join(".")}: ${issue.message}` : issue.message);
+};
 
 /** A repo is set up for achq when the config's one App is installed on it. Only the router has the App keys that list where. */
 export class GitHubCodeHostProvider implements CodeHostProvider {
@@ -108,12 +125,11 @@ export class GitHubCodeHostAsYou implements CodeHostAsYou {
 
   async status(repo: string) {
     const value = await this.gh.repo(repo).variable(STATUS_VARIABLE);
-    if (value === undefined) return undefined;
-    try {
-      return JSON.parse(value) as Status;
-    } catch {
-      throw new Error(`${repo}'s ${STATUS_VARIABLE} isn't JSON: ${value.slice(0, STATUS_EXCERPT_CHARS)}`);
-    }
+    return value === undefined ? undefined : parseStatus(repo, value);
+  }
+
+  statusLocation(repo: string) {
+    return `${repo}'s \`${STATUS_VARIABLE}\` variable`;
   }
 
   async clearStatus(repo: string) {

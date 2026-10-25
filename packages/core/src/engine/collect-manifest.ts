@@ -1,5 +1,5 @@
 import { type Json, json } from "@achq/utils/json";
-import type { RepoManifest } from "../model/manifest.ts";
+import type { ManifestInput } from "../model/manifest.ts";
 import { undeclaredRef } from "../model/resource-data.ts";
 import { Agent, Container, Policy, Trigger, Workspace } from "../resources/config.ts";
 import { declared, type Resource } from "../resources/resource.ts";
@@ -12,7 +12,7 @@ type ResourceClass<T extends Resource> = abstract new (...args: any[]) => T;
  * not just named like one. validateManifest (`@achq/core/manifest`) checks the
  * rest, on what this returns.
  */
-export const collectManifest = (resources: Resource[] = declared()): RepoManifest => {
+export const collectManifest = (resources: Resource[] = declared()): ManifestInput => {
   const ofKind = <T extends Resource>(type: ResourceClass<T>) => resources.filter((r): r is T => r instanceof type);
   /** `r`'s name, for `from` to refer to it by. It has to be declared in this config. */
   const refName = (r: Resource, from: string) => {

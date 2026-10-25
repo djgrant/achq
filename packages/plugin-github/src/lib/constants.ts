@@ -7,6 +7,9 @@ export const CHANNEL = "github";
 export const POLICY_PROVIDER = "github";
 export const CODE_HOST = "github";
 
+/** The repository variable the deployer reports each deploy's outcome in, as a `Status`. */
+export const STATUS_VARIABLE = "ACHQ_STATUS";
+
 /** GitHub's rules for owner and repository names. */
 export const REPO_NAME = /^[A-Za-z0-9-]{1,39}\/[A-Za-z0-9._-]{1,100}$/;
 

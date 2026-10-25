@@ -81,6 +81,8 @@ export interface CodeHostAsYou {
   token(): string;
   /** The status the deployer last wrote, or undefined if it hasn't. */
   status(repo: string): Promise<Status | undefined>;
+  /** Where the status is kept, for messages, e.g. ``acme/w's `ACHQ_STATUS` variable``. */
+  statusLocation(repo: string): string;
   /** Deletes the status, as if the repo had never been deployed: once it's uninstalled, the deployer can't reach it. */
   clearStatus(repo: string): Promise<void>;
   /** The latest commit on `branch` that touched any of `paths`. */

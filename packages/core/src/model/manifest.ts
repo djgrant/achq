@@ -1,5 +1,5 @@
 import { collections } from "@achq/utils/collections";
-import type { Json } from "@achq/utils/json";
+import { json, type Json } from "@achq/utils/json";
 import { z } from "zod";
 import { type PolicyData, RESOURCE_NAME, type SelectorData, undeclaredRef } from "./resource-data.ts";
 
@@ -8,48 +8,81 @@ import { type PolicyData, RESOURCE_NAME, type SelectorData, undeclaredRef } from
  * load zod: the checks run on what the sandbox returns, outside it.
  */
 
+/** Selector and policy data in what another version of achq wrote: checked only for what names its channel or policy provider. */
+export const policyData = z.custom<PolicyData>((value) => json.isPlainObject(value) && typeof value.provider === "string");
+export const selectorData = z.custom<SelectorData>((value) => json.isPlainObject(value) && typeof value.channel === "string" && typeof value.source === "string");
+
+/** What the manifest's shape is made of, in one of its two roles: how its objects treat unknown keys, and its parts with or without limits. */
+type Parts<C extends z.core.$ZodObjectConfig> = {
+  object: <S extends z.core.$ZodLooseShape>(shape: S) => z.ZodObject<S, C>;
+  list: <T extends z.ZodType>(item: T, max: number) => z.ZodArray<T>;
+  name: z.ZodType<string>;
+  text: z.ZodType<string>;
+  key: z.ZodType<string>;
+  runtime: z.ZodType<string>;
+  data: z.ZodType<Json>;
+  selector: z.ZodType<SelectorData>;
+  policy: z.ZodType<PolicyData>;
+};
+
 /**
  * What a repo's config evaluates to: every resource as plain data. Resources
  * refer to each other by name. Arrays keep declaration order, which decides
- * which workspace claims a thread.
+ * which workspace claims a thread. Written once for both roles, so they can't drift.
  */
-export type RepoManifest = {
-  policies: { name: string; policy: PolicyData }[];
-  containers: { name: string; image: string; policies: string[]; files: Record<string, Json> }[];
-  workspaces: { name: string; container: string; threads: SelectorData; branch: string; base: string }[];
-  agents: { name: string; runtime: string }[];
-  triggers: { name: string; event: SelectorData; agent: string }[];
-};
+const manifestShape = <C extends z.core.$ZodObjectConfig>({ object, list, name, text, key, runtime, data, selector, policy }: Parts<C>) =>
+  object({
+    policies: list(object({ name, policy }), 100),
+    containers: list(object({ name, image: text, policies: list(name, 100), files: z.record(key, data) }), 20),
+    workspaces: list(object({ name, container: name, threads: selector, branch: text, base: text }), 100),
+    agents: list(object({ name, runtime }), 100),
+    triggers: list(object({ name, event: selector, agent: name }), 100),
+  });
 
-const name = z.string().regex(RESOURCE_NAME, "must be lowercase letters, digits and dashes, starting with a letter");
-const text = z.string().max(10_000);
-
-const data: z.ZodType<Json> = z.lazy(() =>
-  z.union([z.string().max(100_000), z.number().refine(Number.isFinite), z.boolean(), z.null(), z.array(data).max(10_000), z.record(z.string(), data)]),
+const limitedData: z.ZodType<Json> = z.lazy(() =>
+  z.union([z.string().max(100_000), z.number().refine(Number.isFinite), z.boolean(), z.null(), z.array(limitedData).max(10_000), z.record(z.string(), limitedData)]),
 );
-
-/** JSON with a non-empty string under `key`: a selector's `channel`, a policy's `provider`. */
-type Tagged<K extends string> = { [P in K]: string } & { [key: string]: Json };
 
 const MAX_TAG_LENGTH = 100;
 
-/** zod can't express "this key is a string, the rest any data", so the refinement's guarantee is asserted in the type. */
-const tagged = <K extends string>(key: K) =>
-  z.record(z.string(), data).refine((r) => {
+/**
+ * Data with a non-empty string under `key`: a selector's `channel`, a policy's
+ * `provider`. zod can't express "this key is a string, the rest any data", so
+ * the refinement's guarantee is asserted in the type.
+ */
+const tagged = <T>(key: string) =>
+  z.record(z.string(), limitedData).refine((r) => {
     const tag = r[key];
     return typeof tag === "string" && tag.length > 0 && tag.length <= MAX_TAG_LENGTH;
-  }, `needs "${key}"`) as unknown as z.ZodType<Tagged<K>>;
+  }, `needs "${key}"`) as unknown as z.ZodType<T>;
 
-const selector = tagged("channel");
-const policyData = tagged("provider");
-
-const manifestSchema = z.strictObject({
-  policies: z.array(z.strictObject({ name, policy: policyData })).max(100),
-  containers: z.array(z.strictObject({ name, image: text, policies: z.array(name).max(100), files: z.record(z.string().max(1000), data) })).max(20),
-  workspaces: z.array(z.strictObject({ name, container: name, threads: selector, branch: text, base: text })).max(100),
-  agents: z.array(z.strictObject({ name, runtime: z.string().min(1).max(100) })).max(100),
-  triggers: z.array(z.strictObject({ name, event: selector, agent: name })).max(100),
+/** The manifest as the deployer evaluates it from `.achq/`: what a person wrote, so strict and limited. */
+export const ManifestInput = manifestShape({
+  object: z.strictObject,
+  list: (item, max) => z.array(item).max(max),
+  name: z.string().regex(RESOURCE_NAME, "must be lowercase letters, digits and dashes, starting with a letter"),
+  text: z.string().max(10_000),
+  key: z.string().max(1000),
+  runtime: z.string().min(1).max(100),
+  data: limitedData,
+  selector: tagged<SelectorData>("channel"),
+  policy: tagged<PolicyData>("provider"),
 });
+export type ManifestInput = z.infer<typeof ManifestInput>;
+
+/** The manifest as another version of achq kept it, e.g. in `StoredRecord.deployed`: loose, without limits. */
+export const RepoManifest = manifestShape({
+  object: z.looseObject,
+  list: (item) => z.array(item),
+  name: z.string(),
+  text: z.string(),
+  key: z.string(),
+  runtime: z.string(),
+  data: z.json() as z.ZodType<Json>,
+  selector: selectorData,
+  policy: policyData,
+});
+export type RepoManifest = z.infer<typeof RepoManifest>;
 
 type Named = { name: string };
 
@@ -66,13 +99,13 @@ const assertRefs = <T extends Named>(items: T[], from: string, refsOf: (item: T)
  * config can monkeypatch anything there, collectManifest included, and forge
  * what comes back.
  */
-export const validateManifest = (value: unknown): RepoManifest => {
-  const parsed = manifestSchema.safeParse(value);
+export const validateManifest = (value: unknown) => {
+  const parsed = ManifestInput.safeParse(value);
   if (!parsed.success) {
     const issue = parsed.error.issues[0]!;
     throw new Error(`The config's manifest is invalid at ${issue.path.join(".") || "the top level"}: ${issue.message}`);
   }
-  const manifest = parsed.data as RepoManifest;
+  const manifest = parsed.data;
   for (const kinds of KINDS) {
     const [repeated] = collections.duplicates(manifest[kinds].map((r) => r.name));
     if (repeated !== undefined) throw new Error(`Two ${kinds} are named "${repeated}"`);

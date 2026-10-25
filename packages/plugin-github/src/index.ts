@@ -1,6 +1,7 @@
 import { ChannelRef } from "./channel/config.ts";
 
 export { ChannelRef } from "./channel/config.ts";
+export { STATUS_VARIABLE } from "./lib/constants.ts";
 export { type CommentAction, type EventSelectorData, type IssueAction, type IssueFilter, Issues, type IssueSelectorData } from "./lib/selectors.ts";
 export { type GitHubPolicyData, type Permission, Policy } from "./policy/resource.ts";
 

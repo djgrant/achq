@@ -1,6 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { CONFIG_DIR, CONFIG_ENTRY, type RepoInstallation, repoName, STATUS_VARIABLE, type Status } from "@achq/core";
+import { CONFIG_DIR, CONFIG_ENTRY, type RepoInstallation, repoName, type Status } from "@achq/core";
 import type { RepoManifest } from "@achq/core/manifest";
 import { routerForPusher } from "@achq/core/client";
 import { evaluateConfig } from "@achq/deployer/config";
@@ -79,12 +79,12 @@ export const openInstall = async ({ repo, codeHost }: RepoHere, source: string, 
 
 /** The source's installation on the repo, when the router ACHQ_STATUS names can say: uninstalling needs it to. */
 const installationToRemove = async (here: RepoHere, source: string) => {
-  const { repo } = here;
+  const { repo, codeHost } = here;
   const { owner } = repoName.split(repo);
   const asked = await askRouter(here, source);
-  if (!asked) throw new Error(`achq can't tell whether ${source} is installed on ${repo}: it has no ${STATUS_VARIABLE} naming its router yet. Remove it from ${source}'s installation in ${owner}'s settings`);
+  if (!asked) throw new Error(`achq can't tell whether ${source} is installed on ${repo}: ${codeHost.statusLocation(repo)} doesn't name its router yet. Remove it from ${source}'s installation in ${owner}'s settings`);
   if (!asked.installation)
-    throw new Error(`No router answers at ${asked.router}, which ${repo}'s ${STATUS_VARIABLE} names: its hq may have been torn down. Bring it back with \`achq infra up\`, or remove ${source} from its installation in ${owner}'s settings`);
+    throw new Error(`No router answers at ${asked.router}, which ${codeHost.statusLocation(repo)} names: its hq may have been torn down. Bring it back with \`achq infra up\`, or remove ${source} from its installation in ${owner}'s settings`);
   return asked.installation;
 };
 
@@ -120,7 +120,7 @@ export const removeAndWait = async (here: RepoHere, source: string, url: string,
   try {
     await codeHost.clearStatus(repo);
   } catch (error) {
-    log(`Couldn't delete ${repo}'s ${STATUS_VARIABLE}: ${errors.message(error)}`);
+    log(`Couldn't delete ${codeHost.statusLocation(repo)}: ${errors.message(error)}`);
   }
   log(`${repo}'s containers sleep, and are kept until \`achq infra up --prune\`.`);
 };

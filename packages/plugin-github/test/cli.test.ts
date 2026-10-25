@@ -79,6 +79,7 @@ beforeEach(() => {
 });
 
 const REPO = "notationlabs/yieldstar";
+const STATUS = { repo: REPO, state: "deployed" as const, at: "2026-10-17T10:02:00Z", router: "https://router.example" };
 const FULL = { events: ["issues", "issue_comment", "push"], permissions: { contents: "write", issues: "write", pull_requests: "admin", metadata: "read", actions_variables: "write" } };
 /** Your gh login (GH_TOKEN skips gh), on the fake's API and web URLs. */
 const you = () => githubCodeHostProvider.asYou({ GITHUB_API_URL: `http://localhost:${server.port}`, GITHUB_WEB_URL: "http://localhost:3000", GH_TOKEN: "gho_t" });
@@ -105,9 +106,18 @@ test("the App's install page is on the env's web URL, and what to do there names
 
 test("ACHQ_STATUS is read from the repository variable, and is undefined before the first deploy; clearing it deletes it", async () => {
   expect(await you().status(REPO)).toBeUndefined();
-  fake.status = { value: JSON.stringify({ repo: REPO, state: "deployed", at: "2026-10-17T10:02:00Z" }) };
-  expect((await you().status(REPO))?.state).toBe("deployed");
+  fake.status = { value: JSON.stringify({ ...STATUS, newer: "kept" }) };
+  expect(await you().status(REPO)).toEqual({ ...STATUS, newer: "kept" });
   await you().clearStatus(REPO);
   expect(fake.status).toBeUndefined();
   expect(fake.calls.filter((c) => c.startsWith("DELETE "))).toEqual(["DELETE /repos/notationlabs/yieldstar/actions/variables/ACHQ_STATUS"]);
+});
+
+test("an ACHQ_STATUS achq can't read, as anyone who can push could write, says where it's wrong and how to fix it", async () => {
+  const remedy = `Deploying again rewrites it, or delete it with \`gh variable delete ACHQ_STATUS -R ${REPO}\`.`;
+  fake.status = { value: JSON.stringify({ ...STATUS, containers: [{ name: "dev", location: "somewhere" }] }) };
+  await expect(you().status(REPO)).rejects.toThrow(`${REPO}'s ACHQ_STATUS isn't a status achq can read: containers.0.location: expected object.\n${remedy}`);
+  fake.status = { value: "{not json" };
+  await expect(you().status(REPO)).rejects.toThrow(`${REPO}'s ACHQ_STATUS isn't a status achq can read: it isn't JSON.\n${remedy}`);
+  expect(you().statusLocation(REPO)).toBe(`${REPO}'s \`ACHQ_STATUS\` variable`);
 });

@@ -37,6 +37,3 @@ export const ENV = {
   containerProvider: "ACHQ_CONTAINER_PROVIDER",
 } as const;
 
-/** The repository variable the deployer reports each deploy's outcome in. */
-export const STATUS_VARIABLE = "ACHQ_STATUS";
-

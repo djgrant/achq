@@ -1,8 +1,9 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { ENV, type FailedDelivery, type InstallationRequest, type RepoRequest, STATUS_VARIABLE, type RouterRepoConfig, type WakeRequest } from "@achq/core";
+import { ENV, type FailedDelivery, type InstallationRequest, type RepoRequest, type RouterRepoConfig, type WakeRequest } from "@achq/core";
 import { containerSecret } from "@achq/core/secrets";
+import { STATUS_VARIABLE } from "@achq/github";
 import { APP_BOT, BOT, DJ, INSTALLATION, KEY, MALLORY, REPO, type Sent, SLUG } from "./github-sends.ts";
 import { configTs, startWorld, THREAD, type World } from "./world.ts";
 

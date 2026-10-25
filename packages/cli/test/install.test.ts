@@ -282,7 +282,7 @@ describe("install and uninstall", () => {
     const { install, opened } = cli();
     await install();
     expect(opened).toEqual([`${web()}/apps/notation-achq/installations/new`]);
-    await expect(cli().uninstall()).rejects.toThrow(`No router answers at ${api()}/router, which ${REPO}'s ACHQ_STATUS names: its hq may have been torn down`);
+    await expect(cli().uninstall()).rejects.toThrow(`No router answers at ${api()}/router, which ${REPO}'s \`ACHQ_STATUS\` variable names: its hq may have been torn down`);
   });
 
   test("install fails before installing when the App lacks the events or permissions the config needs", async () => {
@@ -326,6 +326,6 @@ describe("install and uninstall", () => {
   });
 
   test("uninstall without a router to ask says where to remove it instead", async () => {
-    await expect(cli().uninstall()).rejects.toThrow(`achq can't tell whether notation-achq is installed on ${REPO}: it has no ACHQ_STATUS naming its router yet`);
+    await expect(cli().uninstall()).rejects.toThrow(`achq can't tell whether notation-achq is installed on ${REPO}: ${REPO}'s \`ACHQ_STATUS\` variable doesn't name its router yet`);
   });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { type RepoManifest, validateManifest } from "../src/model/manifest.ts";
+import { ManifestInput, RepoManifest, validateManifest } from "../src/model/manifest.ts";
 
 const base: RepoManifest = {
   policies: [{ name: "code", policy: { provider: "github", source: "a" } }],
@@ -37,5 +37,13 @@ describe("validateManifest", () => {
 
   test("needs at least one container", () => {
     expect(() => validateManifest({ ...copy(), containers: [], workspaces: [] })).toThrow("The config declares no containers");
+  });
+});
+
+describe("the manifest's two roles", () => {
+  test("as stored, unknown keys a newer version added pass through, and the input's limits don't apply", () => {
+    const newer = { ...copy(), extra: 1, agents: [{ name: "Not A Name", runtime: "claude", model: "x" }], containers: Array(21).fill(base.containers[0]) };
+    expect(RepoManifest.parse(newer)).toEqual(newer);
+    expect(ManifestInput.safeParse(newer).success).toBe(false);
   });
 });

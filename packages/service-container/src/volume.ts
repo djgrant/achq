@@ -92,8 +92,12 @@ export const sessionsFor = (paths: Paths, number?: string) =>
     )
     .sort((a, b) => b.lastRun.localeCompare(a.lastRun));
 
-/** A JSON array of their summaries, only: the laptop's `achq container resume` parses it (parseSessions in packages/cli/src/lib/container.ts). */
-export const formatSessions = (sessions: SessionSummary[]) => JSON.stringify(z.array(SessionSummary).parse(sessions));
+/**
+ * A JSON array of their summaries, only: the laptop's `achq container resume` parses it (parseSessions in packages/cli/src/lib/container.ts).
+ * SessionSummary is loose, for reading what another version printed, so the summary's own shape strips the rest.
+ */
+const summaries = z.array(z.object(SessionSummary.shape));
+export const formatSessions = (sessions: SessionSummary[]) => JSON.stringify(summaries.parse(sessions));
 
 /** Records the delivery in `dir`; false if it was already handled. Persisted, so it holds across restarts. */
 export const firstDelivery = (dir: string, delivery: string) => disk.createExclusive(path.join(dir, disk.safeFileName(delivery)));

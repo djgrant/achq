@@ -1,13 +1,13 @@
 import { posix } from "node:path";
 import { CONFIG_DIR, CONFIG_ENTRY } from "@achq/core";
-import { type RepoManifest, validateManifest } from "@achq/core/manifest";
+import { type ManifestInput, validateManifest } from "@achq/core/manifest";
 import { errors } from "@achq/utils/errors";
 import { type Limits, sandbox } from "@achq/utils/sandbox";
 import { CONFIG_MODULES } from "achq/modules";
 
 export class ConfigError extends Error {}
 
-export type Evaluate = (files: Record<string, string>) => Promise<RepoManifest>;
+export type Evaluate = (files: Record<string, string>) => Promise<ManifestInput>;
 
 const LOADERS = { ts: "ts", mts: "ts", tsx: "tsx", js: "js", mjs: "js", json: "json" } as const;
 
