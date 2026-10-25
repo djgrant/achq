@@ -30,7 +30,7 @@ new cloudflare.Deployer("deployer", {
 });
 
 new github.Channel("github", {
-  name: "acme-agents",
+  name: "acme-agents-github-app",
   org: "acme",
   router,
 });
@@ -45,7 +45,7 @@ One ACHQ instance serves all of your repositories: the `Channel` sends webhooks 
 Give each issue thread an isolated environment to work in:
 
 ```ts [.achq/config.ts]
-const channel = github.Channel.get("acme-agents"); // <-- that's the one you defined in achq.infra.ts
+const channel = github.Channel.get("acme-agents-github-app"); // <-- that's the one you defined in achq.infra.ts
 
 const dev = new Container("dev", { 
   image: "./Dockerfile", 
