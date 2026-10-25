@@ -57,22 +57,3 @@ export const collection = async <T>(stores: Stores, name: string, schema: z.ZodT
   return opened;
 };
 
-/**
- * Moves each value to the name `rename` gives it, where that's a new one:
- * written there as it was, then removed from the old. A value its schema
- * can't read stays where it is. A move a crash cut short is made again on the
- * next open.
- */
-export const renamed =
-  <T>(rename: (name: string, value: T) => string): Migration<T> =>
-  async (raw, parse) => {
-    for (const name of await raw.list()) {
-      const value = await raw.read(name);
-      const parsed = parse(value);
-      if (parsed === undefined) continue;
-      const to = rename(name, parsed);
-      if (to === name) continue;
-      await raw.write(to, value);
-      await raw.remove(name);
-    }
-  };

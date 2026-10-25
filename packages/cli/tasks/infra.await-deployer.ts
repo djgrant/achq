@@ -15,7 +15,7 @@ export const infraAwaitDeployer = defineTask({
   label: "Wait for the deployer",
   params: z.object({ admin: given<RouterAdmin>(), ref: z.string(), log, sleep }),
   run: async (_r, { params: { admin, ref, log, sleep } }) => {
-    // compat: delete once deployed infras run past 8ace431. A deployer older than `GET /version` answers 404, which counts as not yet.
+    // A deployer, or router, that's still starting doesn't answer, which counts as not yet.
     const running = () => admin.deployerVersion().then((v) => v.ref, () => undefined);
     if ((await running()) === ref) return;
     log(`  waiting for the deployer to run ${shortSha(ref)}…`);

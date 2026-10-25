@@ -1,6 +1,6 @@
-import { repoName, type Stores } from "@achq/core";
+import type { Stores } from "@achq/core";
 import { channelEvent, deployerEvent, RouterRepoConfig } from "@achq/core/protocol";
-import { collection, type Migration, renamed } from "@achq/utils/store";
+import { collection } from "@achq/utils/store";
 import { z } from "zod";
 
 // What the router keeps: stored schemas, so loose, as another version of the router may have written them.
@@ -30,45 +30,14 @@ export const FailedEntry = z.discriminatedUnion("to", [
 ]);
 export type FailedEntry = z.infer<typeof FailedEntry>;
 
-/** An inbox or failed entry as routers kept them before they said where they go: each target said what it was, a deployer event had a `host`, and a failed target its error. */
-const UntaggedEntry = z.looseObject({
-  to: z.undefined().optional(),
-  event: z.record(z.string(), z.unknown()),
-  targets: z.array(z.looseObject({ kind: z.enum(["deployer", "container"]), error: z.string().optional() })),
-  told: z.boolean().optional(),
-});
-
-/**
- * Rewrites each inbox or failed entry that doesn't say where it goes to say
- * so: to the deployer, with its one error if it failed, or to containers, with
- * its targets.
- */
-// compat: delete once deployed infras run past 90784b2. Tags inbox and failed entries an older router kept untagged.
-const tagged: Migration<unknown> = async (raw) => {
-  for (const name of await raw.list()) {
-    const old = UntaggedEntry.safeParse(await raw.read(name));
-    if (!old.success) continue;
-    const { event, targets, told } = old.data;
-    const [first] = targets;
-    if (first?.kind === "deployer") {
-      const { host: _, ...rest } = event;
-      await raw.write(name, { to: "deployer", event: rest, ...(first.error !== undefined && { error: first.error }) });
-    } else {
-      await raw.write(name, { to: "containers", event, targets: targets.map(({ kind: _, ...target }) => target), ...(told && { told: true }) });
-    }
-  }
-};
-
-/** In its container provider's store, each by `repoName.key` or delivery ID, migrated. Only the router's config and claims are read whole, on start. */
+/** In its container provider's store, each by `repoName.key` or delivery ID. Only the router's config and claims are read whole, on start. */
 export const createStore = async (stores: Stores, log?: (line: string) => void) => ({
-  // compat: delete once deployed infras run past cb7a2f1. Moves what stores kept under file names (`owner__name`) to its key.
-  repos: await collection(stores, "repos", RouterRepoConfig, { log, migrate: [renamed((_name, config) => repoName.key(config.repo))] }),
-  // compat: delete once deployed infras run past cb7a2f1. Moves claims kept under file names (`owner__name`) to their repo's key.
-  claims: await collection(stores, "claims", Claims, { log, migrate: [renamed((name) => (name.includes("/") ? name : name.replace("__", "/")))] }),
+  repos: await collection(stores, "repos", RouterRepoConfig, { log }),
+  claims: await collection(stores, "claims", Claims, { log }),
   /** Accepted deliveries some target hasn't answered yet, by delivery ID. */
-  inbox: await collection(stores, "inbox", InboxEntry, { log, migrate: [tagged] }),
+  inbox: await collection(stores, "inbox", InboxEntry, { log, }),
   /** Deliveries some target never answered, by delivery ID. */
-  failed: await collection(stores, "failed", FailedEntry, { log, migrate: [tagged] }),
+  failed: await collection(stores, "failed", FailedEntry, { log, }),
 });
 
 export type RouterStore = Awaited<ReturnType<typeof createStore>>;

@@ -29,9 +29,8 @@ export type RouterDeps = {
 };
 
 /**
- * Opens its store, migrated, so nothing reads it before its migrations have
- * run, and loads config and claims from it, so no event is routed against an
- * empty config.
+ * Opens its store and loads config and claims from it, so no event is routed
+ * against an empty config.
  */
 export const createContext = async (env: RouterEnv, { stores, ...deps }: RouterDeps) => {
   const log = deps.log ?? ((line: string) => console.log(line));

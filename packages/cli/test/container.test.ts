@@ -83,31 +83,14 @@ const shellWith = (binaries: string[], missing = (binary: string) => `sh: 1: exe
 /** Lists the container's sessions as `achq container resume` does. */
 const listSessions = async (container: ReturnType<typeof shellWith>["container"], thread?: string) => run(testRunner(), containerListSessions, { container, thread });
 
-test("sessions come from achq-runner, which resume then runs", async () => {
-  const { container, ran } = shellWith(["achq-runner", "achq-agent"]);
-  const { sessions, binary } = await listSessions(container, "34");
-  expect(sessions.map((s) => s.id)).toEqual(["bbb222", "aaa111"]);
-  expect(binary).toBe("achq-runner");
+test("sessions come from achq-runner", async () => {
+  const { container, ran } = shellWith(["achq-runner"]);
+  expect((await listSessions(container, "34")).map((s) => s.id)).toEqual(["bbb222", "aaa111"]);
   expect(ran).toEqual([["achq-runner", "sessions", "34"]]);
 });
 
-test("a container without achq-runner, built by an older install.sh, is asked as achq-agent, which resume then runs", async () => {
-  for (const missing of [
-    (b: string) => `sh: 1: exec: ${b}: not found`,
-    (b: string) => `bash: line 1: ${b}: command not found`,
-    (b: string) => `exec: "${b}": executable file not found in $PATH`,
-    () => "Process exited with code 127",
-  ]) {
-    const { container, ran } = shellWith(["achq-agent"], missing);
-    expect((await listSessions(container)).binary).toBe("achq-agent");
-    expect(ran).toEqual([["achq-runner", "sessions"], ["achq-agent", "sessions"]]);
-  }
-});
-
-test("any other failure is the runner's, and isn't asked again", async () => {
-  const { container, ran } = shellWith([], () => "connection refused");
-  await expect(listSessions(container)).rejects.toThrow("achq-runner sessions failed in dev: connection refused");
+test("a failure is the runner's, and isn't asked again", async () => {
+  const { container, ran } = shellWith([]);
+  await expect(listSessions(container)).rejects.toThrow("achq-runner sessions failed in dev: sh: 1: exec: achq-runner: not found");
   expect(ran).toHaveLength(1);
-  // Neither name answering is achq-agent's failure.
-  await expect(listSessions(shellWith([]).container)).rejects.toThrow("achq-agent sessions failed in dev: sh: 1: exec: achq-agent: not found");
 });

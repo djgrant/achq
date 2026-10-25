@@ -3,7 +3,7 @@ import { RepoManifest } from "@achq/core/manifest";
 import { DeployRecord, SyncResult } from "@achq/core/protocol";
 import { async } from "@achq/utils/async";
 import { Job, jobs } from "@achq/utils/jobs";
-import { collection, renamed } from "@achq/utils/store";
+import { collection } from "@achq/utils/store";
 import { z } from "zod";
 
 /** How many syncs' outcomes are kept for `GET /sync/<id>`: the newest started. */
@@ -38,13 +38,9 @@ export type StoredRecord = z.infer<typeof StoredRecord>;
 /** The record without what only the deployer reads. */
 export const wireRecord = ({ deployed: _deployed, ...record }: StoredRecord): DeployRecord => record;
 
-/** In its container provider's store, migrated: a record per repo, by `repoName.key`, the deliveries it's handled, and its syncs, so a restart doesn't lose how one went. */
+/** In its container provider's store: a record per repo, by `repoName.key`, the deliveries it's handled, and its syncs, so a restart doesn't lose how one went. */
 export const createStore = async (stores: Stores, log?: (line: string) => void) => {
-  const records = await collection(stores, "records", StoredRecord, {
-    log,
-    // compat: delete once deployed infras run past cb7a2f1. Moves what stores kept under file names (`owner__name`) to its key.
-    migrate: [renamed((_name, record) => repoName.key(record.repo))],
-  });
+  const records = await collection(stores, "records", StoredRecord, { log });
   const handled = await collection(stores, "deliveries", z.array(z.string()), { log });
   let deliveries: string[] | undefined;
   const loadDeliveries = async () => (deliveries ??= (await handled.read(HANDLED)) ?? []);

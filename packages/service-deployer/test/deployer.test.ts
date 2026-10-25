@@ -260,36 +260,9 @@ describe("checks", () => {
     expect(outcome).toMatchObject({ outcome: "deployed", warnings: ["trigger lonely never runs: no workspace's threads come from github:second"] });
     expect(github.variable(REPO, STATUS_VARIABLE)).toMatchObject({ state: "deployed", warnings: outcome.warnings });
   });
-
-  // Goes with oldRunnerWarnings.
-  test("a Dockerfile that still names achq-agent is a warning, not a comment that does", async () => {
-    const warning = "container dev's .achq/Dockerfile names achq-agent, which is achq-runner now: its container provider starts the runner, so a CMD naming it is ignored and can go";
-    github.commit(REPO, repoFiles({ ".achq/Dockerfile": 'FROM oven/bun:1\nCMD ["achq-agent"]\n' }));
-    const outcome = await deploy(await makeDeployer(), REPO);
-    expect(outcome).toMatchObject({ outcome: "deployed", warnings: [warning] });
-    expect(github.variable(REPO, STATUS_VARIABLE)).toMatchObject({ state: "deployed", warnings: [warning] });
-
-    github.commit(REPO, repoFiles({ ".achq/Dockerfile": "FROM oven/bun:1\n# was CMD achq-agent\nRUN echo achq-agents\n" }));
-    expect((await deploy(await makeDeployer(), REPO)).warnings).toBeUndefined();
-  });
 });
 
 describe("config changes", () => {
-  // Delete with the records migration in src/store.ts.
-  test("records kept under their old file names move to their repo keys when the deployer starts", async () => {
-    github.commit(REPO, repoFiles());
-    expect((await deploy(await makeDeployer(), REPO)).outcome).toBe("deployed");
-    // As an older deployer kept them: `owner__name`, and a name that's no repo's made safe as a file name.
-    const records = dirStores(dataDir)("records");
-    await records.write("notationlabs__yieldstar", (await records.read(REPO))!);
-    await records.remove(REPO);
-    await records.write("_hidden", { repo: ".Hidden", state: "failed", at: "2026-10-17T10:00:00Z", error: "no such repo" });
-
-    const deployer = await makeDeployer();
-    expect(await records.list()).toEqual([".hidden", REPO]);
-    expect((await deploy(deployer, REPO)).outcome).toBe("unchanged");
-  });
-
   test("a repo whose record is unreadable deploys as if it had none, logged, and the deploy rewrites the record", async () => {
     github.commit(REPO, repoFiles());
     expect((await deploy(await makeDeployer(), REPO)).outcome).toBe("deployed");

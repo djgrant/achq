@@ -1,9 +1,7 @@
 import { afterEach, expect, test } from "bun:test";
-import { existsSync, mkdtempSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { existsSync } from "node:fs";
 import { join } from "node:path";
 import type { Stores } from "@achq/core";
-import { dirStores } from "@achq/test-utils/helpers/stores";
 import { HttpJsonStore, storeHandler } from "@achq/utils/store";
 import { accepted, boot, comment, deliveryIds, deployed, hold, repo } from "./harness.ts";
 
@@ -53,24 +51,3 @@ test("the router keeps its inbox, config and claims in its container provider's 
   await r.settled();
 });
 
-// Delete with the repos and claims migrations in src/store.ts.
-test("a router started on a store with repos under their old file names moves them to their keys, on disk or over HTTP, and routes by them", async () => {
-  store = startStore();
-  const dir = mkdtempSync(join(tmpdir(), "achq-router-"));
-  for (const stores of [dirStores(dir), httpStores(store.url)]) {
-    const first = await deployed({ stores });
-    // As an older router kept them: config and claims under `owner__name`.
-    const config = await stores("repos").read(repo);
-    await stores("repos").write(repo.replace("/", "__"), config);
-    await stores("repos").remove(repo);
-    await stores("claims").write(repo.replace("/", "__"), { [`test:${repo}#5`]: { dev: "dev-docs" } });
-
-    const again = await boot({ stores });
-    expect(await stores("repos").list()).toEqual([repo]);
-    expect(await stores("claims").list()).toEqual([repo]);
-    // The claim moved with it: the thread stays in its docs workspace, though its event no longer has the label.
-    await again.webhook(comment(5));
-    await again.settled();
-    expect(first.dev.events.at(-1)!.workspace).toBe("dev-docs");
-  }
-});

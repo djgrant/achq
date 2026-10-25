@@ -31,12 +31,11 @@ export const storeHandler =
     } catch {
       return status(400, "bad path");
     }
-    // compat: delete once deployed infras run past cb7a2f1. The path form `/<collection>/<name>`, as services at an older ACHQ_REF name a value.
-    const [collection = "", pathName, ...rest] = segments;
-    if (!SEGMENT.test(collection) || rest.length || (pathName !== undefined && !SEGMENT.test(pathName))) return status(400, "bad path");
+    const [collection = "", ...rest] = segments;
+    if (!SEGMENT.test(collection) || rest.length) return status(400, "bad path");
     // A key is the collection's prefix and the name, whatever it is: listing by the prefix finds it.
     const prefix = `${STORE_PREFIX}${collection}/`;
-    const name = url.searchParams.get("name") ?? pathName ?? null;
+    const name = url.searchParams.get("name");
     if (name === null) {
       if (request.method !== "GET") return status(405, "method not allowed");
       const keys = await memory.list(prefix);

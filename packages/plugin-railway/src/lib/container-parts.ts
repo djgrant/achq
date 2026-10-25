@@ -7,18 +7,6 @@ import { Service } from "./service.ts";
 import { Variables } from "./variables.ts";
 
 /**
- * `argv` as one line, which Railway splits like a shell but expands no variables in: an argument with a space or a shell
- * operator is single-quoted, as `startCommand` quotes its script.
- */
-export const commandLine = (argv: string[]) =>
-  argv
-    .map((arg) => {
-      if (arg.includes("'")) throw new Error(`Railway's start command can't quote ${arg}`);
-      return /[\s"$&|;<>()\\]/.test(arg) ? `'${arg}'` : arg;
-    })
-    .join(" ");
-
-/**
  * One Railway service per repo and container: private, sleeping when idle,
  * and its variables. Not its build: `ensure` starts one when the deployer asks.
  */
@@ -32,8 +20,8 @@ export const containerParts = (container: ContainerSpec, at: ProjectAt) => {
       settings: {
         // Setting a Dockerfile path is what makes Railway build with Docker.
         dockerfilePath: container.dockerfile,
-        // In place of the image's CMD, so the repo's Dockerfile doesn't name the runner.
-        startCommand: commandLine(serve()),
+        // In place of the image's CMD, so the repo's Dockerfile doesn't name the runner. Its argv has nothing to quote.
+        startCommand: serve().join(" "),
         healthcheckPath: "/",
         // Sleeps when idle; the router wakes it over the private network.
         sleepApplication: true,

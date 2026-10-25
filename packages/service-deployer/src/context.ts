@@ -34,7 +34,7 @@ export type DeployerDeps = {
   log?: (line: string) => void;
 };
 
-/** Opens its store, migrated, so nothing reads it before its migrations have run. */
+/** Opens its store. */
 export const createContext = async (env: DeployerEnv, { stores, ...deps }: DeployerDeps) => {
   const log = deps.log ?? ((line: string) => console.log(line));
   return {

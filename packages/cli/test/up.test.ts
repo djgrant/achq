@@ -57,14 +57,12 @@ let ghCalls: { method: string; path: string; body?: any; jwtOk: boolean }[];
 let syncs: { body: any; signed: boolean }[];
 /** Each sync to no repos the deployer was asked for, as `achq infra down` asks, and how many Railway projects there were then. */
 let downs: { request: SyncRequest; projects: number }[];
-/** How many times the deployer answers a sync's ID as one it's lost, restarting. */
-let lost = 0;
 /** How many times the deployer answers a sync's ID as one it was running when it stopped. */
 let interrupted = 0;
 let last: SyncRequest | undefined;
 let polls = 0;
-/** How many times the deployer answers as one too old to say what it runs. */
-let oldDeployer = 0;
+/** How many times the deployer, being replaced, doesn't answer, then answers as the old one. */
+let replacing = 0;
 let hook: { url?: string; content_type?: string; insecure_ssl?: string; secret?: string };
 let tmp: string;
 let secrets = 0;
@@ -84,10 +82,9 @@ beforeEach(() => {
   ghCalls = [];
   syncs = [];
   downs = [];
-  lost = 0;
   interrupted = 0;
   last = undefined;
-  oldDeployer = 0;
+  replacing = 0;
   hook = {};
   gh = Bun.serve({
     port: 0,
@@ -116,7 +113,7 @@ beforeEach(() => {
   });
   // The deployer runs what the router was given, as a new one does once it's replaced the old.
   admin.openapi(routerAdminRoutes.deployerVersion, (c) =>
-    oldDeployer-- > 0 ? c.text("not found", 404) : c.json({ ref: fake.service("achq-router")!.variables.ACHQ_REF }, 200),
+    replacing-- > 0 ? (replacing % 2 ? c.text("the deployer didn't answer", 504) : c.json({ ref: "old" }, 200)) : c.json({ ref: fake.service("achq-router")!.variables.ACHQ_REF }, 200),
   );
   // A sync starts, then is asked after: running once, then done.
   admin.openapi(routerAdminRoutes.sync, (c) => {
@@ -128,7 +125,7 @@ beforeEach(() => {
     return c.json({ id: "sync-1" }, 202);
   });
   admin.openapi(routerAdminRoutes.syncStatus, (c) => {
-    if (c.req.valid("param").id !== "sync-1" || lost-- > 0) return c.text("not found", 404);
+    if (c.req.valid("param").id !== "sync-1") return c.text("no such sync", 404);
     if (interrupted-- > 0) return c.json({ state: "interrupted" as const }, 200);
     // One to no repos uninstalls the one there is, and deletes its container.
     const result: SyncResult = last?.empty
@@ -309,13 +306,6 @@ test("down has the deployer delete what it showed, then deletes the infra; then 
   expect(downs).toHaveLength(2);
 });
 
-test("a sync the deployer lost, restarting, is started again", async () => {
-  await up(infra(), { prune: false, dryRun: false }, deps());
-  lost = 1;
-  expect((await up(infra(), { prune: false, dryRun: false }, deps()))?.deployed).toEqual(["djgrant/x"]);
-  expect(syncs).toHaveLength(3);
-});
-
 test("a sync interrupted by its deployer stopping is started again", async () => {
   await up(infra(), { prune: false, dryRun: false }, deps());
   interrupted = 1;
@@ -325,11 +315,11 @@ test("a sync interrupted by its deployer stopping is started again", async () =>
 
 test("up waits for the new deployer to replace the old before it syncs", async () => {
   await up(infra(), { prune: false, dryRun: false }, deps());
-  oldDeployer = 2;
+  replacing = 2;
   const log: string[] = [];
   expect((await up(infra(), { prune: false, dryRun: false }, deps(log)))?.deployed).toEqual(["djgrant/x"]);
   expect(log).toContain("  waiting for the deployer to run abc123…");
-  expect(oldDeployer).toBe(-1);
+  expect(replacing).toBe(-1);
 });
 
 test("a second up changes nothing, keeps the key, and fixes a webhook URL that drifted", async () => {

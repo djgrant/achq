@@ -168,8 +168,7 @@ export type SyncStarted = z.infer<typeof SyncStarted>;
 
 /**
  * A sync's progress: a failed one's error isn't shown, only logged. An
- * interrupted one stopped when its deployer did, and is started again. A
- * deployer older than `interrupted` answers 404 for a sync it lost instead.
+ * interrupted one stopped when its deployer did, and is started again.
  */
 export const SyncStatus = z.discriminatedUnion("state", [
   z.looseObject({ state: z.literal("running") }),

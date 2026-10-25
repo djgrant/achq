@@ -3,7 +3,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { z } from "zod";
-import { collection, HttpJsonStore, JsonDirStore, type JsonStore, renamed, type StoreMemory, storeHandler, type Stores } from "../src/store/index.ts";
+import { collection, HttpJsonStore, JsonDirStore, type JsonStore, type Migration, type StoreMemory, storeHandler, type Stores } from "../src/store/index.ts";
 
 const dirs: string[] = [];
 afterEach(() => {
@@ -75,19 +75,6 @@ describe("storeHandler", () => {
   test("imports nothing, so a container Worker's build can take it from achq's archive alone", () => {
     const source = fs.readFileSync(path.join(import.meta.dir, "../src/store/handler.ts"), "utf8");
     expect(source).not.toMatch(/^\s*(import|export .* from)\b/m);
-  });
-
-  // Delete with the path form in src/store/handler.ts.
-  test("also takes a name in the path, as services before names went in the query gave it, under the same key", async () => {
-    const handle = storeHandler(memory().store);
-    expect((await ask(handle, "PUT", "/repos/acme__w", `{"a":1}`)).status).toBe(204);
-    expect(await (await ask(handle, "GET", "/repos/acme__w")).json()).toEqual({ a: 1 });
-    expect(await (await ask(handle, "GET", "/repos?name=acme__w")).json()).toEqual({ a: 1 });
-    expect(await (await ask(handle, "GET", "/repos")).json()).toEqual(["acme__w"]);
-    expect((await ask(handle, "DELETE", "/repos/acme__w")).status).toBe(204);
-    expect((await ask(handle, "GET", "/repos/acme__w")).status).toBe(404);
-    expect((await ask(handle, "GET", "/repos/a%2Fb")).status).toBe(400);
-    expect((await ask(handle, "GET", "/repos/%zz")).status).toBe(400);
   });
 });
 
@@ -187,21 +174,23 @@ describe("collection", () => {
   test("runs its migrations, in order, before it returns", async () => {
     const dir = tmpDir();
     const stores: Stores = (name) => new JsonDirStore(path.join(dir, name));
-    await stores("repos").write("acme__a", { repo: "acme/a", n: 1 });
-    await stores("repos").write("acme/b", { repo: "acme/b", n: 2 });
+    await stores("repos").write("a", { repo: "acme/a", n: 1 });
     await stores("repos").write("bad", { repo: 3 });
     const seen: string[][] = [];
     const listed = (raw: JsonStore) => raw.list().then((names) => void seen.push(names));
-    const repos = await collection(stores, "repos", Repo, { log: () => {}, migrate: [listed, renamed((_name, value) => value.repo), listed] });
+    const counted: Migration<z.infer<typeof Repo>> = async (raw, parse) => {
+      for (const name of await raw.list()) {
+        const value = parse(await raw.read(name));
+        if (value) await raw.write(`${name}.n`, value.n);
+      }
+    };
+    const repos = await collection(stores, "repos", Repo, { log: () => {}, migrate: [listed, counted, listed] });
+    // One its schema can't read gives undefined to parse.
     expect(seen).toEqual([
-      ["acme/b", "acme__a", "bad"],
-      ["acme/a", "acme/b", "bad"],
+      ["a", "bad"],
+      ["a", "a.n", "bad"],
     ]);
-    // Moved as it was written; one its schema can't read stays where it is.
-    expect(await repos.read("acme/a")).toEqual({ repo: "acme/a", n: 1 });
-    expect(await stores("repos").read("bad")).toEqual({ repo: 3 });
-    // Run again, it has nothing left to move.
-    await collection(stores, "repos", Repo, { log: () => {}, migrate: [renamed((_name, value) => value.repo)] });
-    expect(await repos.list()).toEqual(["acme/a", "acme/b", "bad"]);
+    expect(await stores("repos").read("a.n")).toBe(1);
+    expect(await repos.read("a")).toEqual({ repo: "acme/a", n: 1 });
   });
 });

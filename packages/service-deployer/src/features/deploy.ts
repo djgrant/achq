@@ -1,4 +1,4 @@
-import { BrowserActionNeeded, CONFIG_DIR, CONFIG_ENTRY, type ConfigTree, type DeployRecord, ENV, type RepoClient, repoName, type Status } from "@achq/core";
+import { BrowserActionNeeded, CONFIG_DIR, CONFIG_ENTRY, type DeployRecord, ENV, type RepoClient, repoName, type Status } from "@achq/core";
 import { repoParams } from "@achq/core/clients/router";
 import type { RepoManifest } from "@achq/core/manifest";
 import { containerSecret } from "@achq/core/secrets";
@@ -8,7 +8,7 @@ import { HttpError } from "@achq/utils/http";
 import { json } from "@achq/utils/json";
 import type { DeployerContext } from "../context.ts";
 import { type ImageRecord, type StoredRecord, wireRecord } from "../store.ts";
-import { checkManifest, dockerfileOf, oldRunnerWarnings } from "./checks.ts";
+import { checkManifest, dockerfileOf } from "./checks.ts";
 import { isSourceFile } from "./config/evaluate.ts";
 
 const NOT_FOUND = 404;
@@ -49,18 +49,6 @@ export const repoClient = async (ctx: DeployerContext, repo: string) => {
   const credential = (await ctx.router.mint({ body: { repo, policies: [policy] } })).find((c) => c.provider === policy.provider);
   if (!credential) throw new Error(`the router minted no ${policy.provider} credential for ${repo}`);
   return ctx.codeHost.repo(repo, credential);
-};
-
-/** What only warns in the containers' Dockerfiles; goes with oldRunnerWarnings. One that can't be read is only logged. */
-const dockerfileWarnings = async (ctx: DeployerContext, repo: string, client: RepoClient, tree: ConfigTree, manifest: RepoManifest) => {
-  const paths = [...new Set(manifest.containers.flatMap((c) => dockerfileOf(c)?.path ?? []))].filter((path) => tree.blobs.has(path));
-  if (!paths.length) return [];
-  try {
-    return oldRunnerWarnings(manifest, await client.download(tree, paths, ctx.fileLimits));
-  } catch (error) {
-    ctx.log(`${repo}: couldn't read its Dockerfiles at ${tree.commit}: ${errors.message(error)}`);
-    return [];
-  }
 };
 
 /** Deploys the repo, after any deploy or uninstall of it already under way. */
@@ -137,7 +125,6 @@ const deployOnce = async (ctx: DeployerContext, repo: string, dryRun: boolean): 
       throw new DeployFailure(`${CONFIG_FILE}: ${errors.message(error)}`);
     });
     const checked = checkManifest(manifest, { tree, sources: await ctx.router.sources() });
-    checked.warnings.push(...(await dockerfileWarnings(ctx, repo, client, tree, manifest)));
     const policies = manifest.policies.map((p) => p.policy);
     const problems = policies.length ? (await ctx.router.validate({ body: { repo, policies } })).problems : [];
     // Warnings don't stop a deploy.

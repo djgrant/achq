@@ -178,36 +178,4 @@ describe("persisted events", () => {
     expect(r.dev.attempts).toBe(1);
     expect(readJson(join(r.dir, "failed", `${event.delivery}.json`)).targets).toMatchObject([{ container: "dev", error: "refused (400 bad envelope)" }]);
   });
-
-  // Delete with the inbox and failed migration in src/store.ts.
-  test("entries an older router kept without saying where they go are tagged when it starts, then forwarded, listed and replayed as any are", async () => {
-    const deployer = fakeDeployer();
-    const first = await deployed({ deployer: deployer.url });
-    const stores = dirStores(first.dir);
-    const target = { repo, container: "dev", url: first.dev.url, workspace: "dev-all", commit: "abc123" };
-    const install = { delivery: "old-install", type: "installed", host: "github", deploy: ["acme/new"], uninstall: [] };
-    // As an older router kept them: each target said what it was, a repo event had a host, and a failed target its error.
-    await stores("inbox").write("old-install", { event: install, targets: [{ kind: "deployer" }] });
-    await stores("inbox").write("old-comment", { event: comment(40, [], { delivery: "old-comment" }), targets: [{ kind: "container", ...target }] });
-    await stores("failed").write("old-failed-install", { event: { ...install, delivery: "old-failed-install" }, targets: [{ kind: "deployer", error: "gave up" }] });
-    const failedComment = comment(41, [], { delivery: "old-failed-comment" });
-    await stores("failed").write("old-failed-comment", { event: failedComment, targets: [{ kind: "container", ...target, error: "gave up" }], told: true });
-
-    const r = await boot({ dir: first.dir, deployer: deployer.url });
-    await r.settled();
-    expect(deployer.events.map((e) => e.event)).toEqual([{ delivery: "old-install", type: "installed", deploy: ["acme/new"], uninstall: [] }]);
-    expect(deliveryIds(first.dev)).toEqual(["old-comment"]);
-    expect(await stores("failed").read("old-failed-install")).toEqual({ to: "deployer", event: { delivery: "old-failed-install", type: "installed", deploy: ["acme/new"], uninstall: [] }, error: "gave up" });
-    expect(await stores("failed").read("old-failed-comment")).toEqual({ to: "containers", event: failedComment, targets: [{ ...target, error: "gave up" }], told: true });
-    expect(await (await r.admin("GET", "/admin/failed")).json()).toEqual([
-      { delivery: "old-failed-comment", type: "comment", repo, thread: failedComment.thread, targets: [{ target: `${repo}/dev`, error: "gave up" }] },
-      { delivery: "old-failed-install", type: "installed", repo: "acme/new", targets: [{ target: "deployer", error: "gave up" }] },
-    ]);
-
-    expect(await (await r.admin("POST", "/admin/failed/replay")).json()).toEqual({ replayed: ["old-failed-comment", "old-failed-install"], dropped: [] });
-    await r.settled();
-    expect(deliveryIds(first.dev)).toEqual(["old-comment", "old-failed-comment"]);
-    expect(deployer.events.map((e) => e.event.delivery)).toEqual(["old-install", "old-failed-install"]);
-    expect(channelReplies.filter((c) => c.thread === `${repo}#41`)).toEqual([]);
-  });
 });

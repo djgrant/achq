@@ -43,8 +43,5 @@ rm -rf /opt/achq/packages/*/node_modules
 (cd /opt/achq && bun install --production --frozen-lockfile)
 chmod 755 /opt/achq/packages/service-runner/bin/achq-runner
 ln -sf /opt/achq/packages/service-runner/bin/achq-runner /usr/local/bin/achq-runner
-# compat: delete once deployed repos' Dockerfiles no longer name achq-agent. The runner's name before achq-runner, which a
-# Dockerfile's CMD or RUN may still name, and which an older CLI's `achq container resume` runs.
-ln -sf /opt/achq/packages/service-runner/bin/achq-runner /usr/local/bin/achq-agent
 
 id agent > /dev/null 2>&1 || useradd --create-home --shell /bin/bash agent

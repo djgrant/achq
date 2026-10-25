@@ -94,11 +94,11 @@ export const status = createRoute({
   responses: { 200: route.json(z.array(DeployRecord)), 504: unreachable },
 });
 
-/** The achq commit the deployer runs: the deployer's `/version`. One older than that answers 404. */
+/** The achq commit the deployer runs: the deployer's `/version`. */
 export const deployerVersion = createRoute({
   method: "get",
   path: "/deployer",
-  responses: { 200: route.json(DeployerVersion), 404: route.text("a deployer older than its version route"), 504: unreachable },
+  responses: { 200: route.json(DeployerVersion), 504: unreachable },
 });
 
 export const failed = createRoute({

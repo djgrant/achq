@@ -2,12 +2,10 @@ import { defineTask } from "@pokit/core";
 import type { SyncRequest } from "@achq/core";
 import type { RouterAdmin } from "@achq/core/clients/router";
 import { async } from "@achq/utils/async";
-import { HttpError } from "@achq/utils/http";
 import { time } from "@achq/utils/time";
 import { z } from "zod";
 import { given, sleep } from "./params.ts";
 
-const NOT_FOUND = 404;
 /** How long a sync, which deploys every repo, is waited for, and how often it's asked after. */
 const SYNC_TIMEOUT_MS = 60 * time.MINUTE_MS;
 const SYNC_INTERVAL_MS = 5000;
@@ -21,13 +19,8 @@ export const infraSync = defineTask({
     let id = await start();
     const status = await async.pollOrThrow(
       async () => {
-        try {
-          const status = await admin.syncStatus({ params: { id } });
-          if (status.state !== "interrupted") return status;
-        } catch (e) {
-          // compat: delete once deployed infras run past 69dd44c. Starts again a sync a restarted deployer lost, which answers 404.
-          if (!(e instanceof HttpError && e.status === NOT_FOUND)) throw e;
-        }
+        const status = await admin.syncStatus({ params: { id } });
+        if (status.state !== "interrupted") return status;
         // Its deployer stopped while it ran, so it's started again.
         id = await start();
         return { state: "running" } as const;

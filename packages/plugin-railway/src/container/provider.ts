@@ -24,13 +24,6 @@ const cantSee = (repo: string, error: RailwayError) =>
     what: `install ${SOURCE_GITHUB_APP} on ${repo}`,
   });
 
-// compat: delete once deployed infras run past ed5cfe9. Deletes ACHQ_PRIVATE_ENV, which an agent would now see, and ACHQ_BRANCH where an older deployer left them: a variable group never deletes them.
-const STALE = ["ACHQ_PRIVATE_ENV", "ACHQ_BRANCH"];
-const dropStale = async (service: RailwayService) => {
-  const variables = await service.variables();
-  for (const name of STALE) if (name in variables) await service.deleteVariable(name);
-};
-
 export class RailwayContainerProvider implements ContainerProvider {
   /** The deployer's project, in the environment its containers run in. */
   readonly project: RailwayProject;
@@ -46,7 +39,6 @@ export class RailwayContainerProvider implements ContainerProvider {
     const { service, resources } = containerParts(spec, { projectId: this.project.id, environmentId: this.project.environmentId });
     const applied = await (await plan(resources, this.ctx)).apply();
     const made = this.project.service(applied.value(service.out("serviceId")));
-    await dropStale(made);
     if (build) await this.build(made, spec);
     return { url: containerUrl(containerServiceName(spec.repo, spec.name)) };
   }
