@@ -4,7 +4,10 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./*": "./src/*.ts"
+    "./fakes/vendors/*": "./src/fakes/vendors/*.ts",
+    "./fakes/achq/*": "./src/fakes/achq/*.ts",
+    "./fixtures/*": "./src/fixtures/*.ts",
+    "./helpers/*": "./src/helpers/*.ts"
   },
   "dependencies": {
     "@achq/core": "workspace:*",

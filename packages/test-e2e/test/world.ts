@@ -10,11 +10,11 @@ import { githubChannelProvider } from "@achq/github/channel";
 import { githubCodeHostProvider } from "@achq/github/code-host";
 import { githubPolicyProvider } from "@achq/github/policy";
 import { createContext as createRouterContext, replay, routes as routerRoutes, settled } from "@achq/router";
-import { fakeClaude } from "@achq/test-utils/fake-claude";
-import { FakeGitHub, makeApp } from "@achq/test-utils/github";
-import { makeOrigin } from "@achq/test-utils/origin";
-import { dirStores } from "@achq/test-utils/stores";
-import { tempDir } from "@achq/test-utils/temp-dir";
+import { fakeClaude } from "@achq/test-utils/fakes/vendors/claude";
+import { FakeGitHub, makeApp } from "@achq/test-utils/fakes/vendors/github";
+import { makeOrigin } from "@achq/test-utils/fixtures/origin";
+import { dirStores } from "@achq/test-utils/helpers/stores";
+import { tempDir } from "@achq/test-utils/helpers/temp-dir";
 import { APP_EVENTS, APP_ID, APP_PERMISSIONS, BOT, DJ, githubSends, INSTALLATION, KEY, MALLORY, OWNER, REPO, SLUG } from "./github-sends.ts";
 
 export const THREAD = (n: number) => `github:${REPO}#${n}`;

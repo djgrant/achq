@@ -3,7 +3,7 @@ import { mkdtempSync, readdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Stores } from "@achq/core";
-import { dirStores } from "@achq/test-utils/stores";
+import { dirStores } from "@achq/test-utils/helpers/stores";
 import { repo, fakeDeployer, boot, selector, config, trusted, comment, deployed, deliveryIds, readJson, hold, accepted } from "./harness.ts";
 
 describe("routing events to containers", () => {

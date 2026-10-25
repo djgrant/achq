@@ -2,7 +2,7 @@ import { afterEach, beforeEach, expect, test } from "bun:test";
 import { BrowserActionNeeded } from "@achq/core";
 import { serve } from "@achq/core/commands";
 import { gunzipSync } from "node:zlib";
-import { type FakeCloudflare, startFakeCloudflare } from "@achq/test-utils/cloudflare";
+import { type FakeCloudflare, startFakeCloudflare } from "@achq/test-utils/fakes/vendors/cloudflare";
 import { Cloudflare } from "@achq/utils/cloudflare";
 import { cloudflareContainerProvider } from "../src/container/index.ts";
 import { CloudflareContainerProvider } from "../src/container/provider.ts";

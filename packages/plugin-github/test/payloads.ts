@@ -1,5 +1,5 @@
 import { crypto } from "@achq/utils/crypto";
-import { makeApp } from "@achq/test-utils/github";
+import { makeApp } from "@achq/test-utils/fakes/vendors/github";
 import { githubChannelProvider } from "../src/channel/index.ts";
 import { type AppKeys, appWebhookSecret } from "../src/lib/apps.ts";
 

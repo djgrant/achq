@@ -4,7 +4,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import type { ChannelProvider, CodeHostProvider, PolicyCredential, PolicyProvider } from "@achq/core";
-import { FakeGitHub, makeApp } from "@achq/test-utils/github";
+import { FakeGitHub, makeApp } from "@achq/test-utils/fakes/vendors/github";
 import { githubChannelProvider } from "../src/channel/index.ts";
 import { githubCodeHostProvider } from "../src/code-host/index.ts";
 import type { GitHubPolicyData } from "../src/index.ts";

@@ -1,6 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { fakeBin } from "./fake-bin.ts";
+import { fakeBin } from "../../helpers/fake-bin.ts";
 
 export type ClaudeCall = { argv: string[]; env: Record<string, string>; stdin: string; cwd: string; start: number; end: number };
 

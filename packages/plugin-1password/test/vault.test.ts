@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, test } from "bun:test";
-import { type FakeOp, fakeOp } from "@achq/test-utils/op";
+import { type FakeOp, fakeOp } from "@achq/test-utils/fakes/vendors/1password";
 import { onePasswordVaultProvider } from "../src/vault/index.ts";
 
 let op: FakeOp;

@@ -8,7 +8,7 @@ import { signedRequestInit, verifySigned } from "@achq/core/signing";
 import { deployerRoutes } from "@achq/core/routes/deployer";
 import { crypto } from "@achq/utils/crypto";
 import { OpenAPIHono } from "@hono/zod-openapi";
-import { dirStores } from "@achq/test-utils/stores";
+import { dirStores } from "@achq/test-utils/helpers/stores";
 import { createContext } from "../src/context.ts";
 import { replay, settled } from "../src/features/deliveries.ts";
 import { routes } from "../src/routes.ts";

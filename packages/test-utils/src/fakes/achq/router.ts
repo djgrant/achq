@@ -4,7 +4,7 @@ import { adminSecret } from "@achq/core/secrets";
 import { verifySigned } from "@achq/core/signing";
 import { handler } from "@achq/utils/http";
 import { OpenAPIHono } from "@hono/zod-openapi";
-import type { FakeGitHub } from "../github.ts";
+import type { FakeGitHub } from "../vendors/github.ts";
 
 /** The router's admin routes the deployer calls, as `@achq/core/routes/router-admin` declares them, checking every request's admin signature. */
 export class FakeRouter {

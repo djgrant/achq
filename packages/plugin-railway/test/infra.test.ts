@@ -2,7 +2,7 @@ import { afterEach, beforeEach, expect, spyOn, test } from "bun:test";
 import { createHash } from "node:crypto";
 import * as core from "@achq/core";
 import { achq, type Change, type Context, type Output, plan, teardown, UNKNOWN } from "@achq/core";
-import { type FakeRailway, startFakeRailway } from "@achq/test-utils/railway";
+import { type FakeRailway, startFakeRailway } from "@achq/test-utils/fakes/vendors/railway";
 import { Deployer, Router } from "../src/infra.ts";
 import { Railway } from "@achq/utils/railway";
 import { fingerprint } from "../src/lib/deployment.ts";

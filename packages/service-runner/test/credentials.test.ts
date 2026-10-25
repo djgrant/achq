@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { fakeRouter } from "@achq/test-utils/container-router";
-import { testPolicyProvider } from "@achq/test-utils/test-policy-provider";
-import { tempDir } from "@achq/test-utils/temp-dir";
+import { fakeRouter } from "@achq/test-utils/fakes/achq/router-container";
+import { testPolicyProvider } from "@achq/test-utils/fakes/achq/policy-provider";
+import { tempDir } from "@achq/test-utils/helpers/temp-dir";
 import { Credentials } from "../src/features/credentials.ts";
 import { paths as layout } from "../src/features/layout.ts";
 

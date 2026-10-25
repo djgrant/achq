@@ -1,5 +1,5 @@
 import { afterEach, expect, test } from "bun:test";
-import { startFakeRailway } from "@achq/test-utils/railway";
+import { startFakeRailway } from "@achq/test-utils/fakes/vendors/railway";
 import { railwayContainerProvider } from "../src/container/index.ts";
 
 const stops: (() => void)[] = [];

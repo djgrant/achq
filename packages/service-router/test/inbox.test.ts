@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { dirStores } from "@achq/test-utils/stores";
+import { dirStores } from "@achq/test-utils/helpers/stores";
 import { accepted, boot, channelReplies, comment, config, deployed, deliveryIds, fakeContainer, fakeDeployer, readJson, hold, repo } from "./harness.ts";
 
 describe("persisted events", () => {

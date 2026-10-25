@@ -2,7 +2,7 @@ import { afterEach, beforeEach, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type FakeRailway, startFakeRailway } from "@achq/test-utils/railway";
+import { type FakeRailway, startFakeRailway } from "@achq/test-utils/fakes/vendors/railway";
 import { railwayContainerProvider } from "../src/container/index.ts";
 import { RailwayContainerProvider } from "../src/container/provider.ts";
 import { Railway } from "@achq/utils/railway";

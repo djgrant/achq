@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { implementationSecret } from "@achq/core/secrets";
 import { crypto } from "@achq/utils/crypto";
-import type { FakeGitHub } from "@achq/test-utils/github";
+import type { FakeGitHub } from "@achq/test-utils/fakes/vendors/github";
 
 export const KEY = "e2e-agent-webhook-key";
 export const OWNER = "notationlabs";

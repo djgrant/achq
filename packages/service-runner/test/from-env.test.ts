@@ -1,6 +1,6 @@
 import { afterEach, expect, test } from "bun:test";
 import * as fs from "node:fs";
-import { tempDir } from "@achq/test-utils/temp-dir";
+import { tempDir } from "@achq/test-utils/helpers/temp-dir";
 import { DEFAULT_MAX_RUNS, DEFAULT_RUN_TIMEOUT_MINUTES, runnerFromEnv } from "../src/from-env.ts";
 import { time } from "@achq/utils/time";
 

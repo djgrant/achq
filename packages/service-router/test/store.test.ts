@@ -3,7 +3,7 @@ import { existsSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Stores } from "@achq/core";
-import { dirStores } from "@achq/test-utils/stores";
+import { dirStores } from "@achq/test-utils/helpers/stores";
 import { HttpJsonStore, storeHandler } from "@achq/utils/store";
 import { accepted, boot, comment, deliveryIds, deployed, hold, repo } from "./harness.ts";
 

@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { appWebhookSecret } from "../src/lib/apps.ts";
 import { crypto } from "@achq/utils/crypto";
-import { FakeGitHub } from "@achq/test-utils/github";
+import { FakeGitHub } from "@achq/test-utils/fakes/vendors/github";
 import { githubChannelProvider } from "../src/channel/index.ts";
 import type { GitHubChannelProvider } from "../src/channel/provider.ts";
 import { messageId } from "../src/lib/threads.ts";

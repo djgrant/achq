@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { tempDir } from "@achq/test-utils/temp-dir";
+import { tempDir } from "@achq/test-utils/helpers/temp-dir";
 import { runtimeContext } from "../src/features/runtime-context.ts";
 
 const dirs: string[] = [];

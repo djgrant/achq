@@ -1,5 +1,5 @@
 import { afterEach, expect, test } from "bun:test";
-import { type FakeCloudflare, fakeWrangler, startFakeCloudflare } from "@achq/test-utils/cloudflare";
+import { type FakeCloudflare, fakeWrangler, startFakeCloudflare } from "@achq/test-utils/fakes/vendors/cloudflare";
 import { cloudflareContainerProvider } from "../src/container/index.ts";
 import { connect, forgetSignIn } from "../src/lib/cloudflare.ts";
 

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, expect, spyOn, test } from "bun:test";
 import * as core from "@achq/core";
 import { achq, type Change, type Context, type Output, plan, teardown } from "@achq/core";
-import { type FakeCloudflare, fakeWrangler, startFakeCloudflare } from "@achq/test-utils/cloudflare";
+import { type FakeCloudflare, fakeWrangler, startFakeCloudflare } from "@achq/test-utils/fakes/vendors/cloudflare";
 import { Deployer, Router } from "../src/infra.ts";
 import { deployerTokenPage, forgetSignIn, internalKey } from "../src/lib/cloudflare.ts";
 import { startCommand } from "../src/lib/service-parts.ts";

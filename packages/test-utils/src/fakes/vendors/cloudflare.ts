@@ -2,7 +2,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import type { BuildToken, RepoConnection, Trigger, TriggerSettings } from "@achq/utils/cloudflare";
-import { fakeBin } from "./fake-bin.ts";
+import { fakeBin } from "../../helpers/fake-bin.ts";
 
 type FakeWorker = {
   id: string;

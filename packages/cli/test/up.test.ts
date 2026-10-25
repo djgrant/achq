@@ -9,9 +9,9 @@ import { adminSecret, implementationSecret } from "@achq/core/secrets";
 import { routerAdminRoutes } from "@achq/core/routes/router-admin";
 import { verifySigned } from "@achq/core/signing";
 import * as github from "@achq/github/infra";
-import { type FakeRailway, startFakeRailway } from "@achq/test-utils/railway";
+import { type FakeRailway, startFakeRailway } from "@achq/test-utils/fakes/vendors/railway";
 import * as railway from "@achq/railway/infra";
-import { fakeOp } from "@achq/test-utils/op";
+import { fakeOp } from "@achq/test-utils/fakes/vendors/1password";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { checkInfra, configVault, down, type DownDeps, routerAccess, up, type UpDeps } from "../src/lib/infra.ts";
 
