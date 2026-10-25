@@ -1,11 +1,11 @@
 import { http } from "../http.ts";
-import type { Data, Operation } from "./operations.ts";
+import { type Operation, rootField } from "./operations.ts";
 
 export const RAILWAY_API = "https://backboard.railway.com/graphql/v2";
 
 export class RailwayError extends Error {}
 
-type GraphQLResponse = { data?: Data; errors?: { message: string }[] };
+type GraphQLResponse = { data?: Record<string, unknown>; errors?: { message: string }[] };
 
 export class RailwayTransport {
   constructor(
@@ -28,6 +28,11 @@ export class RailwayTransport {
     }
     const { data, errors } = answer;
     if (errors?.length || !data) throw new RailwayError(`Railway: ${errors?.map((e) => e.message).join("; ") ?? res.status}`);
-    return operation.pick(data);
+    // The field it asks for names the operation.
+    const name = rootField(operation.document);
+    const parsed = operation.result.safeParse(data[name]);
+    if (parsed.success) return parsed.data;
+    const issue = parsed.error.issues[0]!;
+    throw new RailwayError(`Railway ${name}: ${[name, ...issue.path].join(".")}: ${issue.message}`);
   }
 }

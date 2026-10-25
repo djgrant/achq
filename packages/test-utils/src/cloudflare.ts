@@ -15,7 +15,8 @@ type FakeWorker = {
   config?: any;
 };
 
-type FakeTrigger = Trigger & { variables: Record<string, { value: string; is_secret: boolean }> };
+/** As Workers Builds keeps it: what it answers with, and the Worker it builds and its variables. */
+type FakeTrigger = Trigger & { external_script_id: string; variables: Record<string, { value: string; is_secret: boolean }> };
 
 type FakeBuild = { build_uuid: string; trigger: string; branch: string; status: string; build_outcome: string | null; log: string[]; version?: string };
 
