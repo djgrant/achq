@@ -1,9 +1,13 @@
 import { resume } from "@achq/core/commands";
 import { defineCommand } from "@pokit/core";
 import { z } from "zod";
-import { listSessions, pickSession, reachContainer, sessionLabel, sessionTable } from "../lib/container.ts";
-import { chooseOne, clean, terminalEnv } from "../lib/terminal.ts";
-import { needRepo, repoFlag } from "../lib/workdir.ts";
+import { chooseOne, clean, terminalEnv } from "../io/terminal.ts";
+import { needRepo, repoFlag } from "../io/workdir.ts";
+import { pickSession } from "../pickers/session.ts";
+import { sessionLabel, sessionTable } from "../renderers/sessions.ts";
+import { containerListSessions } from "../tasks/container.list-sessions.ts";
+import { containerReach } from "../tasks/container.reach.ts";
+import { run } from "../tasks/run.ts";
 
 export const command = defineCommand({
   label: "Open an agent session",
@@ -16,9 +20,9 @@ export const command = defineCommand({
   },
   run: clean(async (r, { context }) => {
     const thread = context.thread === undefined ? undefined : String(context.thread);
-    const container = await reachContainer(r.prompter, needRepo(context.repo), context.container);
+    const container = await run(r, containerReach, { here: needRepo(context.repo), wanted: context.container });
     // The name of the runner's binary that answered is the one `resume` runs.
-    const { sessions, binary } = await listSessions(container, thread);
+    const { sessions, binary } = await run(r, containerListSessions, { container, thread });
     const session = await chooseOne(r.prompter, sessions, pickSession(sessions, context.session, thread), {
       message: "Session",
       id: (s) => s.id,

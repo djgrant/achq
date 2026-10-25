@@ -1,10 +1,10 @@
 import { expect, test } from "bun:test";
 import * as path from "node:path";
 import { createRawPrompter, type PromptCall } from "@pokit/core";
-import { confirm, readSecret, waitForEnter } from "../src/lib/terminal.ts";
+import { confirm, readSecret, waitForEnter } from "../io/terminal.ts";
 
 test("a secret is read from stdin without a terminal, and isn't echoed", async () => {
-  const terminal = path.join(import.meta.dir, "../src/lib/terminal.ts");
+  const terminal = path.join(import.meta.dir, "../io/terminal.ts");
   const proc = Bun.spawn([process.execPath, "-e", `const { createRawPrompter } = await import("@pokit/core"); const { readSecret } = await import(${JSON.stringify(terminal)}); process.stderr.write("got " + (await readSecret(createRawPrompter({}), "Token")));`], {
     cwd: path.join(import.meta.dir, ".."),
     stdin: new TextEncoder().encode("s3cret\n"),

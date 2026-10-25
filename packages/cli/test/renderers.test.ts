@@ -1,6 +1,8 @@
 import { expect, test } from "bun:test";
 import type { Change } from "@achq/core";
-import { failedSection, formatReplay, formatStatus, infraStatusTable, planLines } from "../src/lib/format.ts";
+import { failedSection, formatReplay } from "../renderers/deliveries.ts";
+import { planLines } from "../renderers/plan.ts";
+import { formatStatus, infraStatusTable } from "../renderers/status.ts";
 
 test("the infra status lists installed and deployed repos, with errors underneath", () => {
   const table = infraStatusTable(

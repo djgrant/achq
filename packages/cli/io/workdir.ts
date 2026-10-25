@@ -5,12 +5,17 @@ import type { Vars } from "@achq/utils/env";
 import { Git } from "@achq/utils/git";
 import { z } from "zod";
 import { CODE_HOST } from "achq/registry";
-import { CLI_ENV, INFRA_FILE } from "../constants.ts";
+
+/** The ACHQ infra file, at the infra repo's root. */
+const INFRA_FILE = "achq.infra.ts";
+
+/** The directory `achq` was run in. `bin/achq` passes it on, since pok runs from achq's own directory. */
+const CALLER_CWD = "ACHQ_CALLER_CWD";
 
 export type RepoHere = { repo: string; codeHost: CodeHostAsYou };
 
-/** The directory `achq` was run in. `bin/achq` passes it on, since pok runs from achq's own directory. */
-export const callerCwd = () => process.env[CLI_ENV.callerCwd] ?? process.cwd();
+/** The directory `achq` was run in. */
+export const callerCwd = () => process.env[CALLER_CWD] ?? process.cwd();
 
 /** The git repo `dir` is in, or `dir` itself outside one. */
 export const repoRoot = (dir = callerCwd()) => Git.root(dir) ?? dir;

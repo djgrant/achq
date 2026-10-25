@@ -2,7 +2,7 @@ import { afterEach, beforeEach, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { envFrom, loadConfig } from "../src/lib/config.ts";
+import { envFrom, loadConfig } from "../envs/config.ts";
 
 let tmp: string;
 beforeEach(() => {

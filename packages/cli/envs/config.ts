@@ -1,9 +1,14 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { defineEnvResolver } from "@pokit/core";
 import { disk } from "@achq/utils/disk";
+import type { Vars } from "@achq/utils/env";
+import { vaultProviderNamed } from "achq/registry";
 import { z } from "zod";
-import { CONFIG_FILE } from "../constants.ts";
-import { callerCwd, repoRoot } from "./workdir.ts";
+import { callerCwd, repoRoot } from "../io/workdir.ts";
+
+/** The CLI's own config, at the root of the repo it's run in. */
+const CONFIG_FILE = "achq.config.ts";
 
 const Config = z.object({
   /** A command prefix that puts secrets in the environment, e.g. `op run --env-file=.env --`. achq takes on the environment it sets. */
@@ -24,6 +29,10 @@ export const loadConfig = async (dir = callerCwd()) => {
   return { ...parsed.data, dir: root };
 };
 
+/** The vault the config names, if it names one. */
+export const configVault = (config: Pick<CliConfig, "vault"> | undefined, env: Vars) =>
+  config?.vault ? vaultProviderNamed(config.vault.provider).create(env).vault(config.vault.name) : undefined;
+
 /**
  * The environment the config's `env` command gives what it runs, run from the config's directory so its relative paths hold.
  * achq takes it on rather than running itself under the command, which may pipe its output (as `op run` does to mask
@@ -41,3 +50,16 @@ export const envFrom = (config: CliConfig & { env: string }) =>
     if (code !== 0 || !fs.existsSync(file)) throw new Error(`\`${config.env}\` failed (exit ${code})`);
     return z.record(z.string(), z.string()).parse(JSON.parse(fs.readFileSync(file, "utf8")));
   });
+
+/**
+ * The config's `env` command as a resolver: the whole environment it sets, or nothing without one. It declares no
+ * variables, as which a command needs depends on the infra's container provider and the agents', so `main.ts` takes
+ * on all of it before any command's checks read the environment, rather than a task asking for named ones.
+ */
+export const configEnv = defineEnvResolver({
+  availableVars: [] as string[],
+  resolve: async () => {
+    const config = await loadConfig();
+    return config?.env ? envFrom({ ...config, env: config.env }) : {};
+  },
+});

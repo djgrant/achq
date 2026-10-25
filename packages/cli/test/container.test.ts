@@ -2,7 +2,12 @@ import { expect, test } from "bun:test";
 import type { Status } from "@achq/core";
 import { parseSessions } from "@achq/core/commands";
 import type { ContainerShell } from "@achq/core";
-import { containersOf, listSessions, pickContainer, pickSession, sessionTable } from "../src/lib/container.ts";
+import { containersOf, pickContainer } from "../pickers/container.ts";
+import { pickSession } from "../pickers/session.ts";
+import { sessionTable } from "../renderers/sessions.ts";
+import { containerListSessions } from "../tasks/container.list-sessions.ts";
+import { run } from "../tasks/run.ts";
+import { testRunner } from "./runner.ts";
 
 const location = (service: string) => ({ containerProvider: "railway", project: "p1", environment: "e1", service });
 const status: Status = {
@@ -74,6 +79,9 @@ const shellWith = (binaries: string[], missing = (binary: string) => `sh: 1: exe
   };
   return { container: { location: {}, shell }, ran };
 };
+
+/** Lists the container's sessions as `achq container resume` does. */
+const listSessions = async (container: ReturnType<typeof shellWith>["container"], thread?: string) => run(testRunner(), containerListSessions, { container, thread });
 
 test("sessions come from achq-runner, which resume then runs", async () => {
   const { container, ran } = shellWith(["achq-runner", "achq-agent"]);

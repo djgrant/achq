@@ -1,0 +1,60 @@
+import * as path from "node:path";
+import { defineTask } from "@pokit/core";
+import { Deployer, type Infra, type Resource, Router } from "@achq/core";
+import { collections } from "@achq/utils/collections";
+import { INFRA_MODULES } from "achq/modules";
+import { containerProviderNamed } from "achq/registry";
+import { z } from "zod";
+
+export type InfraResources = {
+  router: Router;
+  deployer: Deployer;
+  /** Everything the infra declares, the router and deployer among them. */
+  resources: Resource[];
+};
+
+let modulesRegistered = false;
+
+/** Runs the infra file's default export and checks what it declares. */
+export const loadInfra = async (file: string) => {
+  // Its `achq/infra` imports are this checkout's modules, so what it declares is made of the classes achq knows.
+  if (!modulesRegistered) {
+    modulesRegistered = true;
+    Bun.plugin({
+      name: "achq",
+      setup(build) {
+        for (const [specifier, exports] of Object.entries(INFRA_MODULES)) build.module(specifier, () => ({ exports: { ...exports }, loader: "object" }));
+      },
+    });
+  }
+  const mod = await import(path.resolve(file));
+  if (typeof mod.default !== "function") throw new Error(`${file} must \`export default achq(() => { … })\``);
+  return checkInfra(mod.default() as Infra);
+};
+
+/** The infra's router and deployer, checked against each other and everything else it declares. */
+export const checkInfra = ({ resources }: Infra): InfraResources => {
+  const router = collections.only(resources.filter((r) => r instanceof Router));
+  const deployer = collections.only(resources.filter((r) => r instanceof Deployer));
+  if (!router || !deployer) throw new Error("The infra must declare one router and one deployer");
+  // They reach each other through what their container provider offers: a private network, or its own routing.
+  if (router.containerProvider !== deployer.containerProvider) {
+    throw new Error(`The router runs on ${router.containerProvider} and the deployer on ${deployer.containerProvider}; they must share a container provider`);
+  }
+  // The deployer puts containers on its own container provider, so achq has to know it: this throws if it doesn't.
+  containerProviderNamed(deployer.containerProvider);
+  if (deployer.inputs.router !== router) throw new Error(`Deployer ${deployer.name} must use router ${router.name}`);
+  for (const r of resources) {
+    // Resources only share `inputs` by convention, so this looks for a router rather than assumes one.
+    const named = (r as { inputs?: { router?: unknown } }).inputs?.router;
+    if (r !== deployer && named instanceof Router && named !== router) throw new Error(`${r.kind} ${r.name} must use router ${router.name}`);
+  }
+  return { router, deployer, resources };
+};
+
+/** The infra the file declares, checked: every infra command starts here. Its checks load it too, as they run before the command. */
+export const infraLoad = defineTask({
+  label: "Load the infra",
+  params: z.object({ file: z.string() }),
+  run: (_r, { params }) => loadInfra(params.file),
+});

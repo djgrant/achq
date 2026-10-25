@@ -1,25 +1,27 @@
-import { defineCommand } from "@pokit/core";
+import { defineCommand, dryRunContext } from "@pokit/core";
 import { z } from "zod";
-import { loadConfig } from "../lib/config.ts";
-import { configVault, down, infraChecks, loadInfra } from "../lib/infra.ts";
-import { clean, confirm, openInBrowser } from "../lib/terminal.ts";
-import { needInfra } from "../lib/workdir.ts";
+import { infraChecks } from "../checks/infra.ts";
+import { configVault, loadConfig } from "../envs/config.ts";
+import { clean, confirm } from "../io/terminal.ts";
+import { needInfra } from "../io/workdir.ts";
+import { infraLoad } from "../tasks/infra.load.ts";
+import { infraTearDown } from "../tasks/infra.tear-down.ts";
+import { run } from "../tasks/run.ts";
 
 export const command = defineCommand({
   label: "Delete the infra, and every container it deployed",
   examples: ["achq infra down --dry-run", "achq infra down", "achq infra down --yes"],
   context: {
-    dryRun: { from: "flag", schema: z.boolean().default(false), description: "Show what it deletes" },
+    ...dryRunContext,
     yes: { from: "flag", schema: z.boolean().default(false), description: "Don't ask first, e.g. in CI" },
   },
   pre: async () => infraChecks(needInfra(), process.env),
   run: clean(async (r, { context }) => {
-    await down(await loadInfra(needInfra()), { dryRun: context.dryRun }, {
-      env: process.env,
+    await run(r, infraTearDown, {
+      infra: await run(r, infraLoad, { file: needInfra() }),
+      dryRun: context.dryRun,
       confirm: async (message) => context.yes || (await confirm(r.prompter, message)),
-      open: openInBrowser,
       vault: configVault(await loadConfig(), process.env),
-      log: (line) => console.log(line),
     });
   }),
 });

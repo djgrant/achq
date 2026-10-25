@@ -4,7 +4,14 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { collectManifest, resetDeclarations, type Status } from "@achq/core";
 import { githubCodeHostProvider } from "@achq/github/code-host";
-import { type FixDeps, fixInBrowser, loadRepoManifest, openInstall, planInstall, planUninstall, removeAndWait, waitForStatus } from "../src/lib/repo.ts";
+import { createRawPrompter } from "@pokit/core";
+import type { RepoHere } from "../io/workdir.ts";
+import { repoEvaluateManifest } from "../tasks/repo.evaluate-manifest.ts";
+import { repoInstall } from "../tasks/repo.install.ts";
+import { repoReadStatus, STATUS_TIMEOUT_MS } from "../tasks/repo.read-status.ts";
+import { repoUninstall } from "../tasks/repo.uninstall.ts";
+import { run } from "../tasks/run.ts";
+import { testRunner } from "./runner.ts";
 import * as achq from "achq";
 import * as claude from "achq/claude";
 import * as github from "achq/github";
@@ -35,6 +42,9 @@ beforeAll(() => {
 });
 afterAll(() => fs.rmSync(repoDir, { recursive: true, force: true }));
 
+/** The repo's manifest, as `achq repo install` evaluates it. */
+const loadRepoManifest = async (dir: string) => run(testRunner(), repoEvaluateManifest, { dir });
+
 /** Lets Bun import a repo config from outside achq, as the sandbox does. */
 const registerConfigModules = () =>
   Bun.plugin({
@@ -55,7 +65,11 @@ test("a real config evaluates the same in the sandbox as imported with Bun", asy
   expect(sandboxed.workspaces[0].threads).toMatchObject({ channel: "github", source: "notation-achq" });
 });
 
-const status = (at: string): Status => ({ repo: "notationlabs/yieldstar", state: "deployed", at, router: "https://achq-router.up.railway.app" });
+const status = (at: string, router = "https://achq-router.up.railway.app"): Status => ({ repo: "notationlabs/yieldstar", state: "deployed", at, router });
+
+/** Waits for the repo's status written after `since`, as `achq repo install` does, from `read`. */
+const waitForStatus = async (read: () => Promise<Status | undefined>, repo: string, since: Date, { sleep }: { sleep: (ms: number) => Promise<void> }) =>
+  run(testRunner(), repoReadStatus, { here: { repo, codeHost: { status: read } } as unknown as RepoHere, since, sleep });
 
 test("polling the status stops at the first result newer than the install", async () => {
   const since = new Date("2026-10-17T10:00:00Z");
@@ -77,69 +91,10 @@ test("polling the status stops at the first result newer than the install", asyn
 test("polling gives up at the timeout", async () => {
   let clock = 0;
   const found = await waitForStatus(async () => status("2026-10-17T09:00:00Z"), "notationlabs/yieldstar", new Date("2026-10-17T10:00:00Z"), {
-    timeoutMs: 180_000,
-    intervalMs: 5000,
     sleep: async (ms) => void (clock += ms),
   });
   expect(found).toBeUndefined();
-  expect(clock).toBe(180_000);
-});
-
-describe("a deploy that failed with something only you can fix", () => {
-  const action = { url: "https://github.com/apps/cloudflare-workers-and-pages/installations/new", what: "install cloudflare-workers-and-pages on notationlabs/yieldstar" };
-  const failed = (at: string): Status => ({ ...status(at), state: "failed", error: "Workers Builds can't see notationlabs/yieldstar", action });
-
-  /** ACHQ_STATUS as the deployer writes it: after each redeploy, the next of `outcomes`. */
-  const world = (outcomes: Status[], interactive = true) => {
-    let current: Status = failed("2026-10-17T10:01:00Z");
-    let clock = Date.parse("2026-10-17T10:05:00Z");
-    const did: string[] = [];
-    const deps: FixDeps = {
-      status: async () => current,
-      interactive,
-      open: async (url, what) => void did.push(`open ${url} to ${what}`),
-      waitForYou: async () => void did.push("waited for you"),
-      redeploy: async (router, repo) => {
-        did.push(`redeploy ${repo} through ${router}`);
-        current = outcomes.shift()!;
-      },
-      log: (line) => did.push(line),
-      now: () => new Date(clock++),
-      wait: { sleep: async () => {} },
-    };
-    return { start: current, deps, did };
-  };
-
-  test("opens it, waits for you, has the router deploy again, and waits for that result", async () => {
-    const { start, deps, did } = world([status("2026-10-17T10:06:00Z")]);
-    const found = await fixInBrowser("notationlabs/yieldstar", start, deps);
-    expect(found?.state).toBe("deployed");
-    expect(did).toEqual([
-      "The deploy needs you to install cloudflare-workers-and-pages on notationlabs/yieldstar.",
-      `open ${action.url} to ${action.what}`,
-      "waited for you",
-      "redeploy notationlabs/yieldstar through https://achq-router.up.railway.app",
-      "Deploying again…",
-    ]);
-  });
-
-  test("tries again while it still needs you, a few times at most", async () => {
-    const { start, deps, did } = world([failed("2026-10-17T10:06:00Z"), failed("2026-10-17T10:07:00Z"), failed("2026-10-17T10:08:00Z"), status("2026-10-17T10:09:00Z")]);
-    const found = await fixInBrowser("notationlabs/yieldstar", start, deps);
-    expect(found?.state).toBe("failed");
-    expect(did.filter((d) => d.startsWith("redeploy"))).toHaveLength(3);
-  });
-
-  test("without a terminal, says what to do and stops; any other result is left as it is", async () => {
-    const { start, deps, did } = world([], false);
-    expect(await fixInBrowser("notationlabs/yieldstar", start, deps)).toBe(start);
-    expect(did).toEqual([`To fix it, ${action.what} at ${action.url}, then run \`achq repo install\` again.`]);
-
-    const other = world([]);
-    const plain = { ...status("2026-10-17T10:01:00Z"), state: "failed" as const, error: "broken" };
-    expect(await fixInBrowser("notationlabs/yieldstar", plain, other.deps)).toBe(plain);
-    expect(other.did).toEqual([]);
-  });
+  expect(clock).toBe(STATUS_TIMEOUT_MS);
 });
 
 // ── Installing and uninstalling, against a fake GitHub as your gh login sees it, and the router ACHQ_STATUS names ──
@@ -159,6 +114,8 @@ describe("install and uninstall", () => {
     routerGone?: boolean;
     asked: { body: unknown; auth: string | null }[];
     status?: { value: string };
+    /** What happens when the router is asked to deploy the repo again. */
+    redeployed?: (repo: string) => void;
     calls: string[];
   };
   let fake: Fake;
@@ -172,6 +129,10 @@ describe("install and uninstall", () => {
         const route = `${req.method} ${url.pathname}`;
         fake.calls.push(route);
         let m: RegExpMatchArray | null;
+        if (route === "POST /router/deploy") {
+          fake.redeployed?.(((await req.json()) as { repo: string }).repo);
+          return new Response("accepted", { status: 202 });
+        }
         if (route === "POST /router/installation") {
           if (fake.routerGone) return new Response("Not Found", { status: 404 });
           fake.asked.push({ body: await req.json(), auth: req.headers.get("authorization") });
@@ -215,21 +176,17 @@ describe("install and uninstall", () => {
     const opened: string[] = [];
     const codeHost = githubCodeHostProvider.asYou({ GITHUB_API_URL: api(), GITHUB_WEB_URL: web(), GH_TOKEN: "gho_t" });
     const here = { repo: REPO, codeHost };
-    const deps = { log: (line: string) => void log.push(line), open: async (url: string) => void opened.push(url), wait: { sleep: async () => {} } };
+    const params = { here, manifest, log: (line: string) => void log.push(line), open: async (url: string) => void opened.push(url), sleep: async () => {} };
     return {
       log,
       opened,
+      /** Installs, and waits for the deploy's result, which the fake never writes. Where it opened, if anywhere. */
       install: async () => {
-        const { source, url } = await planInstall(here, manifest, deps);
-        if (url) await openInstall(here, source, url, deps);
-        return url;
+        await run(testRunner(), repoInstall, params);
+        return opened[0];
       },
-      planUninstall: () => planUninstall(here, manifest, deps),
-      uninstall: async () => {
-        const { source, url } = await planUninstall(here, manifest, deps);
-        if (url) await removeAndWait(here, source, url, deps);
-        return url;
-      },
+      planUninstall: async () => run(testRunner(), repoUninstall, { ...params, dryRun: true }),
+      uninstall: async () => (await run(testRunner(), repoUninstall, params)).url,
     };
   };
 
@@ -254,7 +211,12 @@ describe("install and uninstall", () => {
     expect(await install()).toBe(SETTINGS);
     expect(fake.asked).toEqual([{ body: { repo: REPO, source: "notation-achq" }, auth: "Bearer gho_t" }]);
     expect(opened).toEqual([SETTINGS]);
-    expect(log).toEqual([`+ notation-achq on ${REPO}: opens your browser to install it`, `Install notation-achq on ${REPO} at ${SETTINGS}: on notationlabs, with ${REPO} among its repos.`]);
+    expect(log).toEqual([
+      `+ notation-achq on ${REPO}: opens your browser to install it`,
+      `Install notation-achq on ${REPO} at ${SETTINGS}: on notationlabs, with ${REPO} among its repos.`,
+      "Waiting for the deploy's result…",
+      "No result after 20 minutes. Run `achq infra up` to sync installs, then `achq repo status`.",
+    ]);
     expect(writes()).toEqual([]);
   });
 
@@ -319,13 +281,78 @@ describe("install and uninstall", () => {
 
   test("uninstall gives up when the repo's still installed after the timeout", async () => {
     routerSays({ installed: true, url: SETTINGS });
-    const codeHost = githubCodeHostProvider.asYou({ GITHUB_API_URL: api(), GITHUB_WEB_URL: web(), GH_TOKEN: "gho_t" });
-    const deps = { log: () => {}, open: async () => {}, wait: { sleep: async () => {}, timeoutMs: 15_000, intervalMs: 5000 } };
-    await expect(removeAndWait({ repo: REPO, codeHost }, "notation-achq", SETTINGS, deps)).rejects.toThrow(`notation-achq is still installed on ${REPO} after`);
+    await expect(cli().uninstall()).rejects.toThrow(`notation-achq is still installed on ${REPO} after 15 minutes`);
     expect(fake.status).toBeDefined();
   });
 
   test("uninstall without a router to ask says where to remove it instead", async () => {
     await expect(cli().uninstall()).rejects.toThrow(`achq can't tell whether notation-achq is installed on ${REPO}: ${REPO}'s \`ACHQ_STATUS\` variable doesn't name its router yet`);
+  });
+
+  describe("a deploy that failed with something only you can fix", () => {
+    const action = { url: "https://github.com/apps/cloudflare-workers-and-pages/installations/new", what: `install cloudflare-workers-and-pages on ${REPO}` };
+    const deployed = (at: string) => status(at, `${api()}/router`);
+    const failed = (at: string): Status => ({ ...deployed(at), state: "failed", error: `Workers Builds can't see ${REPO}`, action });
+
+    /** Installed already, its deploy failed so, and ACHQ_STATUS as the deployer writes it: after each redeploy, the next of `outcomes`. */
+    const world = (outcomes: Status[], interactive = true) => {
+      const start = failed("2026-10-17T10:01:00Z");
+      fake.app = FULL;
+      routerSays({ installed: true, url: SETTINGS });
+      fake.status = { value: JSON.stringify(start) };
+      let clock = Date.parse("2026-10-17T10:05:00Z");
+      const did: string[] = [];
+      fake.redeployed = (repo) => {
+        did.push(`redeploy ${repo} through the router`);
+        fake.status = { value: JSON.stringify(outcomes.shift()!) };
+      };
+      const codeHost = githubCodeHostProvider.asYou({ GITHUB_API_URL: api(), GITHUB_WEB_URL: web(), GH_TOKEN: "gho_t" });
+      // Pressing Enter once you've done it.
+      const prompter = createRawPrompter({ selectResponses: true, onPrompt: () => void did.push("waited for you") });
+      const install = async () =>
+        run(testRunner(prompter), repoInstall, {
+          here: { repo: REPO, codeHost },
+          manifest,
+          interactive,
+          openUrl: (url) => void did.push(`open ${url}`),
+          now: () => new Date(clock++),
+          log: (line) => void did.push(line),
+          sleep: async () => {},
+        });
+      return { start, install, did };
+    };
+    const fixing = [`notation-achq is already installed on ${REPO}`, `failed at 2026-10-17T10:01:00Z: Workers Builds can't see ${REPO}`, `to fix: ${action.what}, at ${action.url}`];
+
+    test("opens it, waits for you, has the router deploy again, and waits for that result", async () => {
+      const { install, did } = world([deployed("2026-10-17T10:06:00Z")]);
+      expect((await install())?.status?.state).toBe("deployed");
+      expect(did).toEqual([
+        ...fixing,
+        `The deploy needs you to ${action.what}.`,
+        `Opening ${action.url} to ${action.what}…`,
+        `open ${action.url}`,
+        "waited for you",
+        `redeploy ${REPO} through the router`,
+        "Deploying again…",
+        "deployed at 2026-10-17T10:06:00Z",
+      ]);
+    });
+
+    test("tries again while it still needs you, a few times at most", async () => {
+      const { install, did } = world([failed("2026-10-17T10:06:00Z"), failed("2026-10-17T10:07:00Z"), failed("2026-10-17T10:08:00Z"), deployed("2026-10-17T10:09:00Z")]);
+      expect((await install())?.status?.state).toBe("failed");
+      expect(did.filter((d) => d.startsWith("redeploy"))).toHaveLength(3);
+    });
+
+    test("without a terminal, says what to do and stops; any other result is left as it is", async () => {
+      const { start, install, did } = world([], false);
+      expect((await install())?.status).toEqual(start);
+      expect(did).toEqual([...fixing, `To fix it, ${action.what} at ${action.url}, then run \`achq repo install\` again.`]);
+
+      const other = world([]);
+      fake.status = { value: JSON.stringify({ ...deployed("2026-10-17T10:01:00Z"), state: "failed", error: "broken" }) };
+      expect(await other.install()).toBeUndefined();
+      expect(other.did).toEqual([fixing[0]]);
+    });
   });
 });

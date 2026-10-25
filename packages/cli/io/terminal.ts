@@ -1,8 +1,11 @@
 import { markOperational, type Prompter } from "@pokit/core";
-import { CLI_ENV, TERMINAL_ENV } from "../constants.ts";
 import { subprocess } from "@achq/utils/subprocess";
 
 const BUGS = [TypeError, ReferenceError, SyntaxError, RangeError];
+/** Set to keep stacks on every error. */
+const DEBUG = "ACHQ_DEBUG";
+/** The terminal's variables, passed on to the container's shell, which may set only TERM=xterm. */
+const TERMINAL_ENV = ["TERM", "COLORTERM", "TERM_PROGRAM", "TERM_PROGRAM_VERSION"];
 
 export type ChooseOptions<T, F> = {
   /** The prompt, e.g. `Container`. */
@@ -36,7 +39,7 @@ export const clean =
     try {
       return await run(...args);
     } catch (error) {
-      if (error instanceof Error && !process.env[CLI_ENV.debug] && !BUGS.some((type) => error instanceof type)) markOperational(error);
+      if (error instanceof Error && !process.env[DEBUG] && !BUGS.some((type) => error instanceof type)) markOperational(error);
       throw error;
     }
   };

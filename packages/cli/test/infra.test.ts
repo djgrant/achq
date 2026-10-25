@@ -6,7 +6,10 @@ import * as core from "@achq/core";
 import { achq } from "@achq/core";
 import * as github from "@achq/github/infra";
 import * as railway from "@achq/railway/infra";
-import { agentContainerEnvCheck, checkInfra, infraChecks, loadInfra } from "../src/lib/infra.ts";
+import { agentContainerEnvCheck, infraChecks } from "../checks/infra.ts";
+import { checkInfra, infraLoad } from "../tasks/infra.load.ts";
+import { run } from "../tasks/run.ts";
+import { testRunner } from "./runner.ts";
 
 let tmp: string;
 beforeEach(() => {
@@ -91,7 +94,7 @@ export default achq(() => {
 });
 `,
   );
-  const loaded = await loadInfra(path.join(tmp, "achq.infra.ts"));
+  const loaded = await run(testRunner(), infraLoad, { file: path.join(tmp, "achq.infra.ts") });
   expect(loaded.router.containerProvider).toBe("railway");
   expect(loaded.deployer.inputs.owners).toEqual(["djgrant", "notationlabs"]);
   const channels = loaded.resources.filter((r) => r.kind === "github-channel");

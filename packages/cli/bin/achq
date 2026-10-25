@@ -4,4 +4,4 @@
 ACHQ_CALLER_CWD=$PWD
 export ACHQ_CALLER_CWD
 root="$(dirname "$(readlink -f "$0")")/.."
-exec bun "$root/src/main.ts" "$@"
+exec bun "$root/main.ts" "$@"

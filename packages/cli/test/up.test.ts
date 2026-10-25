@@ -4,7 +4,6 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { achq, type SyncRequest, type SyncResult } from "@achq/core";
-import { context } from "@achq/core/context";
 import { adminSecret, implementationSecret } from "@achq/core/secrets";
 import { routerAdminRoutes } from "@achq/core/routes/router-admin";
 import { verifySigned } from "@achq/core/signing";
@@ -13,7 +12,25 @@ import { type FakeRailway, startFakeRailway } from "@achq/test-utils/fakes/vendo
 import * as railway from "@achq/railway/infra";
 import { fakeOp } from "@achq/test-utils/fakes/vendors/1password";
 import { OpenAPIHono } from "@hono/zod-openapi";
-import { checkInfra, configVault, down, type DownDeps, routerAccess, up, type UpDeps } from "../src/lib/infra.ts";
+import type { z } from "zod";
+import { configVault } from "../envs/config.ts";
+import { infraApply } from "../tasks/infra.apply.ts";
+import { infraFindRouter } from "../tasks/infra.find-router.ts";
+import { checkInfra, type InfraResources } from "../tasks/infra.load.ts";
+import { infraTearDown } from "../tasks/infra.tear-down.ts";
+import { run } from "../tasks/run.ts";
+import { testRunner } from "./runner.ts";
+
+/** What a task takes, as its caller passes it. */
+type Params<T extends { params?: z.ZodType }> = z.input<NonNullable<T["params"]>>;
+type UpDeps = Omit<Params<typeof infraApply>, "infra" | "prune" | "dryRun" | "rotateDeployerToken">;
+type DownDeps = Omit<Params<typeof infraTearDown>, "infra" | "dryRun">;
+
+/** `achq infra up`'s task, run through pok with what the command gets from your shell and terminal as params. */
+const up = async (infra: InfraResources, options: { prune: boolean; dryRun: boolean; rotateDeployerToken?: boolean }, deps: UpDeps) => run(testRunner(), infraApply, { infra, ...options, ...deps });
+
+/** `achq infra down`'s. */
+const down = async (infra: InfraResources, { dryRun }: { dryRun: boolean }, deps: DownDeps) => run(testRunner(), infraTearDown, { infra, dryRun, ...deps });
 
 const { privateKey: pem, publicKey } = generateKeyPairSync("rsa", { modulusLength: 2048, privateKeyEncoding: { type: "pkcs8", format: "pem" }, publicKeyEncoding: { type: "spki", format: "pem" } });
 const pemBody = pem.split("\n")[5]; // a line from the middle of the key
@@ -144,6 +161,10 @@ const deps = (log: string[] = []): UpDeps => ({
   },
   newSecret,
   sleep: async () => {},
+  // Railway and GitHub ask for no secret at the terminal.
+  prompt: async () => {
+    throw new Error("nothing asks for a secret");
+  },
   containerEnv: { CLAUDE_CODE_OAUTH_TOKEN: "claude-token" },
   achqRef: async () => "abc123",
   routerUrl: () => `http://localhost:${routerServer.port}`,
@@ -346,11 +367,11 @@ test("a changed achq ref shows as variables and a deploy, and a dry run applies 
 });
 
 test("`achq infra status` finds the router's URL and key by planning it, and changes nothing", async () => {
-  const ctx = () => context({ env: deps().env });
-  await expect(routerAccess(infra(), ctx())).rejects.toThrow("There's no router router. Run `achq infra up`.");
+  const routerAccess = async (infra: InfraResources) => run(testRunner(), infraFindRouter, { infra, env: deps().env });
+  await expect(routerAccess(infra())).rejects.toThrow("There's no router router. Run `achq infra up`.");
   await up(infra(), { prune: false, dryRun: false }, deps());
   fake.mutations.length = 0;
-  expect(await routerAccess(infra(), ctx())).toEqual({ url: ROUTER_URL, key: fake.service("achq-router")!.variables.AGENT_WEBHOOK_KEY });
+  expect(await routerAccess(infra())).toEqual({ url: ROUTER_URL, key: fake.service("achq-router")!.variables.AGENT_WEBHOOK_KEY });
   expect(fake.mutations).toEqual([]);
 });
 
