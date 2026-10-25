@@ -6,11 +6,13 @@ import * as path from "node:path";
 import { achq, type SyncRequest, type SyncResult } from "@achq/core";
 import { context } from "@achq/core/context";
 import { adminSecret, implementationSecret } from "@achq/core/secrets";
+import { routerAdminRoutes } from "@achq/core/routes/router-admin";
 import { verifySigned } from "@achq/core/signing";
 import * as github from "@achq/github/infra";
 import { type FakeRailway, startFakeRailway } from "@achq/test-utils/railway";
 import * as railway from "@achq/railway/infra";
 import { fakeOp } from "@achq/test-utils/op";
+import { OpenAPIHono } from "@hono/zod-openapi";
 import { checkInfra, configVault, down, type DownDeps, routerAccess, up, type UpDeps } from "../src/lib/infra.ts";
 
 const { privateKey: pem, publicKey } = generateKeyPairSync("rsa", { modulusLength: 2048, privateKeyEncoding: { type: "pkcs8", format: "pem" }, publicKeyEncoding: { type: "spki", format: "pem" } });
@@ -87,34 +89,37 @@ beforeEach(() => {
       return new Response("not found", { status: 404 });
     },
   });
-  routerServer = Bun.serve({
-    port: 0,
-    async fetch(req) {
-      const url = new URL(req.url);
-      const body = await req.text();
-      const routerVars = fake.service("achq-router")!.variables;
-      const signed = verifySigned(adminSecret(routerVars.AGENT_WEBHOOK_KEY), req.method, url.pathname, body, req.headers);
-      if (!signed) return new Response("bad signature", { status: 401 });
-      // The deployer runs what the router was given, as a new one does once it's replaced the old.
-      if (url.pathname === "/admin/deployer") return oldDeployer-- > 0 ? new Response("not found", { status: 404 }) : Response.json({ ref: routerVars.ACHQ_REF });
-      // A sync starts, then is asked after: running once, then done.
-      if (req.method === "POST") {
-        const request = JSON.parse(body) as SyncRequest;
-        last = request;
-        if (request.empty) downs.push({ request, projects: fake.projects.length });
-        else syncs.push({ body: request, signed });
-        polls = 0;
-        return Response.json({ id: "sync-1" }, { status: 202 });
-      }
-      if (url.pathname !== "/admin/sync/sync-1" || lost-- > 0) return new Response("not found", { status: 404 });
-      if (interrupted-- > 0) return Response.json({ state: "interrupted" });
-      // One to no repos uninstalls the one there is, and deletes its container.
-      const result: SyncResult = last?.empty
-        ? { deployed: [], unchanged: [], uninstalled: ["djgrant/x"], pruned: ["djgrant/x/dev"], failed: [] }
-        : { deployed: ["djgrant/x"], unchanged: [], uninstalled: [], pruned: [], failed: [] };
-      return Response.json(++polls < 2 ? { state: "running" } : { state: "done", result });
-    },
+  // The router's admin routes the sync takes, as `@achq/core/routes/router-admin` declares them, forwarding to the deployer it fakes.
+  const admin = new OpenAPIHono();
+  admin.use(async (c, next) => {
+    const routerVars = fake.service("achq-router")!.variables;
+    const signed = verifySigned(adminSecret(routerVars.AGENT_WEBHOOK_KEY), c.req.method, new URL(c.req.url).pathname, await c.req.text(), c.req.raw.headers);
+    if (!signed) return c.text("bad signature", 401);
+    await next();
   });
+  // The deployer runs what the router was given, as a new one does once it's replaced the old.
+  admin.openapi(routerAdminRoutes.deployerVersion, (c) =>
+    oldDeployer-- > 0 ? c.text("not found", 404) : c.json({ ref: fake.service("achq-router")!.variables.ACHQ_REF }, 200),
+  );
+  // A sync starts, then is asked after: running once, then done.
+  admin.openapi(routerAdminRoutes.sync, (c) => {
+    const request = c.req.valid("json");
+    last = request;
+    if (request.empty) downs.push({ request, projects: fake.projects.length });
+    else syncs.push({ body: request, signed: true });
+    polls = 0;
+    return c.json({ id: "sync-1" }, 202);
+  });
+  admin.openapi(routerAdminRoutes.syncStatus, (c) => {
+    if (c.req.valid("param").id !== "sync-1" || lost-- > 0) return c.text("not found", 404);
+    if (interrupted-- > 0) return c.json({ state: "interrupted" as const }, 200);
+    // One to no repos uninstalls the one there is, and deletes its container.
+    const result: SyncResult = last?.empty
+      ? { deployed: [], unchanged: [], uninstalled: ["djgrant/x"], pruned: ["djgrant/x/dev"], failed: [] }
+      : { deployed: ["djgrant/x"], unchanged: [], uninstalled: [], pruned: [], failed: [] };
+    return c.json(++polls < 2 ? { state: "running" as const } : { state: "done" as const, result }, 200);
+  });
+  routerServer = Bun.serve({ port: 0, fetch: new OpenAPIHono().route("/admin", admin).fetch });
   tmp = fs.mkdtempSync(path.join(os.tmpdir(), "achq-up-"));
   process.env.HOME = tmp;
   process.chdir(tmp);

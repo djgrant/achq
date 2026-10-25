@@ -4,6 +4,7 @@ import type { BrowserAction } from "../model/browser-action.ts";
 import type { ChannelCredential, PolicyCredential } from "../model/credentials.ts";
 import type { ChannelEvent, DeployerEvent } from "../model/events.ts";
 import { policyData, selectorData } from "../model/manifest.ts";
+import { repoName } from "../model/repos.ts";
 import type { ThreadRef } from "../model/threads.ts";
 
 /*
@@ -51,6 +52,12 @@ export const RouterRepoConfig = z.looseObject({
 });
 export type RouterRepoConfig = z.infer<typeof RouterRepoConfig>;
 
+const repoSegment = z.string().regex(new RegExp(`^${repoName.segment}$`));
+
+/** A route's `{owner}/{name}`, in characters that can't escape a path or a directory: a repo that doesn't fit is refused with a 400. */
+export const RepoParams = z.object({ owner: repoSegment, name: repoSegment });
+export type RepoParams = z.infer<typeof RepoParams>;
+
 /** A repo, on the infra's code host: what the router's public endpoints for the repo CLI take, with your code host token as the bearer. */
 export const RepoRequest = z.object({ repo: z.string() });
 export type RepoRequest = z.infer<typeof RepoRequest>;
@@ -96,6 +103,14 @@ const browserAction = z.looseObject({ url: z.string(), what: z.string() }) satis
 const credential = { value: z.string(), expiresAt: z.string(), scope: z.record(z.string(), jsonValue) };
 const policyCredential = z.looseObject({ ...credential, provider: z.string() }) satisfies z.ZodType<PolicyCredential>;
 const channelCredential = z.looseObject({ ...credential, channel: z.string() }) satisfies z.ZodType<ChannelCredential>;
+
+/** What `POST /admin/mint` answers: one or more credentials per policy provider, covering the policies asked for. */
+export const MintResponse = z.array(policyCredential);
+export type MintResponse = z.infer<typeof MintResponse>;
+
+/** What `POST /admin/validate` answers: what's wrong with the policies, for the repo, if anything. */
+export const ValidateResponse = z.looseObject({ problems: z.array(z.string()) });
+export type ValidateResponse = z.infer<typeof ValidateResponse>;
 
 /** A delivery some target never answered, as `GET /admin/failed` lists it. `target` is a container's `<repo>/<name>`, or `deployer`. */
 export const FailedDelivery = z.looseObject({

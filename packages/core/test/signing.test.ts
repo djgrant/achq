@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { Hono } from "hono";
 import { adminSecret } from "../src/wire/secrets.ts";
-import { signedBy, signedHeaders, signedRequestInit, verifySigned } from "../src/wire/signing.ts";
+import { signedBy, signedFetcher, signedHeaders, signedRequestInit, verifySigned } from "../src/wire/signing.ts";
 
 describe("signed requests", () => {
   const secret = adminSecret("k");
@@ -53,5 +53,24 @@ describe("signedBy", () => {
   test("passes the signal through", () => {
     const signal = AbortSignal.timeout(1000);
     expect(signedRequestInit(secret, "GET", url, undefined, { signal }).signal).toBe(signal);
+  });
+});
+
+describe("signedFetcher", () => {
+  const secret = adminSecret("k");
+  let clock = 1_000_000_000_000;
+  const app = new Hono().use(signedBy(secret, () => clock)).post("/admin/sync", async (c) => c.text(await c.req.text()));
+  const fetcher = signedFetcher(secret, "http://router.internal/admin/", { fetch: async (url, init) => app.fetch(new Request(url, init)), now: () => clock });
+
+  test("sends to its base, signed over the whole path", async () => {
+    const res = await fetcher("/sync", { method: "POST", body: "{}" });
+    expect([res.status, await res.text()]).toEqual([200, "{}"]);
+  });
+
+  test("signs each call as it's made, so a retry long after the first is still in the window", async () => {
+    const attempt = () => fetcher("/sync", { method: "POST", body: "{}" });
+    expect((await attempt()).status).toBe(200);
+    clock += 10 * 60_000;
+    expect((await attempt()).status).toBe(200);
   });
 });

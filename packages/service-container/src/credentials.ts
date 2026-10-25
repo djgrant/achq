@@ -1,5 +1,5 @@
 import type { ChannelCredential, CredentialsResponse, PolicyProvider } from "@achq/core";
-import { routerForContainer } from "@achq/core/client";
+import { routerForContainer } from "@achq/core/clients/router";
 import { async } from "@achq/utils/async";
 import { disk } from "@achq/utils/disk";
 import { errors } from "@achq/utils/errors";
@@ -64,7 +64,7 @@ export class Credentials {
 
   private refresh = async.singleFlight(async () => {
     const { repo, container, policyProviders, paths } = this.opts;
-    const response = await this.router.credentials({ repo, container });
+    const response = await this.router.credentials({ body: { repo, container } });
 
     const env: Record<string, string> = {};
     for (const provider of policyProviders) {

@@ -1,4 +1,5 @@
 import { BrowserActionNeeded, CONFIG_DIR, CONFIG_ENTRY, type DeployRecord, ENV, type RepoClient, repoName, type Status } from "@achq/core";
+import { repoParams } from "@achq/core/clients/router";
 import type { RepoManifest } from "@achq/core/manifest";
 import { containerSecret } from "@achq/core/secrets";
 import { crypto } from "@achq/utils/crypto";
@@ -36,7 +37,7 @@ const withWarnings = <T extends object>(value: T, warnings: string[] | undefined
 /** The repo as the deployer's own credential, which the router mints, reaches it. */
 export const repoClient = async (ctx: DeployerContext, repo: string) => {
   const policy = ctx.codeHost.deployerPolicy(repo);
-  const credential = (await ctx.router.mint({ repo, policies: [policy] })).find((c) => c.provider === policy.provider);
+  const credential = (await ctx.router.mint({ body: { repo, policies: [policy] } })).find((c) => c.provider === policy.provider);
   if (!credential) throw new Error(`the router minted no ${policy.provider} credential for ${repo}`);
   return ctx.codeHost.repo(repo, credential);
 };
@@ -88,7 +89,7 @@ export const deploy = async (ctx: DeployerContext, repo: string, dryRun: boolean
     });
     const checked = checkManifest(manifest, { tree, sources: await ctx.router.sources() });
     const policies = manifest.policies.map((p) => p.policy);
-    const problems = policies.length ? (await ctx.router.validate({ repo, policies })).problems : [];
+    const problems = policies.length ? (await ctx.router.validate({ body: { repo, policies } })).problems : [];
     // Warnings don't stop a deploy.
     if (checked.failures.length || problems.length) throw new DeployFailure([...checked.failures, ...problems].join("; "), checked.warnings);
     if (dryRun) return withWarnings({ repo, outcome: "deployed", manifest }, checked.warnings);
@@ -117,12 +118,15 @@ export const deploy = async (ctx: DeployerContext, repo: string, dryRun: boolean
 
     // Containers removed from the config are left alone, asleep; only `sync({ prune })` deletes them.
     await ctx.router.putRepo({
-      repo,
-      commit: tree.commit,
-      // validateManifest has made sure each of a container's policies is there.
-      containers: manifest.containers.map((c) => ({ name: c.name, url: urls[c.name]!, policies: c.policies.map((name) => manifest.policies.find((p) => p.name === name)!.policy) })),
-      workspaces: manifest.workspaces,
-      triggers: manifest.triggers.map((t) => ({ name: t.name, event: t.event })),
+      params: repoParams(repo),
+      body: {
+        repo,
+        commit: tree.commit,
+        // validateManifest has made sure each of a container's policies is there.
+        containers: manifest.containers.map((c) => ({ name: c.name, url: urls[c.name]!, policies: c.policies.map((name) => manifest.policies.find((p) => p.name === name)!.policy) })),
+        workspaces: manifest.workspaces,
+        triggers: manifest.triggers.map((t) => ({ name: t.name, event: t.event })),
+      },
     });
 
     // Where each container is, for `achq container ssh` and `achq container resume`.

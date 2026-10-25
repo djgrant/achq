@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "@achq/core": "workspace:*",
-    "@achq/utils": "workspace:*"
+    "@achq/utils": "workspace:*",
+    "@hono/zod-openapi": "^1.6.3"
   }
 }

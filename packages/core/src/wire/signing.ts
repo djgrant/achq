@@ -1,4 +1,5 @@
 import { crypto } from "@achq/utils/crypto";
+import type { RouteFetcher } from "@achq/utils/http";
 import { time } from "@achq/utils/time";
 import type { Context } from "hono";
 import { createMiddleware } from "hono/factory";
@@ -41,9 +42,18 @@ export const signedRequestInit = (
   headers: { ...headers, ...(body !== undefined && { "content-type": "application/json" }), ...signedHeaders(secret, method, signedPath(url), body ?? "", now) },
 });
 
-/** The signature covers `url`'s path and query. */
-export const signedFetch = (secret: string, url: string, init: { method: string; body?: string; headers?: Record<string, string> }) =>
-  fetch(url, signedRequestInit(secret, init.method, url, init.body, { headers: init.headers }));
+/**
+ * A route client's fetcher for the service at `base`, signing each request
+ * with `secret` as it's sent. Signed inside each call, so a caller that
+ * retries, as the router's `reach` does, signs each attempt afresh: a retry
+ * can outlast the timestamp's window. The signature covers the URL's path and query.
+ */
+export const signedFetcher =
+  (secret: string, base: string, { fetch = globalThis.fetch, now = Date.now }: { fetch?: (url: string, init: RequestInit) => Promise<Response>; now?: () => number } = {}): RouteFetcher =>
+  (path, { method, body, headers, signal }) => {
+    const url = base.replace(/\/+$/, "") + path;
+    return fetch(url, signedRequestInit(secret, method, url, body, { now: now(), signal, headers }));
+  };
 
 /** Whether `secret` signed the request `c` handles. Reads its body. */
 export const isSigned = async (c: Context, secret: string, now = Date.now()) =>

@@ -1,12 +1,14 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
-import { routerAdmin } from "@achq/core/client";
+import { deployerClient } from "@achq/core/clients/deployer";
+import { routerAdmin } from "@achq/core/clients/router";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { BrowserActionNeeded, type DeployerEnvelope } from "@achq/core";
 import { STATUS_VARIABLE } from "@achq/github";
 import { adminSecret, containerSecret } from "@achq/core/secrets";
-import { signedFetch } from "@achq/core/signing";
+import { signedFetcher } from "@achq/core/signing";
+import { HttpError } from "@achq/utils/http";
 import { evaluateConfig } from "../src/config/evaluate.ts";
 import { DOC_CONFIG, DOC_PLAN } from "@achq/test-utils/config";
 import { createDeployer } from "../src/deployer.ts";
@@ -567,19 +569,19 @@ describe("HTTP", () => {
     try {
       const body = JSON.stringify(event("installation.created", [REPO]));
       expect((await fetch(`${base}/events`, { method: "POST", body })).status).toBe(401);
-      expect((await signedFetch(adminSecret("wrong"), `${base}/events`, { method: "POST", body })).status).toBe(401);
-      expect((await signedFetch(adminSecret(KEY), `${base}/events`, { method: "POST", body })).status).toBe(202);
+      expect((await signedFetcher(adminSecret("wrong"), base)("/events", { method: "POST", body })).status).toBe(401);
+      const client = deployerClient(signedFetcher(adminSecret(KEY), base));
+      expect(await client.events({ body: event("installation.created", [REPO]) })).toBeUndefined();
       expect(github.variable(REPO, STATUS_VARIABLE).state).toBe("deployed");
 
-      const status = await signedFetch(adminSecret(KEY), `${base}/status`, { method: "GET" });
-      expect(((await status.json()) as { state: string }[])[0]!.state).toBe("deployed");
-      const sync = await signedFetch(adminSecret(KEY), `${base}/sync`, { method: "POST", body: JSON.stringify({ dryRun: true }) });
-      expect(sync.status).toBe(202);
-      const { id } = (await sync.json()) as { id: string };
-      const syncStatus = () => signedFetch(adminSecret(KEY), `${base}/sync/${id}`, { method: "GET" }).then((r) => r.json() as Promise<{ state: string }>);
+      expect((await client.status())[0]!.state).toBe("deployed");
+      const { id } = await client.sync({ body: { dryRun: true } });
+      const syncStatus = () => client.syncStatus({ params: { id } });
       while ((await syncStatus()).state === "running") await Bun.sleep(5);
       expect(await syncStatus()).toMatchObject({ state: "done", result: { unchanged: [REPO] } });
-      expect((await signedFetch(adminSecret(KEY), `${base}/sync/nope`, { method: "GET" })).status).toBe(404);
+      const unknown = await client.syncStatus({ params: { id: "nope" } }).catch((e: unknown) => e);
+      expect(unknown).toBeInstanceOf(HttpError);
+      expect((unknown as HttpError).message).toBe("Deployer GET /sync/nope: 404 no such sync");
       expect((await fetch(`${base}/`)).status).toBe(200);
     } finally {
       server.stop(true);
@@ -594,12 +596,12 @@ describe("HTTP", () => {
     github.commit(REPO, repoFiles());
     router.installed = [{ repo: REPO }];
     const serve = async () => Bun.serve({ port: 0, fetch: deployerHandler(await makeDeployer(), KEY, () => {}) });
-    const ask = (base: string, id: string) => signedFetch(adminSecret(KEY), `${base}/sync/${id}`, { method: "GET" });
+    const client = (base: string) => deployerClient(signedFetcher(adminSecret(KEY), base));
 
     const before = await serve();
     const base = `http://localhost:${before.port}`;
-    const { id } = (await (await signedFetch(adminSecret(KEY), `${base}/sync`, { method: "POST", body: JSON.stringify({}) })).json()) as { id: string };
-    while (((await (await ask(base, id)).json()) as { state: string }).state === "running") await Bun.sleep(5);
+    const { id } = await client(base).sync({ body: {} });
+    while ((await client(base).syncStatus({ params: { id } })).state === "running") await Bun.sleep(5);
     before.stop(true);
 
     // A sync the old deployer was running when it stopped: its heartbeat long since written.
@@ -609,9 +611,9 @@ describe("HTTP", () => {
     const after = await serve();
     const again = `http://localhost:${after.port}`;
     try {
-      expect(await (await ask(again, id)).json()).toMatchObject({ state: "done", result: { deployed: [REPO] } });
-      expect(await (await ask(again, "lost")).json()).toEqual({ state: "interrupted" });
-      expect((await ask(again, "nope")).status).toBe(404);
+      expect(await client(again).syncStatus({ params: { id } })).toMatchObject({ state: "done", result: { deployed: [REPO] } });
+      expect(await client(again).syncStatus({ params: { id: "lost" } })).toEqual({ state: "interrupted" });
+      await expect(client(again).syncStatus({ params: { id: "nope" } })).rejects.toMatchObject({ status: 404 });
     } finally {
       after.stop(true);
     }

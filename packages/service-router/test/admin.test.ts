@@ -2,7 +2,8 @@ import { describe, expect, test } from "bun:test";
 import type { RouterRepoConfig } from "@achq/core";
 import { containerSecret } from "@achq/core/secrets";
 import { signedHeaders } from "@achq/core/signing";
-import { key, repo, fakeDeployer, boot, policy, config, comment, deployed, deliveryIds } from "./harness.ts";
+import { routerAdmin } from "@achq/core/clients/router";
+import { key, repo, fakeDeployer, boot, policy, config, comment, deployed, deliveryIds, serve } from "./harness.ts";
 
 describe("admin", () => {
   test("pushed router config survives a restart, and a delete does too", async () => {
@@ -28,8 +29,8 @@ describe("admin", () => {
     expect((await fetch(`${r.priv}${path}`, { headers: signedHeaders(containerSecret(key, repo, "dev"), "GET", path, "") })).status).toBe(401);
     // A config for another repo than the path names.
     expect((await r.admin("PUT", "/admin/repos/acme/other", config(r.dev, r.docsbox))).status).toBe(400);
-    // A segment that's only dots isn't a repo name, so no route takes it; dotted names are.
-    expect((await r.admin("PUT", "/admin/repos/.../widgets", config(r.dev, r.docsbox))).status).toBe(404);
+    // A segment that's only dots isn't a repo name, so the route's params refuse it; dotted names are.
+    expect((await r.admin("PUT", "/admin/repos/.../widgets", config(r.dev, r.docsbox))).status).toBe(400);
     expect((await r.admin("PUT", "/admin/repos/acme.co/wid.gets", config(r.dev, r.docsbox))).status).toBe(400);
     const { commit: _commit, ...uncommitted } = config(r.dev, r.docsbox);
     expect((await r.admin("PUT", `/admin/repos/${repo}`, uncommitted)).status).toBe(400);
@@ -53,6 +54,41 @@ describe("admin", () => {
     expect(await sync.json()).toEqual({ id: "s1" });
     expect(deployer.syncs).toBe(2);
     expect(await (await r.admin("GET", "/admin/sync/s1")).json()).toMatchObject({ state: "done", result: { deployed: [repo] } });
-    expect(await (await r.admin("GET", "/admin/status")).json()).toEqual([{ repo, state: "deployed" }]);
+    expect(await (await r.admin("GET", "/admin/status")).json()).toEqual([{ repo, state: "deployed", at: "2026-10-25T00:00:00.000Z" }]);
+    // The deployer's `/version`, by the router's name for it.
+    expect(await (await r.admin("GET", "/admin/deployer")).json()).toEqual({ ref: "abc123" });
+  });
+
+  test("a forwarded sync is validated before it reaches the deployer", async () => {
+    const deployer = fakeDeployer();
+    const r = await boot({ deployer: deployer.url });
+    expect((await r.admin("POST", "/admin/sync", { dryRun: "yes" })).status).toBe(400);
+    expect(deployer.syncs).toBe(0);
+  });
+
+  test("the deployer's refusal keeps its status and body", async () => {
+    const deployer = fakeDeployer();
+    const r = await boot({ deployer: deployer.url });
+    const res = await r.admin("GET", "/admin/sync/nope");
+    expect(res.status).toBe(404);
+    expect(await res.text()).toBe("no such sync");
+    // Through the client, it's the HttpError the CLI starts a lost sync again on.
+    const client = routerAdmin({ url: r.priv, key });
+    await expect(client.syncStatus({ params: { id: "nope" } })).rejects.toMatchObject({ status: 404, body: "no such sync" });
+  });
+
+  test("a deployer that never answers is a 504 saying so", async () => {
+    const r = await boot({ deployer: "http://localhost:1" });
+    const res = await r.admin("GET", "/admin/status");
+    expect(res.status).toBe(504);
+    expect(await res.text()).toStartWith("gave up after 3 attempts");
+  });
+
+  test("an answer the deployer gives that isn't its route's is the router's error, not the deployer's", async () => {
+    const odd = serve(async () => Response.json({ state: "lost" }));
+    const r = await boot({ deployer: odd });
+    const res = await r.admin("GET", "/admin/sync/s1");
+    expect(res.status).toBe(500);
+    expect(await res.text()).toBe("internal error");
   });
 });

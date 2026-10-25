@@ -1,6 +1,6 @@
 import type { Prompter } from "@pokit/core";
 import type { ContainerShell, Status } from "@achq/core";
-import { routerForPusher } from "@achq/core/client";
+import { routerForPusher } from "@achq/core/clients/router";
 import { SessionSummary } from "@achq/core/protocol";
 import { text } from "@achq/utils/text";
 import { findContainerProvider } from "achq/registry";
@@ -47,7 +47,7 @@ export const reachContainer = async (prompter: Prompter, { repo, codeHost }: Rep
     },
   });
   // The router checks, on the code host, that you can push to the repo.
-  await routerForPusher({ url: status.router, token: codeHost.token() }).wake({ repo, container: container.name });
+  await routerForPusher({ url: status.router, token: codeHost.token() }).wake({ body: { repo, container: container.name } });
   return container;
 };
 

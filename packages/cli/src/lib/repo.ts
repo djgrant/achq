@@ -2,7 +2,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { CONFIG_DIR, CONFIG_ENTRY, type RepoInstallation, repoName, type Status } from "@achq/core";
 import type { RepoManifest } from "@achq/core/manifest";
-import { routerForPusher } from "@achq/core/client";
+import { routerForPusher } from "@achq/core/clients/router";
 import { evaluateConfig } from "@achq/deployer/config";
 import { async } from "@achq/utils/async";
 import { disk } from "@achq/utils/disk";
@@ -41,7 +41,7 @@ const askRouter = async ({ repo, codeHost }: RepoHere, source: string): Promise<
   const router = (await codeHost.status(repo))?.router;
   if (!router) return undefined;
   try {
-    return { router, installation: await routerForPusher({ url: router, token: codeHost.token() }).installation({ repo, source }) };
+    return { router, installation: await routerForPusher({ url: router, token: codeHost.token() }).installation({ body: { repo, source } }) };
   } catch (error) {
     if (error instanceof HttpError && error.status === NOT_FOUND) return { router };
     throw error;

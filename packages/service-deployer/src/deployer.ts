@@ -1,6 +1,6 @@
 import { type CodeHostProvider, type ContainerProvider, type Stores, type DeployerEnvelope, type FileLimits, repoName, type SyncRequest, type SyncResult } from "@achq/core";
 import type { RepoManifest } from "@achq/core/manifest";
-import type { RouterAdmin } from "@achq/core/client";
+import { type RouterAdmin, repoParams } from "@achq/core/clients/router";
 import { async } from "@achq/utils/async";
 import { errors } from "@achq/utils/errors";
 import { HttpError } from "@achq/utils/http";
@@ -98,7 +98,7 @@ export const createDeployer = async ({ stores, ...deps }: DeployerDeps) => {
           }
         }
         // One the router doesn't have is already out.
-        await ctx.router.deleteRepo(repo).catch((error) => {
+        await ctx.router.deleteRepo({ params: repoParams(repo) }).catch((error) => {
           if (!(error instanceof HttpError && error.status === NOT_FOUND)) throw error;
         });
         // Containers and volumes are kept, asleep. Reinstalling brings it all back.

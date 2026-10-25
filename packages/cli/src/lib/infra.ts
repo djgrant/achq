@@ -1,7 +1,7 @@
 import * as path from "node:path";
 import { type Check, type Context, Deployer, type Infra, known, plan, type Resource, Router, type SyncRequest, type SyncResult, teardown } from "@achq/core";
 import { context } from "@achq/core/context";
-import { routerAdmin, type RouterAdmin } from "@achq/core/client";
+import { routerAdmin, type RouterAdmin } from "@achq/core/clients/router";
 import { async } from "@achq/utils/async";
 import { collections } from "@achq/utils/collections";
 import { Env, type Vars } from "@achq/utils/env";
@@ -160,12 +160,12 @@ export const up = async ({ router, deployer, resources }: InfraResources, option
 
 /** Has the deployer sync, and asks after it until it's done: it can outlast a request, and is started again if its deployer stops while it runs. */
 const sync = async (admin: RouterAdmin, request: SyncRequest, ctx: Context): Promise<SyncResult> => {
-  const start = () => admin.sync(request).then(({ id }) => id);
+  const start = () => admin.sync({ body: request }).then(({ id }) => id);
   let id = await start();
   const status = await async.pollOrThrow(
     async () => {
       try {
-        const status = await admin.syncStatus(id);
+        const status = await admin.syncStatus({ params: { id } });
         if (status.state !== "interrupted") return status;
       } catch (e) {
         // compat: delete once deployed infras run past 69dd44c. Starts again a sync a restarted deployer lost, which answers 404.

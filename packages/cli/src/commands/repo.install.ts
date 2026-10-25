@@ -1,6 +1,6 @@
 import { defineCommand } from "@pokit/core";
 import type { Status } from "@achq/core";
-import { routerForPusher } from "@achq/core/client";
+import { routerForPusher } from "@achq/core/clients/router";
 import { subprocess } from "@achq/utils/subprocess";
 import { time } from "@achq/utils/time";
 import { z } from "zod";
@@ -46,7 +46,7 @@ export const command = defineCommand({
         subprocess.openUrl(url);
       },
       waitForYou: () => waitForEnter(r.prompter, "Press Enter once you have."),
-      redeploy: (router, r) => routerForPusher({ url: router, token: codeHost.token() }).deploy({ repo: r }),
+      redeploy: async (router, r) => void (await routerForPusher({ url: router, token: codeHost.token() }).deploy({ body: { repo: r } })),
       log,
     });
     if (!status) {

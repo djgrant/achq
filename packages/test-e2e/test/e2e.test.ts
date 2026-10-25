@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { ENV, type FailedDelivery, type InstallationRequest, type RepoRequest, type RouterRepoConfig, type WakeRequest } from "@achq/core";
+import { ENV, type InstallationRequest, type RepoRequest, type WakeRequest } from "@achq/core";
 import { containerSecret } from "@achq/core/secrets";
 import { STATUS_VARIABLE } from "@achq/github";
 import { APP_BOT, BOT, DJ, INSTALLATION, KEY, MALLORY, REPO, type Sent, SLUG } from "./github-sends.ts";
@@ -28,7 +28,7 @@ afterAll(async () => {
 const calls = () => w.claude.calls();
 const lastCall = () => calls().at(-1)!;
 const lastReply = (n: number) => w.replies(n).at(-1)!.body;
-const repos = () => w.admin<RouterRepoConfig[]>("GET", "/admin/repos");
+const repos = () => w.admin.listRepos();
 const status = () => w.github.variable(REPO, STATUS_VARIABLE);
 
 /** Issue 42's session, as the latest test that changed it left it. */
@@ -383,7 +383,7 @@ describe("when runs go wrong", () => {
     ]);
 
     // What `achq infra status` and `achq infra replay` ask the router, through its public port.
-    const failed = await w.infraCli<FailedDelivery[]>("GET", "/admin/failed");
+    const failed = await w.infraCli.failed();
     expect(failed).toEqual([
       {
         delivery: expect.any(String),
@@ -393,7 +393,7 @@ describe("when runs go wrong", () => {
         targets: [{ target: `${REPO}/dev`, error: "gave up after 5 attempts (503 Application is waking up)" }],
       },
     ]);
-    expect(await w.infraCli("POST", "/admin/failed/replay")).toEqual({ replayed: [failed[0]!.delivery], dropped: [] });
+    expect(await w.infraCli.replay()).toEqual({ replayed: [failed[0]!.delivery], dropped: [] });
     await w.settle();
     expect(calls()).toHaveLength(before + 1);
     expect(lastCall().stdin).toContain("are you there?");
@@ -611,12 +611,12 @@ describe("installations", () => {
   });
 
   test("the infra CLI's sync, through the router's public port, finds the repo up to date and prunes the container the config dropped", async () => {
-    const { id } = await w.infraCli<{ id: string }>("POST", "/admin/sync", { prune: true });
-    const synced = async () => (await w.infraCli<{ state: string }>("GET", `/admin/sync/${id}`)).state !== "running";
+    const { id } = await w.infraCli.sync({ body: { prune: true } });
+    const synced = async () => (await w.infraCli.syncStatus({ params: { id } })).state !== "running";
     while (!(await synced())) await Bun.sleep(10);
-    expect(await w.infraCli("GET", `/admin/sync/${id}`)).toEqual({ state: "done", result: { deployed: [], unchanged: [REPO], uninstalled: [], pruned: [`${REPO}/review`], failed: [] } });
+    expect(await w.infraCli.syncStatus({ params: { id } })).toEqual({ state: "done", result: { deployed: [], unchanged: [REPO], uninstalled: [], pruned: [`${REPO}/review`], failed: [] } });
     expect(w.containerProvider.removed).toEqual([`${REPO}/review`]);
-    expect(await w.infraCli("GET", "/admin/status")).toEqual([expect.objectContaining({ repo: REPO, state: "deployed", commit: expect.any(String) })]);
+    expect(await w.infraCli.status()).toEqual([expect.objectContaining({ repo: REPO, state: "deployed", commit: expect.any(String) })]);
   });
 
   test("uninstalling the App from the org drops the repo from the router, and keeps its container", async () => {

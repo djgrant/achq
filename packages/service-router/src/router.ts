@@ -1,80 +1,90 @@
 import { type ChannelProvider, type CredentialsResponse, type DeployerEvent, repoName } from "@achq/core";
-import { CredentialsRequest, InstallationRequest, MintRequest, RepoRequest, RouterRepoConfig, ValidateRequest, WakeRequest } from "@achq/core/protocol";
+import { DEPLOYER_SERVICE, deployerClient } from "@achq/core/clients/deployer";
+import { CredentialsRequest, type RepoRequest, type RouterRepoConfig } from "@achq/core/protocol";
+import { routerAdminRoutes as adminRoutes } from "@achq/core/routes/router-admin";
+import { routerContainerRoutes as containerRoutes } from "@achq/core/routes/router-container";
+import { routerPublicRoutes as publicRoutes } from "@achq/core/routes/router-public";
 import { adminSecret, containerSecret } from "@achq/core/secrets";
 import { isSigned, signedBy } from "@achq/core/signing";
-import { collections } from "@achq/utils/collections";
-import { http } from "@achq/utils/http";
-import { zValidator } from "@hono/zod-validator";
-import { Hono } from "hono";
+import { handler, http, HttpError } from "@achq/utils/http";
+import { OpenAPIHono } from "@hono/zod-openapi";
+import type { Context } from "hono";
 import { createMiddleware } from "hono/factory";
-import { DELIVERY_ID, REPO_PATH } from "./constants.ts";
+import { DELIVERY_ID } from "./constants.ts";
 import { claimsOf, configOf, createContext, type RouterDeps } from "./context.ts";
 import { mint, mintClients, validate } from "./credentials.ts";
 import { acceptDelivery, type Reservation, listFailed, replay, replayFailed, reserveClaims, settled, targetsFor } from "./deliveries.ts";
-import { fetchSigned, reach } from "./reach.ts";
+import { reach, toDeployer } from "./reach.ts";
 import type { InboxEntry } from "./store.ts";
 
 type Container = RouterRepoConfig["containers"][number];
 
 export const createRouter = async (deps: RouterDeps) => {
   const ctx = await createContext(deps);
-
-  /** Forwards a request to the deployer, waking it, and relays its answer: JSON unless it says otherwise. */
-  const toDeployer = async (method: string, path: string, body?: string) => {
-    const url = `${ctx.deployerUrl}${path}`;
-    const result = await reach(ctx.delays, (signal) => fetchSigned(ctx, adminSecret(ctx.key), method, url, body, signal));
-    if (!result.ok) return new Response(result.error, { status: 504 });
-    const { res } = result;
-    return new Response(await res.text(), { status: res.status, headers: { "content-type": res.headers.get("content-type") ?? "application/json" } });
-  };
+  /** The deployer, woken as it's called. What a forwarded route answers is what it decoded, encoded again. */
+  const deployer = deployerClient(toDeployer(ctx));
 
   // For the deployer and the infra CLI, on both ports, signed with the admin secret.
-  const admin = new Hono()
-    .use(signedBy(adminSecret(ctx.key), ctx.now))
-    .get("/repos", (c) => c.json([...ctx.repos.values()]))
-    .put(REPO_PATH, zValidator("json", RouterRepoConfig), async (c) => {
-      const repo = `${c.req.param("owner")}/${c.req.param("name")}`;
+  const admin = new OpenAPIHono();
+  // On its own: chained, `use` returns a plain Hono, which has no `openapi`.
+  admin.use(signedBy(adminSecret(ctx.key), ctx.now));
+  // A deployer's refusal keeps its status and body, and one that never answered is a 504, as the deployer client throws them. Anything else is the service's to answer.
+  admin.onError((error) => {
+    if (error instanceof HttpError && error.service === DEPLOYER_SERVICE) return new Response(error.body, { status: error.status, headers: { "content-type": "text/plain; charset=UTF-8" } });
+    throw error;
+  });
+  admin.openapi(adminRoutes.listRepos, (c) => c.json([...ctx.repos.values()], 200));
+  admin.openapi(
+    adminRoutes.putRepo,
+    handler(adminRoutes.putRepo, async (c) => {
+      const { owner, name } = c.req.valid("param");
+      const repo = `${owner}/${name}`;
       const config = c.req.valid("json");
       if (!repoName.same(config.repo, repo)) return c.text("bad config", 400);
       // Written before it's live, so what's served is always what a restart would load.
       await ctx.store.repos.write(repoName.key(repo), config);
       ctx.repos.set(repoName.key(repo), config);
       return c.body(null, 204);
-    })
-    .delete(REPO_PATH, async (c) => {
-      const repo = `${c.req.param("owner")}/${c.req.param("name")}`;
+    }),
+  );
+  admin.openapi(
+    adminRoutes.deleteRepo,
+    handler(adminRoutes.deleteRepo, async (c) => {
+      const { owner, name } = c.req.valid("param");
+      const repo = `${owner}/${name}`;
       // Claims are kept: reinstalling brings everything back as it was.
       await ctx.store.repos.remove(repoName.key(repo));
       ctx.repos.delete(repoName.key(repo));
       return c.body(null, 204);
-    })
-    .post("/mint", zValidator("json", MintRequest), async (c) => {
-      const { policies, repo } = c.req.valid("json");
-      return c.json(await mint(ctx, policies, repo));
-    })
-    .post("/validate", zValidator("json", ValidateRequest), async (c) => {
-      const { policies, repo } = c.req.valid("json");
-      return c.json({ problems: await validate(ctx, policies, repo) });
-    })
-    .get("/installed", async (c) => c.json(await ctx.codeHost.installed()))
-    .get("/sources", async (c) => c.json((await Promise.all(ctx.channelProviders.map((channel) => channel.sources()))).flat()))
-    .post("/sync", async (c) => toDeployer("POST", "/sync", await c.req.text()))
-    .get("/sync/:id", (c) => toDeployer("GET", `/sync/${encodeURIComponent(c.req.param("id"))}`))
-    .get("/status", () => toDeployer("GET", "/status"))
-    .get("/deployer", () => toDeployer("GET", "/version"))
-    .get("/failed", async (c) => c.json(await listFailed(ctx)))
-    .post("/failed/replay", async (c) => c.json(await replayFailed(ctx)));
+    }),
+  );
+  admin.openapi(adminRoutes.mint, async (c) => {
+    const { policies, repo } = c.req.valid("json");
+    return c.json(await mint(ctx, policies, repo), 200);
+  });
+  admin.openapi(adminRoutes.validate, async (c) => {
+    const { policies, repo } = c.req.valid("json");
+    return c.json({ problems: await validate(ctx, policies, repo) }, 200);
+  });
+  admin.openapi(adminRoutes.installed, async (c) => c.json(await ctx.codeHost.installed(), 200));
+  admin.openapi(adminRoutes.sources, async (c) => c.json((await Promise.all(ctx.channelProviders.map((channel) => channel.sources()))).flat(), 200));
+  admin.openapi(adminRoutes.sync, async (c) => c.json(await deployer.sync({ body: c.req.valid("json") }), 202));
+  admin.openapi(adminRoutes.syncStatus, async (c) => c.json(await deployer.syncStatus({ params: c.req.valid("param") }), 200));
+  admin.openapi(adminRoutes.status, async (c) => c.json(await deployer.status(), 200));
+  admin.openapi(adminRoutes.deployerVersion, async (c) => c.json(await deployer.version(), 200));
+  admin.openapi(adminRoutes.failed, async (c) => c.json(await listFailed(ctx), 200));
+  admin.openapi(adminRoutes.replay, async (c) => c.json(await replayFailed(ctx), 200));
 
   /**
    * The response refusing the request, unless its bearer token can push to the
    * repo on the code host. Checked before saying anything about the repo, so
    * strangers learn nothing.
    */
-  const refusal = async (req: Request, request: RepoRequest): Promise<Response | undefined> => {
-    const token = http.bearerToken(req);
-    if (!token) return new Response("missing token", { status: 401 });
-    if (!repoName.pattern.test(request.repo)) return new Response("bad request", { status: 400 });
-    if (!(await ctx.codeHost.canPush(request.repo, token))) return new Response("no push access", { status: 403 });
+  const refusal = async (c: Context, request: RepoRequest) => {
+    const token = http.bearerToken(c.req.raw);
+    if (!token) return c.text("missing token", 401);
+    if (!repoName.pattern.test(request.repo)) return c.text("bad request", 400);
+    if (!(await ctx.codeHost.canPush(request.repo, token))) return c.text("no push access", 403);
   };
 
   /** The channel whose signature a delivery carries, and the source it's from. */
@@ -85,16 +95,15 @@ export const createRouter = async (deps: RouterDeps) => {
     }
   };
 
-  const publicApp = http
-    .service(ctx.log)
-    .route("/admin", admin)
-    .post("/webhook", async (c) => {
+  const pub = new OpenAPIHono();
+  pub
+    .openapi(publicRoutes.webhook, async (c) => {
       const body = await c.req.text();
       const headers = c.req.raw.headers;
       const found = await verifiedChannel(headers, body);
       if (!found) return c.text("bad signature", 401);
       const parsed = found.channel.parse(found.source, headers, body);
-      if (!parsed) return c.text("ignored");
+      if (!parsed) return c.text("ignored", 200);
       if (!DELIVERY_ID.test(parsed.event.delivery)) return c.text("bad delivery id", 400);
 
       let entry: InboxEntry;
@@ -105,12 +114,12 @@ export const createRouter = async (deps: RouterDeps) => {
         // onlyIfDeployed is the router's to act on, so it isn't forwarded.
         const { onlyIfDeployed, ...decided } = parsed.event;
         const forDeployer: DeployerEvent = onlyIfDeployed ? { ...decided, deploy: deployed(decided.deploy), uninstall: deployed(decided.uninstall) } : decided;
-        if (!forDeployer.deploy.length && !forDeployer.uninstall.length) return c.text("no match");
+        if (!forDeployer.deploy.length && !forDeployer.uninstall.length) return c.text("no match", 200);
         entry = { to: "deployer", event: forDeployer };
       } else {
         const { event } = parsed;
         const targets = targetsFor(found.channel, event, configOf(ctx, event.repo), claimsOf(ctx, event.repo));
-        if (!targets.length) return c.text("no match");
+        if (!targets.length) return c.text("no match", 200);
         entry = { to: "containers", event, targets };
         // Claimed now, before anything is awaited, so a concurrent event on the thread goes to the same workspace.
         claim = reserveClaims(ctx, event, targets);
@@ -128,9 +137,9 @@ export const createRouter = async (deps: RouterDeps) => {
       return c.text(accepted ? "accepted" : "duplicate", 202);
     })
     // For `achq container ssh`: wakes a container for someone who can push to its repo.
-    .post("/wake", zValidator("json", WakeRequest), async (c) => {
+    .openapi(publicRoutes.wake, async (c) => {
       const request = c.req.valid("json");
-      const refused = await refusal(c.req.raw, request);
+      const refused = await refusal(c, request);
       if (refused) return refused;
       const container = configOf(ctx, request.repo)?.containers.find((x) => x.name === request.container);
       if (!container) return c.text("not deployed", 404);
@@ -139,20 +148,20 @@ export const createRouter = async (deps: RouterDeps) => {
       const result = await reach(ctx.delays, (signal) => ctx.fetch(`${container.url}/`, { signal }), ctx.attemptTimeout);
       if (!result.ok) return c.text(result.error, 504);
       await result.res.body?.cancel();
-      return c.text("awake");
+      return c.text("awake", 200);
     })
     // For `achq repo install` and `uninstall`: whether the config's source is installed on the repo, which only the App's key can tell.
-    .post("/installation", zValidator("json", InstallationRequest), async (c) => {
+    .openapi(publicRoutes.installation, async (c) => {
       const request = c.req.valid("json");
-      const refused = await refusal(c.req.raw, request);
+      const refused = await refusal(c, request);
       if (refused) return refused;
       const found = await ctx.codeHost.installation(request.repo, request.source);
-      return found ? c.json(found) : c.text("unknown source", 404);
+      return found ? c.json(found, 200) : c.text("unknown source", 404);
     })
     // For `achq repo install`, once you've fixed what failed its deploy: deploys the repo again, as installing it does.
-    .post("/deploy", zValidator("json", RepoRequest), async (c) => {
+    .openapi(publicRoutes.deploy, async (c) => {
       const request = c.req.valid("json");
-      const refused = await refusal(c.req.raw, request);
+      const refused = await refusal(c, request);
       if (refused) return refused;
       const event: DeployerEvent = { delivery: `deploy-${crypto.randomUUID()}`, type: "deploy.requested", deploy: [request.repo], uninstall: [] };
       // Through the inbox, as an install event goes, so a deployer that's asleep or restarting still gets it.
@@ -160,8 +169,10 @@ export const createRouter = async (deps: RouterDeps) => {
       return c.text("accepted", 202);
     });
 
-  /** A request a container signed: the body names the container, and the signature proves it's that container. */
-  const fromContainer = createMiddleware<{ Variables: { config: RouterRepoConfig; container: Container } }>(async (c, next) => {
+  type ContainerEnv = { Variables: { config: RouterRepoConfig; container: Container } };
+  /** A request a container signed: the body names the container, and the signature proves it's that container. Read as text first, so the signature covers the bytes it sent. */
+  const fromContainer = createMiddleware<ContainerEnv>(async (c, next) => {
+    await c.req.text();
     const identity = CredentialsRequest.safeParse(await c.req.json().catch(() => undefined));
     if (!identity.success) return c.text("bad request", 400);
     const { repo, container: name } = identity.data;
@@ -175,15 +186,20 @@ export const createRouter = async (deps: RouterDeps) => {
   });
 
   // Credentials are only for achq's own services, on the port the public can't reach.
-  const privateApp = http
-    .service(ctx.log)
-    .route("/admin", admin)
-    .post("/credentials", fromContainer, async (c) => {
+  const forContainers = new OpenAPIHono<ContainerEnv>();
+  forContainers.use(containerRoutes.credentials.path, fromContainer);
+  forContainers.openapi(
+    containerRoutes.credentials,
+    handler<typeof containerRoutes.credentials, ContainerEnv>(containerRoutes.credentials, async (c) => {
       const { config, container } = c.var;
       const credentials = await mint(ctx, container.policies, config.repo);
       const channels = await mintClients(ctx, config, container.name);
-      return c.json({ credentials, channels } satisfies CredentialsResponse);
-    });
+      return c.json({ credentials, channels } satisfies CredentialsResponse, 200);
+    }),
+  );
+
+  const publicApp = http.service(ctx.log).route("/admin", admin).route("/", pub);
+  const privateApp = http.service(ctx.log).route("/admin", admin).route("/", forContainers);
 
   return {
     publicFetch: publicApp.fetch,

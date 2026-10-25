@@ -5,15 +5,21 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./client": "./src/wire/client.ts",
+    "./clients/deployer": "./src/wire/clients/deployer.ts",
+    "./clients/router": "./src/wire/clients/router.ts",
     "./context": "./src/engine/context.ts",
     "./manifest": "./src/model/manifest.ts",
     "./protocol": "./src/wire/protocol.ts",
+    "./routes/deployer": "./src/wire/routes/deployer.ts",
+    "./routes/router-admin": "./src/wire/routes/router-admin.ts",
+    "./routes/router-container": "./src/wire/routes/router-container.ts",
+    "./routes/router-public": "./src/wire/routes/router-public.ts",
     "./secrets": "./src/wire/secrets.ts",
     "./signing": "./src/wire/signing.ts"
   },
   "dependencies": {
     "@achq/utils": "workspace:*",
+    "@hono/zod-openapi": "^1.6.3",
     "hono": "^4.13.13",
     "zod": "^4.3.6"
   }

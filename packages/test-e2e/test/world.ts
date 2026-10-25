@@ -1,11 +1,9 @@
 import { expect } from "bun:test";
 import { $ } from "bun";
-import { routerAdmin } from "@achq/core/client";
+import { routerAdmin } from "@achq/core/clients/router";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { type BrowserAction, BrowserActionNeeded, type ContainerProvider, type ContainerSpec, repoName } from "@achq/core";
-import { adminSecret } from "@achq/core/secrets";
-import { signedFetch } from "@achq/core/signing";
 import { createAgent, type Runner, readState } from "@achq/container";
 import { createDeployer, deployerHandler } from "@achq/deployer";
 import { githubChannelProvider } from "@achq/github/channel";
@@ -187,12 +185,6 @@ class TestContainerProvider implements ContainerProvider {
 
 // ─── The world ───────────────────────────────────────────────────────────────
 
-const adminJson = async <T>(base: string, method: string, route: string, body?: unknown): Promise<T> => {
-  const res = await signedFetch(adminSecret(KEY), `${base}${route}`, { method, ...(body !== undefined && { body: JSON.stringify(body) }) });
-  expect(res.ok).toBe(true);
-  return (await res.json()) as T;
-};
-
 const serve = (stops: (() => void)[], fetch: (req: Request) => Response | Promise<Response>) => {
   const server = Bun.serve({ port: 0, fetch });
   stops.push(() => server.stop(true));
@@ -316,11 +308,11 @@ export const startWorld = async () => {
       return { after, sent: await this.sends.push(before, after, { modified: Object.keys(files) }, message) };
     },
 
-    /** An admin-signed request to the router's private port, as the deployer makes them. */
-    admin: <T>(method: string, route: string) => adminJson<T>(routerPrivate, method, route),
+    /** The router's admin routes on its private port, as the deployer calls them. */
+    admin: routerAdmin({ url: routerPrivate, key: KEY }),
 
-    /** An admin-signed request to the router's public port, as the infra CLI makes them. */
-    infraCli: <T>(method: string, route: string, body?: unknown) => adminJson<T>(routerPublic, method, route, body),
+    /** The router's admin routes on its public port, as the infra CLI calls them. */
+    infraCli: routerAdmin({ url: routerPublic, key: KEY }),
 
     routerClaims() {
       const file = path.join(routerDir, "claims", `${encodeURIComponent(repoName.key(REPO))}.json`);

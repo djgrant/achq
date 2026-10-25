@@ -1,4 +1,13 @@
-export type Json = string | number | boolean | null | Json[] | { [key: string]: Json };
+/**
+ * A JSON value. Its arrays and objects are interfaces, not inline types, so a
+ * type that maps over it, as Hono's `JSONParsed` does for a route's response,
+ * sees the same type at each level and ends rather than going on forever.
+ */
+export type Json = string | number | boolean | null | JsonArray | JsonObject;
+export interface JsonArray extends Array<Json> {}
+export interface JsonObject {
+  [key: string]: Json;
+}
 
 export const json = {
   /** An object literal or `Object.create(null)`: not an array, a class instance or a function. */

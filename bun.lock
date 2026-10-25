@@ -35,6 +35,7 @@
         "@achq/core": "workspace:*",
         "@achq/deployer": "workspace:*",
         "@achq/utils": "workspace:*",
+        "@hono/zod-openapi": "^1.6.3",
         "@pokit/core": "^0.10.0",
         "@pokit/terminal": "^0.10.0",
         "achq": "workspace:*",
@@ -59,6 +60,7 @@
       "version": "0.1.0",
       "dependencies": {
         "@achq/utils": "workspace:*",
+        "@hono/zod-openapi": "^1.6.3",
         "hono": "^4.13.13",
         "zod": "^4.3.6",
       },
@@ -148,7 +150,7 @@
       "dependencies": {
         "@achq/core": "workspace:*",
         "@achq/utils": "workspace:*",
-        "@hono/zod-validator": "^0.9.1",
+        "@hono/zod-openapi": "^1.6.3",
         "achq": "workspace:*",
         "hono": "^4.13.13",
         "zod": "^4.3.6",
@@ -164,7 +166,7 @@
       "dependencies": {
         "@achq/core": "workspace:*",
         "@achq/utils": "workspace:*",
-        "@hono/zod-validator": "^0.9.1",
+        "@hono/zod-openapi": "^1.6.3",
         "achq": "workspace:*",
         "hono": "^4.13.13",
         "zod": "^4.3.6",
@@ -195,12 +197,14 @@
       "dependencies": {
         "@achq/core": "workspace:*",
         "@achq/utils": "workspace:*",
+        "@hono/zod-openapi": "^1.6.3",
       },
     },
     "packages/utils": {
       "name": "@achq/utils",
       "version": "0.1.0",
       "dependencies": {
+        "@hono/zod-openapi": "^1.6.3",
         "@octokit/auth-app": "^8.3.1",
         "@octokit/core": "^7.0.8",
         "@octokit/plugin-paginate-rest": "^16.0.0",
@@ -244,9 +248,13 @@
 
     "@achq/utils": ["@achq/utils@workspace:packages/utils"],
 
+    "@asteasolutions/zod-to-openapi": ["@asteasolutions/zod-to-openapi@9.1.0", "", { "dependencies": { "openapi3-ts": "^4.6.0" }, "peerDependencies": { "zod": "^4.0.0" } }, "sha512-pLMeRgRYS7/vZIgAAkOe2P6+XGTifR1MT9pqDoxZ11EmcJJ+DPmdPqLN8ZZF4U8R9KHCCQCS9c2wtuE8wSrfkw=="],
+
     "@colors/colors": ["@colors/colors@1.5.0", "", {}, "sha512-ooWCrlZP11i8GImSjTHYHLkvFDP48nS4+204nGb1RiX/WXYHmJA2III9/e2DWVabCESdW7hBAEzHRqUn9OUVvQ=="],
 
     "@folder/xdg": ["@folder/xdg@4.0.1", "", { "dependencies": { "ini": "^4.1.1", "picomatch": "^2.3.1", "toml": "^3.0.0", "write": "^2.0.0", "yaml": "^2.3.1" } }, "sha512-mIBEyXvNK6sX341FOR6ZyGBmq84sSSkG2ocwTDmi4kJfAF6z8W//6aeMAi6vD/FuTcd4q0Px0HMVyP3ggOT/bg=="],
+
+    "@hono/zod-openapi": ["@hono/zod-openapi@1.6.3", "", { "dependencies": { "@asteasolutions/zod-to-openapi": "^9.1.0", "@hono/zod-validator": "^0.9.1", "openapi3-ts": "^4.5.0" }, "peerDependencies": { "hono": ">=4.10.0", "zod": "^4.0.0" } }, "sha512-VYR82Y60plu8g3pN60OUXMVKpmxh3R04Qs++3DY9vtwZ9/sA/BRY0PcRIR+Z37/3itWtM7pYwT9bKiH9JhqV6Q=="],
 
     "@hono/zod-validator": ["@hono/zod-validator@0.9.1", "", { "peerDependencies": { "hono": ">=4.11.2", "zod": "^3.25.0 || ^4.0.0" } }, "sha512-iiv6w0qrIc0arfvCtUqBWsvl4fXjzaTcQcCJTTtCnkawF9HHGE+KjEl0ox3gQJ6rKZEgE3mLExlQCF72M+mNuw=="],
 
@@ -437,6 +445,8 @@
     "node-emoji": ["node-emoji@2.2.0", "", { "dependencies": { "@sindresorhus/is": "^4.6.0", "char-regex": "^1.0.2", "emojilib": "^2.4.0", "skin-tone": "^2.0.0" } }, "sha512-Z3lTE9pLaJF47NyMhd4ww1yFTAP8YhYI8SleJiHzM46Fgpm5cnNzSl9XfzFNqbaz+VlJrIj3fXQ4DeN1Rjm6cw=="],
 
     "object-assign": ["object-assign@4.1.1", "", {}, "sha512-rJgTQnkUnH1sFw8yT6VSU3zD3sWmu6sZhIseY8VX+GRu3P6F7Fu+JNDoXfklElbLJSnc3FUQHVe4cU5hj+BcUg=="],
+
+    "openapi3-ts": ["openapi3-ts@4.6.2", "", { "dependencies": { "yaml": "^2.9.1" } }, "sha512-gyyil3DweqhXiEhTqtAs9wwRLfWHmetwhI4kmM5Rn0d6gtmK863Ki7qqbQnp9+Wwlqoe3B1LFWj7kMp5ctE4rQ=="],
 
     "parse5": ["parse5@5.1.1", "", {}, "sha512-ugq4DFI0Ptb+WWjAdOK16+u/nHfiIrcE+sh8kZMaM0WllQKLI9rOUq6c2b7cwPkXdzfQESqvoqK6ug7U/Yyzug=="],
 
