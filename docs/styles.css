@@ -1,5 +1,29 @@
 @import "@notation/docs/styles.css";
+@import "@fontsource/boldonse/latin-400.css";
 
 @theme {
   --color-accent: #fe5537;
+  --font-heading: "Boldonse", ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Page and section titles. Boldonse is a single cut, registered at 400. */
+:where(h1, h2, h4, h5, h6) {
+  font-family: var(--font-heading);
+  font-synthesis: none;
+}
+
+.prose :is(h1, h2, h4, h5, h6) {
+  font-weight: 400;
+}
+
+.prose h1 {
+  font-size: 1.75rem;
+}
+
+.prose h2 {
+  font-size: 1.375rem;
+}
+
+.prose h3 {
+  font-family: var(--font-sans);
 }
