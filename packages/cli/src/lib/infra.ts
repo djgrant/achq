@@ -168,7 +168,7 @@ const sync = async (admin: RouterAdmin, request: SyncRequest, ctx: Context): Pro
         const status = await admin.syncStatus(id);
         if (status.state !== "interrupted") return status;
       } catch (e) {
-        // compat: delete once deployed infras run past the deployer's durable syncs (kept in its store as jobs, a lost one reading as interrupted). Starts again a sync a restarted deployer lost, which answers 404.
+        // compat: delete once deployed infras run past 69dd44c. Starts again a sync a restarted deployer lost, which answers 404.
         if (!(e instanceof HttpError && e.status === NOT_FOUND)) throw e;
       }
       // Its deployer stopped while it ran, so it's started again.
