@@ -12,14 +12,14 @@ GitHub Issue #42 ──► ACHQ Router ──► Outpost Container (branch `issu
                                               └── achq container resume 42
 ```
 
-| Layer | File | Owns |
-| --- | --- | --- |
-| **ACHQ** | `achq.infra.ts` | Central `Router`, `Deployer`, and `Channel` webhooks |
+| Layer       | File              | Owns                                                      |
+| ----------- | ----------------- | --------------------------------------------------------- |
+| **ACHQ**    | `achq.infra.ts`   | Central `Router`, `Deployer`, and `Channel` webhooks      |
 | **Outpost** | `.achq/config.ts` | Per-repo `Container`, `Workspace`, `Agent`, and `Trigger` |
 
 ## ACHQ (`achq.infra.ts`)
 
-Stand up a central control plane once for your organization:
+Stand up a central ACHQ instance your organisation:
 
 ```ts [achq.infra.ts]
 const router = new cloudflare.Router("router", { project: "acme-agents" });
@@ -45,8 +45,12 @@ One ACHQ instance serves all of your repositories: the `Channel` sends webhooks 
 Give each issue thread an isolated environment to work in:
 
 ```ts [.achq/config.ts]
-const channel = github.Channel.get("acme-agents");
-const dev = new Container("dev", { image: "./Dockerfile", policies: [code] });
+const channel = github.Channel.get("acme-agents"); // <-- that's the one you defined in achq.infra.ts
+
+const dev = new Container("dev", { 
+  image: "./Dockerfile", 
+  policies: [code]
+});
 
 new Workspace("issues", {
   container: dev,
