@@ -26,11 +26,11 @@ export const writeFiles = (resolved: Record<string, string>, home: string) => {
   for (const [key, content] of Object.entries(resolved)) disk.writeEnsured(disk.underHome(key, home), content);
 };
 
-export const runtimeContext = (root: string, rest: Omit<RuntimeContext, "readFile" | "resolveFiles">): RuntimeContext => ({
+export const runtimeContext = (root: string, rest: Omit<RuntimeContext, "readFile" | "resolveFiles">) => ({
   readFile: (relative) => fs.readFileSync(inRoot(root, relative), "utf8"),
   resolveFiles: (files) => resolveFiles(files, root),
   ...rest,
-});
+}) satisfies RuntimeContext;
 
 /** What runtimes get in this container: its HOME, achq's prompt, `container`'s startup files, and `env` without private variables. */
 export const containerContext = (config: LoadedConfig, home: string, env: Vars, container: Container | undefined) =>

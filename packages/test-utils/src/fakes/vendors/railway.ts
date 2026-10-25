@@ -33,7 +33,7 @@ export type FakeRailway = {
   stop(): void;
 };
 
-export const startFakeRailway = (seed: { workspaces?: string[] } = {}): FakeRailway => {
+export const startFakeRailway = (seed: { workspaces?: string[] } = {}) => {
   let next = 1;
   const id = (prefix: string) => `${prefix}-${next++}`;
   const projects: FakeProject[] = [];
@@ -184,5 +184,5 @@ export const startFakeRailway = (seed: { workspaces?: string[] } = {}): FakeRail
     project: (name) => projects.find((p) => p.name === name),
     service: (name) => projects.flatMap((p) => p.services).find((s) => s.name === name),
     stop: () => server.stop(true),
-  };
+  } satisfies FakeRailway;
 };

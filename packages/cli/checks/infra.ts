@@ -13,9 +13,9 @@ export const infraChecks = async (file: string, env: Vars) => {
  * That `env` has what every container gets from it: each agent runtime's variables. A check rather than a pok env,
  * until we've checked how a pok env behaves when a variable it needs is missing.
  */
-export const agentContainerEnvCheck = (env: Vars): Check => ({
+export const agentContainerEnvCheck = (env: Vars) => ({
   label: "Agent container variables",
   check: async () => {
     for (const { name, hint } of agentContainerEnv()) new Env(env).require(name, hint);
   },
-});
+}) satisfies Check;

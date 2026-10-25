@@ -19,7 +19,7 @@ const git = (gitDir: string, args: string[]) => {
 };
 
 /** The objects of the git repository at `gitDir` (bare or not), read with `git`. */
-export const gitDirObjects = (gitDir: string): GitObjects => ({
+export const gitDirObjects = (gitDir: string) => ({
   head: (branch) => git(gitDir, ["rev-parse", "-q", "--verify", `refs/heads/${branch}`])?.toString().trim(),
   treeOf: (commit) => git(gitDir, ["rev-parse", "-q", "--verify", `${commit}^{tree}`])?.toString().trim(),
   list: (tree, recursive) => {
@@ -38,7 +38,7 @@ export const gitDirObjects = (gitDir: string): GitObjects => ({
     const content = git(gitDir, ["cat-file", "blob", sha]);
     return content && Buffer.from(content);
   },
-});
+}) satisfies GitObjects;
 
 type Obj = { type: "blob"; content: Buffer } | { type: "tree"; entries: TreeEntry[] } | { type: "commit"; tree: string };
 

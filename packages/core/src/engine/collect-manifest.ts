@@ -12,7 +12,7 @@ type ResourceClass<T extends Resource> = abstract new (...args: any[]) => T;
  * not just named like one. validateManifest (`@achq/core/manifest`) checks the
  * rest, on what this returns.
  */
-export const collectManifest = (resources: Resource[] = declared()): ManifestInput => {
+export const collectManifest = (resources: Resource[] = declared()) => {
   const ofKind = <T extends Resource>(type: ResourceClass<T>) => resources.filter((r): r is T => r instanceof type);
   /** `r`'s name, for `from` to refer to it by. It has to be declared in this config. */
   const refName = (r: Resource, from: string) => {
@@ -41,5 +41,5 @@ export const collectManifest = (resources: Resource[] = declared()): ManifestInp
       event: t.inputs.event.data,
       agent: refName(t.inputs.agent, `trigger ${t.name}`),
     })),
-  };
+  } satisfies ManifestInput;
 };

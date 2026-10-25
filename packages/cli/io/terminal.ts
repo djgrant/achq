@@ -65,7 +65,7 @@ export const openInBrowser = async (url: string, what: string) => {
  * Asks for a secret on the terminal, e.g. a token you just made, showing a `*`
  * for each character. Without a terminal, reads a line from stdin.
  */
-export const readSecret = async (prompter: Prompter, message: string): Promise<string> => {
+export const readSecret = async (prompter: Prompter, message: string) => {
   if (interactive()) return prompter.password({ message });
   process.stdout.write(`  ${message}: `);
   let line = "";

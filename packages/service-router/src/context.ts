@@ -66,4 +66,4 @@ export type RouterContext = Awaited<ReturnType<typeof createContext>>;
 export const configOf = (ctx: RouterContext, repo: string | undefined) => (repo ? ctx.repos.get(repoName.key(repo)) : undefined);
 
 /** None for an event that names no repo. */
-export const claimsOf = (ctx: RouterContext, repo: string | undefined): Claims => (repo ? ctx.claims.get(repoName.key(repo)) : undefined) ?? {};
+export const claimsOf = (ctx: RouterContext, repo: string | undefined) => (repo ? ctx.claims.get(repoName.key(repo)) : undefined) ?? {};

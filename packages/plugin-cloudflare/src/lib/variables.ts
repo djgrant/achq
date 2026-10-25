@@ -5,7 +5,7 @@ import { connect } from "./cloudflare.ts";
 type Props = { namespaceId: string; key: string; target: string; values: DeclaredVariables };
 
 /** Reads a Worker's variables, as JSON in the project's namespace: none until it has some. */
-export const readVariables = async (ctx: Context, namespaceId: string, key: string): Promise<Record<string, string>> => {
+export const readVariables = async (ctx: Context, namespaceId: string, key: string) => {
   const cf = await connect(ctx.env);
   return (await cf.kv.getJson<Record<string, string>>(namespaceId, key)) ?? {};
 };

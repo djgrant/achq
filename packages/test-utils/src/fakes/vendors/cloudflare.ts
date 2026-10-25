@@ -58,7 +58,7 @@ const ok = (result: unknown) => Response.json({ success: true, errors: [], resul
 const fail = (status: number, message: string, code = status) => Response.json({ success: false, errors: [{ code, message }], result: null }, { status });
 
 /** Cloudflare's API, for one account, as the plugin calls it. `subdomain` is the account's workers.dev subdomain, if it has one. */
-export const startFakeCloudflare = (seed: { accountId?: string; subdomain?: string; tokens?: BuildToken[]; otherAccounts?: string[] } = {}): FakeCloudflare => {
+export const startFakeCloudflare = (seed: { accountId?: string; subdomain?: string; tokens?: BuildToken[]; otherAccounts?: string[] } = {}) => {
   let next = 1;
   const id = (prefix: string) => `${prefix}-${next++}`;
   const accountId = seed.accountId ?? "acct";

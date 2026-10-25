@@ -23,7 +23,7 @@ export type ContainerSpec = {
 export type ContainerRef = { repo: string; name: string };
 
 /** The container whose `ContainerSpec.env` these variables are, by its ACHQ_REPO and ACHQ_CONTAINER, or undefined if they aren't a container's. */
-export const containerOf = (variables: Record<string, string>): ContainerRef | undefined => {
+export const containerOf = (variables: Record<string, string>) => {
   const repo = variables[ENV.repo];
   const name = variables[ENV.container];
   return repo && name ? { repo, name } : undefined;

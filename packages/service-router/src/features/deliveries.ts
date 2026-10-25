@@ -7,7 +7,7 @@ import { configOf, type RouterContext } from "../context.ts";
 import { fetchSigned, reach } from "./reach.ts";
 import type { Claims, ContainerTarget, InboxEntry } from "../store.ts";
 
-export const targetsFor = (channel: ChannelProvider, event: ChannelEvent, config: RouterRepoConfig | undefined, claims: Claims): ContainerTarget[] => {
+export const targetsFor = (channel: ChannelProvider, event: ChannelEvent, config: RouterRepoConfig | undefined, claims: Claims) => {
   if (!config) return [];
   // Only wake a container for something it would act on. It checks again.
   if (!fromTrustedPerson(event) || !event.thread) return [];
@@ -35,7 +35,7 @@ export type Reservation = { persist: () => Promise<void>; release: () => void };
  * undoes what this reservation set, if it wasn't accepted. None if there's
  * nothing to claim.
  */
-export const reserveClaims = (ctx: RouterContext, event: ChannelEvent, targets: ContainerTarget[]): Reservation | undefined => {
+export const reserveClaims = (ctx: RouterContext, event: ChannelEvent, targets: ContainerTarget[]) => {
   if (!event.repo || !event.thread) return;
   const repo = repoName.key(event.repo);
   const thread = threadKey(event.thread);
@@ -178,7 +178,7 @@ export const settled = async (ctx: RouterContext) => {
   while (ctx.inFlight.size) await Promise.all(ctx.inFlight.values());
 };
 
-export const listFailed = async (ctx: RouterContext): Promise<FailedDelivery[]> =>
+export const listFailed = async (ctx: RouterContext) =>
   (await ctx.store.failed.all()).map((entry) => {
     const { delivery, type } = entry.event;
     if (entry.to === "deployer") {
@@ -187,7 +187,7 @@ export const listFailed = async (ctx: RouterContext): Promise<FailedDelivery[]> 
     }
     const { repo, thread } = entry.event;
     return { delivery, type, ...(repo && { repo }), ...(thread && { thread }), targets: entry.targets.map((t) => ({ target: containerLabel(t), error: t.error })) };
-  });
+  }) satisfies FailedDelivery[];
 
 /** Puts every failed delivery back in the inbox, for the targets that failed, and drops ones with none left. */
 export const replayFailed = async (ctx: RouterContext) => {

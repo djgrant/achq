@@ -25,7 +25,7 @@ export const GITHUB_ENV = {
 export type GitHubUrls = { api: string; web: string };
 
 /** Where `env` points the API client, and web links and clone URLs. */
-export const githubUrls = (env: Vars): GitHubUrls => ({ api: env[GITHUB_ENV.api] || GITHUB_API, web: env[GITHUB_ENV.web] || GITHUB_WEB });
+export const githubUrls = (env: Vars) => ({ api: env[GITHUB_ENV.api] || GITHUB_API, web: env[GITHUB_ENV.web] || GITHUB_WEB });
 
 /** Where you install an App: on an owner that has it already, GitHub goes on to its installation, where you add the repo. */
 export const appInstallPage = ({ web }: GitHubUrls, slug: string) => `${web}/apps/${slug}/installations/new`;

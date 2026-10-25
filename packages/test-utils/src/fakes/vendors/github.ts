@@ -33,7 +33,7 @@ type Repo = { id: number; full_name: string; objects: GitObjects; default_branch
 
 const RANK: Record<string, number> = { read: 1, write: 2, admin: 3 };
 
-export const makeApp = (slug: string, id: string, permissions: Record<string, string> = {}, events: string[] = []): FakeApp => {
+export const makeApp = (slug: string, id: string, permissions: Record<string, string> = {}, events: string[] = []) => {
   const { privateKey, publicKey } = generateKeyPairSync("rsa", {
     modulusLength: 2048,
     privateKeyEncoding: { type: "pkcs1", format: "pem" },

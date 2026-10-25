@@ -12,7 +12,7 @@ export const railwayFromEnv = (vars: Vars) => {
 };
 
 /** That `vars` has a Railway token, and Railway takes it. */
-export const tokenCheck = (vars: Vars): Check => ({
+export const tokenCheck = (vars: Vars) => ({
   label: "Railway token",
   check: async () => {
     // An answer from Railway says it turned the token down; anything else, e.g. no network, says nothing about the token.
@@ -23,7 +23,7 @@ export const tokenCheck = (vars: Vars): Check => ({
       });
   },
   remediation: [`Set ${RAILWAY_ENV.token} to a token from https://railway.com/account/tokens`],
-});
+}) satisfies Check;
 
 /** Reads nothing. */
 export const serviceAt = (env: Vars, at: ServiceAt) => railwayFromEnv(env).project(at).service(at.serviceId);

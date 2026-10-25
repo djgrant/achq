@@ -38,10 +38,10 @@ export const reach = async (
  * through `reach`, so a sleeping one is woken. One that never answers is a
  * 504 with why; any answer it gives, a refusal among them, is its own.
  */
-export const toDeployer = (ctx: RouterContext): RouteFetcher => {
+export const toDeployer = (ctx: RouterContext) => {
   const signed = signedFetcher(adminSecret(ctx.env.key), ctx.env.deployerUrl, { fetch: ctx.fetch, now: ctx.now });
-  return async (path, init) => {
+  return (async (path, init) => {
     const result = await reach(ctx.delays, (signal) => signed(path, { ...init, signal }));
     return result.ok ? result.res : new Response(result.error, { status: GATEWAY_TIMEOUT });
-  };
+  }) satisfies RouteFetcher;
 };

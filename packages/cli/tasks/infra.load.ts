@@ -33,7 +33,7 @@ export const loadInfra = async (file: string) => {
 };
 
 /** The infra's router and deployer, checked against each other and everything else it declares. */
-export const checkInfra = ({ resources }: Infra): InfraResources => {
+export const checkInfra = ({ resources }: Infra) => {
   const router = collections.only(resources.filter((r) => r instanceof Router));
   const deployer = collections.only(resources.filter((r) => r instanceof Deployer));
   if (!router || !deployer) throw new Error("The infra must declare one router and one deployer");

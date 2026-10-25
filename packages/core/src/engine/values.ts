@@ -41,7 +41,7 @@ export type Inputs<T> = Input<T> | (T extends object ? { [K in keyof T]: Inputs<
 export type Planned<A> = { [K in keyof A]: A[K] | Unknown };
 
 /** Joins several inputs into one, unknown while any of them is. */
-export const all = <T extends unknown[]>(inputs: { [K in keyof T]: Input<T[K]> }): Output<T> =>
+export const all = <T extends unknown[]>(inputs: { [K in keyof T]: Input<T[K]> }) =>
   new Output(
     inputs.flatMap((i) => (i instanceof Output ? i.from : [])),
     (outputs) => {

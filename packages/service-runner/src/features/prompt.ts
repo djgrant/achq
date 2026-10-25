@@ -18,7 +18,7 @@ export type Command = { mode: Mode; text: string };
  *   @claude /new <prompt>     start a fresh session
  *   @claude /compact [focus]  compact the issue's session
  */
-export const parseCommand = (body: string, trigger: string): Command => {
+export const parseCommand = (body: string, trigger: string) => {
   const at = body.indexOf(trigger);
   let rest = (at < 0 ? body : body.slice(at + trigger.length)).trimStart();
   let mode: Mode = "resume";
@@ -70,7 +70,7 @@ export type Prompt = {
  * New sessions also see the channel's own earlier replies, since they don't
  * remember writing them. Untrusted messages are counted, never shown.
  */
-export const buildPrompt = (input: PromptInput): Prompt => {
+export const buildPrompt = (input: PromptInput) => {
   const [first, ...replies] = input.messages;
   const isNew = input.mode === "new";
   const openingTrusted = Boolean(first && (first.trusted || first.own));
@@ -94,7 +94,7 @@ export const buildPrompt = (input: PromptInput): Prompt => {
     by: input.by,
   };
   const prompt = Mustache.render(template, view, {}, { escape: String });
-  return { prompt, included: shown.length + (bodyChanged ? 1 : 0), omitted, lastMessage: input.messages.at(-1)?.id, opening };
+  return { prompt, included: shown.length + (bodyChanged ? 1 : 0), omitted, lastMessage: input.messages.at(-1)?.id, opening } satisfies Prompt;
 };
 
 /** Every reply for a new session; for a resumed one, those after `since`, plus the edited one. */

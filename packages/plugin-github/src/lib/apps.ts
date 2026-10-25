@@ -13,7 +13,7 @@ const PROBE_PERMISSIONS = { metadata: "read" };
 export { AppKeys };
 
 /** Reads ACHQ_GITHUB_APPS. */
-export const parseApps = (json: string | undefined): AppKeys => {
+export const parseApps = (json: string | undefined) => {
   if (!json) return {};
   let value: unknown;
   try {

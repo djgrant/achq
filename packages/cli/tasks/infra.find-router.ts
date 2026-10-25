@@ -5,16 +5,13 @@ import { z } from "zod";
 import type { InfraResources } from "./infra.load.ts";
 import { contextParams, given } from "./params.ts";
 
-/** What `routerAdmin` reaches the router with: its public URL and AGENT_WEBHOOK_KEY. */
-export type RouterAccess = { url: string; key: string };
-
 /**
  * The router's public URL and AGENT_WEBHOOK_KEY, read from where it runs, or
  * undefined if it hasn't both: its key is known only once it's set, and one
  * without it never reached the deployer, so nothing was deployed through it.
  * Plans the router, so changes nothing.
  */
-export const foundRouter = async ({ router }: InfraResources, ctx: Context): Promise<RouterAccess | undefined> => {
+export const foundRouter = async ({ router }: InfraResources, ctx: Context) => {
   const planned = await plan([router], ctx);
   const url = planned.value(router.url);
   const key = planned.value(router.key);

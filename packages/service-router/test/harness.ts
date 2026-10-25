@@ -186,9 +186,9 @@ export const boot = async ({ dir = mkdtempSync(join(tmpdir(), "achq-router-")), 
 };
 
 // Two containers. `dev` has a docs workspace before its catch-all; `docsbox` only takes docs threads.
-export const selector = (labels?: string[]): SelectorData => ({ channel: "test", source: "app", ...(labels && { labels }) });
-export const policy = (name: string): PolicyData => ({ provider: "test", name });
-export const config = (dev: { url: string }, docsbox: { url: string }): RouterRepoConfig => ({
+export const selector = (labels?: string[]) => ({ channel: "test", source: "app", ...(labels && { labels }) }) satisfies SelectorData;
+export const policy = (name: string) => ({ provider: "test", name }) satisfies PolicyData;
+export const config = (dev: { url: string }, docsbox: { url: string }) => ({
   repo,
   commit: "abc123",
   containers: [
@@ -201,11 +201,11 @@ export const config = (dev: { url: string }, docsbox: { url: string }): RouterRe
     { name: "docs", container: "docsbox", threads: selector(["docs"]), branch: "d/{number}", base: "main" },
   ],
   triggers: [{ name: "mention", event: { channel: "test", source: "app", type: "comment" } }],
-});
+}) satisfies RouterRepoConfig;
 
 export const trusted = { login: "dan", trusted: true, bot: false };
 let deliveries = 0;
-export const comment = (number: number, labels: string[] = [], extra: Partial<ChannelEvent> = {}): Partial<ChannelEvent> => ({
+export const comment = (number: number, labels: string[] = [], extra: Partial<ChannelEvent> = {}) => ({
   delivery: `d-${++deliveries}`,
   type: "comment",
   repo,
@@ -213,7 +213,7 @@ export const comment = (number: number, labels: string[] = [], extra: Partial<Ch
   labels,
   actor: trusted,
   ...extra,
-});
+}) satisfies Partial<ChannelEvent>;
 
 /** A deployed repo with both containers. */
 export const deployed = async (options: Boot = {}) => {

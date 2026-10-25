@@ -39,7 +39,7 @@ export const notSetUp = (repo: string) => `${repo} isn't set up yet. To set it u
 export const repoFlag = { from: "flag", schema: z.string().optional(), description: "owner/name or URL (default: origin)" } as const;
 
 /** The repo `wanted` names, as `owner/name` or a remote URL, or else the one `dir`'s origin names. */
-export const needRepo = (wanted?: string, dir = callerCwd(), env: Vars = process.env): RepoHere => {
+export const needRepo = (wanted?: string, dir = callerCwd(), env: Vars = process.env) => {
   const codeHost = CODE_HOST.asYou(env);
   if (wanted) {
     const found = repoOn(codeHost, wanted);

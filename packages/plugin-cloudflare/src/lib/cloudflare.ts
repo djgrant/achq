@@ -77,7 +77,7 @@ export const connect = async (vars: Vars) => {
 };
 
 /** That you're signed in to Cloudflare, with Wrangler or a token, and can read the account. */
-export const tokenCheck = (vars: Vars): Check => ({
+export const tokenCheck = (vars: Vars) => ({
   label: "Cloudflare sign-in",
   check: async () => {
     const cf = await connect(vars);
@@ -91,7 +91,7 @@ export const tokenCheck = (vars: Vars): Check => ({
     `Or set ${CLOUDFLARE_ENV.token} to an API token that can read the account`,
     `Set ${CLOUDFLARE_ENV.accountId} if you can reach more than one account`,
   ],
-});
+}) satisfies Check;
 
 /** The dashboard's create-token page, filled in with what the deployer's token can do on `accountId`. */
 export const deployerTokenPage = (accountId: string) =>

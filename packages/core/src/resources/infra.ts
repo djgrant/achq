@@ -206,8 +206,8 @@ export abstract class Deployer extends Service {
 export type Infra = { resources: Resource[] };
 
 /** The ACHQ infra: `export default achq(() => { … })`. Declares its resources when `achq infra up` calls it. */
-export const achq = (declare: () => void) => (): Infra => {
+export const achq = (declare: () => void) => () => {
   resetDeclarations();
   declare();
-  return { resources: declared() };
+  return { resources: declared() } satisfies Infra;
 };
