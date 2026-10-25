@@ -4,7 +4,7 @@ Agent Communications Headquarters (ACHQ) is a SIGINT hub to manage your agents:
 
 - **Listens** for messages on your communication platforms (GitHub issues, Linear, etc.)
 - **Dispatches** agents into remote outposts (Cloudflare Containers, Railway, E2B, etc.)
-- **Connects** your terminal directly to remote agent sessions (SSH, Tailscale, etc.)
+- **Connects** you to remote agents directly over a secure line (SSH, Tailscale, etc.)
 
 ```text
 GitHub Issue #42 ──► ACHQ Router ──► Outpost Container (branch `issue-42`)
