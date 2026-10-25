@@ -2,24 +2,14 @@
 
 Agent Communications Headquarters (ACHQ) is a SIGINT hub to manage your agents:
 
-- **Listens** for messages on your communication platforms (GitHub issues, Linear, etc.)
+- **Listens** to messages on your communication channels (GitHub issues, Linear, etc.)
 - **Dispatches** agents into remote outposts (Cloudflare Containers, Railway, E2B, etc.)
-- **Connects** you to remote agents directly over a secure line (SSH, Tailscale, etc.)
+- **Connects** you directly to remote agents over a secure line (SSH, Tailscale, etc.)
 
-```text
-GitHub Issue #42 ──► ACHQ Router ──► Outpost Container (branch `issue-42`)
-                                              ▲
-                                              └── achq container resume 42
-```
 
-| Layer       | File              | Owns                                                      |
-| ----------- | ----------------- | --------------------------------------------------------- |
-| **ACHQ**    | `achq.infra.ts`   | Central `Router`, `Deployer`, and `Channel` webhooks      |
-| **Outpost** | `.achq/config.ts` | Per-repo `Container`, `Workspace`, `Agent`, and `Trigger` |
+## ACHQ
 
-## ACHQ (`achq.infra.ts`)
-
-Stand up a central ACHQ instance your organisation:
+Stand up a central ACHQ instance your organisation to serve all of your outposts.
 
 ```ts [achq.infra.ts]
 const router = new cloudflare.Router("router", { project: "acme-agents" });
@@ -36,9 +26,14 @@ new github.Channel("github", {
 });
 ```
 
-One ACHQ instance serves all of your repositories: the `Channel` sends webhooks to the `Router`, and the `Deployer` builds outpost containers when a repository subscribes. See [Declaring Infra](./infra.md).
+The `Deployer`, provisions agent containers when a new outpost comes online (e.g. a Github app is installed on your repo).
 
-## Outpost (`.achq/config.ts`)
+The `Channel` (in this case, a Github app) sends webhooks to the `Router`. 
+
+The `Router` processes and forwards events to the outpost containers.
+
+
+## Outposts
 
 ### Workspaces
 
