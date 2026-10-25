@@ -166,6 +166,9 @@ export const createDeployer = async ({ stores, ...deps }: DeployerDeps) => {
       return result;
     },
 
+    /** Syncs run in the background, kept in its store: `POST /sync` starts one, `GET /sync/<id>` asks after it. */
+    syncs: ctx.store.syncs,
+
     /** Every repo's record: what `achq infra status` shows from the infra. */
     status: async () => (await ctx.store.all()).map(wireRecord),
   };

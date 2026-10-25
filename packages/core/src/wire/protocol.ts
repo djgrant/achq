@@ -151,11 +151,16 @@ export type DeployerVersion = z.infer<typeof DeployerVersion>;
 export const SyncStarted = z.looseObject({ id: z.string() });
 export type SyncStarted = z.infer<typeof SyncStarted>;
 
-/** A sync's progress: a failed one's error isn't shown, only logged. */
+/**
+ * A sync's progress: a failed one's error isn't shown, only logged. An
+ * interrupted one stopped when its deployer did, and is started again. A
+ * deployer older than `interrupted` answers 404 for a sync it lost instead.
+ */
 export const SyncStatus = z.discriminatedUnion("state", [
   z.looseObject({ state: z.literal("running") }),
   z.looseObject({ state: z.literal("done"), result: SyncResult }),
   z.looseObject({ state: z.literal("failed") }),
+  z.looseObject({ state: z.literal("interrupted") }),
 ]);
 export type SyncStatus = z.infer<typeof SyncStatus>;
 

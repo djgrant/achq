@@ -40,6 +40,8 @@ let syncs: { body: any; signed: boolean }[];
 let downs: { request: SyncRequest; projects: number }[];
 /** How many times the deployer answers a sync's ID as one it's lost, restarting. */
 let lost = 0;
+/** How many times the deployer answers a sync's ID as one it was running when it stopped. */
+let interrupted = 0;
 let last: SyncRequest | undefined;
 let polls = 0;
 /** How many times the deployer answers as one too old to say what it runs. */
@@ -64,6 +66,7 @@ beforeEach(() => {
   syncs = [];
   downs = [];
   lost = 0;
+  interrupted = 0;
   last = undefined;
   oldDeployer = 0;
   hook = {};
@@ -104,6 +107,7 @@ beforeEach(() => {
         return Response.json({ id: "sync-1" }, { status: 202 });
       }
       if (url.pathname !== "/admin/sync/sync-1" || lost-- > 0) return new Response("not found", { status: 404 });
+      if (interrupted-- > 0) return Response.json({ state: "interrupted" });
       // One to no repos uninstalls the one there is, and deletes its container.
       const result: SyncResult = last?.empty
         ? { deployed: [], unchanged: [], uninstalled: ["djgrant/x"], pruned: ["djgrant/x/dev"], failed: [] }
@@ -282,6 +286,13 @@ test("down has the deployer delete what it showed, then deletes the infra; then 
 test("a sync the deployer lost, restarting, is started again", async () => {
   await up(infra(), { prune: false, dryRun: false }, deps());
   lost = 1;
+  expect((await up(infra(), { prune: false, dryRun: false }, deps()))?.deployed).toEqual(["djgrant/x"]);
+  expect(syncs).toHaveLength(3);
+});
+
+test("a sync interrupted by its deployer stopping is started again", async () => {
+  await up(infra(), { prune: false, dryRun: false }, deps());
+  interrupted = 1;
   expect((await up(infra(), { prune: false, dryRun: false }, deps()))?.deployed).toEqual(["djgrant/x"]);
   expect(syncs).toHaveLength(3);
 });

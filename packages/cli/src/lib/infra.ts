@@ -158,20 +158,22 @@ export const up = async ({ router, deployer, resources }: InfraResources, option
   return sync(admin, { prune: options.prune, dryRun: options.dryRun }, ctx);
 };
 
-/** Has the deployer sync, and asks after it until it's done: it can outlast a request. */
+/** Has the deployer sync, and asks after it until it's done: it can outlast a request, and is started again if its deployer stops while it runs. */
 const sync = async (admin: RouterAdmin, request: SyncRequest, ctx: Context): Promise<SyncResult> => {
   const start = () => admin.sync(request).then(({ id }) => id);
   let id = await start();
   const status = await async.pollOrThrow(
     async () => {
       try {
-        return await admin.syncStatus(id);
+        const status = await admin.syncStatus(id);
+        if (status.state !== "interrupted") return status;
       } catch (e) {
-        // compat: delete once deployed infras run past the deployer's `syncs` jobs (RFC 001, step 6). Starts again a sync a restarted deployer lost, which answers 404.
+        // compat: delete once deployed infras run past the deployer's durable syncs (kept in its store as jobs, a lost one reading as interrupted). Starts again a sync a restarted deployer lost, which answers 404.
         if (!(e instanceof HttpError && e.status === NOT_FOUND)) throw e;
-        id = await start();
-        return { state: "running" } as const;
       }
+      // Its deployer stopped while it ran, so it's started again.
+      id = await start();
+      return { state: "running" } as const;
     },
     (s) => s.state !== "running",
     {

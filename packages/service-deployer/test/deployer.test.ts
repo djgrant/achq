@@ -589,4 +589,31 @@ describe("HTTP", () => {
     await expect(routerAdmin({ url: router.url, key: "wrong" }).installed()).rejects.toThrow("401");
     expect(router.rejected).toBe(1);
   });
+
+  test("a sync's status survives the deployer restarting, and one it was running reads as interrupted", async () => {
+    github.commit(REPO, repoFiles());
+    router.installed = [{ repo: REPO }];
+    const serve = async () => Bun.serve({ port: 0, fetch: deployerHandler(await makeDeployer(), KEY, () => {}) });
+    const ask = (base: string, id: string) => signedFetch(adminSecret(KEY), `${base}/sync/${id}`, { method: "GET" });
+
+    const before = await serve();
+    const base = `http://localhost:${before.port}`;
+    const { id } = (await (await signedFetch(adminSecret(KEY), `${base}/sync`, { method: "POST", body: JSON.stringify({}) })).json()) as { id: string };
+    while (((await (await ask(base, id)).json()) as { state: string }).state === "running") await Bun.sleep(5);
+    before.stop(true);
+
+    // A sync the old deployer was running when it stopped: its heartbeat long since written.
+    const stale = new Date(Date.now() - 60_000).toISOString();
+    await dirStores(dataDir)("syncs").write("lost", { id: "lost", state: "running", started: stale, heartbeat: stale });
+
+    const after = await serve();
+    const again = `http://localhost:${after.port}`;
+    try {
+      expect(await (await ask(again, id)).json()).toMatchObject({ state: "done", result: { deployed: [REPO] } });
+      expect(await (await ask(again, "lost")).json()).toEqual({ state: "interrupted" });
+      expect((await ask(again, "nope")).status).toBe(404);
+    } finally {
+      after.stop(true);
+    }
+  });
 });

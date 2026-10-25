@@ -16,6 +16,7 @@
     "./git": "./src/git.ts",
     "./graph": "./src/graph.ts",
     "./http": "./src/http.ts",
+    "./jobs": "./src/jobs.ts",
     "./json": "./src/json.ts",
     "./names": "./src/names.ts",
     "./railway": "./src/railway/index.ts",
