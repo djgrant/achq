@@ -3,3 +3,8 @@ node_modules/
 
 # App credentials, tokens and Railway IDs (achq app / achq deploy)
 secrets.env
+
+# Docs site build output
+docs/.generated
+docs/dist
+docs/.wrangler
