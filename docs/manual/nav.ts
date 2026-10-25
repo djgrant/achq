@@ -8,8 +8,39 @@ export const manual: DocCategory = {
   sections: [
     {
       heading: "Getting Started",
-      icon: "rocket", // framework icon registry key
-      links: [{ label: "Introduction", slug: "manual/introduction" }],
+      icon: "rocket",
+      links: [
+        { label: "Introduction", slug: "manual/introduction" },
+        { label: "Installation", slug: "manual/installation" },
+        { label: "Quick Start", slug: "manual/quickstart" },
+      ],
+    },
+    {
+      heading: "Outposts",
+      icon: "layers",
+      links: [
+        { label: "Declaring Outposts", slug: "manual/outposts" },
+        { label: "Workspaces & Threads", slug: "manual/workspaces" },
+        { label: "Agents & Triggers", slug: "manual/agents-and-triggers" },
+        { label: "Containers & Policies", slug: "manual/containers" },
+      ],
+    },
+    {
+      heading: "ACHQ",
+      icon: "cloud",
+      links: [
+        { label: "Declaring Infra", slug: "manual/infra" },
+        { label: "Container Providers", slug: "manual/providers" },
+        { label: "Secrets & Vaults", slug: "manual/credentials" },
+      ],
+    },
+    {
+      heading: "Working with Agents",
+      icon: "terminal",
+      links: [
+        { label: "Threads & Sessions", slug: "manual/github-usage" },
+        { label: "CLI Reference", slug: "manual/cli" },
+      ],
     },
   ],
 };
