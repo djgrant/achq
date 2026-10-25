@@ -260,6 +260,18 @@ describe("checks", () => {
     expect(outcome).toMatchObject({ outcome: "deployed", warnings: ["trigger lonely never runs: no workspace's threads come from github:second"] });
     expect(github.variable(REPO, STATUS_VARIABLE)).toMatchObject({ state: "deployed", warnings: outcome.warnings });
   });
+
+  // Goes with oldRunnerWarnings.
+  test("a Dockerfile that still names achq-agent is a warning, not a comment that does", async () => {
+    const warning = "container dev's .achq/Dockerfile names achq-agent, which is achq-runner now: its container provider starts the runner, so a CMD naming it is ignored and can go";
+    github.commit(REPO, repoFiles({ ".achq/Dockerfile": 'FROM oven/bun:1\nCMD ["achq-agent"]\n' }));
+    const outcome = await deploy(await makeDeployer(), REPO);
+    expect(outcome).toMatchObject({ outcome: "deployed", warnings: [warning] });
+    expect(github.variable(REPO, STATUS_VARIABLE)).toMatchObject({ state: "deployed", warnings: [warning] });
+
+    github.commit(REPO, repoFiles({ ".achq/Dockerfile": "FROM oven/bun:1\n# was CMD achq-agent\nRUN echo achq-agents\n" }));
+    expect((await deploy(await makeDeployer(), REPO)).warnings).toBeUndefined();
+  });
 });
 
 describe("config changes", () => {

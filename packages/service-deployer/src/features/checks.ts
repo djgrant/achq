@@ -1,4 +1,5 @@
 import { CONFIG_DIR, type ConfigTree, type SourceSettings } from "@achq/core";
+import { OLD_RUNNER_BINARY, RUNNER_BINARY } from "@achq/core/commands";
 import type { RepoManifest } from "@achq/core/manifest";
 import { normaliseRepoPath } from "./config/evaluate.ts";
 
@@ -44,3 +45,18 @@ export const checkManifest = (manifest: RepoManifest, { tree, sources }: { tree:
 
   return { failures, warnings };
 };
+
+const OLD_RUNNER = new RegExp(`(^|[^\\w-])${OLD_RUNNER_BINARY}($|[^\\w-])`);
+const COMMENT = /^\s*#/;
+
+// compat: delete once deployed repos' Dockerfiles no longer name achq-agent. Tells a repo whose Dockerfile still does, as its CMD once had to.
+/** A warning for each container whose Dockerfile, given by its path under `.achq/`, names the runner's old binary outside a comment. */
+export const oldRunnerWarnings = (manifest: RepoManifest, dockerfiles: Record<string, string>) =>
+  manifest.containers.flatMap((c) => {
+    const image = dockerfileOf(c);
+    const text = image && dockerfiles[image.path];
+    if (!text?.split("\n").some((line) => !COMMENT.test(line) && OLD_RUNNER.test(line))) return [];
+    return [
+      `container ${c.name}'s ${image!.dockerfile} names ${OLD_RUNNER_BINARY}, which is ${RUNNER_BINARY} now: its container provider starts the runner, so a CMD naming it is ignored and can go`,
+    ];
+  });

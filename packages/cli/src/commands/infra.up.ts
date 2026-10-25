@@ -1,12 +1,12 @@
 import { defineCommand } from "@pokit/core";
 import { ACHQ_SOURCE } from "@achq/core";
 import { Env } from "@achq/utils/env";
-import { agentEnv, CODE_HOST } from "achq/registry";
+import { agentContainerEnv, CODE_HOST } from "achq/registry";
 import { z } from "zod";
 import { ACHQ_CODE_PATHS } from "../constants.ts";
 import { formatSync } from "../lib/format.ts";
 import { loadConfig } from "../lib/config.ts";
-import { agentEnvCheck, configVault, infraChecks, loadInfra, up } from "../lib/infra.ts";
+import { agentContainerEnvCheck, configVault, infraChecks, loadInfra, up } from "../lib/infra.ts";
 import { clean, openInBrowser, readSecret } from "../lib/terminal.ts";
 import { needInfra } from "../lib/workdir.ts";
 
@@ -18,7 +18,7 @@ export const command = defineCommand({
     dryRun: { from: "flag", schema: z.boolean().default(false), description: "Preview changes" },
     rotateDeployerToken: { from: "flag", schema: z.boolean().default(false), description: "Replace the deployer's own token, where it has one" },
   },
-  pre: async () => [...(await infraChecks(needInfra(), process.env)), agentEnvCheck(process.env)],
+  pre: async () => [...(await infraChecks(needInfra(), process.env)), agentContainerEnvCheck(process.env)],
   run: clean(async (r, { context }) => {
     const infra = await loadInfra(needInfra());
     // Where the router and deployer's code comes from: achq's own repo, on the code host.
@@ -27,7 +27,7 @@ export const command = defineCommand({
     const result = await up(infra, { prune: context.prune, dryRun: context.dryRun, rotateDeployerToken: context.rotateDeployerToken }, {
       env: process.env,
       // What every container gets: each agent runtime's variables, from your shell, trimmed, as a secret pasted into a vault can end in a newline.
-      containerEnv: Object.fromEntries(agentEnv().map(({ name, hint }) => [name, env.require(name, hint).trim()])),
+      containerEnv: Object.fromEntries(agentContainerEnv().map(({ name, hint }) => [name, env.require(name, hint).trim()])),
       achqRef: () => source.lastCommit(ACHQ_SOURCE.repo, ACHQ_SOURCE.branch, ACHQ_CODE_PATHS),
       open: openInBrowser,
       prompt: (message) => readSecret(r.prompter, message),

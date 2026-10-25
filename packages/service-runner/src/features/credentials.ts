@@ -4,7 +4,7 @@ import { async } from "@achq/utils/async";
 import { disk } from "@achq/utils/disk";
 import { errors } from "@achq/utils/errors";
 import { time } from "@achq/utils/time";
-import type { Paths } from "./volume.ts";
+import type { Paths } from "./layout.ts";
 
 /** Refresh when this little is left, so a failing refresh has half an hour of retries before anything breaks. */
 const REFRESH_BEFORE_MS = 30 * time.MINUTE_MS;

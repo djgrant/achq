@@ -33,7 +33,7 @@ try { process.stdout.write(await cloudflareShell.run(${JSON.stringify(location)}
 };
 
 test("ssh runs the command in the application's running instance, with the container's environment", async () => {
-  expect(await run(["achq-agent", "sessions"])).toBe(`acct -y wrangler@4 containers ssh inst-1 -- sh -c set -a; . /run/achq/env; exec "$@" sh achq-agent sessions\n`);
+  expect(await run(["achq-runner", "sessions"])).toBe(`acct -y wrangler@4 containers ssh inst-1 -- sh -c set -a; . /run/achq/env; exec "$@" sh achq-runner sessions\n`);
   expect(await run(["fail"])).toBe("Error: fail failed in achq-notationlabs-yieldstar-dev: broke");
 });
 

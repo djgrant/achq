@@ -6,8 +6,9 @@ import { threadKey } from "@achq/core";
 import { signedHeaders } from "@achq/core/signing";
 import { flock } from "@achq/utils/flock";
 import { CHANNEL_TOKEN } from "@achq/test-utils/container-router";
-import { keepAwake, Runner } from "../src/runner.ts";
-import { formatSessions, readState, sessionsFor } from "../src/volume.ts";
+import { keepAwake, Runner } from "../src/features/runner.ts";
+import { formatSessions } from "../src/commands/sessions.ts";
+import { readState, sessionsFor } from "../src/state.ts";
 import { SECRET, world } from "./world.ts";
 
 const branchOf = async (dir: string) => (await $`git -C ${dir} branch --show-current`.quiet().text()).trim();

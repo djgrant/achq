@@ -6,7 +6,7 @@ import * as core from "@achq/core";
 import { achq } from "@achq/core";
 import * as github from "@achq/github/infra";
 import * as railway from "@achq/railway/infra";
-import { agentEnvCheck, checkInfra, infraChecks, loadInfra } from "../src/lib/infra.ts";
+import { agentContainerEnvCheck, checkInfra, infraChecks, loadInfra } from "../src/lib/infra.ts";
 
 let tmp: string;
 beforeEach(() => {
@@ -113,6 +113,6 @@ export default achq(() => {
   const checks = await infraChecks(path.join(tmp, "achq.infra.ts"), {});
   expect(checks.map((c) => c.label)).toEqual(["Railway token"]);
   await expect(checks[0]!.check()).rejects.toThrow("Missing RAILWAY_API_TOKEN");
-  await expect(agentEnvCheck({}).check()).rejects.toThrow("Missing CLAUDE_CODE_OAUTH_TOKEN");
-  await expect(agentEnvCheck({ CLAUDE_CODE_OAUTH_TOKEN: "t" }).check()).resolves.toBeUndefined();
+  await expect(agentContainerEnvCheck({}).check()).rejects.toThrow("Missing CLAUDE_CODE_OAUTH_TOKEN");
+  await expect(agentContainerEnvCheck({ CLAUDE_CODE_OAUTH_TOKEN: "t" }).check()).resolves.toBeUndefined();
 });

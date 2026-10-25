@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { CHANNEL_PROVIDERS, CODE_HOST, CONTAINER_PROVIDERS, POLICY_PROVIDERS } from "achq/registry";
-import { withoutPrivate } from "../src/agent-env.ts";
+import { withoutPrivate } from "../src/features/agent-env.ts";
 
 test("agents never get the container secret, the key, or any implementation's private variables", () => {
   const env = {

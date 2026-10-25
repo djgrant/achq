@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { Message, Thread } from "@achq/core";
-import { buildPrompt, parseCommand } from "../src/prompt.ts";
+import { buildPrompt, parseCommand } from "../src/features/prompt.ts";
 
 describe("buildPrompt", () => {
   const msg = (id: string, author: string, body: string, opts: Partial<Message> = {}): Message => ({ id, author, body, trusted: true, own: false, at: `t${id}`, ...opts });

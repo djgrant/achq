@@ -10,11 +10,13 @@ import { testPolicyProvider } from "@achq/test-utils/test-policy-provider";
 import { tempDir } from "@achq/test-utils/temp-dir";
 import { TestChannelProvider } from "@achq/test-utils/test-channel-provider";
 import { Env } from "@achq/utils/env";
-import { runLimits } from "../src/agent.ts";
-import { createConfigLoader } from "../src/config.ts";
-import { fetchMirror } from "../src/repo.ts";
-import { Runner } from "../src/runner.ts";
-import { paths as layout, readState } from "../src/volume.ts";
+import { runLimits } from "../src/from-env.ts";
+import { createConfigLoader } from "../src/features/config.ts";
+import { fetchMirror } from "../src/features/repo.ts";
+import { Runner } from "../src/features/runner.ts";
+import { paths as layout } from "../src/features/layout.ts";
+import { routes } from "../src/routes.ts";
+import { readState } from "../src/state.ts";
 
 export const dirs: string[] = [];
 const cleanups: (() => void)[] = [];
@@ -60,6 +62,7 @@ export const world = async (opts: { maxRuns?: number } = {}) => {
     keepAwake: async () => {},
     log: (line) => logs.push(line),
   });
+  const { fetch } = routes(runner);
   /** POSTs a signed event, as the router does for `workspace`, and waits for everything it started. */
   const send = async (event: ChannelEvent, commit = git.first, workspace = "issues") => {
     const res = await post(JSON.stringify({ event, commit, workspace }));
@@ -67,7 +70,7 @@ export const world = async (opts: { maxRuns?: number } = {}) => {
     return res.status;
   };
   const post = (body: string, headers: Record<string, string> = signedHeaders(SECRET, "POST", "/events", body)) =>
-    runner.fetch(new Request("http://container/events", { method: "POST", body, headers: { ...headers, "content-type": "application/json" } }));
+    fetch(new Request("http://container/events", { method: "POST", body, headers: { ...headers, "content-type": "application/json" } }));
   const state = (n: number) => readState(paths.thread(threadKey(channel.ref(n))))!;
   return { root, git, claude, router, channel, paths, env, runner, send, post, state, logs, load };
 };

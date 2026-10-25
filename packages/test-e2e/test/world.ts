@@ -4,7 +4,7 @@ import { routerAdmin } from "@achq/core/clients/router";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { type BrowserAction, BrowserActionNeeded, type ContainerProvider, type ContainerSpec, repoName } from "@achq/core";
-import { createAgent, type Runner, readState } from "@achq/container";
+import { type Runner, readState, routes as runnerRoutes, runnerFromEnv } from "@achq/runner";
 import { createContext as createDeployerContext, routes as deployerRoutes } from "@achq/deployer";
 import { githubChannelProvider } from "@achq/github/channel";
 import { githubCodeHostProvider } from "@achq/github/code-host";
@@ -71,6 +71,8 @@ export const coder = new claude.Agent("coder", { model: "claude-opus-5-5", effor
 type Hosted = {
   spec: ContainerSpec;
   runner: Runner;
+  /** The runner's routes, served on its port. */
+  fetch: (req: Request) => Response | Promise<Response>;
   server: ReturnType<typeof Bun.serve>;
   /** What reached the runner. */
   requests: { method: string; path: string }[];
@@ -106,7 +108,7 @@ class TestContainerProvider implements ContainerProvider {
 
   /** What the container sees: the spec's env, plus what the image and its volume would provide. */
   private runnerFor(spec: ContainerSpec) {
-    return createAgent({ ...spec.env, ...this.local(spec) }, { log: (line) => this.logs.push(`${spec.name}: ${line}`) });
+    return runnerFromEnv({ ...spec.env, ...this.local(spec) }, { log: (line) => this.logs.push(`${spec.name}: ${line}`) });
   }
 
   async ensure(spec: ContainerSpec, { build }: { build: boolean }) {
@@ -125,10 +127,11 @@ class TestContainerProvider implements ContainerProvider {
             return new Response("Application is waking up", { status: 503 });
           }
           requests.push({ method: req.method, path: new URL(req.url).pathname });
-          return h.runner.fetch(req);
+          return h.fetch(req);
         },
       });
-      hosted = { spec, runner: this.runnerFor(spec), server, requests, asleepFor: 0 };
+      const runner = this.runnerFor(spec);
+      hosted = { spec, runner, fetch: runnerRoutes(runner).fetch, server, requests, asleepFor: 0 };
       this.containers.set(id, hosted);
     }
     hosted.spec = spec;
@@ -168,6 +171,7 @@ class TestContainerProvider implements ContainerProvider {
     }
     this.crashed.push(hosted.runner);
     hosted.runner = this.runnerFor(hosted.spec);
+    hosted.fetch = runnerRoutes(hosted.runner).fetch;
     await hosted.runner.reportInterrupted();
   }
 

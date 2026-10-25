@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { agentEnv, CHANNEL_PROVIDERS, channelProviderNamed, CONTAINER_PROVIDERS, containerProviderNamed, findContainerProvider, privateEnv, CODE_HOST, POLICY_PROVIDERS, vaultProviderNamed } from "../src/registry.ts";
+import { agentContainerEnv, CHANNEL_PROVIDERS, channelProviderNamed, CONTAINER_PROVIDERS, containerProviderNamed, findContainerProvider, privateEnv, CODE_HOST, POLICY_PROVIDERS, vaultProviderNamed } from "../src/registry.ts";
 
 test("finds each implementation by id, and names what it knows when it can't", () => {
   expect(channelProviderNamed("github")).toBe(CHANNEL_PROVIDERS[0]!);
@@ -22,6 +22,6 @@ test("privateEnv is the container secret, the key and every implementation's, on
   expect(new Set(all).size).toBe(all.length);
 });
 
-test("agentEnv asks for the Claude token", () => {
-  expect(agentEnv().map((e) => e.name)).toContain("CLAUDE_CODE_OAUTH_TOKEN");
+test("agentContainerEnv asks for the Claude token", () => {
+  expect(agentContainerEnv().map((e) => e.name)).toContain("CLAUDE_CODE_OAUTH_TOKEN");
 });

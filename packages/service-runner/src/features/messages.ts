@@ -22,6 +22,6 @@ export const worktreeFailed = (message: string) => failureReply(`Couldn't set up
 
 /** `sessions` lists the interrupted sessions, e.g. `coder \`<id>\``. */
 export const runInterrupted = (sessions: string) =>
-  `${WARNING} The agent restarted while a run was in progress. The work so far is in the worktree and the session is intact; the next message resumes it.\n\n<sub>${sessions}</sub>\n`;
+  `${WARNING} The container restarted while a run was in progress. The work so far is in the worktree and the session is intact; the next message resumes it.\n\n<sub>${sessions}</sub>\n`;
 
 export const threadBusy = (workspace: string) => `An agent is working on this thread in ${workspace}. Try again when its run finishes.`;

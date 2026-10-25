@@ -42,9 +42,9 @@
         "zod": "^4.3.6",
       },
       "devDependencies": {
-        "@achq/container": "workspace:*",
         "@achq/github": "workspace:*",
         "@achq/railway": "workspace:*",
+        "@achq/runner": "workspace:*",
         "@achq/test-utils": "workspace:*",
       },
     },
@@ -123,27 +123,6 @@
         "@achq/test-utils": "workspace:*",
       },
     },
-    "packages/service-container": {
-      "name": "@achq/container",
-      "version": "0.1.0",
-      "bin": {
-        "achq-agent": "bin/achq-agent",
-      },
-      "dependencies": {
-        "@achq/core": "workspace:*",
-        "@achq/utils": "workspace:*",
-        "@hono/zod-validator": "^0.9.1",
-        "achq": "workspace:*",
-        "hono": "^4.13.13",
-        "mustache": "^4",
-        "zod": "^4.3.6",
-      },
-      "devDependencies": {
-        "@achq/claude": "workspace:*",
-        "@achq/test-utils": "workspace:*",
-        "@types/mustache": "^4.2.6",
-      },
-    },
     "packages/service-deployer": {
       "name": "@achq/deployer",
       "version": "0.1.0",
@@ -175,15 +154,36 @@
         "@achq/test-utils": "workspace:*",
       },
     },
+    "packages/service-runner": {
+      "name": "@achq/runner",
+      "version": "0.1.0",
+      "bin": {
+        "achq-runner": "bin/achq-runner",
+      },
+      "dependencies": {
+        "@achq/core": "workspace:*",
+        "@achq/utils": "workspace:*",
+        "@hono/zod-openapi": "^1.6.3",
+        "achq": "workspace:*",
+        "hono": "^4.13.13",
+        "mustache": "^4",
+        "zod": "^4.3.6",
+      },
+      "devDependencies": {
+        "@achq/claude": "workspace:*",
+        "@achq/test-utils": "workspace:*",
+        "@types/mustache": "^4.2.6",
+      },
+    },
     "packages/test-e2e": {
       "name": "@achq/e2e",
       "version": "0.1.0",
       "dependencies": {
-        "@achq/container": "workspace:*",
         "@achq/core": "workspace:*",
         "@achq/deployer": "workspace:*",
         "@achq/github": "workspace:*",
         "@achq/router": "workspace:*",
+        "@achq/runner": "workspace:*",
         "achq": "workspace:*",
       },
       "devDependencies": {
@@ -230,8 +230,6 @@
 
     "@achq/cloudflare-worker": ["@achq/cloudflare-worker@workspace:packages/cloudflare-worker"],
 
-    "@achq/container": ["@achq/container@workspace:packages/service-container"],
-
     "@achq/core": ["@achq/core@workspace:packages/core"],
 
     "@achq/deployer": ["@achq/deployer@workspace:packages/service-deployer"],
@@ -243,6 +241,8 @@
     "@achq/railway": ["@achq/railway@workspace:packages/plugin-railway"],
 
     "@achq/router": ["@achq/router@workspace:packages/service-router"],
+
+    "@achq/runner": ["@achq/runner@workspace:packages/service-runner"],
 
     "@achq/test-utils": ["@achq/test-utils@workspace:packages/test-utils"],
 

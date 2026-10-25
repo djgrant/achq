@@ -1,4 +1,6 @@
 import { type ChannelEvent, type ChannelProvider, type ContainerEnvelope, type DeployerEnvelope, type FailedDelivery, fromTrustedPerson, type ReplayResult, repoName, type RouterRepoConfig, threadKey } from "@achq/core";
+import { deployerRoutes } from "@achq/core/routes/deployer";
+import { runnerRoutes } from "@achq/core/routes/runner";
 import { adminSecret, containerSecret } from "@achq/core/secrets";
 import { errors } from "@achq/utils/errors";
 import { configOf, type RouterContext } from "../context.ts";
@@ -110,13 +112,13 @@ const forward = (ctx: RouterContext, entry: InboxEntry) => {
   const deliver = async () => {
     if (entry.to === "deployer") {
       const body = JSON.stringify({ event: entry.event } satisfies DeployerEnvelope);
-      const error = await send("deployer", () => ({ url: `${ctx.env.deployerUrl}/events`, secret: adminSecret(ctx.env.key), body }));
+      const error = await send("deployer", () => ({ url: `${ctx.env.deployerUrl}${deployerRoutes.events.path}`, secret: adminSecret(ctx.env.key), body }));
       if (error) await ctx.store.failed.write(event.delivery, { ...entry, error });
     } else {
       const results = await Promise.all(
         entry.targets.map(async (target) => {
           const error = await send(containerLabel(target), () => ({
-            url: `${target.url}/events`,
+            url: `${target.url}${runnerRoutes.events.path}`,
             secret: containerSecret(ctx.env.key, target.repo, target.container),
             body: JSON.stringify({ event: entry.event, commit: target.commit, workspace: target.workspace } satisfies ContainerEnvelope),
           }));

@@ -2,12 +2,14 @@ import { type RuntimeFactory, threadKey as keyOf } from "@achq/core";
 import type { Vars } from "@achq/utils/env";
 import { flock } from "@achq/utils/flock";
 import { subprocess } from "@achq/utils/subprocess";
-import { savedAgentEnv, withoutPrivate } from "./agent-env.ts";
-import type { LoadedConfig } from "./config.ts";
-import { threadBusy } from "./messages.ts";
-import { keepAwake, stayAwake } from "./runner.ts";
-import { containerContext, defaultRuntimes } from "./runtime-context.ts";
-import { type Paths, sessionsFor } from "./volume.ts";
+import { savedAgentEnv, withoutPrivate } from "../features/agent-env.ts";
+import { createConfigLoader, type LoadedConfig } from "../features/config.ts";
+import type { Paths } from "../features/layout.ts";
+import { threadBusy } from "../features/messages.ts";
+import { fetchMirror } from "../features/repo.ts";
+import { keepAwake, stayAwake } from "../features/runner.ts";
+import { containerContext, defaultRuntimes } from "../features/runtime-context.ts";
+import { sessionsFor } from "../state.ts";
 
 /** How often `resume` checks whether the SSH shell that started it has gone. */
 const ORPHAN_CHECK_INTERVAL_MS = 1000;
@@ -28,8 +30,16 @@ export type ResumeOptions = {
   out?: (text: string) => void;
 };
 
+/** Offline when the commit's already in the mirror; otherwise fetches with the last run's credentials. */
+export const resumeConfig = (paths: Paths, repoUrl: string) =>
+  createConfigLoader({
+    mirror: paths.mirror,
+    dir: (commit) => `${paths.config(commit)}-resume`,
+    fetch: () => fetchMirror(paths.mirror, repoUrl, { ...process.env, ...savedAgentEnv(paths.agentEnv) }),
+  });
+
 /**
- * Opens a thread's session interactively in its worktree, holding the
+ * `resume <thread> <session>`: opens a thread's session interactively in its worktree, holding the
  * thread's lock so the agent's next run waits until you exit. Fails if a run
  * is in progress. Returns the exit status. Run over SSH by the laptop CLI,
  * which picks the session.

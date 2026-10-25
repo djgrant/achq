@@ -1,16 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { type ChannelClient, type ChannelEvent, type ChannelProvider, ENV, fromTrustedPerson, type PolicyProvider, type RuntimeContext, type RuntimeFactory, type Thread, type ThreadRef, threadKey } from "@achq/core";
 import type { RepoManifest } from "@achq/core/manifest";
-import { ContainerEnvelope } from "@achq/core/protocol";
-import { signedBy } from "@achq/core/signing";
+import type { ContainerEnvelope } from "@achq/core/protocol";
 import { async } from "@achq/utils/async";
 import { disk } from "@achq/utils/disk";
 import type { Vars } from "@achq/utils/env";
 import { errors } from "@achq/utils/errors";
 import { flock } from "@achq/utils/flock";
-import { http } from "@achq/utils/http";
 import { time } from "@achq/utils/time";
-import { zValidator } from "@hono/zod-validator";
 import { agentEnv, saveAgentEnv } from "./agent-env.ts";
 import type { LoadedConfig } from "./config.ts";
 import { Credentials } from "./credentials.ts";
@@ -18,7 +15,8 @@ import { configLoadFailed, failureReply, NOTHING_TO_COMPACT, runFailed, runInter
 import { buildPrompt, type Command, parseCommand } from "./prompt.ts";
 import { describeHead, ensureWorktree, fetchMirror, fillBranch } from "./repo.ts";
 import { containerContext, defaultRuntimes, writeFiles } from "./runtime-context.ts";
-import { allStates, firstDelivery, paths as layout, type Paths, readState, type ThreadState, writeState } from "./volume.ts";
+import { allStates, firstDelivery, readState, type ThreadState, writeState } from "../state.ts";
+import { paths as layout, type Paths } from "./layout.ts";
 
 const KEEP_AWAKE_INTERVAL_MS = 3 * time.MINUTE_MS;
 
@@ -106,15 +104,16 @@ class RunSlots {
 export class Runner {
   readonly paths: Paths;
   readonly credentials: Credentials;
-  readonly fetch: (req: Request) => Response | Promise<Response>;
+  /** What the router signs each delivery with. */
+  readonly secret: string;
+  readonly now: () => number;
+  readonly log: (line: string) => void;
   /** One thread's runs go one after another. */
   private enqueue = async.keyedQueue();
   private pending = new Set<Promise<unknown>>();
   private slots: RunSlots;
   private runtimes: Record<string, RuntimeFactory>;
   private runTimeoutMs: number;
-  private now: () => number;
-  private log: (line: string) => void;
 
   constructor(private opts: RunnerOptions) {
     this.paths = layout(opts.dataDir);
@@ -122,6 +121,7 @@ export class Runner {
     this.log = opts.log ?? ((line) => console.log(line));
     this.runtimes = opts.runtimes ?? defaultRuntimes;
     this.runTimeoutMs = opts.runTimeoutMs;
+    this.secret = opts.containerSecret;
     this.credentials = new Credentials({
       routerUrl: opts.routerUrl,
       containerSecret: opts.containerSecret,
@@ -132,15 +132,6 @@ export class Runner {
       now: this.now,
       log: this.log,
     });
-    this.fetch = http
-      .service(this.log)
-      .post("/events", signedBy(opts.containerSecret, this.now), zValidator("json", ContainerEnvelope), (c) => {
-        // Handled after answering: the router waits for the response.
-        const envelope = c.req.valid("json");
-        this.track(this.handle(envelope).catch((e) => this.log(`[${envelope.event.delivery}] ${errors.detail(e)}`)));
-        return c.text("accepted", 202);
-      }).fetch;
-
     // While any run is going, the container is kept awake: a long tool call can go
     // minutes without outbound traffic. Each tick also refreshes credentials near
     // expiry, and `install` rewrites them in place for the running agents.
@@ -161,6 +152,11 @@ export class Runner {
   /** Resolves when everything in flight has finished. For tests and shutdown. */
   async idle() {
     while (this.pending.size) await Promise.allSettled([...this.pending]);
+  }
+
+  /** Handles a delivery in the background, logging what fails: `idle` waits for it. */
+  accept(envelope: ContainerEnvelope) {
+    this.track(this.handle(envelope).catch((e) => this.log(`[${envelope.event.delivery}] ${errors.detail(e)}`)));
   }
 
   private track(p: Promise<unknown>) {

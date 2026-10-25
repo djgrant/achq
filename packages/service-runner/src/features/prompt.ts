@@ -5,7 +5,7 @@ import { crypto } from "@achq/utils/crypto";
 import { text } from "@achq/utils/text";
 import Mustache from "mustache";
 
-const PROMPTS = path.join(import.meta.dir, "..", "prompts");
+const PROMPTS = path.join(import.meta.dir, "..", "..", "prompts");
 const EMPTY = "(empty)";
 const UNTRUSTED_OPENING = "(Left out: the opening post is by a user without write access.)";
 

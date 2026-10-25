@@ -7,7 +7,7 @@ import { collections } from "@achq/utils/collections";
 import { Env, type Vars } from "@achq/utils/env";
 import { HttpError } from "@achq/utils/http";
 import { INFRA_MODULES } from "achq/modules";
-import { agentEnv, containerProviderNamed, vaultProviderNamed } from "achq/registry";
+import { agentContainerEnv, containerProviderNamed, vaultProviderNamed } from "achq/registry";
 import { DEPLOYER_VERSION_TIMEOUT_MS, SYNC_INTERVAL_MS, SYNC_TIMEOUT_MS } from "../constants.ts";
 import type { CliConfig } from "./config.ts";
 import { formatSync, planLines, shortSha } from "./format.ts";
@@ -88,10 +88,10 @@ export const infraChecks = async (file: string, env: Vars) => {
 };
 
 /** That `env` has what every container gets from it: each agent runtime's variables. */
-export const agentEnvCheck = (env: Vars): Check => ({
-  label: "Agent variables",
+export const agentContainerEnvCheck = (env: Vars): Check => ({
+  label: "Agent container variables",
   check: async () => {
-    for (const { name, hint } of agentEnv()) new Env(env).require(name, hint);
+    for (const { name, hint } of agentContainerEnv()) new Env(env).require(name, hint);
   },
 });
 

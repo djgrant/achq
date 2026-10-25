@@ -1,5 +1,5 @@
 {
-  "name": "@achq/container",
+  "name": "@achq/runner",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -9,7 +9,7 @@
   "dependencies": {
     "@achq/core": "workspace:*",
     "@achq/utils": "workspace:*",
-    "@hono/zod-validator": "^0.9.1",
+    "@hono/zod-openapi": "^1.6.3",
     "achq": "workspace:*",
     "hono": "^4.13.13",
     "mustache": "^4",
@@ -21,6 +21,6 @@
     "@types/mustache": "^4.2.6"
   },
   "bin": {
-    "achq-agent": "bin/achq-agent"
+    "achq-runner": "bin/achq-runner"
   }
 }

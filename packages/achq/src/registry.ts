@@ -47,4 +47,5 @@ export const serviceContainerProvider = (env: Env) => {
  */
 export const privateEnv = () => [...new Set([ENV.containerSecret, ENV.key, ...[...CHANNEL_PROVIDERS, ...POLICY_PROVIDERS, CODE_HOST, ...CONTAINER_PROVIDERS].flatMap((i) => i.privateEnv)])];
 
-export const agentEnv = () => AGENT_PROVIDERS.flatMap((a) => a.containerEnv);
+/** The variables every agent container is given from the infra's env: each agent runtime's, e.g. its token. */
+export const agentContainerEnv = () => AGENT_PROVIDERS.flatMap((a) => a.containerEnv);

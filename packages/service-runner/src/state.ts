@@ -1,40 +1,11 @@
+/*
+ * What the runner writes as it goes, in local files on the volume rather than
+ * a JsonStore: each thread's state, and the deliveries it has handled.
+ */
 import * as path from "node:path";
 import type { ThreadRef } from "@achq/core";
-import { SessionSummary } from "@achq/core/protocol";
 import { disk } from "@achq/utils/disk";
-import { z } from "zod";
-
-const UNSAFE_RUN = /[^A-Za-z0-9._-]+/g;
-const EDGE_DASHES = /^-+|-+$/g;
-
-/**
- * A file-name-safe form of a thread or workspace id, e.g. `owner-repo-42` for
- * `owner/repo#42`. Not `disk.safeFileName`: these names are already on volumes,
- * and runs collapse to one dash so they stay readable.
- */
-export const slug = (id: string) => id.replace(UNSAFE_RUN, "-").replace(EDGE_DASHES, "");
-
-/** Everything lives on the volume, so a restart loses nothing. */
-export const paths = (data: string) => ({
-  data,
-  /** HOME for agents and the runner; `~` in startup files. */
-  home: path.join(data, "home"),
-  mirror: path.join(data, "mirror.git"),
-  config: (commit: string) => path.join(data, "config", commit),
-  /** Each agent's own config directory (CLAUDE_CONFIG_DIR for Claude). */
-  agent: (name: string) => path.join(data, "agents", name),
-  policyProvider: (id: string) => path.join(data, id),
-  /** The env (credentials, git identity) the last run gave agents, for `resume`. Mode 600. */
-  agentEnv: path.join(data, "credentials", "agent-env.json"),
-  threads: path.join(data, "threads"),
-  thread: (threadKey: string) => path.join(data, "threads", `${slug(threadKey)}.json`),
-  worktree: (workspace: string, threadKey: string) => path.join(data, "worktrees", workspace, slug(threadKey)),
-  /** One run per thread per workspace: runs and `resume` take this lock. */
-  lock: (workspace: string, threadKey: string) => path.join(data, "locks", workspace, slug(threadKey)),
-  deliveries: path.join(data, "deliveries"),
-});
-
-export type Paths = ReturnType<typeof paths>;
+import type { Paths } from "./features/layout.ts";
 
 export type SessionState = {
   /** The session key it was started with; a different key means a fresh session. */
@@ -91,13 +62,6 @@ export const sessionsFor = (paths: Paths, number?: string) =>
       Object.entries(state.sessions).map(([agent, s]) => ({ id: s.id, thread: state.number, agent, workspace: s.workspace, lastRun: s.lastRun, state, commit: s.commit })),
     )
     .sort((a, b) => b.lastRun.localeCompare(a.lastRun));
-
-/**
- * A JSON array of their summaries, only: the laptop's `achq container resume` parses it (parseSessions in packages/core/src/wire/commands.ts).
- * SessionSummary is loose, for reading what another version printed, so the summary's own shape strips the rest.
- */
-const summaries = z.array(z.object(SessionSummary.shape));
-export const formatSessions = (sessions: SessionSummary[]) => JSON.stringify(summaries.parse(sessions));
 
 /** Records the delivery in `dir`; false if it was already handled. Persisted, so it holds across restarts. */
 export const firstDelivery = (dir: string, delivery: string) => disk.createExclusive(path.join(dir, disk.safeFileName(delivery)));

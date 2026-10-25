@@ -15,6 +15,7 @@
     "./routes/router-admin": "./src/wire/routes/router-admin.ts",
     "./routes/router-container": "./src/wire/routes/router-container.ts",
     "./routes/router-public": "./src/wire/routes/router-public.ts",
+    "./routes/runner": "./src/wire/routes/runner.ts",
     "./secrets": "./src/wire/secrets.ts",
     "./signing": "./src/wire/signing.ts"
   },

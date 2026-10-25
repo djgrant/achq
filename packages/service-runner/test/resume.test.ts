@@ -1,8 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import { threadKey } from "@achq/core";
 import { flock } from "@achq/utils/flock";
-import { resume } from "../src/resume.ts";
-import { formatSessions, sessionsFor } from "../src/volume.ts";
+import { resume } from "../src/commands/resume.ts";
+import { formatSessions } from "../src/commands/sessions.ts";
+import { sessionsFor } from "../src/state.ts";
 import { world } from "./world.ts";
 
 describe("sessions and resume", () => {

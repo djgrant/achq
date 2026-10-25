@@ -411,7 +411,7 @@ describe("when runs go wrong", () => {
 
     await w.containerProvider.restart(REPO, "dev");
     w.claude.control({});
-    expect(lastReply(43)).toStartWith("⚠️ The agent restarted while a run was in progress.");
+    expect(lastReply(43)).toStartWith("⚠️ The container restarted while a run was in progress.");
     expect(lastReply(43)).toContain(`coder \`${id}\``);
     expect(w.threadState(43)!.sessions.coder!.status).toBe("interrupted");
 

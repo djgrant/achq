@@ -4,8 +4,8 @@ import * as path from "node:path";
 import { fakeRouter } from "@achq/test-utils/container-router";
 import { testPolicyProvider } from "@achq/test-utils/test-policy-provider";
 import { tempDir } from "@achq/test-utils/temp-dir";
-import { Credentials } from "../src/credentials.ts";
-import { paths as layout } from "../src/volume.ts";
+import { Credentials } from "../src/features/credentials.ts";
+import { paths as layout } from "../src/features/layout.ts";
 
 const dirs: string[] = [];
 const cleanups: (() => void)[] = [];

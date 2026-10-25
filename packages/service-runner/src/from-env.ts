@@ -2,13 +2,14 @@ import { ENV } from "@achq/core";
 import { Env, type Vars } from "@achq/utils/env";
 import { time } from "@achq/utils/time";
 import { CHANNEL_PROVIDERS, POLICY_PROVIDERS } from "achq/registry";
-import { createConfigLoader } from "./config.ts";
-import { DEFAULT_MAX_RUNS, DEFAULT_RUN_TIMEOUT_MINUTES } from "./constants.ts";
-import { fetchMirror } from "./repo.ts";
-import { Runner } from "./runner.ts";
-import { paths as layout } from "./volume.ts";
+import { createConfigLoader } from "./features/config.ts";
+import { paths as layout } from "./features/layout.ts";
+import { fetchMirror } from "./features/repo.ts";
+import { Runner } from "./features/runner.ts";
 
 const DEFAULT_DATA_DIR = "/data";
+export const DEFAULT_MAX_RUNS = 2;
+export const DEFAULT_RUN_TIMEOUT_MINUTES = 360;
 
 /** The settings every command needs, from the container's environment (what the deployer's `ContainerSpec.env` sets). */
 export const settings = (env: Env) => ({
@@ -24,7 +25,8 @@ export const runLimits = (env: Env) => ({
   runTimeoutMs: env.positiveInt(ENV.runTimeoutMinutes, DEFAULT_RUN_TIMEOUT_MINUTES) * time.MINUTE_MS,
 });
 
-export const createAgent = (vars: Vars, options: { log?: (line: string) => void } = {}) => {
+/** The runner the container's environment describes, with the registry's channel and policy providers. */
+export const runnerFromEnv = (vars: Vars, options: { log?: (line: string) => void } = {}) => {
   const env = new Env(vars);
   const { repo, container, dataDir, repoUrl } = settings(env);
   const paths = layout(dataDir);
