@@ -9,7 +9,9 @@ import { deployerRoutes } from "@achq/core/routes/deployer";
 import { crypto } from "@achq/utils/crypto";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { dirStores } from "@achq/test-utils/stores";
-import { createRouter } from "../src/router.ts";
+import { createContext } from "../src/context.ts";
+import { replay, settled } from "../src/features/deliveries.ts";
+import { routes } from "../src/routes.ts";
 
 export const key = "test-key";
 export const repo = "acme/widgets";
@@ -153,25 +155,19 @@ export const fakeDeployer = () => {
 export type Boot = { dir?: string; deployer?: string; delays?: number[]; stores?: Stores };
 
 export const boot = async ({ dir = mkdtempSync(join(tmpdir(), "achq-router-")), deployer = "http://localhost:1", delays = [0, 0], stores = dirStores(dir) }: Boot = {}) => {
-  const router = await createRouter({
-    channelProviders: [testChannel],
-    policyProviders: [testPolicyProvider],
-    codeHost: testHost,
-    key,
-    stores,
-    deployerUrl: deployer,
-    delays,
-    log: () => {},
-  });
-  await router.start();
-  const pub = serve(router.publicFetch);
-  const priv = serve(router.privateFetch);
+  const ctx = await createContext({ key, deployerUrl: deployer }, { channelProviders: [testChannel], policyProviders: [testPolicyProvider], codeHost: testHost, stores, delays, log: () => {} });
+  await replay(ctx);
+  const { publicFetch, privateFetch } = routes(ctx);
+  const pub = serve(publicFetch);
+  const priv = serve(privateFetch);
 
   const signedRequest = (base: string, secret: string, method: string, path: string, body?: object, at = Date.now()) =>
     fetch(`${base}${path}`, signedRequestInit(secret, method, `${base}${path}`, body === undefined ? undefined : JSON.stringify(body), { now: at }));
   return {
     dir,
-    router,
+    ctx,
+    /** Every delivery it accepted has reached its targets. */
+    settled: () => settled(ctx),
     pub,
     priv,
     admin: (method: string, path: string, body?: object, base = priv) => signedRequest(base, adminSecret(key), method, path, body),

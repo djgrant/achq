@@ -3,7 +3,7 @@ import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DOC_CONFIG, DOC_PLAN } from "@achq/test-utils/config";
-import { evaluateConfig } from "../src/config/evaluate.ts";
+import { evaluateConfig } from "../src/features/config/evaluate.ts";
 
 /** A config that declares a container, then runs `body`, then exports whatever `body` left in `leak`. */
 const probe = (body: string) => ({

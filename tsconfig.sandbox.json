@@ -10,6 +10,6 @@
     "packages/achq/src/index.ts",
     "packages/achq/src/github.ts",
     "packages/achq/src/claude.ts",
-    "packages/service-deployer/src/config/manifest.ts"
+    "packages/service-deployer/src/features/config/manifest.ts"
   ]
 }

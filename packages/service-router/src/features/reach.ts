@@ -2,7 +2,7 @@ import { adminSecret } from "@achq/core/secrets";
 import { signedFetcher, signedRequestInit } from "@achq/core/signing";
 import { async, type Attempt } from "@achq/utils/async";
 import type { RouteFetcher } from "@achq/utils/http";
-import type { RouterContext } from "./context.ts";
+import type { RouterContext } from "../context.ts";
 
 /** What a service that never answered is, as a response: the router gave up waiting for it. */
 const GATEWAY_TIMEOUT = 504;
@@ -39,7 +39,7 @@ export const reach = async (
  * 504 with why; any answer it gives, a refusal among them, is its own.
  */
 export const toDeployer = (ctx: RouterContext): RouteFetcher => {
-  const signed = signedFetcher(adminSecret(ctx.key), ctx.deployerUrl, { fetch: ctx.fetch, now: ctx.now });
+  const signed = signedFetcher(adminSecret(ctx.env.key), ctx.env.deployerUrl, { fetch: ctx.fetch, now: ctx.now });
   return async (path, init) => {
     const result = await reach(ctx.delays, (signal) => signed(path, { ...init, signal }));
     return result.ok ? result.res : new Response(result.error, { status: GATEWAY_TIMEOUT });

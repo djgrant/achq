@@ -18,7 +18,7 @@ describe("persisted events", () => {
     expect(stored.targets.map((t: any) => [t.container, t.commit])).toEqual([["dev", "abc123"]]);
     await gate.reached;
     gate.release();
-    await r.router.settled();
+    await r.settled();
     expect(existsSync(file)).toBe(false);
   });
 
@@ -31,11 +31,11 @@ describe("persisted events", () => {
     // The first router is stuck mid-forward, as if it crashed. A new one starts on its volume.
     first.dev.respond = accepted;
     const second = await boot({ dir: first.dir });
-    await second.router.settled();
+    await second.settled();
     expect(deliveryIds(first.dev)).toEqual([event.delivery!, event.delivery!]);
     expect(existsSync(join(first.dir, "inbox", `${event.delivery}.json`))).toBe(false);
     gate.release();
-    await first.router.settled();
+    await first.settled();
   });
 
   test("a duplicate delivery ID isn't queued twice", async () => {
@@ -46,7 +46,7 @@ describe("persisted events", () => {
     expect(await (await r.webhook(event)).text()).toBe("duplicate");
     await gate.reached;
     gate.release();
-    await r.router.settled();
+    await r.settled();
     expect(deliveryIds(r.dev)).toEqual([event.delivery!]);
   });
 
@@ -55,7 +55,7 @@ describe("persisted events", () => {
     let calls = 0;
     r.dev.respond = () => (++calls < 3 ? new Response("waking", { status: 502 }) : accepted());
     await r.webhook(comment(13));
-    await r.router.settled();
+    await r.settled();
     expect(r.dev.attempts).toBe(3);
     expect(existsSync(join(r.dir, "failed"))).toBe(false);
   });
@@ -65,7 +65,7 @@ describe("persisted events", () => {
     r.dev.respond = () => new Response("down", { status: 503 });
     const event = comment(14);
     await r.webhook(event);
-    await r.router.settled();
+    await r.settled();
     expect(r.dev.attempts).toBe(3);
     const failed = readJson(join(r.dir, "failed", `${event.delivery}.json`));
     expect(failed.event.delivery).toBe(event.delivery!);
@@ -79,7 +79,7 @@ describe("persisted events", () => {
     r.dev.respond = () => new Response("down", { status: 503 });
     const before = channelReplies.length;
     await r.webhook(comment(15));
-    await r.router.settled();
+    await r.settled();
     expect(channelReplies.slice(before)).toEqual([
       { thread: `${repo}#15`, as: "app", body: "⚠️ This didn't reach the agent: `dev` didn't answer. It's kept, and runs when someone replays it with `achq infra replay`." },
     ]);
@@ -90,7 +90,7 @@ describe("persisted events", () => {
     r.dev.respond = () => new Response("down", { status: 503 });
     const event = comment(16);
     await r.webhook(event);
-    await r.router.settled();
+    await r.settled();
     const res = await r.admin("GET", "/admin/failed");
     expect(await res.json()).toEqual([
       { delivery: event.delivery, type: "comment", repo, thread: event.thread, targets: [{ target: `${repo}/dev`, error: "gave up after 3 attempts (503 down)" }] },
@@ -102,12 +102,12 @@ describe("persisted events", () => {
     r.dev.respond = () => new Response("down", { status: 503 });
     const event = comment(17);
     await r.webhook(event);
-    await r.router.settled();
+    await r.settled();
     const told = channelReplies.length;
 
     // Still down: back in failed/, and the thread isn't told again.
     expect(await (await r.admin("POST", "/admin/failed/replay")).json()).toEqual({ replayed: [event.delivery], dropped: [] });
-    await r.router.settled();
+    await r.settled();
     expect(channelReplies).toHaveLength(told);
     expect(readJson(join(r.dir, "failed", `${event.delivery}.json`)).told).toBe(true);
 
@@ -115,7 +115,7 @@ describe("persisted events", () => {
     const moved = fakeContainer("dev");
     expect((await r.admin("PUT", `/admin/repos/${repo}`, { ...config(moved, r.docsbox), commit: "def456" })).status).toBe(204);
     expect(await (await r.admin("POST", "/admin/failed/replay")).json()).toEqual({ replayed: [event.delivery], dropped: [] });
-    await r.router.settled();
+    await r.settled();
     expect(moved.events.map((e) => [e.event.delivery, e.commit])).toEqual([[event.delivery!, "def456"]]);
     expect(existsSync(join(r.dir, "failed", `${event.delivery}.json`))).toBe(false);
     expect(await (await r.admin("GET", "/admin/failed")).json()).toEqual([]);
@@ -126,7 +126,7 @@ describe("persisted events", () => {
     r.dev.respond = () => new Response("down", { status: 503 });
     const event = comment(18);
     await r.webhook(event);
-    await r.router.settled();
+    await r.settled();
     expect((await r.admin("DELETE", `/admin/repos/${repo}`)).status).toBe(204);
     expect(await (await r.admin("POST", "/admin/failed/replay")).json()).toEqual({ replayed: [], dropped: [event.delivery] });
     expect(existsSync(join(r.dir, "failed", `${event.delivery}.json`))).toBe(false);
@@ -139,7 +139,7 @@ describe("persisted events", () => {
     const r = await boot({ deployer: deployer.url });
     const install = { delivery: "inst-failed", type: "installed", deploy: ["acme/new", "acme/newer"], uninstall: ["acme/old"] };
     await r.webhook(install);
-    await r.router.settled();
+    await r.settled();
     expect(readJson(join(r.dir, "failed", "inst-failed.json"))).toMatchObject({ to: "deployer", error: "gave up after 3 attempts (503 down)" });
     expect(await (await r.admin("GET", "/admin/failed")).json()).toEqual([
       { delivery: "inst-failed", type: "installed", repo: "acme/new, acme/newer, acme/old", targets: [{ target: "deployer", error: "gave up after 3 attempts (503 down)" }] },
@@ -147,7 +147,7 @@ describe("persisted events", () => {
 
     deployer.respond = accepted;
     expect(await (await r.admin("POST", "/admin/failed/replay")).json()).toEqual({ replayed: ["inst-failed"], dropped: [] });
-    await r.router.settled();
+    await r.settled();
     expect(deployer.events.map((e) => e.event.delivery)).toEqual(["inst-failed", "inst-failed", "inst-failed", "inst-failed"]);
     expect(await (await r.admin("GET", "/admin/failed")).json()).toEqual([]);
   });
@@ -157,14 +157,14 @@ describe("persisted events", () => {
     deployer.respond = () => new Response("bad event", { status: 400 });
     const r = await boot({ deployer: deployer.url });
     await r.webhook({ delivery: "inst-refused", type: "installed", deploy: ["acme/new"], uninstall: [] });
-    await r.router.settled();
+    await r.settled();
     // Refused at once: a refusal isn't retried.
     expect(deployer.events).toHaveLength(1);
     expect(readJson(join(r.dir, "failed", "inst-refused.json"))).toMatchObject({ to: "deployer", error: "refused (400 bad event)" });
 
     deployer.respond = accepted;
     expect(await (await r.admin("POST", "/admin/failed/replay")).json()).toEqual({ replayed: ["inst-refused"], dropped: [] });
-    await r.router.settled();
+    await r.settled();
     expect(deployer.events).toHaveLength(2);
     expect(await (await r.admin("GET", "/admin/failed")).json()).toEqual([]);
   });
@@ -174,7 +174,7 @@ describe("persisted events", () => {
     r.dev.respond = () => new Response("bad envelope", { status: 400 });
     const event = comment(19);
     await r.webhook(event);
-    await r.router.settled();
+    await r.settled();
     expect(r.dev.attempts).toBe(1);
     expect(readJson(join(r.dir, "failed", `${event.delivery}.json`)).targets).toMatchObject([{ container: "dev", error: "refused (400 bad envelope)" }]);
   });
@@ -194,7 +194,7 @@ describe("persisted events", () => {
     await stores("failed").write("old-failed-comment", { event: failedComment, targets: [{ kind: "container", ...target, error: "gave up" }], told: true });
 
     const r = await boot({ dir: first.dir, deployer: deployer.url });
-    await r.router.settled();
+    await r.settled();
     expect(deployer.events.map((e) => e.event)).toEqual([{ delivery: "old-install", type: "installed", deploy: ["acme/new"], uninstall: [] }]);
     expect(deliveryIds(first.dev)).toEqual(["old-comment"]);
     expect(await stores("failed").read("old-failed-install")).toEqual({ to: "deployer", event: { delivery: "old-failed-install", type: "installed", deploy: ["acme/new"], uninstall: [] }, error: "gave up" });
@@ -205,7 +205,7 @@ describe("persisted events", () => {
     ]);
 
     expect(await (await r.admin("POST", "/admin/failed/replay")).json()).toEqual({ replayed: ["old-failed-comment", "old-failed-install"], dropped: [] });
-    await r.router.settled();
+    await r.settled();
     expect(deliveryIds(first.dev)).toEqual(["old-comment", "old-failed-comment"]);
     expect(deployer.events.map((e) => e.event.delivery)).toEqual(["old-install", "old-failed-install"]);
     expect(channelReplies.filter((c) => c.thread === `${repo}#41`)).toEqual([]);

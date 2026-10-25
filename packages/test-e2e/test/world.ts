@@ -5,11 +5,11 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { type BrowserAction, BrowserActionNeeded, type ContainerProvider, type ContainerSpec, repoName } from "@achq/core";
 import { createAgent, type Runner, readState } from "@achq/container";
-import { createDeployer, deployerHandler } from "@achq/deployer";
+import { createContext as createDeployerContext, routes as deployerRoutes } from "@achq/deployer";
 import { githubChannelProvider } from "@achq/github/channel";
 import { githubCodeHostProvider } from "@achq/github/code-host";
 import { githubPolicyProvider } from "@achq/github/policy";
-import { createRouter } from "@achq/router";
+import { createContext as createRouterContext, replay, routes as routerRoutes, settled } from "@achq/router";
 import { fakeClaude } from "@achq/test-utils/fake-claude";
 import { FakeGitHub, makeApp } from "@achq/test-utils/github";
 import { makeOrigin } from "@achq/test-utils/origin";
@@ -226,25 +226,28 @@ export const startWorld = async () => {
   const codeHost = githubCodeHostProvider.create(githubEnv);
   let deployerFetch: (req: Request) => Response | Promise<Response> = async () => new Response("starting", { status: 503 });
   const deployerUrl = serve(stops, (req) => deployerFetch(req));
-  const router = await createRouter({
-    channelProviders: [githubChannelProvider.create(githubEnv)],
-    policyProviders: [githubPolicyProvider.create(githubEnv)],
-    key: KEY,
-    stores: dirStores(routerDir),
-    deployerUrl,
-    delays: [20, 50, 100, 200],
-    attemptTimeout: 30_000,
-    codeHost,
-    log: (line) => logs.push(`router: ${line}`),
-  });
-  await router.start();
+  const routerCtx = await createRouterContext(
+    { key: KEY, deployerUrl },
+    {
+      channelProviders: [githubChannelProvider.create(githubEnv)],
+      policyProviders: [githubPolicyProvider.create(githubEnv)],
+      stores: dirStores(routerDir),
+      delays: [20, 50, 100, 200],
+      attemptTimeout: 30_000,
+      codeHost,
+      log: (line) => logs.push(`router: ${line}`),
+    },
+  );
+  await replay(routerCtx);
+  const { publicFetch, privateFetch } = routerRoutes(routerCtx);
+  const router = { ctx: routerCtx, settled: () => settled(routerCtx) };
   const routerPublic = serve(stops, (req) => {
     routerRequests.push({ port: "public", method: req.method, path: new URL(req.url).pathname });
-    return router.publicFetch(req);
+    return publicFetch(req);
   });
   const routerPrivate = serve(stops, (req) => {
     routerRequests.push({ port: "private", method: req.method, path: new URL(req.url).pathname });
-    return router.privateFetch(req);
+    return privateFetch(req);
   });
 
   // Containers: what the image and the container provider provide besides the deployer's env.
@@ -258,16 +261,17 @@ export const startWorld = async () => {
   }));
 
   // The deployer, reaching the router on its private port.
-  const deployer = await createDeployer({
-    containerProvider,
-    router: routerAdmin({ url: routerPrivate, key: KEY }),
-    owners: [OWNER],
-    stores: dirStores(path.join(root, "deployer")),
-    codeHost,
-    env: { containerEnv: { CLAUDE_CODE_OAUTH_TOKEN: "claude-oauth-token" }, key: KEY, routerUrl: routerPrivate, routerPublicUrl: routerPublic, ref: "e2e" },
-    log: (line) => logs.push(`deployer: ${line}`),
-  });
-  deployerFetch = deployerHandler(deployer, KEY, (line) => logs.push(`deployer: ${line}`));
+  const deployer = await createDeployerContext(
+    { containerEnv: { CLAUDE_CODE_OAUTH_TOKEN: "claude-oauth-token" }, key: KEY, routerUrl: routerPrivate, routerPublicUrl: routerPublic, ref: "e2e", owners: [OWNER] },
+    {
+      containerProvider,
+      router: routerAdmin({ url: routerPrivate, key: KEY }),
+      stores: dirStores(path.join(root, "deployer")),
+      codeHost,
+      log: (line) => logs.push(`deployer: ${line}`),
+    },
+  );
+  deployerFetch = deployerRoutes(deployer).fetch;
 
   const container = (name: string) => containerProvider.get(REPO, name);
   const dev = () => container("dev");

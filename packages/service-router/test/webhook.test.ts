@@ -11,7 +11,7 @@ describe("routing events to containers", () => {
     const r = await deployed();
     const plain = comment(1);
     expect((await r.webhook(plain)).status).toBe(202);
-    await r.router.settled();
+    await r.settled();
     expect(deliveryIds(r.dev)).toEqual([plain.delivery!]);
     expect(r.docsbox.events).toEqual([]);
     expect(r.dev.events[0].commit).toBe("abc123");
@@ -35,7 +35,7 @@ describe("routing events to containers", () => {
   test("the container is told the workspace the router routed the thread to", async () => {
     const r = await deployed();
     await r.webhook(comment(3, ["docs"]));
-    await r.router.settled();
+    await r.settled();
     expect(r.dev.events.map((e) => e.workspace)).toEqual(["dev-docs"]);
     expect(r.docsbox.events.map((e) => e.workspace)).toEqual(["docs"]);
   });
@@ -63,14 +63,14 @@ describe("routing events to containers", () => {
     const r = await deployed();
     r.docsbox.respond = () => new Response("down", { status: 503 });
     await r.webhook(comment(10, ["docs"]));
-    await r.router.settled();
+    await r.settled();
     expect(readdirSync(join(r.dir, "failed"))).toHaveLength(1);
 
     // The docs label goes: docsbox has no workspace that matches now, but it claimed the thread.
     r.docsbox.respond = accepted;
     const relabelled = comment(10, []);
     await r.webhook(relabelled);
-    await r.router.settled();
+    await r.settled();
     expect(r.docsbox.events.at(-1)).toMatchObject({ event: { delivery: relabelled.delivery }, workspace: "docs" });
   });
 
@@ -99,7 +99,7 @@ describe("routing events to containers", () => {
     while (writes < 2) await Bun.sleep(5);
     open();
     expect([(await first).status, (await second).status]).toEqual([202, 202]);
-    await r.router.settled();
+    await r.settled();
     expect(r.dev.events.map((e) => e.workspace)).toEqual(["dev-docs", "dev-docs"]);
     expect(readJson(join(dir, "claims", `${encodeURIComponent(repo)}.json`))).toEqual({ [`test:${repo}#13`]: { dev: "dev-docs", docsbox: "docs" } });
   });
@@ -121,7 +121,7 @@ describe("routing events to containers", () => {
     expect((await r.webhook(comment(14, ["docs"]))).status).toBe(500);
     failing = false;
     await r.webhook(comment(14, []));
-    await r.router.settled();
+    await r.settled();
     expect(r.dev.events.map((e) => e.workspace)).toEqual(["dev-all"]);
     expect(r.docsbox.events).toEqual([]);
   });
@@ -140,12 +140,12 @@ describe("routing events to containers", () => {
     const r = await deployed({ dir, stores });
     const event = comment(15, ["docs"]);
     expect(await (await r.webhook(event)).text()).toBe("accepted");
-    await r.router.settled();
+    await r.settled();
     expect(deliveryIds(r.dev)).toEqual([event.delivery!]);
     expect(readdirSync(join(dir, "inbox"))).toEqual([]);
     // The claim holds in memory: the relabelled thread stays where it was.
     await r.webhook(comment(15, []));
-    await r.router.settled();
+    await r.settled();
     expect(r.dev.events.map((e) => e.workspace)).toEqual(["dev-docs", "dev-docs"]);
   });
 
@@ -156,7 +156,7 @@ describe("routing events to containers", () => {
     await r.webhook(comment(11, ["docs"], { type: "issue.opened" }));
     const relabelled = comment(11, []);
     await r.webhook(relabelled);
-    await r.router.settled();
+    await r.settled();
     expect(deliveryIds(r.dev)).toEqual([relabelled.delivery!]);
     expect(r.dev.events[0]!.workspace).toBe("dev-all");
     expect(r.docsbox.events).toEqual([]);
@@ -165,12 +165,12 @@ describe("routing events to containers", () => {
   test("a claim on a workspace the config no longer has gives way to the first that matches now", async () => {
     const r = await deployed();
     await r.webhook(comment(12, ["docs"]));
-    await r.router.settled();
+    await r.settled();
     const renamed = config(r.dev, r.docsbox);
     renamed.workspaces = renamed.workspaces.map((w) => (w.name === "dev-docs" ? { ...w, name: "dev-docs2" } : w));
     expect((await r.admin("PUT", `/admin/repos/${repo}`, renamed)).status).toBe(204);
     await r.webhook(comment(12, []));
-    await r.router.settled();
+    await r.settled();
     expect(r.dev.events.map((e) => e.workspace)).toEqual(["dev-docs", "dev-all"]);
   });
 
@@ -183,13 +183,13 @@ describe("routing events to containers", () => {
   test("claims survive a restart, and an uninstall and reinstall", async () => {
     const r = await deployed();
     await r.webhook(comment(7, ["docs"]));
-    await r.router.settled();
+    await r.settled();
     const again = await boot({ dir: r.dir });
     expect((await again.admin("DELETE", `/admin/repos/${repo}`)).status).toBe(204);
     expect((await again.admin("PUT", `/admin/repos/${repo}`, config(r.dev, r.docsbox))).status).toBe(204);
     const event = comment(7);
     await again.webhook(event);
-    await again.router.settled();
+    await again.settled();
     expect(deliveryIds(r.docsbox).at(-1)).toBe(event.delivery!);
     expect(r.dev.events.at(-1)!.workspace).toBe("dev-docs");
   });
@@ -208,7 +208,7 @@ describe("routing events to containers", () => {
     expect((await r.webhook(comment(8), "wrong-secret")).status).toBe(401);
     // A delivery ID is held to a short run of plain characters.
     for (const delivery of ["../x", "a b", "", "d".repeat(201)]) expect(await (await r.webhook(comment(8, [], { delivery }))).text()).toBe("bad delivery id");
-    await r.router.settled();
+    await r.settled();
     expect(r.dev.attempts + r.docsbox.attempts).toBe(0);
     expect(readdirSync(r.dir).includes("inbox") ? readdirSync(join(r.dir, "inbox")) : []).toEqual([]);
   });
@@ -218,7 +218,7 @@ describe("routing events to containers", () => {
     expect(await (await r.webhook(comment(9, [], { repo: "acme/other" }))).text()).toBe("no match");
     expect((await r.admin("DELETE", `/admin/repos/${repo}`)).status).toBe(204);
     expect(await (await r.webhook(comment(9))).text()).toBe("no match");
-    await r.router.settled();
+    await r.settled();
     expect(r.dev.attempts).toBe(0);
   });
 });
@@ -229,7 +229,7 @@ describe("routing events to the deployer", () => {
     const r = await boot({ deployer: deployer.url });
     const install = { delivery: "inst-1", type: "installed", deploy: ["acme/new"], uninstall: [] };
     expect((await r.webhook(install)).status).toBe(202);
-    await r.router.settled();
+    await r.settled();
     expect(deployer.events.map((e) => e.event.delivery)).toEqual(["inst-1"]);
   });
 
@@ -239,7 +239,7 @@ describe("routing events to the deployer", () => {
     const push = (delivery: string, forRepo = repo) => ({ delivery, type: "push", deploy: [forRepo], onlyIfDeployed: true });
     expect(await (await r.webhook(push("p-deployed"))).text()).toBe("accepted");
     expect(await (await r.webhook(push("p-undeployed", "acme/other"))).text()).toBe("no match");
-    await r.router.settled();
+    await r.settled();
     expect(deliveryIds(deployer)).toEqual(["p-deployed"]);
     expect(deployer.events[0]!.event).toEqual({ delivery: "p-deployed", type: "push", deploy: [repo], uninstall: [] });
     expect(r.dev.attempts).toBe(0);

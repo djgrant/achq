@@ -46,11 +46,11 @@ test("the router keeps its inbox, config and claims in its container provider's 
   // A router started afresh on another disk, with the same store, has the config and replays the inbox.
   r.dev.respond = accepted;
   const second = await boot({ stores: httpStores(store.url) });
-  await second.router.settled();
+  await second.settled();
   expect(deliveryIds(r.dev)).toEqual([event.delivery!, event.delivery!]);
   expect(store.values.has(`store/inbox/${event.delivery}`)).toBe(false);
   gate.release();
-  await r.router.settled();
+  await r.settled();
 });
 
 // Delete with the repos and claims migrations in src/store.ts.
@@ -70,7 +70,7 @@ test("a router started on a store with repos under their old file names moves th
     expect(await stores("claims").list()).toEqual([repo]);
     // The claim moved with it: the thread stays in its docs workspace, though its event no longer has the label.
     await again.webhook(comment(5));
-    await again.router.settled();
+    await again.settled();
     expect(first.dev.events.at(-1)!.workspace).toBe("dev-docs");
   }
 });

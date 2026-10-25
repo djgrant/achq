@@ -25,12 +25,12 @@ describe("deploy", () => {
     const r = await boot({ deployer: deployer.url });
     expect((await r.asYou("/deploy", { repo })).status).toBe(401);
     expect((await r.asYou("/deploy", { repo }, "read-token")).status).toBe(403);
-    await r.router.settled();
+    await r.settled();
     expect(deployer.events).toEqual([]);
 
     const res = await r.asYou("/deploy", { repo }, "push-token");
     expect([res.status, await res.text()]).toEqual([202, "accepted"]);
-    await r.router.settled();
+    await r.settled();
     expect(deployer.events.map((e) => e.event)).toEqual([{ delivery: expect.stringMatching(/^deploy-/), type: "deploy.requested", deploy: [repo], uninstall: [] }]);
   });
 });

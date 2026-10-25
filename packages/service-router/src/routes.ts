@@ -10,24 +10,24 @@ import { handler, http, HttpError } from "@achq/utils/http";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import type { Context } from "hono";
 import { createMiddleware } from "hono/factory";
-import { DELIVERY_ID } from "./constants.ts";
-import { claimsOf, configOf, createContext, type RouterDeps } from "./context.ts";
-import { mint, mintClients, validate } from "./credentials.ts";
-import { acceptDelivery, type Reservation, listFailed, replay, replayFailed, reserveClaims, settled, targetsFor } from "./deliveries.ts";
-import { reach, toDeployer } from "./reach.ts";
+import { claimsOf, configOf, type RouterContext } from "./context.ts";
+import { mint, mintClients, validate } from "./features/credentials.ts";
+import { acceptDelivery, type Reservation, listFailed, replayFailed, reserveClaims, targetsFor } from "./features/deliveries.ts";
+import { reach, toDeployer } from "./features/reach.ts";
 import type { InboxEntry } from "./store.ts";
+
+/** What a channel's delivery ID may be. Stores encode names themselves, so this only bounds the size and characters of an ID a stranger sends. */
+const DELIVERY_ID = /^[\w.-]{1,200}$/;
 
 type Container = RouterRepoConfig["containers"][number];
 
-export const createRouter = async (deps: RouterDeps) => {
-  const ctx = await createContext(deps);
+/** `@achq/core/routes/router-admin`: for the deployer and the infra CLI, on both ports, signed with the admin secret. */
+const adminApp = (ctx: RouterContext) => {
   /** The deployer, woken as it's called. What a forwarded route answers is what it decoded, encoded again. */
   const deployer = deployerClient(toDeployer(ctx));
-
-  // For the deployer and the infra CLI, on both ports, signed with the admin secret.
   const admin = new OpenAPIHono();
   // On its own: chained, `use` returns a plain Hono, which has no `openapi`.
-  admin.use(signedBy(adminSecret(ctx.key), ctx.now));
+  admin.use(signedBy(adminSecret(ctx.env.key), ctx.now));
   // A deployer's refusal keeps its status and body, and one that never answered is a 504, as the deployer client throws them. Anything else is the service's to answer.
   admin.onError((error) => {
     if (error instanceof HttpError && error.service === DEPLOYER_SERVICE) return new Response(error.body, { status: error.status, headers: { "content-type": "text/plain; charset=UTF-8" } });
@@ -74,7 +74,11 @@ export const createRouter = async (deps: RouterDeps) => {
   admin.openapi(adminRoutes.deployerVersion, async (c) => c.json(await deployer.version(), 200));
   admin.openapi(adminRoutes.failed, async (c) => c.json(await listFailed(ctx), 200));
   admin.openapi(adminRoutes.replay, async (c) => c.json(await replayFailed(ctx), 200));
+  return admin;
+};
 
+/** `@achq/core/routes/router-public`: for channels' webhooks and the repo CLI, on the public port. */
+const publicApp = (ctx: RouterContext) => {
   /**
    * The response refusing the request, unless its bearer token can push to the
    * repo on the code host. Checked before saying anything about the repo, so
@@ -168,15 +172,20 @@ export const createRouter = async (deps: RouterDeps) => {
       await acceptDelivery(ctx, { to: "deployer", event });
       return c.text("accepted", 202);
     });
+  return pub;
+};
 
-  type ContainerEnv = { Variables: { config: RouterRepoConfig; container: Container } };
+type ContainerEnv = { Variables: { config: RouterRepoConfig; container: Container } };
+
+/** `@achq/core/routes/router-container`: credentials are only for achq's own services, on the port the public can't reach. */
+const containerApp = (ctx: RouterContext) => {
   /** A request a container signed: the body names the container, and the signature proves it's that container. Read as text first, so the signature covers the bytes it sent. */
   const fromContainer = createMiddleware<ContainerEnv>(async (c, next) => {
     await c.req.text();
     const identity = CredentialsRequest.safeParse(await c.req.json().catch(() => undefined));
     if (!identity.success) return c.text("bad request", 400);
     const { repo, container: name } = identity.data;
-    if (!(await isSigned(c, containerSecret(ctx.key, repo, name), ctx.now()))) return c.text("bad signature", 401);
+    if (!(await isSigned(c, containerSecret(ctx.env.key, repo, name), ctx.now()))) return c.text("bad signature", 401);
     const config = configOf(ctx, repo);
     const container = config?.containers.find((x) => x.name === name);
     if (!config || !container) return c.text("no such container", 404);
@@ -185,7 +194,6 @@ export const createRouter = async (deps: RouterDeps) => {
     await next();
   });
 
-  // Credentials are only for achq's own services, on the port the public can't reach.
   const forContainers = new OpenAPIHono<ContainerEnv>();
   forContainers.use(containerRoutes.credentials.path, fromContainer);
   forContainers.openapi(
@@ -198,24 +206,23 @@ export const createRouter = async (deps: RouterDeps) => {
     }),
   );
 
-  const publicApp = http.service(ctx.log).route("/admin", admin).route("/", pub);
-  const privateApp = http.service(ctx.log).route("/admin", admin).route("/", forContainers);
-
-  return {
-    publicFetch: publicApp.fetch,
-    privateFetch: privateApp.fetch,
-    /** Loads config and claims from the store, then replays the inbox in the background. Call before serving. */
-    start: async () => {
-      for (const config of await ctx.store.repos.all()) ctx.repos.set(repoName.key(config.repo), config);
-      for (const name of await ctx.store.claims.list()) {
-        const repoClaims = await ctx.store.claims.read(name);
-        if (repoClaims) ctx.claims.set(name, repoClaims);
-      }
-      await replay(ctx);
-    },
-    replay: () => replay(ctx),
-    settled: () => settled(ctx),
-  };
+  return forContainers;
 };
 
-export type Router = Awaited<ReturnType<typeof createRouter>>;
+/**
+ * The router's apps, one per declaration in `@achq/core/routes/`, and how
+ * they're mounted: the admin routes under `/admin` on both ports, the public
+ * routes on the public port, and the containers' on the private one.
+ */
+export const routes = (ctx: RouterContext) => {
+  const admin = adminApp(ctx);
+  const pub = publicApp(ctx);
+  const container = containerApp(ctx);
+  return {
+    admin,
+    public: pub,
+    container,
+    publicFetch: http.service(ctx.log).route("/admin", admin).route("/", pub).fetch,
+    privateFetch: http.service(ctx.log).route("/admin", admin).route("/", container).fetch,
+  };
+};

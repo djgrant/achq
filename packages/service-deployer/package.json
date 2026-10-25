@@ -5,7 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./config": "./src/config/evaluate.ts"
+    "./config": "./src/features/config/evaluate.ts"
   },
   "dependencies": {
     "@achq/core": "workspace:*",

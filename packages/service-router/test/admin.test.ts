@@ -13,7 +13,7 @@ describe("admin", () => {
     expect(repos.map((c) => c.repo)).toEqual([repo]);
     const event = comment(20);
     await again.webhook(event);
-    await again.router.settled();
+    await again.settled();
     expect(deliveryIds(r.dev)).toEqual([event.delivery!]);
 
     await again.admin("DELETE", `/admin/repos/${repo}`);

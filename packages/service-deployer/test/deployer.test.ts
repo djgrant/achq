@@ -9,16 +9,19 @@ import { STATUS_VARIABLE } from "@achq/github";
 import { adminSecret, containerSecret } from "@achq/core/secrets";
 import { signedFetcher } from "@achq/core/signing";
 import { HttpError } from "@achq/utils/http";
-import { evaluateConfig } from "../src/config/evaluate.ts";
+import { evaluateConfig } from "../src/features/config/evaluate.ts";
 import { DOC_CONFIG, DOC_PLAN } from "@achq/test-utils/config";
-import { createDeployer } from "../src/deployer.ts";
+import { createContext } from "../src/context.ts";
+import { deploy, status } from "../src/features/deploy.ts";
+import { handleEvent } from "../src/features/events.ts";
+import { sync } from "../src/features/sync.ts";
 import { githubChannelProvider } from "@achq/github/channel";
 import { githubCodeHostProvider } from "@achq/github/code-host";
 import { FakeGitHub } from "@achq/test-utils/github";
 import { FakeRouter } from "@achq/test-utils/deployer/router";
 import { MemoryContainerProvider } from "@achq/test-utils/deployer/container-provider";
 import { dirStores } from "@achq/test-utils/stores";
-import { deployerHandler } from "../src/server.ts";
+import { routes } from "../src/routes.ts";
 
 const KEY = "test-webhook-key";
 const REPO = "notationlabs/yieldstar";
@@ -56,10 +59,9 @@ let clock: number;
 let logs: string[];
 
 const makeDeployer = (options: { owners?: string[]; env?: typeof ENV } = {}) =>
-  createDeployer({
+  createContext({ ...(options.env ?? ENV), owners: options.owners ?? ["NotationLabs", "djgrant"] }, {
     containerProvider,
     router: routerAdmin({ url: router.url, key: KEY }),
-    owners: options.owners ?? ["NotationLabs", "djgrant"],
     stores: dirStores(dataDir),
     ...githubDeps(),
     evaluate: (files) => {
@@ -67,7 +69,6 @@ const makeDeployer = (options: { owners?: string[]; env?: typeof ENV } = {}) =>
       return evaluateConfig(files);
     },
     now: () => new Date(Date.UTC(2026, 9, 17, 10, 0, clock++)),
-    env: options.env ?? ENV,
     log: (line) => logs.push(line),
   });
 
@@ -110,7 +111,7 @@ describe("install", () => {
   test("deploys the repo and reports it in ACHQ_STATUS", async () => {
     const commit = github.commit(REPO, repoFiles());
     const deployer = await makeDeployer();
-    expect(await deployer.handle(event("installation.created", [REPO]))).toBe(true);
+    expect(await handleEvent(deployer, event("installation.created", [REPO]))).toBe(true);
 
     expect(router.mints).toEqual([{ repo: REPO, policies: [{ provider: "github", repo: REPO, permissions: { ...DEPLOYER_PERMISSIONS } }] }]);
 
@@ -155,14 +156,14 @@ describe("install", () => {
       router: "https://router.example",
     });
     const { router: _router, ...record } = github.variable(REPO, STATUS_VARIABLE);
-    expect(await deployer.status()).toEqual([record]);
+    expect(await status(deployer)).toEqual([record]);
   });
 
   test("installing on several repos deploys each, each with its own ACHQ_STATUS", async () => {
     const other = "djgrant/notes";
     github.commit(REPO, repoFiles());
     github.commit(other, repoFiles({ ".achq/config.ts": `throw new Error("broken");` }));
-    await (await makeDeployer()).handle(event("installation_repositories.added", [REPO, other]));
+    await handleEvent(await makeDeployer(), event("installation_repositories.added", [REPO, other]));
     expect(github.variable(REPO, STATUS_VARIABLE).state).toBe("deployed");
     expect(github.variable(other, STATUS_VARIABLE)).toMatchObject({ state: "failed", error: ".achq/config.ts: The config threw: Error: broken" });
     expect(router.mints.map((m) => m.repo)).toEqual([REPO, other]);
@@ -171,56 +172,54 @@ describe("install", () => {
   test("a disallowed owner is recorded as failed and its config is never fetched or evaluated", async () => {
     github.commit("stranger/repo", repoFiles());
     const deployer = await makeDeployer();
-    await deployer.handle(event("installation.created", ["stranger/repo"]));
+    await handleEvent(deployer, event("installation.created", ["stranger/repo"]));
     expect(evaluations).toBe(0);
     expect(router.mints).toEqual([]);
     expect(github.requests).toEqual([]);
     expect(containerProvider.ops()).toEqual([]);
     expect(router.count("PUT", "/admin/repos")).toBe(0);
-    expect(await deployer.status()).toEqual([{ repo: "stranger/repo", state: "failed", at: expect.any(String), error: "stranger isn't an owner this deployer serves" }]);
+    expect(await status(deployer)).toEqual([{ repo: "stranger/repo", state: "failed", at: expect.any(String), error: "stranger isn't an owner this deployer serves" }]);
   });
 
   test("owners match case-insensitively", async () => {
     github.commit(REPO, repoFiles());
-    const outcome = await (await makeDeployer({ owners: ["NOTATIONLABS"] })).deploy(REPO);
+    const outcome = await deploy(await makeDeployer({ owners: ["NOTATIONLABS"] }), REPO);
     expect(outcome.outcome).toBe("deployed");
   });
 
   test("a config that fails in the sandbox is reported in ACHQ_STATUS and deploys nothing", async () => {
     github.commit(REPO, repoFiles({ ".achq/config.ts": `import { Container } from "achq"; while (true) {}` }));
-    const deployer = await createDeployer({
+    const deployer = await createContext({ ...ENV, owners: ["notationlabs"] }, {
       containerProvider,
       router: routerAdmin({ url: router.url, key: KEY }),
-      owners: ["notationlabs"],
       stores: dirStores(dataDir),
       ...githubDeps(),
       evaluate: (files) => evaluateConfig(files, { timeoutMs: 200 }),
-      env: ENV,
       log: () => {},
     });
-    expect((await deployer.deploy(REPO)).outcome).toBe("failed");
+    expect((await deploy(deployer, REPO)).outcome).toBe("failed");
     expect(github.variable(REPO, STATUS_VARIABLE)).toMatchObject({ state: "failed", error: ".achq/config.ts: The config ran for longer than 200ms and was stopped" });
     expect(containerProvider.ops()).toEqual([]);
     expect(router.repos.size).toBe(0);
 
     github.commit(REPO, repoFiles({ ".achq/config.ts": `import "node:fs";` }));
-    await deployer.deploy(REPO);
+    await deploy(deployer, REPO);
     expect(github.variable(REPO, STATUS_VARIABLE).error).toContain(`imports "node:fs"`);
   });
 
   test("a repo with no .achq/config.ts fails clearly", async () => {
     github.commit(REPO, { "README.md": "hi" });
-    expect(await (await makeDeployer()).deploy(REPO)).toMatchObject({ outcome: "failed", error: "there's no .achq/config.ts on main" });
+    expect(await deploy(await makeDeployer(), REPO)).toMatchObject({ outcome: "failed", error: "there's no .achq/config.ts on main" });
     expect(evaluations).toBe(0);
     expect(github.variable(REPO, STATUS_VARIABLE).state).toBe("failed");
   });
 
   test(".achq/ over the size or file limits fails before evaluating", async () => {
     github.commit(REPO, repoFiles({ ".achq/big.ts": `export const s = "${"x".repeat(2 * 1024 * 1024)}";` }));
-    expect((await (await makeDeployer()).deploy(REPO)).error).toContain("the limit is 1048576");
+    expect((await deploy(await makeDeployer(), REPO)).error).toContain("the limit is 1048576");
     const many = Object.fromEntries(Array.from({ length: 201 }, (_, i) => [`.achq/lib/f${i}.ts`, "export {};"]));
     github.commit(REPO, repoFiles(many));
-    expect((await (await makeDeployer()).deploy(REPO)).error).toContain("source files; the limit is 200");
+    expect((await deploy(await makeDeployer(), REPO)).error).toContain("source files; the limit is 200");
     expect(evaluations).toBe(0);
   });
 });
@@ -229,7 +228,7 @@ describe("checks", () => {
   test("a validation failure from the router stops the deploy", async () => {
     router.problems = (policy) => (policy.permissions && (policy.permissions as Record<string, string>).pull_requests ? [`${APP} doesn't have pull_requests: write`] : []);
     github.commit(REPO, repoFiles());
-    expect(await (await makeDeployer()).deploy(REPO)).toMatchObject({ outcome: "failed", error: `${APP} doesn't have pull_requests: write` });
+    expect(await deploy(await makeDeployer(), REPO)).toMatchObject({ outcome: "failed", error: `${APP} doesn't have pull_requests: write` });
     expect(containerProvider.ops()).toEqual([]);
     expect(router.count("PUT", "/admin/repos")).toBe(0);
     expect(github.variable(REPO, STATUS_VARIABLE)).toMatchObject({ state: "failed", error: `${APP} doesn't have pull_requests: write` });
@@ -238,13 +237,13 @@ describe("checks", () => {
   test("a trigger wanting an event the App doesn't send stops the deploy", async () => {
     router.sources[0]!.events = ["issues"];
     github.commit(REPO, repoFiles());
-    expect((await (await makeDeployer()).deploy(REPO)).error).toBe(`trigger mention wants issue_comment, which ${APP} doesn't send`);
+    expect((await deploy(await makeDeployer(), REPO)).error).toBe(`trigger mention wants issue_comment, which ${APP} doesn't send`);
     expect(containerProvider.ops()).toEqual([]);
   });
 
   test("config that names an App the router doesn't know fails", async () => {
     github.commit(REPO, repoFiles({ ".achq/config.ts": DOC_CONFIG["config.ts"].replace(`Channel.get("notation-achq")`, `Channel.get("ghost")`) }));
-    const { error } = await (await makeDeployer()).deploy(REPO);
+    const { error } = await deploy(await makeDeployer(), REPO);
     expect(error).toContain("policy code names ghost, which the router doesn't know");
     expect(error).toContain("workspace docs names github:ghost, which the router doesn't know");
     expect(containerProvider.ops()).toEqual([]);
@@ -252,12 +251,12 @@ describe("checks", () => {
 
   test("a missing Dockerfile fails; a trigger no workspace covers is a warning", async () => {
     github.commit(REPO, repoFiles({ ".achq/Dockerfile": undefined }));
-    expect((await (await makeDeployer()).deploy(REPO)).error).toBe("container dev's image .achq/Dockerfile doesn't exist");
+    expect((await deploy(await makeDeployer(), REPO)).error).toBe("container dev's image .achq/Dockerfile doesn't exist");
 
     router.sources.push({ channel: "github", source: "second", events: ["issues"], permissions: {} });
     const config = `${DOC_CONFIG["config.ts"]}\nnew Trigger("lonely", { event: github.Channel.get("second").issue(), agent: triage });`;
     github.commit(REPO, repoFiles({ ".achq/config.ts": config }));
-    const outcome = await (await makeDeployer()).deploy(REPO);
+    const outcome = await deploy(await makeDeployer(), REPO);
     expect(outcome).toMatchObject({ outcome: "deployed", warnings: ["trigger lonely never runs: no workspace's threads come from github:second"] });
     expect(github.variable(REPO, STATUS_VARIABLE)).toMatchObject({ state: "deployed", warnings: outcome.warnings });
   });
@@ -267,7 +266,7 @@ describe("config changes", () => {
   // Delete with the records migration in src/store.ts.
   test("records kept under their old file names move to their repo keys when the deployer starts", async () => {
     github.commit(REPO, repoFiles());
-    expect((await (await makeDeployer()).deploy(REPO)).outcome).toBe("deployed");
+    expect((await deploy(await makeDeployer(), REPO)).outcome).toBe("deployed");
     // As an older deployer kept them: `owner__name`, and a name that's no repo's made safe as a file name.
     const records = dirStores(dataDir)("records");
     await records.write("notationlabs__yieldstar", (await records.read(REPO))!);
@@ -276,33 +275,33 @@ describe("config changes", () => {
 
     const deployer = await makeDeployer();
     expect(await records.list()).toEqual([".hidden", REPO]);
-    expect((await deployer.deploy(REPO)).outcome).toBe("unchanged");
+    expect((await deploy(deployer, REPO)).outcome).toBe("unchanged");
   });
 
   test("a repo whose record is unreadable deploys as if it had none, logged, and the deploy rewrites the record", async () => {
     github.commit(REPO, repoFiles());
-    expect((await (await makeDeployer()).deploy(REPO)).outcome).toBe("deployed");
+    expect((await deploy(await makeDeployer(), REPO)).outcome).toBe("deployed");
     const records = dirStores(dataDir)("records");
     await records.write(REPO, { repo: REPO, state: "deployed", at: 7 });
 
-    expect((await (await makeDeployer()).deploy(REPO)).outcome).toBe("deployed");
+    expect((await deploy(await makeDeployer(), REPO)).outcome).toBe("deployed");
     expect(logs).toContain(`store: records "${REPO}" isn't readable, so it's treated as absent: at: Invalid input: expected string, received number`);
     expect(await records.read(REPO)).toMatchObject({ repo: REPO, state: "deployed", at: expect.any(String) });
   });
 
   test("a new token for the agents deploys again, with the same .achq tree, and builds nothing", async () => {
     github.commit(REPO, repoFiles());
-    expect((await (await makeDeployer()).deploy(REPO)).outcome).toBe("deployed");
+    expect((await deploy(await makeDeployer(), REPO)).outcome).toBe("deployed");
     const builds = containerProvider.ops().filter((o) => o.op === "build").length;
     const renewed = { ...ENV, containerEnv: { CLAUDE_CODE_OAUTH_TOKEN: "new-token" } };
-    expect((await (await makeDeployer({ env: renewed })).deploy(REPO)).outcome).toBe("deployed");
+    expect((await deploy(await makeDeployer({ env: renewed }), REPO)).outcome).toBe("deployed");
     expect(containerProvider.services.get(`${REPO}/dev`)!.spec.env.CLAUDE_CODE_OAUTH_TOKEN).toBe("new-token");
     expect(containerProvider.ops().filter((o) => o.op === "build").length).toBe(builds);
-    expect((await (await makeDeployer({ env: renewed })).deploy(REPO)).outcome).toBe("unchanged");
+    expect((await deploy(await makeDeployer({ env: renewed }), REPO)).outcome).toBe("unchanged");
   });
 
   test("a name the code host has no repo by fails without touching anything", async () => {
-    expect(await (await makeDeployer()).deploy("notationlabs/a/b")).toMatchObject({ outcome: "failed", error: `"notationlabs/a/b" isn't a repository name` });
+    expect(await deploy(await makeDeployer(), "notationlabs/a/b")).toMatchObject({ outcome: "failed", error: `"notationlabs/a/b" isn't a repository name` });
     expect(router.mints).toEqual([]);
     expect(containerProvider.ops()).toEqual([]);
   });
@@ -310,13 +309,13 @@ describe("config changes", () => {
   test("a push with the same .achq tree is a no-op", async () => {
     github.commit(REPO, repoFiles());
     const deployer = await makeDeployer();
-    await deployer.handle(event("installation.created", [REPO]));
+    await handleEvent(deployer, event("installation.created", [REPO]));
     const status = github.variable(REPO, STATUS_VARIABLE);
     const before = { ops: containerProvider.ops().length, puts: router.count("PUT", "/admin/repos"), evaluations, validations: router.validations.length };
 
     github.commit(REPO, repoFiles({ "README.md": "# changed outside .achq" }));
-    expect(await deployer.deploy(REPO)).toMatchObject({ outcome: "unchanged" });
-    await deployer.handle(event("push", [REPO]));
+    expect(await deploy(deployer, REPO)).toMatchObject({ outcome: "unchanged" });
+    await handleEvent(deployer, event("push", [REPO]));
 
     expect({ ops: containerProvider.ops().length, puts: router.count("PUT", "/admin/repos"), evaluations, validations: router.validations.length }).toEqual(before);
     expect(github.variable(REPO, STATUS_VARIABLE)).toEqual(status);
@@ -328,9 +327,9 @@ describe("config changes", () => {
   test("changing only a prompt re-pushes router config with the new commit, without a rebuild", async () => {
     github.commit(REPO, repoFiles());
     const deployer = await makeDeployer();
-    await deployer.deploy(REPO);
+    await deploy(deployer, REPO);
     const commit = github.commit(REPO, repoFiles({ ".achq/prompts/system.md": "You are a careful coder." }));
-    expect((await deployer.deploy(REPO)).outcome).toBe("deployed");
+    expect((await deploy(deployer, REPO)).outcome).toBe("deployed");
     expect(router.repos.get(REPO)!.commit).toBe(commit);
     expect(containerProvider.ops("build")).toHaveLength(1);
     expect(containerProvider.services.get(`${REPO}/dev`)!.builds).toBe(1);
@@ -340,14 +339,14 @@ describe("config changes", () => {
   test("changing the Dockerfile, or the image path, rebuilds", async () => {
     github.commit(REPO, repoFiles());
     const deployer = await makeDeployer();
-    await deployer.deploy(REPO);
+    await deploy(deployer, REPO);
     github.commit(REPO, repoFiles({ ".achq/Dockerfile": "FROM oven/bun:1.4\n" }));
-    await deployer.deploy(REPO);
+    await deploy(deployer, REPO);
     expect(containerProvider.ops("build")).toHaveLength(2);
 
     const moved = DOC_CONFIG["config.ts"].replace(`image: "./Dockerfile"`, `image: "./images/dev.Dockerfile"`);
     github.commit(REPO, repoFiles({ ".achq/config.ts": moved, ".achq/images/dev.Dockerfile": "FROM oven/bun:1.4\n" }));
-    await deployer.deploy(REPO);
+    await deploy(deployer, REPO);
     expect(containerProvider.ops("build")).toHaveLength(3);
     expect(containerProvider.services.get(`${REPO}/dev`)!.spec.dockerfile).toBe(".achq/images/dev.Dockerfile");
   });
@@ -355,14 +354,14 @@ describe("config changes", () => {
   test("a new container is built; a removed one is left alone", async () => {
     github.commit(REPO, repoFiles());
     const deployer = await makeDeployer();
-    await deployer.deploy(REPO);
+    await deploy(deployer, REPO);
     const two = `${DOC_CONFIG["config.ts"]}\nnew Container("ci", { image: "./Dockerfile" });`;
     github.commit(REPO, repoFiles({ ".achq/config.ts": two }));
-    await deployer.deploy(REPO);
+    await deploy(deployer, REPO);
     expect(containerProvider.ops("build").map((c) => c.name)).toEqual(["dev", "ci"]);
 
     github.commit(REPO, repoFiles());
-    await deployer.deploy(REPO);
+    await deploy(deployer, REPO);
     expect(containerProvider.ops("remove")).toEqual([]);
     expect(containerProvider.services.has(`${REPO}/ci`)).toBe(true);
     expect(router.repos.get(REPO)!.containers.map((c) => c.name)).toEqual(["dev"]);
@@ -371,13 +370,13 @@ describe("config changes", () => {
   test("a failed deploy after a good one keeps the good one's builds, and the same tree is retried", async () => {
     github.commit(REPO, repoFiles());
     const deployer = await makeDeployer();
-    await deployer.deploy(REPO);
+    await deploy(deployer, REPO);
     router.problems = () => ["temporarily refused"];
     const commit = github.commit(REPO, repoFiles({ ".achq/prompts/system.md": "v2" }));
-    expect((await deployer.deploy(REPO)).outcome).toBe("failed");
+    expect((await deploy(deployer, REPO)).outcome).toBe("failed");
     expect(router.repos.get(REPO)!.commit).not.toBe(commit);
     router.problems = () => [];
-    expect((await deployer.deploy(REPO)).outcome).toBe("deployed");
+    expect((await deploy(deployer, REPO)).outcome).toBe("deployed");
     expect(router.repos.get(REPO)!.commit).toBe(commit);
     expect(containerProvider.ops("build")).toHaveLength(1);
   });
@@ -391,11 +390,11 @@ test("a container provider's failure only you can fix, in your browser, goes in 
     throw new BrowserActionNeeded("the vendor's App can't see the repo", action);
   };
   const deployer = await makeDeployer();
-  expect((await deployer.deploy(REPO)).outcome).toBe("failed");
+  expect((await deploy(deployer, REPO)).outcome).toBe("failed");
   expect(github.variable(REPO, STATUS_VARIABLE)).toMatchObject({ state: "failed", error: "the vendor's App can't see the repo", action });
 
   containerProvider.ensure = ensure;
-  expect((await deployer.deploy(REPO)).outcome).toBe("deployed");
+  expect((await deploy(deployer, REPO)).outcome).toBe("deployed");
   expect(github.variable(REPO, STATUS_VARIABLE).action).toBeUndefined();
 });
 
@@ -403,26 +402,26 @@ describe("uninstall", () => {
   test("removes the router config and keeps containers; reinstalling brings it back without a rebuild", async () => {
     github.commit(REPO, repoFiles());
     const deployer = await makeDeployer();
-    await deployer.handle(event("installation.created", [REPO]));
-    await deployer.handle(event("installation_repositories.removed", [REPO]));
+    await handleEvent(deployer, event("installation.created", [REPO]));
+    await handleEvent(deployer, event("installation_repositories.removed", [REPO]));
     expect(router.repos.has(REPO)).toBe(false);
     expect(containerProvider.ops("remove")).toEqual([]);
     expect(containerProvider.services.has(`${REPO}/dev`)).toBe(true);
-    expect((await deployer.status())[0]).toMatchObject({ repo: REPO, state: "uninstalled" });
+    expect((await status(deployer))[0]).toMatchObject({ repo: REPO, state: "uninstalled" });
 
-    await deployer.handle(event("installation_repositories.added", [REPO]));
+    await handleEvent(deployer, event("installation_repositories.added", [REPO]));
     expect(router.repos.get(REPO)).toBeDefined();
     expect(containerProvider.ops("build")).toHaveLength(1);
-    expect((await deployer.status())[0]!.state).toBe("deployed");
+    expect((await status(deployer))[0]!.state).toBe("deployed");
   });
 
   test("installation.deleted uninstalls every listed repo", async () => {
     github.commit(REPO, repoFiles());
     github.commit("djgrant/notes", repoFiles());
     const deployer = await makeDeployer();
-    await deployer.handle(event("installation.created", [REPO, "djgrant/notes"]));
+    await handleEvent(deployer, event("installation.created", [REPO, "djgrant/notes"]));
     expect(router.repos.size).toBe(2);
-    await deployer.handle(event("installation.deleted", [REPO, "djgrant/notes"]));
+    await handleEvent(deployer, event("installation.deleted", [REPO, "djgrant/notes"]));
     expect(router.repos.size).toBe(0);
     expect(containerProvider.ops("remove")).toEqual([]);
   });
@@ -433,10 +432,10 @@ describe("deliveries", () => {
     github.commit(REPO, repoFiles());
     const envelope = event("installation.created", [REPO]);
     const deployer = await makeDeployer();
-    const results = await Promise.all([deployer.handle(envelope), deployer.handle(envelope)]);
+    const results = await Promise.all([handleEvent(deployer, envelope), handleEvent(deployer, envelope)]);
     expect(results.sort()).toEqual([false, true]);
-    expect(await deployer.handle(envelope)).toBe(false);
-    expect(await (await makeDeployer()).handle(envelope)).toBe(false);
+    expect(await handleEvent(deployer, envelope)).toBe(false);
+    expect(await handleEvent(await makeDeployer(), envelope)).toBe(false);
     expect(router.mints).toHaveLength(1);
     expect(containerProvider.ops("ensure")).toHaveLength(1);
   });
@@ -445,10 +444,9 @@ describe("deliveries", () => {
     github.commit(REPO, repoFiles());
     let active = 0;
     let most = 0;
-    const deployer = await createDeployer({
+    const deployer = await createContext({ ...ENV, owners: ["notationlabs"] }, {
       containerProvider,
       router: routerAdmin({ url: router.url, key: KEY }),
-      owners: ["notationlabs"],
       stores: dirStores(dataDir),
       ...githubDeps(),
       evaluate: async (files) => {
@@ -460,11 +458,10 @@ describe("deliveries", () => {
           active--;
         }
       },
-      env: ENV,
       log: () => {},
     });
     // Without serialising, all three would see no record yet and evaluate at once.
-    const outcomes = await Promise.all([deployer.deploy(REPO), deployer.deploy(REPO.toUpperCase()), deployer.deploy(REPO)]);
+    const outcomes = await Promise.all([deploy(deployer, REPO), deploy(deployer, REPO.toUpperCase()), deploy(deployer, REPO)]);
     expect(most).toBe(1);
     expect(outcomes.map((o) => o.outcome)).toEqual(["deployed", "unchanged", "unchanged"]);
     expect(containerProvider.ops("ensure")).toHaveLength(1);
@@ -483,7 +480,7 @@ describe("sync", () => {
       { repo: B },
     ];
     const deployer = await makeDeployer();
-    expect(await deployer.sync()).toEqual({ deployed: [A, B], unchanged: [], uninstalled: [], pruned: [], failed: [] });
+    expect(await sync(deployer)).toEqual({ deployed: [A, B], unchanged: [], uninstalled: [], pruned: [], failed: [] });
 
     // B is uninstalled. A keeps its plan but has a leftover container. notationlabs/gone was never recorded.
     router.installed = [{ repo: A }];
@@ -492,7 +489,7 @@ describe("sync", () => {
     router.installed.push({ repo: "notationlabs/fresh" });
     containerProvider.seed("notationlabs/fresh", "dev"); // installed but never deployed: no known plan, so kept
 
-    const dry = await deployer.sync({ prune: true, dryRun: true });
+    const dry = await sync(deployer, { prune: true, dryRun: true });
     dry.pruned.sort();
     expect(dry).toEqual({
       deployed: [],
@@ -504,47 +501,47 @@ describe("sync", () => {
     expect(containerProvider.ops("remove")).toEqual([]);
     expect(router.repos.has(B.toLowerCase())).toBe(true);
 
-    const result = await deployer.sync({ prune: true });
+    const result = await sync(deployer, { prune: true });
     expect(result.pruned.sort()).toEqual(dry.pruned);
     expect(result.uninstalled).toEqual([B]);
     expect(containerProvider.ops("remove").map((c) => `${c.repo}/${c.name}`).sort()).toEqual(dry.pruned);
     expect([...containerProvider.services.keys()].sort()).toEqual([`${A}/dev`, "notationlabs/fresh/dev"]);
     expect(router.repos.has(B.toLowerCase())).toBe(false);
 
-    expect(await deployer.sync({ prune: true })).toMatchObject({ deployed: [], unchanged: [A], uninstalled: [], pruned: [] });
+    expect(await sync(deployer, { prune: true })).toMatchObject({ deployed: [], unchanged: [A], uninstalled: [], pruned: [] });
   });
 
   test("empty syncs to no repos: it uninstalls each, deleting its ACHQ_STATUS, and with prune deletes every container; expected containers fail it before it changes anything", async () => {
     github.commit(A, repoFiles());
     router.installed = [{ repo: A }];
     const deployer = await makeDeployer();
-    await deployer.sync();
+    await sync(deployer);
     containerProvider.seed("notationlabs/gone", "dev");
     const all = [`${A}/dev`, "notationlabs/gone/dev"];
 
-    const dry = await deployer.sync({ empty: true, prune: true, dryRun: true });
+    const dry = await sync(deployer, { empty: true, prune: true, dryRun: true });
     expect({ ...dry, pruned: dry.pruned.sort() }).toEqual({ deployed: [], unchanged: [], uninstalled: [A], pruned: all, failed: [] });
     expect(containerProvider.ops("remove")).toEqual([]);
     expect(github.variable(A, STATUS_VARIABLE)).toBeDefined();
 
-    await expect(deployer.sync({ empty: true, prune: true, expect: [`${A}/dev`] })).rejects.toThrow("notationlabs/gone/dev");
+    await expect(sync(deployer, { empty: true, prune: true, expect: [`${A}/dev`] })).rejects.toThrow("notationlabs/gone/dev");
     expect(containerProvider.ops("remove")).toEqual([]);
     expect(router.repos.has(A.toLowerCase())).toBe(true);
 
-    expect((await deployer.sync({ empty: true, prune: true, expect: all })).pruned.sort()).toEqual(all);
+    expect((await sync(deployer, { empty: true, prune: true, expect: all })).pruned.sort()).toEqual(all);
     expect(containerProvider.services.size).toBe(0);
     expect(router.repos.size).toBe(0);
     expect(github.variable(A, STATUS_VARIABLE)).toBeUndefined();
-    expect(await deployer.sync({ empty: true, prune: true, expect: all })).toEqual({ deployed: [], unchanged: [], uninstalled: [], pruned: [], failed: [] });
+    expect(await sync(deployer, { empty: true, prune: true, expect: all })).toEqual({ deployed: [], unchanged: [], uninstalled: [], pruned: [], failed: [] });
   });
 
   test("without prune, sync never removes containers", async () => {
     github.commit(A, repoFiles());
     router.installed = [{ repo: A }];
     const deployer = await makeDeployer();
-    await deployer.sync();
+    await sync(deployer);
     router.installed = [];
-    expect(await deployer.sync()).toMatchObject({ uninstalled: [A], pruned: [] });
+    expect(await sync(deployer)).toMatchObject({ uninstalled: [A], pruned: [] });
     expect(containerProvider.ops("remove")).toEqual([]);
   });
 
@@ -552,11 +549,11 @@ describe("sync", () => {
     github.commit(A, repoFiles());
     router.installed = [{ repo: A }];
     const deployer = await makeDeployer();
-    expect(await deployer.sync({ dryRun: true })).toMatchObject({ deployed: [A] });
+    expect(await sync(deployer, { dryRun: true })).toMatchObject({ deployed: [A] });
     expect(containerProvider.ops()).toEqual([]);
     expect(router.repos.size).toBe(0);
     expect(github.variable(A, STATUS_VARIABLE)).toBeUndefined();
-    expect(await deployer.status()).toEqual([]);
+    expect(await status(deployer)).toEqual([]);
   });
 });
 
@@ -564,7 +561,7 @@ describe("HTTP", () => {
   test("the deployer's endpoints need an admin signature, and the router client signs its requests", async () => {
     github.commit(REPO, repoFiles());
     const deployer = await makeDeployer();
-    const server = Bun.serve({ port: 0, fetch: deployerHandler(deployer, KEY, () => {}) });
+    const server = Bun.serve({ port: 0, fetch: routes(deployer).fetch });
     const base = `http://localhost:${server.port}`;
     try {
       const body = JSON.stringify(event("installation.created", [REPO]));
@@ -595,7 +592,7 @@ describe("HTTP", () => {
   test("a sync's status survives the deployer restarting, and one it was running reads as interrupted", async () => {
     github.commit(REPO, repoFiles());
     router.installed = [{ repo: REPO }];
-    const serve = async () => Bun.serve({ port: 0, fetch: deployerHandler(await makeDeployer(), KEY, () => {}) });
+    const serve = async () => Bun.serve({ port: 0, fetch: routes(await makeDeployer()).fetch });
     const client = (base: string) => deployerClient(signedFetcher(adminSecret(KEY), base));
 
     const before = await serve();
