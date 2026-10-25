@@ -1,4 +1,5 @@
 import type { Vars } from "@achq/utils/env";
+import type { JsonStore } from "@achq/utils/store/json-store";
 import { ENV } from "../wire/constants.ts";
 import type { RepoIdentity } from "../model/repos.ts";
 import type { Implementation } from "./implementation.ts";
@@ -51,20 +52,8 @@ export interface ContainerShell {
   run(location: Record<string, string>, command: string[]): Promise<string>;
 }
 
-/** JSON values by name, any string: one collection of what a service keeps. A write is durable once it resolves: a crash right after it loses nothing. */
-export interface JsonStore<T> {
-  read(name: string): Promise<T | undefined>;
-  write(name: string, value: T): Promise<void>;
-  /** Removing a missing name is fine. */
-  remove(name: string): Promise<void>;
-  /** Every stored name, sorted. */
-  list(): Promise<string[]>;
-  /** Every stored value, in name order. */
-  all(): Promise<T[]>;
-}
-
-/** A service's durable storage: each of its collections, by name. */
-export type Stores = <T>(collection: string) => JsonStore<T>;
+/** What the router and deployer keep, defined beside its implementations in `@achq/utils/store`, from the one module of it the config sandbox can type: a service's `store.ts` opens each collection against its schema. */
+export type { JsonStore, Stores } from "@achq/utils/store/json-store";
 
 /**
  * A container provider as the registry lists it: the `ContainerProvider` the
@@ -79,5 +68,5 @@ export type ContainerProviderImplementation = Implementation<ContainerProvider> 
    * accepts before answering it. `env` is the service's own environment, as its
    * container provider set it.
    */
-  store<T>(env: Vars, collection: string): JsonStore<T>;
+  store(env: Vars, collection: string): JsonStore;
 };

@@ -1,4 +1,4 @@
-import { type ChannelProvider, type CredentialsResponse, type DeployerEvent, renameStored, repoName } from "@achq/core";
+import { type ChannelProvider, type CredentialsResponse, type DeployerEvent, repoName } from "@achq/core";
 import { CredentialsRequest, InstallationRequest, MintRequest, RepoRequest, RouterRepoConfig, ValidateRequest, WakeRequest } from "@achq/core/protocol";
 import { adminSecret, containerSecret } from "@achq/core/secrets";
 import { isSigned, signedBy } from "@achq/core/signing";
@@ -10,14 +10,14 @@ import { createMiddleware } from "hono/factory";
 import { DELIVERY_ID, REPO_PATH } from "./constants.ts";
 import { claimsOf, configOf, createContext, type RouterDeps } from "./context.ts";
 import { mint, mintClients, validate } from "./credentials.ts";
-import { acceptDelivery, type InboxEntry, type Reservation, listFailed, replay, replayFailed, reserveClaims, settled, targetsFor } from "./deliveries.ts";
-import { tagStored } from "./migrations.ts";
+import { acceptDelivery, type Reservation, listFailed, replay, replayFailed, reserveClaims, settled, targetsFor } from "./deliveries.ts";
 import { fetchSigned, reach } from "./reach.ts";
+import type { InboxEntry } from "./store.ts";
 
 type Container = RouterRepoConfig["containers"][number];
 
-export const createRouter = (deps: RouterDeps) => {
-  const ctx = createContext(deps);
+export const createRouter = async (deps: RouterDeps) => {
+  const ctx = await createContext(deps);
 
   /** Forwards a request to the deployer, waking it, and relays its answer: JSON unless it says otherwise. */
   const toDeployer = async (method: string, path: string, body?: string) => {
@@ -190,12 +190,6 @@ export const createRouter = (deps: RouterDeps) => {
     privateFetch: privateApp.fetch,
     /** Loads config and claims from the store, then replays the inbox in the background. Call before serving. */
     start: async () => {
-      // Once only; deleted with renameStored and tagStored.
-      await renameStored(ctx.store.repos, (_name, config) => repoName.key(config.repo));
-      await renameStored(ctx.store.claims, (name) => (name.includes("/") ? name : name.replace("__", "/")));
-      await tagStored(ctx.store.inbox);
-      await tagStored(ctx.store.failed);
-
       for (const config of await ctx.store.repos.all()) ctx.repos.set(repoName.key(config.repo), config);
       for (const name of await ctx.store.claims.list()) {
         const repoClaims = await ctx.store.claims.read(name);
@@ -208,4 +202,4 @@ export const createRouter = (deps: RouterDeps) => {
   };
 };
 
-export type Router = ReturnType<typeof createRouter>;
+export type Router = Awaited<ReturnType<typeof createRouter>>;

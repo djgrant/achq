@@ -84,7 +84,7 @@ describe("routing events to containers", () => {
       const store = dirStores(dir)(collection);
       if (collection !== "inbox") return store;
       return Object.assign(Object.create(store), {
-        write: async (name: string, value: any) => {
+        write: async (name: string, value: unknown) => {
           if (++writes === 1) await gate;
           return store.write(name, value);
         },
@@ -111,7 +111,7 @@ describe("routing events to containers", () => {
       const store = dirStores(dir)(collection);
       if (collection !== "inbox") return store;
       return Object.assign(Object.create(store), {
-        write: async (name: string, value: any) => {
+        write: async (name: string, value: unknown) => {
           if (failing) throw new Error("inbox down");
           return store.write(name, value);
         },

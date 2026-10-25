@@ -1,22 +1,9 @@
-import { type ChannelEvent, type ChannelProvider, type ContainerEnvelope, type DeployerEnvelope, type DeployerEvent, type FailedDelivery, fromTrustedPerson, type ReplayResult, repoName, type RouterRepoConfig, threadKey } from "@achq/core";
+import { type ChannelEvent, type ChannelProvider, type ContainerEnvelope, type DeployerEnvelope, type FailedDelivery, fromTrustedPerson, type ReplayResult, repoName, type RouterRepoConfig, threadKey } from "@achq/core";
 import { adminSecret, containerSecret } from "@achq/core/secrets";
 import { errors } from "@achq/utils/errors";
 import { configOf, type RouterContext } from "./context.ts";
 import { fetchSigned, reach } from "./reach.ts";
-
-/**
- * Where a channel event goes. `workspace` is the container's workspace the thread is worked in: the one that claimed it, or the first that matches it now. The container works it there.
- * `commit` is the one whose config the router holds, so the container runs the same config.
- */
-export type ContainerTarget = { repo: string; container: string; url: string; workspace: string; commit: string };
-
-/** Per thread key, per container: the workspace that claimed it. The router is the only one that decides and records claims. */
-export type Claims = Record<string, Record<string, string>>;
-
-/** A repo event goes to the deployer, a channel event to the containers it targets. `told`: the thread has been told its delivery failed, so a failed replay doesn't tell it again. */
-export type InboxEntry = { to: "deployer"; event: DeployerEvent } | { to: "containers"; event: ChannelEvent; targets: ContainerTarget[]; told?: boolean };
-/** An entry the deployer, or some of its containers, never answered, and why: for containers, only the ones that didn't. */
-export type FailedEntry = { to: "deployer"; event: DeployerEvent; error: string } | { to: "containers"; event: ChannelEvent; targets: (ContainerTarget & { error: string })[]; told?: boolean };
+import type { Claims, ContainerTarget, InboxEntry } from "./store.ts";
 
 export const targetsFor = (channel: ChannelProvider, event: ChannelEvent, config: RouterRepoConfig | undefined, claims: Claims): ContainerTarget[] => {
   if (!config) return [];

@@ -179,7 +179,7 @@ describe("persisted events", () => {
     expect(readJson(join(r.dir, "failed", `${event.delivery}.json`)).targets).toMatchObject([{ container: "dev", error: "refused (400 bad envelope)" }]);
   });
 
-  // Delete with tagStored.
+  // Delete with the inbox and failed migration in src/store.ts.
   test("entries an older router kept without saying where they go are tagged when it starts, then forwarded, listed and replayed as any are", async () => {
     const deployer = fakeDeployer();
     const first = await deployed({ deployer: deployer.url });

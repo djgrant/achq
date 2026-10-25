@@ -14,7 +14,8 @@ import type { ThreadRef } from "../model/threads.ts";
  * added to it is optional. The manifest has both roles: `@achq/core/manifest`.
  */
 
-const channelEvent = z.custom<ChannelEvent>((value) => json.isPlainObject(value) && typeof value.delivery === "string" && typeof value.type === "string");
+/** A channel event, as the router forwards and keeps it: only what it routes by is checked, as each channel shapes the rest. */
+export const channelEvent = z.custom<ChannelEvent>((value) => json.isPlainObject(value) && typeof value.delivery === "string" && typeof value.type === "string");
 
 const repoEvent = z.object({
   delivery: z.string(),
@@ -22,6 +23,9 @@ const repoEvent = z.object({
   deploy: z.array(z.string()),
   uninstall: z.array(z.string()),
 }) satisfies z.ZodType<DeployerEvent>;
+
+/** A deployer event as the router keeps it until the deployer answers: a stored schema, so loose. */
+export const deployerEvent = z.looseObject(repoEvent.shape) satisfies z.ZodType<DeployerEvent>;
 
 /** What the router forwards to the deployer: which repos to deploy and uninstall. */
 export const DeployerEnvelope = z.object({ event: repoEvent });

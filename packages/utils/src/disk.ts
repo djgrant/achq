@@ -2,7 +2,6 @@ import * as fs from "node:fs";
 import * as fsp from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { async } from "./async.ts";
 import { crypto } from "./crypto.ts";
 
 export type WriteOptions = { mode?: number };
@@ -163,66 +162,3 @@ export const disk = {
     return disk.isWithin(path.resolve(root), file) ? file : undefined;
   },
 };
-
-/**
- * A name as a file name, reversibly: percent-encoded, so `/` and the like
- * can't make it a path, with a leading `.` escaped too, so it's never hidden
- * (but for the empty name's, `.json`).
- * `%2E` is never `encodeURIComponent`'s, so decoding gives the name back.
- */
-const encodeName = (name: string) => encodeURIComponent(name).replace(/^\./, "%2E");
-
-/** The name a file name was encoded from, or undefined for one `encodeName` didn't make. */
-const decodeName = (file: string) => {
-  try {
-    const name = decodeURIComponent(file);
-    return encodeName(name) === file ? name : undefined;
-  } catch {
-    return undefined;
-  }
-};
-
-/** JSON files in `dir`, one per name, created on the first write. Any string is a name: each is encoded as a file name, and decoded back by `list`. */
-export class JsonDirStore<T> {
-  /** One write or removal of a name at a time, in the order asked for. */
-  private inOrder = async.keyedQueue();
-
-  constructor(
-    readonly dir: string,
-    private options: JsonWriteOptions = {},
-  ) {}
-
-  private fileOf(name: string) {
-    return disk.jsonFile(this.dir, encodeName(name));
-  }
-
-  read(name: string) {
-    return disk.readJson<T>(this.fileOf(name));
-  }
-
-  write(name: string, value: T) {
-    const file = this.fileOf(name);
-    return this.inOrder(name, () => disk.writeJson(file, value, this.options));
-  }
-
-  /** Removing a missing name is fine. */
-  remove(name: string) {
-    const file = this.fileOf(name);
-    return this.inOrder(name, () => fsp.rm(file, { force: true }));
-  }
-
-  /** Every stored name, sorted. Files it didn't write are skipped. */
-  async list() {
-    return (await disk.listJsonNames(this.dir))
-      .map(decodeName)
-      .filter((name) => name !== undefined)
-      .sort();
-  }
-
-  /** Every stored value, in name order. */
-  async all() {
-    const values = await Promise.all((await this.list()).map((name) => this.read(name)));
-    // A name removed while listing reads as undefined.
-    return values.filter((v) => v !== undefined) as T[];
-  }
-}

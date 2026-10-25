@@ -7,7 +7,7 @@
     ".": "./src/index.ts",
     "./settings": "./src/settings.ts"
   },
-  "devDependencies": {
+  "dependencies": {
     "@achq/utils": "workspace:*"
   }
 }

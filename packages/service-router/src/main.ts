@@ -9,7 +9,7 @@ const ALL_INTERFACES = "::";
 export const main = async () => {
   const env = new Env(process.env);
   const { stores } = serviceContainerProvider(env);
-  const router = createRouter({
+  const router = await createRouter({
     channelProviders: CHANNEL_PROVIDERS.map((c) => c.create(env.vars)),
     policyProviders: POLICY_PROVIDERS.map((p) => p.create(env.vars)),
     codeHost: CODE_HOST.create(env.vars),

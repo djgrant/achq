@@ -50,7 +50,7 @@
     "packages/cloudflare-worker": {
       "name": "@achq/cloudflare-worker",
       "version": "0.1.0",
-      "devDependencies": {
+      "dependencies": {
         "@achq/utils": "workspace:*",
       },
     },

@@ -14,7 +14,7 @@ export const main = async () => {
   const key = env.require(ENV.key);
   const routerUrl = env.require(ENV.routerUrl);
   const containerProvider = serviceContainerProvider(env);
-  const deployer = createDeployer({
+  const deployer = await createDeployer({
     containerProvider: containerProvider.provider.create(env.vars),
     router: routerAdmin({ url: routerUrl, key }),
     codeHost: CODE_HOST.create(env.vars),
@@ -29,7 +29,6 @@ export const main = async () => {
     },
   });
 
-  await deployer.start();
   Bun.serve({ port: DEPLOYER_PORT, hostname: "::", idleTimeout: IDLE_TIMEOUT_S, fetch: deployerHandler(deployer, key) });
   console.log(`deployer listening on ${DEPLOYER_PORT}`);
 };

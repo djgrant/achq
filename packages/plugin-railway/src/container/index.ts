@@ -1,7 +1,7 @@
 import { join } from "node:path";
 import { type ContainerProviderImplementation, ENV } from "@achq/core";
-import { JsonDirStore } from "@achq/utils/disk";
 import { Env } from "@achq/utils/env";
+import { JsonDirStore } from "@achq/utils/store";
 import { CONTAINER_PROVIDER, PRIVATE_ENV, RAILWAY_ENV } from "../lib/constants.ts";
 import { tokenCheck } from "../lib/railway.ts";
 import { RailwayContainerProvider, railwayShell } from "./provider.ts";

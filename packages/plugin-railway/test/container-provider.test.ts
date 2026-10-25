@@ -154,7 +154,7 @@ test("the deployer makes it from its environment: the token and the project", as
 
 test("the router and deployer keep what they store as files on their volume, under DATA_DIR, readable by them alone", async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "achq-railway-store-"));
-  const store = railwayContainerProvider.store<{ n: number }>({ DATA_DIR: dir }, "inbox");
+  const store = railwayContainerProvider.store({ DATA_DIR: dir }, "inbox");
   await store.write("d-1", { n: 1 });
   expect(await store.all()).toEqual([{ n: 1 }]);
   expect(fs.statSync(path.join(dir, "inbox", "d-1.json")).mode & 0o777).toBe(0o600);

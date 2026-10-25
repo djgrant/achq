@@ -115,7 +115,7 @@ test("ensure makes a placeholder Worker, its variables and secrets, and a trigge
   expect(trigger.variables.ACHQ_REF).toEqual({ value: "abc123", is_secret: false });
   expect(builtConfig()).toMatchObject({
     name: worker,
-    main: ".achq-worker/index.ts",
+    main: ".achq-worker/cloudflare-worker/src/index.ts",
     compatibility_flags: ["global_fetch_strictly_public"],
     vars: { ACHQ_SERVICE: { name: worker, port: 3000, sleeps: true, restartOnChange: false, image: "app", instance: "standard-1", workersDev: "acme.workers.dev" } },
     r2_buckets: [{ binding: "ARCHIVE", bucket_name: "achq" }],

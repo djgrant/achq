@@ -29,10 +29,17 @@ type TriggerChange = { kind: "create" } | { kind: "settings"; fields: string[] }
 const WORKER_DIR = ".achq-worker";
 const CONFIG_FILE = ".achq-wrangler.json";
 
-/** The Worker at ACHQ_REF, from achq's archive as the router's start command gets achq, and the config from its variable. */
+/**
+ * The Worker at ACHQ_REF, from achq's archive as the router's start command
+ * gets achq, and the config from its variable. The Worker's one import from
+ * another package, `@achq/utils/store/handler`, imports nothing itself, so it
+ * comes from the archive too, as a package beside the Worker that Wrangler's
+ * bundler finds as it would in node_modules: nothing is installed.
+ */
 const BUILD_COMMAND = [
-  `mkdir -p ${WORKER_DIR}`,
-  `curl -fsSL "${ACHQ_SOURCE.archive}$ACHQ_REF" | tar -xz --strip-components=4 -C ${WORKER_DIR} --wildcards '*/packages/cloudflare-worker/src/*'`,
+  `mkdir -p ${WORKER_DIR}/node_modules/@achq`,
+  `curl -fsSL "${ACHQ_SOURCE.archive}$ACHQ_REF" | tar -xz --strip-components=2 -C ${WORKER_DIR} --wildcards '*/packages/cloudflare-worker/src/*' '*/packages/utils/package.json' '*/packages/utils/src/store/handler.ts'`,
+  `mv ${WORKER_DIR}/utils ${WORKER_DIR}/node_modules/@achq/utils`,
   `echo "$ACHQ_WRANGLER_CONFIG" | base64 -d | gunzip > ${CONFIG_FILE}`,
 ].join(" && ");
 
@@ -43,7 +50,7 @@ const DEPLOY_COMMAND = `npx -y wrangler@4 deploy --config ${CONFIG_FILE}`;
 const NEVER = { path_includes: ["achq-never-matches/**"], path_excludes: ["*"] };
 
 /** Where the container Worker's build finds its config's entry, relative to the config. */
-export const CONTAINER_MAIN = `${WORKER_DIR}/index.ts`;
+export const CONTAINER_MAIN = `${WORKER_DIR}/cloudflare-worker/src/index.ts`;
 
 /** The trigger's variables, as Builds takes them. */
 const variablesOf = ({ config, ref }: Props) => ({ ACHQ_WRANGLER_CONFIG: packed(JSON.stringify(config)), ACHQ_REF: ref });

@@ -20,6 +20,9 @@
     "./names": "./src/names.ts",
     "./railway": "./src/railway/index.ts",
     "./sandbox": "./src/sandbox.ts",
+    "./store": "./src/store/index.ts",
+    "./store/handler": "./src/store/handler.ts",
+    "./store/json-store": "./src/store/json-store.ts",
     "./subprocess": "./src/subprocess.ts",
     "./text": "./src/text.ts",
     "./time": "./src/time.ts"

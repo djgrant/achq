@@ -234,7 +234,7 @@ export const startWorld = async () => {
   const codeHost = githubCodeHostProvider.create(githubEnv);
   let deployerFetch: (req: Request) => Response | Promise<Response> = async () => new Response("starting", { status: 503 });
   const deployerUrl = serve(stops, (req) => deployerFetch(req));
-  const router = createRouter({
+  const router = await createRouter({
     channelProviders: [githubChannelProvider.create(githubEnv)],
     policyProviders: [githubPolicyProvider.create(githubEnv)],
     key: KEY,
@@ -266,7 +266,7 @@ export const startWorld = async () => {
   }));
 
   // The deployer, reaching the router on its private port.
-  const deployer = createDeployer({
+  const deployer = await createDeployer({
     containerProvider,
     router: routerAdmin({ url: routerPrivate, key: KEY }),
     owners: [OWNER],
@@ -275,7 +275,6 @@ export const startWorld = async () => {
     env: { containerEnv: { CLAUDE_CODE_OAUTH_TOKEN: "claude-oauth-token" }, key: KEY, routerUrl: routerPrivate, routerPublicUrl: routerPublic, ref: "e2e" },
     log: (line) => logs.push(`deployer: ${line}`),
   });
-  await deployer.start();
   deployerFetch = deployerHandler(deployer, KEY, (line) => logs.push(`deployer: ${line}`));
 
   const container = (name: string) => containerProvider.get(REPO, name);

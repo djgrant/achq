@@ -40,7 +40,7 @@ export type DeployerDeps = {
   log?: (line: string) => void;
 };
 
-export type DeployerContext = Required<Omit<DeployerDeps, "owners">> & {
+export type DeployerContext = Required<Omit<DeployerDeps, "owners" | "stores">> & {
   /** Lowercased. */
   owners: Set<string>;
   store: Store;
@@ -52,13 +52,15 @@ type UninstallOptions = ActionOptions & {
   clearStatus?: boolean;
 };
 
-export const createDeployer = (deps: DeployerDeps) => {
+/** Opens its store, migrated, so nothing reads it before its migrations have run. */
+export const createDeployer = async ({ stores, ...deps }: DeployerDeps) => {
+  const log = deps.log ?? ((line: string) => console.log(line));
   const ctx: DeployerContext = {
     ...deps,
-    store: createStore(deps.stores),
+    store: await createStore(stores, log),
     evaluate: deps.evaluate ?? ((files) => evaluateConfig(files)),
     now: deps.now ?? (() => new Date()),
-    log: deps.log ?? ((line) => console.log(line)),
+    log,
     owners: new Set(deps.owners.map((o) => o.toLowerCase())),
     fileLimits: deps.fileLimits ?? DEFAULT_FILE_LIMITS,
   };
@@ -110,9 +112,6 @@ export const createDeployer = (deps: DeployerDeps) => {
 
     /** The achq commit it runs. */
     ref: ctx.env.ref,
-
-    /** Readies its store. Call before serving. */
-    start: () => ctx.store.migrate(),
 
     /** False for a delivery it had already handled. */
     handle: async ({ event }: DeployerEnvelope) => {
@@ -172,4 +171,4 @@ export const createDeployer = (deps: DeployerDeps) => {
   };
 };
 
-export type Deployer = ReturnType<typeof createDeployer>;
+export type Deployer = Awaited<ReturnType<typeof createDeployer>>;

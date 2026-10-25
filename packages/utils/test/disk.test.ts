@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { disk, JsonDirStore } from "../src/disk.ts";
+import { disk } from "../src/disk.ts";
 
 const dirs: string[] = [];
 afterEach(() => {
@@ -98,57 +98,6 @@ describe("JSON files", () => {
     expect(await disk.listJsonNames(dir)).toEqual(["a", "b"]);
     expect(disk.listJsonNamesSync(dir)).toEqual(["a", "b"]);
     expect(await disk.listJsonNames(path.join(dir, "missing"))).toEqual([]);
-  });
-});
-
-describe("JsonDirStore", () => {
-  test("reads, writes, lists and removes by name", async () => {
-    const store = new JsonDirStore<{ n: number }>(path.join(tmpDir(), "records"));
-    expect(await store.list()).toEqual([]);
-    expect(await store.read("a")).toBeUndefined();
-    await store.write("b", { n: 2 });
-    await store.write("a", { n: 1 });
-    expect(await store.read("a")).toEqual({ n: 1 });
-    expect(await store.list()).toEqual(["a", "b"]);
-    expect(await store.all()).toEqual([{ n: 1 }, { n: 2 }]);
-    await store.remove("a");
-    await store.remove("a");
-    expect(await store.list()).toEqual(["b"]);
-  });
-
-  test("writes to one name land in the order they were made", async () => {
-    const store = new JsonDirStore<number>(tmpDir());
-    await Promise.all(Array.from({ length: 10 }, (_, i) => store.write("n", i)));
-    expect(await store.read("n")).toBe(9);
-  });
-
-  test("takes any string as a name, kept in its own file in the directory, and lists it back", async () => {
-    const root = tmpDir();
-    const dir = path.join(root, "records");
-    const store = new JsonDirStore<number>(dir);
-    const names = ["owner/name", "../x", ".hidden", "..", ".", "", "100%", "a%2Fb", "ünï"];
-    for (const [i, name] of names.entries()) await store.write(name, i);
-    expect(await store.list()).toEqual([...names].sort());
-    for (const [i, name] of names.entries()) expect(await store.read(name)).toBe(i);
-    // Nothing outside the directory, and no file hidden in it but the empty name's, `.json`.
-    expect(fs.readdirSync(root)).toEqual(["records"]);
-    expect(fs.readdirSync(dir).filter((f) => f.startsWith("."))).toEqual([".json"]);
-    expect(fs.existsSync(path.join(dir, "owner%2Fname.json"))).toBe(true);
-    await store.remove("owner/name");
-    expect(await store.read("owner/name")).toBeUndefined();
-  });
-
-  test("lists only names it encoded, so each one listed reads back", async () => {
-    const dir = tmpDir();
-    for (const file of ["plain.json", "bad%zz.json", "a%2fb.json"]) fs.writeFileSync(path.join(dir, file), "1");
-    expect(await new JsonDirStore(dir).list()).toEqual(["plain"]);
-  });
-
-  test("writes with the store's mode and format", async () => {
-    const dir = tmpDir();
-    await new JsonDirStore(dir, { pretty: true, mode: 0o600 }).write("a", { a: 1 });
-    expect(fs.readFileSync(path.join(dir, "a.json"), "utf8")).toBe(`{\n  "a": 1\n}\n`);
-    expect(mode(path.join(dir, "a.json"))).toBe(0o600);
   });
 });
 

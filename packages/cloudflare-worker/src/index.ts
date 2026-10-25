@@ -6,9 +6,10 @@
 // `*.achq.internal` go through `Outbound`: to its own store, keep-awake and
 // archive, or to another Worker's container.
 
+import { storeHandler } from "@achq/utils/store/handler";
 import { DurableObject, type DurableObjectState, type R2Bucket, WorkerEntrypoint, type WorkerVersionMetadata } from "cloudflare:workers";
 import { type Box, Lifecycle, type Memory } from "./lifecycle.ts";
-import { inbound, outbound, storeRequest, workerUrl } from "./routes.ts";
+import { inbound, outbound, workerUrl } from "./routes.ts";
 import { archiveKey, DATA_DIR, DEPLOYER_TOKEN, HEADERS, INTERNAL_DOMAIN, SERVICE_INSTANCE, type WorkerSettings } from "./settings.ts";
 
 type Env = {
@@ -184,12 +185,13 @@ export class Service extends DurableObject<Env> {
 
   async store(method: string, pathAndQuery: string, body: string) {
     const storage = this.ctx.storage;
-    const response = await storeRequest(method, pathAndQuery, body, {
+    const handle = storeHandler({
       get: (key) => storage.get<string>(key),
       put: (key, value) => storage.put(key, value),
       delete: (key) => storage.delete(key),
       list: async (prefix) => [...(await storage.list<string>({ prefix })).keys()],
     });
+    const response = await handle(new Request(new URL(pathAndQuery, "http://store").href, { method, body: method === "GET" || method === "HEAD" ? undefined : body }));
     return { status: response.status, body: await response.text() };
   }
 }

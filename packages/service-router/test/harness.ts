@@ -141,7 +141,7 @@ export const fakeDeployer = () => {
 export type Boot = { dir?: string; deployer?: string; delays?: number[]; stores?: Stores };
 
 export const boot = async ({ dir = mkdtempSync(join(tmpdir(), "achq-router-")), deployer = "http://localhost:1", delays = [0, 0], stores = dirStores(dir) }: Boot = {}) => {
-  const router = createRouter({
+  const router = await createRouter({
     channelProviders: [testChannel],
     policyProviders: [testPolicyProvider],
     codeHost: testHost,

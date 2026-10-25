@@ -14,16 +14,20 @@ import { CLOUDFLARE_ENV, LOG_TAIL_LINES } from "./constants.ts";
 export const WORKER_MAIN = fileURLToPath(import.meta.resolve("@achq/cloudflare-worker"));
 /** The Worker's source, beside its entry. */
 const WORKER_DIR = path.dirname(WORKER_MAIN);
+/** The one module the Worker imports from another package: the store's server side. */
+const STORE_HANDLER = fileURLToPath(import.meta.resolve("@achq/utils/store/handler"));
 
-/** A hash of the Worker's source, so a change to it redeploys. */
+/** A hash of the Worker's source, and the store handler it bundles, so a change to either redeploys. */
 export const workerSourceHash = () =>
   crypto.sha256Hex(
-    fs
-      .readdirSync(WORKER_DIR)
-      .filter((f) => f.endsWith(".ts"))
-      .sort()
-      .map((f) => `${f}\n${fs.readFileSync(path.join(WORKER_DIR, f), "utf8")}`)
-      .join("\n"),
+    [
+      ...fs
+        .readdirSync(WORKER_DIR)
+        .filter((f) => f.endsWith(".ts"))
+        .sort()
+        .map((f) => `${f}\n${fs.readFileSync(path.join(WORKER_DIR, f), "utf8")}`),
+      `@achq/utils/store/handler\n${fs.readFileSync(STORE_HANDLER, "utf8")}`,
+    ].join("\n"),
   );
 
 export type WorkerConfigOptions = {
