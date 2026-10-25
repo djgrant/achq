@@ -1,6 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { CONFIG_DIR, CONFIG_ENTRY, type RepoInstallation, type RepoManifest, repoName, STATUS_VARIABLE, type Status } from "@achq/core";
+import { CONFIG_DIR, CONFIG_ENTRY, type RepoInstallation, repoName, STATUS_VARIABLE, type Status } from "@achq/core";
+import type { RepoManifest } from "@achq/core/manifest";
 import { routerForPusher } from "@achq/core/client";
 import { evaluateConfig } from "@achq/deployer/config";
 import { async } from "@achq/utils/async";

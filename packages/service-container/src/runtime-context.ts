@@ -1,5 +1,6 @@
 import * as fs from "node:fs";
-import type { RepoManifest, RuntimeContext } from "@achq/core";
+import type { RuntimeContext } from "@achq/core";
+import type { RepoManifest } from "@achq/core/manifest";
 import { collections } from "@achq/utils/collections";
 import { disk } from "@achq/utils/disk";
 import type { Vars } from "@achq/utils/env";

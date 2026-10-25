@@ -1,13 +1,25 @@
 import { collections } from "@achq/utils/collections";
 import type { Json } from "@achq/utils/json";
 import { z } from "zod";
-import { type RepoManifest, undeclaredRef } from "./repo-manifest.ts";
-import { RESOURCE_NAME } from "./resource.ts";
+import { type PolicyData, RESOURCE_NAME, type SelectorData, undeclaredRef } from "./resource-data.ts";
 
 /*
  * Kept out of @achq/core's index, so what runs in the config sandbox doesn't
  * load zod: the checks run on what the sandbox returns, outside it.
  */
+
+/**
+ * What a repo's config evaluates to: every resource as plain data. Resources
+ * refer to each other by name. Arrays keep declaration order, which decides
+ * which workspace claims a thread.
+ */
+export type RepoManifest = {
+  policies: { name: string; policy: PolicyData }[];
+  containers: { name: string; image: string; policies: string[]; files: Record<string, Json> }[];
+  workspaces: { name: string; container: string; threads: SelectorData; branch: string; base: string }[];
+  agents: { name: string; runtime: string }[];
+  triggers: { name: string; event: SelectorData; agent: string }[];
+};
 
 const name = z.string().regex(RESOURCE_NAME, "must be lowercase letters, digits and dashes, starting with a letter");
 const text = z.string().max(10_000);

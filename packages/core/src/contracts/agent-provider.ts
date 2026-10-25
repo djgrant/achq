@@ -1,5 +1,5 @@
 import type { Agent } from "../resources/config.ts";
-import type { ThreadRef } from "./channel-provider.ts";
+import type { ThreadRef } from "../model/threads.ts";
 import type { Vars } from "@achq/utils/env";
 
 export type RunContext = {

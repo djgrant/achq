@@ -1,4 +1,5 @@
-import { CONFIG_DIR, type ConfigTree, type RepoManifest, type SourceSettings } from "@achq/core";
+import { CONFIG_DIR, type ConfigTree, type SourceSettings } from "@achq/core";
+import type { RepoManifest } from "@achq/core/manifest";
 import { normaliseRepoPath } from "./config/evaluate.ts";
 
 /** A policy names only its source, so with no channel any channel's will do. */

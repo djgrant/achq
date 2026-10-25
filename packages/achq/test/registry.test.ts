@@ -1,8 +1,5 @@
 import { expect, test } from "bun:test";
-import { Channel } from "@achq/github/infra";
-import * as cloudflare from "@achq/cloudflare/infra";
-import { Router } from "@achq/railway/infra";
-import { agentEnv, CHANNEL_PROVIDERS, channelProviderNamed, CONTAINER_PROVIDERS, containerProviderNamed, findContainerProvider, INFRA_MODULES, privateEnv, CODE_HOST, POLICY_PROVIDERS, vaultProviderNamed } from "../src/registry.ts";
+import { agentEnv, CHANNEL_PROVIDERS, channelProviderNamed, CONTAINER_PROVIDERS, containerProviderNamed, findContainerProvider, privateEnv, CODE_HOST, POLICY_PROVIDERS, vaultProviderNamed } from "../src/registry.ts";
 
 test("finds each implementation by id, and names what it knows when it can't", () => {
   expect(channelProviderNamed("github")).toBe(CHANNEL_PROVIDERS[0]!);
@@ -27,12 +24,4 @@ test("privateEnv is the container secret, the key and every implementation's, on
 
 test("agentEnv asks for the Claude token", () => {
   expect(agentEnv().map((e) => e.name)).toContain("CLAUDE_CODE_OAUTH_TOKEN");
-});
-
-test("the infra's import has the infra sides", () => {
-  const infra = INFRA_MODULES["achq/infra"] as { github: { Channel: unknown }; railway: { Router: unknown }; cloudflare: { Router: unknown; Deployer: unknown } };
-  expect(infra.github.Channel).toBe(Channel);
-  expect(infra.railway.Router).toBe(Router);
-  expect(infra.cloudflare.Router).toBe(cloudflare.Router);
-  expect(infra.cloudflare.Deployer).toBe(cloudflare.Deployer);
 });

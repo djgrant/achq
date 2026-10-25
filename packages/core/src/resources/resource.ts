@@ -1,9 +1,7 @@
 import type { Vars } from "@achq/utils/env";
-import type { Vault } from "../contracts/vault-provider.ts";
 import type { Change } from "../engine/plan.ts";
 import { hasUnknown, type Inputs, Output, type Planned, UNKNOWN, type Unknown } from "../engine/values.ts";
-
-export const RESOURCE_NAME = /^[a-z][a-z0-9-]{0,30}$/;
+import { RESOURCE_NAME } from "../model/resource-data.ts";
 
 /** The resources the config being evaluated has declared so far. */
 let declarations: Resource[] = [];
@@ -14,6 +12,18 @@ export const resetDeclarations = () => {
 };
 
 export const declared = () => [...declarations];
+
+/**
+ * Where `achq infra up` keeps a secret it makes once and reuses on another
+ * router or machine, e.g. a GitHub App's private key: items by name, each a
+ * set of named fields. A `VaultProvider` makes one.
+ */
+export interface Vault {
+  /** The item's fields, or undefined if there's no item of that name. */
+  read(item: string): Promise<Record<string, string> | undefined>;
+  /** Keeps `fields` as the item, in place of any item of that name. */
+  write(item: string, fields: Record<string, string>): Promise<void>;
+}
 
 /** What planning and applying give a resource. */
 export type Context = {

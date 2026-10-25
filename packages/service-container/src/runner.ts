@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { type ChannelClient, type ChannelEvent, type ChannelProvider, ENV, fromTrustedPerson, type PolicyProvider, type RepoManifest, type RuntimeContext, type RuntimeFactory, type Thread, type ThreadRef, threadKey } from "@achq/core";
+import { type ChannelClient, type ChannelEvent, type ChannelProvider, ENV, fromTrustedPerson, type PolicyProvider, type RuntimeContext, type RuntimeFactory, type Thread, type ThreadRef, threadKey } from "@achq/core";
+import type { RepoManifest } from "@achq/core/manifest";
 import { ContainerEnvelope } from "@achq/core/protocol";
 import { signedBy } from "@achq/core/signing";
 import { async } from "@achq/utils/async";

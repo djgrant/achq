@@ -1,4 +1,5 @@
-import { BrowserActionNeeded, CONFIG_DIR, CONFIG_ENTRY, type DeployRecord, ENV, type RepoClient, type RepoManifest, repoName, type Status } from "@achq/core";
+import { BrowserActionNeeded, CONFIG_DIR, CONFIG_ENTRY, type DeployRecord, ENV, type RepoClient, repoName, type Status } from "@achq/core";
+import type { RepoManifest } from "@achq/core/manifest";
 import { containerSecret } from "@achq/core/secrets";
 import { crypto } from "@achq/utils/crypto";
 import { errors } from "@achq/utils/errors";

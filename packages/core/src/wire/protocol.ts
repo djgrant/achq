@@ -1,9 +1,10 @@
 import { json } from "@achq/utils/json";
 import { z } from "zod";
-import type { ChannelCredential, ChannelEvent, DeployerEvent, ThreadRef } from "../contracts/channel-provider.ts";
-import type { BrowserAction } from "../contracts/browser-action.ts";
-import type { PolicyCredential } from "../contracts/policy-provider.ts";
-import type { PolicyData, SelectorData } from "../resources/config.ts";
+import type { BrowserAction } from "../model/browser-action.ts";
+import type { ChannelCredential, PolicyCredential } from "../model/credentials.ts";
+import type { ChannelEvent, DeployerEvent } from "../model/events.ts";
+import type { PolicyData, SelectorData } from "../model/resource-data.ts";
+import type { ThreadRef } from "../model/threads.ts";
 
 // What its channel or policy provider interprets is checked only for what names it.
 const policyData = z.custom<PolicyData>((value) => json.isPlainObject(value) && typeof value.provider === "string");

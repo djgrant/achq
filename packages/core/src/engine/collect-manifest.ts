@@ -1,30 +1,16 @@
 import { type Json, json } from "@achq/utils/json";
-import { Agent, Container, Policy, type PolicyData, type SelectorData, Trigger, Workspace } from "./config.ts";
-import { declared, type Resource } from "./resource.ts";
-
-/**
- * What a repo's config evaluates to: every resource as plain data. Resources
- * refer to each other by name. Arrays keep declaration order, which decides
- * which workspace claims a thread.
- */
-export type RepoManifest = {
-  policies: { name: string; policy: PolicyData }[];
-  containers: { name: string; image: string; policies: string[]; files: Record<string, Json> }[];
-  workspaces: { name: string; container: string; threads: SelectorData; branch: string; base: string }[];
-  agents: { name: string; runtime: string }[];
-  triggers: { name: string; event: SelectorData; agent: string }[];
-};
+import type { RepoManifest } from "../model/manifest.ts";
+import { undeclaredRef } from "../model/resource-data.ts";
+import { Agent, Container, Policy, Trigger, Workspace } from "../resources/config.ts";
+import { declared, type Resource } from "../resources/resource.ts";
 
 type ResourceClass<T extends Resource> = abstract new (...args: any[]) => T;
-
-/** The error for `from` referring to a `kind` named `ref` that the config doesn't declare. */
-export const undeclaredRef = (from: string, kind: string, ref: string) => new Error(`${from} refers to ${kind} "${ref}", which isn't declared in this config`);
 
 /**
  * Turns the declared resources into a manifest. It only checks what needs the
  * resources themselves: that each one referred to is declared in this config,
- * not just named like one. validateManifest (`@achq/core/manifest-schema`)
- * checks the rest, on what this returns.
+ * not just named like one. validateManifest (`@achq/core/manifest`) checks the
+ * rest, on what this returns.
  */
 export const collectManifest = (resources: Resource[] = declared()): RepoManifest => {
   const ofKind = <T extends Resource>(type: ResourceClass<T>) => resources.filter((r): r is T => r instanceof type);

@@ -1,10 +1,10 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { Agent, CONFIG_DIR, CONFIG_ENTRY, collectManifest, declared, type RepoManifest, resetDeclarations } from "@achq/core";
-import { validateManifest } from "@achq/core/manifest-schema";
+import { Agent, CONFIG_DIR, CONFIG_ENTRY, collectManifest, declared, resetDeclarations } from "@achq/core";
+import { type RepoManifest, validateManifest } from "@achq/core/manifest";
 import { async } from "@achq/utils/async";
 import { disk } from "@achq/utils/disk";
-import { CONFIG_MODULES } from "achq/registry";
+import { CONFIG_MODULES } from "achq/modules";
 import { extractTree, hasCommit } from "./repo.ts";
 
 const MODULES = Object.fromEntries(CONFIG_MODULES.map((specifier) => [specifier, Bun.resolveSync(specifier, import.meta.dir)]));

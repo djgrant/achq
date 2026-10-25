@@ -1,4 +1,5 @@
-import { CONFIG_DIR, type CodeHostAsYou, type CodeHostProvider, type ConfigTree, type Credential, type FileLimits, type RepoClient, type RepoInstallation, type RepoManifest, repoName, STATUS_VARIABLE, type Status } from "@achq/core";
+import { CONFIG_DIR, type CodeHostAsYou, type CodeHostProvider, type ConfigTree, type Credential, type FileLimits, type RepoClient, type RepoInstallation, repoName, STATUS_VARIABLE, type Status } from "@achq/core";
+import type { RepoManifest } from "@achq/core/manifest";
 import type { Vars } from "@achq/utils/env";
 import { errors } from "@achq/utils/errors";
 import { type CommitSummary, GitHub, type RepoApi } from "@achq/utils/gh";

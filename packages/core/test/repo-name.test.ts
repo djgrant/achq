@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { repoName } from "../src/contracts/code-host-provider.ts";
+import { repoName } from "../src/model/repos.ts";
 
 test("repoName.pattern takes owner/name with word characters, dots and dashes, and no segment that's only dots", () => {
   for (const ok of ["acme/widgets", "a.b/c-d.e", "acme/.github", "acme/...x", "_/x_"]) expect(repoName.pattern.test(ok)).toBe(true);

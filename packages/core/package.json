@@ -6,8 +6,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./client": "./src/wire/client.ts",
-    "./context": "./src/resources/context.ts",
-    "./manifest-schema": "./src/resources/manifest-schema.ts",
+    "./context": "./src/engine/context.ts",
+    "./manifest": "./src/model/manifest.ts",
     "./protocol": "./src/wire/protocol.ts",
     "./secrets": "./src/wire/secrets.ts",
     "./signing": "./src/wire/signing.ts"

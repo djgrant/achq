@@ -37,19 +37,6 @@ export const ENV = {
   containerProvider: "ACHQ_CONTAINER_PROVIDER",
 } as const;
 
-/** Where achq's own code is. The router and deployer run it from there. */
-export const ACHQ_SOURCE = {
-  repo: "djgrant/achq",
-  branch: "main",
-  /** A tarball of it, followed by a commit. */
-  archive: "https://codeload.github.com/djgrant/achq/tar.gz/",
-};
-
-/** The directory at a repo's root that holds its achq config. Only its changes redeploy the repo. */
-export const CONFIG_DIR = ".achq";
-/** The module in CONFIG_DIR that declares the repo's resources. */
-export const CONFIG_ENTRY = "config.ts";
-
 /** The repository variable the deployer reports each deploy's outcome in. */
 export const STATUS_VARIABLE = "ACHQ_STATUS";
 

@@ -7,7 +7,6 @@ import { githubPolicyProvider } from "@achq/github/policy";
 import { githubCodeHostProvider } from "@achq/github/code-host";
 import { railwayContainerProvider } from "@achq/railway/container";
 import type { Env } from "@achq/utils/env";
-import * as infra from "./infra.ts";
 
 export const CHANNEL_PROVIDERS: Implementation<ChannelProvider>[] = [githubChannelProvider];
 export const POLICY_PROVIDERS: Implementation<PolicyProvider>[] = [githubPolicyProvider];
@@ -49,8 +48,3 @@ export const serviceContainerProvider = (env: Env) => {
 export const privateEnv = () => [...new Set([ENV.containerSecret, ENV.key, ...[...CHANNEL_PROVIDERS, ...POLICY_PROVIDERS, CODE_HOST, ...CONTAINER_PROVIDERS].flatMap((i) => i.privateEnv)])];
 
 export const agentEnv = () => AGENT_PROVIDERS.flatMap((a) => a.containerEnv);
-
-/** The bare imports a repo's `.achq/` may use. */
-export const CONFIG_MODULES = ["achq", "achq/github", "achq/claude"];
-/** What the infra file's imports resolve to. */
-export const INFRA_MODULES: Record<string, object> = { "achq/infra": infra };

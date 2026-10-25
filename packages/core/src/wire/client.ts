@@ -1,6 +1,6 @@
 // Outside core's index, which the config sandbox loads without fetch or node:crypto.
 import { HttpError } from "@achq/utils/http";
-import type { PolicyCredential } from "../contracts/policy-provider.ts";
+import type { PolicyCredential } from "../model/credentials.ts";
 import type {
   CredentialsRequest,
   CredentialsResponse,

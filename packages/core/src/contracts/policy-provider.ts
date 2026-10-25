@@ -1,8 +1,5 @@
-import type { PolicyData } from "../resources/config.ts";
-import type { Credential } from "./channel-provider.ts";
-
-/** For agents: minted by the policy provider it names. */
-export type PolicyCredential = Credential & { provider: string };
+import type { PolicyCredential } from "../model/credentials.ts";
+import type { PolicyData } from "../model/resource-data.ts";
 
 /**
  * Turns policies into credentials. The router and container load the same code,

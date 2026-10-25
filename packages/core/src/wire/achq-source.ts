@@ -1,4 +1,15 @@
-import { ACHQ_SOURCE } from "../wire/constants.ts";
+/*
+ * How a service fetches achq's own code: where it is, and the script that
+ * downloads and runs it.
+ */
+
+/** Where achq's own code is. The router and deployer run it from there. */
+export const ACHQ_SOURCE = {
+  repo: "djgrant/achq",
+  branch: "main",
+  /** A tarball of it, followed by a commit. */
+  archive: "https://codeload.github.com/djgrant/achq/tar.gz/",
+};
 
 // The script runs in the service's own Bun, not here, so it's written as
 // source. Its parts are joined with spaces into one line, and that line is in

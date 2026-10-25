@@ -1,13 +1,6 @@
 import { type Json, json } from "@achq/utils/json";
+import type { PolicyData, SelectorData } from "../model/resource-data.ts";
 import { Resource } from "./resource.ts";
-
-/** Selector and policy data always says which channel or policy provider interprets it. */
-export type SelectorData = { channel: string; source: string; [key: string]: Json };
-/**
- * `source`, when present, is the channel source the policy grants through, e.g. a GitHub App.
- * A repo's config always names one; the deployer's own policy leaves it to the policy provider.
- */
-export type PolicyData = { provider: string; [key: string]: Json } & { source?: string };
 
 /** Which events start a run. Plain data, matched in the router and the container. */
 export class EventSelector {

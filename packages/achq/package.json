@@ -8,6 +8,7 @@
     "./claude": "./src/claude.ts",
     "./github": "./src/github.ts",
     "./infra": "./src/infra.ts",
+    "./modules": "./src/modules.ts",
     "./registry": "./src/registry.ts"
   },
   "dependencies": {

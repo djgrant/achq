@@ -1,5 +1,5 @@
 import { crypto } from "@achq/utils/crypto";
-import { repoName } from "../contracts/code-host-provider.ts";
+import { repoName } from "../model/repos.ts";
 
 /** A secret for an implementation's own use, e.g. a channel's webhook secret. Its label must start with the implementation's id. */
 export const implementationSecret = (key: string, label: string) => crypto.hmacHex(key, label);

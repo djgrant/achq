@@ -1,6 +1,6 @@
 // Outside core's index, which the config sandbox loads without Bun or node:crypto.
 import { crypto } from "@achq/utils/crypto";
-import type { Context } from "./resource.ts";
+import type { Context } from "../resources/resource.ts";
 
 const SECRET_BYTES = 32;
 

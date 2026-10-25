@@ -1,6 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { validateManifest } from "../src/resources/manifest-schema.ts";
-import type { RepoManifest } from "../src/resources/repo-manifest.ts";
+import { type RepoManifest, validateManifest } from "../src/model/manifest.ts";
 
 const base: RepoManifest = {
   policies: [{ name: "code", policy: { provider: "github", source: "a" } }],

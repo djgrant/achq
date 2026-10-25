@@ -1,4 +1,5 @@
-import { type DeployRecord, type RepoManifest, renameStored, repoName, type Stores } from "@achq/core";
+import { type DeployRecord, renameStored, repoName, type Stores } from "@achq/core";
+import type { RepoManifest } from "@achq/core/manifest";
 import { async } from "@achq/utils/async";
 
 /** How many delivery IDs are remembered as handled: the newest. */

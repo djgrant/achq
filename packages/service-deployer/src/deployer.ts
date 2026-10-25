@@ -1,4 +1,5 @@
-import { type CodeHostProvider, type ContainerProvider, type Stores, type DeployerEnvelope, type FileLimits, type RepoManifest, repoName, type SyncRequest, type SyncResult } from "@achq/core";
+import { type CodeHostProvider, type ContainerProvider, type Stores, type DeployerEnvelope, type FileLimits, repoName, type SyncRequest, type SyncResult } from "@achq/core";
+import type { RepoManifest } from "@achq/core/manifest";
 import type { RouterAdmin } from "@achq/core/client";
 import { async } from "@achq/utils/async";
 import { errors } from "@achq/utils/errors";

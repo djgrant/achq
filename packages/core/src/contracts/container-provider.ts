@@ -1,6 +1,6 @@
 import type { Vars } from "@achq/utils/env";
 import { ENV } from "../wire/constants.ts";
-import type { RepoIdentity } from "./code-host-provider.ts";
+import type { RepoIdentity } from "../model/repos.ts";
 import type { Implementation } from "./implementation.ts";
 
 export type ContainerSpec = {
