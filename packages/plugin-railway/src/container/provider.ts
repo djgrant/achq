@@ -4,7 +4,7 @@ import { RAILWAY_API, Railway, RailwayError, type RailwayProject, type RailwaySe
 import { subprocess } from "@achq/utils/subprocess";
 import { CONNECTED, CONTAINER_PROVIDER, RAILWAY_ENV, REPO_UNSEEN, SOURCE_GITHUB_APP, SOURCE_GITHUB_APP_INSTALL_URL } from "../lib/constants.ts";
 import { containerServiceName, containerUrl } from "../lib/names.ts";
-import { containerService } from "../lib/service-parts.ts";
+import { containerParts } from "../lib/container-parts.ts";
 
 export type RailwayContainerProviderOptions = {
   token: string;
@@ -43,7 +43,7 @@ export class RailwayContainerProvider implements ContainerProvider {
   }
 
   async ensure(spec: ContainerSpec, { build }: { build: boolean }) {
-    const { service, resources } = containerService(spec, { projectId: this.project.id, environmentId: this.project.environmentId });
+    const { service, resources } = containerParts(spec, { projectId: this.project.id, environmentId: this.project.environmentId });
     const applied = await (await plan(resources, this.ctx)).apply();
     const made = this.project.service(applied.value(service.out("serviceId")));
     await dropStale(made);
