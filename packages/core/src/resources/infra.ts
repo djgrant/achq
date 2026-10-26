@@ -237,7 +237,7 @@ export abstract class Deployer extends Service {
  * plugin is installed in every container, and what it needs from your
  * environment is given to each. A repo's agent names one by its `id`.
  */
-export abstract class Runtime extends Resource {
+export abstract class AgentRuntime extends Resource {
   readonly [RUNTIME] = true;
   readonly kind = "agent-runtime";
   abstract readonly provider: AgentProvider;
@@ -266,7 +266,7 @@ export abstract class CodeHost extends Resource {
 
 export const isRouter = branded<Router>(ROUTER);
 export const isDeployer = branded<Deployer>(DEPLOYER);
-export const isRuntime = branded<Runtime>(RUNTIME);
+export const isAgentRuntime = branded<AgentRuntime>(RUNTIME);
 export const isCodeHost = branded<CodeHost>(CODE_HOST);
 
 export type Infra = { resources: Resource[] };

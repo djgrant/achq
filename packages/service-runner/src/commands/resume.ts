@@ -1,4 +1,4 @@
-import { type RuntimeFactory, threadKey as keyOf } from "@achq/core";
+import { type DriverFactory, threadKey as keyOf } from "@achq/core";
 import type { Vars } from "@achq/utils/env";
 import { flock } from "@achq/utils/flock";
 import { subprocess } from "@achq/utils/subprocess";
@@ -8,7 +8,7 @@ import type { Paths } from "../features/layout.ts";
 import { threadBusy } from "../features/messages.ts";
 import { fetchMirror } from "../features/repo.ts";
 import { keepAwake, stayAwake } from "../features/runner.ts";
-import { containerContext } from "../features/runtime-context.ts";
+import { containerContext } from "../features/driver-context.ts";
 import { sessionsFor } from "../state.ts";
 
 /** How often `resume` checks whether the SSH shell that started it has gone. */
@@ -23,8 +23,8 @@ export type ResumeOptions = {
   session: string;
   loadConfig: (commit: string) => Promise<LoadedConfig>;
   container: string;
-  /** The agent runtimes the container loaded, by id. */
-  runtimes: Record<string, RuntimeFactory>;
+  /** The agent drivers the container loaded, by id. */
+  drivers: Record<string, DriverFactory>;
   /** What's never given to an agent. */
   privateEnv: string[];
   env?: Vars;
@@ -58,13 +58,13 @@ export const resume = async (opts: ResumeOptions) => {
   const env = opts.env ?? process.env;
   const config = await opts.loadConfig(session.commit);
   const agent = config.agents.find((a) => a.name === session.agent);
-  const factory = agent && opts.runtimes[agent.runtime];
+  const factory = agent && opts.drivers[agent.runtime];
   if (!agent || !factory) throw new Error(`Agent ${session.agent} isn't in the config at ${session.commit}`);
   const container = config.manifest.containers.find((c) => c.name === opts.container);
-  const runtime = factory(agent, containerContext(config, opts.paths.home, env, opts.privateEnv, container));
+  const driver = factory(agent, containerContext(config, opts.paths.home, env, opts.privateEnv, container));
   const configDir = opts.paths.agent(agent.name);
-  await runtime.configure(configDir);
-  const command = runtime.resumeCommand(session.id, configDir);
+  await driver.configure(configDir);
+  const command = driver.resumeCommand(session.id, configDir);
 
   // A dropped SSH connection doesn't always reach the agent, which would then
   // hold the lock forever, so it's stopped when our parent (the SSH shell) goes

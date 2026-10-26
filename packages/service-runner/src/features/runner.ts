@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { type ChannelClient, type ChannelEvent, type ChannelProvider, ENV, fromTrustedPerson, type PolicyProvider, type RuntimeContext, type RuntimeFactory, type Thread, type ThreadRef, threadKey } from "@achq/core";
+import { type ChannelClient, type ChannelEvent, type ChannelProvider, ENV, fromTrustedPerson, type PolicyProvider, type DriverContext, type DriverFactory, type Thread, type ThreadRef, threadKey } from "@achq/core";
 import type { RepoManifest } from "@achq/core/manifest";
 import type { ContainerEnvelope } from "@achq/core/protocol";
 import { async } from "@achq/utils/async";
@@ -14,7 +14,7 @@ import { Credentials } from "./credentials.ts";
 import { configLoadFailed, failureReply, NOTHING_TO_COMPACT, runFailed, runInterrupted, unrunnableAgent, worktreeFailed } from "./messages.ts";
 import { buildPrompt, type Command, parseCommand } from "./prompt.ts";
 import { describeHead, ensureWorktree, fetchMirror, fillBranch } from "./repo.ts";
-import { containerContext, writeFiles } from "./runtime-context.ts";
+import { containerContext, writeFiles } from "./driver-context.ts";
 import { allStates, firstDelivery, readState, type ThreadState, writeState } from "../state.ts";
 import { paths as layout, type Paths } from "./layout.ts";
 
@@ -30,8 +30,8 @@ export type RunnerOptions = {
   dataDir: string;
   repoUrl: string;
   loadConfig: (commit: string) => Promise<LoadedConfig>;
-  /** The agent runtimes the container loaded, by id. */
-  runtimes: Record<string, RuntimeFactory>;
+  /** The agent drivers the container loaded, by id. */
+  drivers: Record<string, DriverFactory>;
   /** What's never given to an agent: core's `privateEnv` of the providers the container loaded. */
   privateEnv: string[];
   /** Runs going at once; more wait for one to finish. */
@@ -52,7 +52,7 @@ type TriggerRun = {
   trigger: Trigger;
   event: ChannelEvent;
   config: LoadedConfig;
-  ctx: RuntimeContext;
+  ctx: DriverContext;
   client: ChannelClient;
   thread: Thread;
   state: ThreadState;
@@ -115,14 +115,14 @@ export class Runner {
   private enqueue = async.keyedQueue();
   private pending = new Set<Promise<unknown>>();
   private slots: RunSlots;
-  private runtimes: Record<string, RuntimeFactory>;
+  private drivers: Record<string, DriverFactory>;
   private runTimeoutMs: number;
 
   constructor(private opts: RunnerOptions) {
     this.paths = layout(opts.dataDir);
     this.now = opts.now ?? Date.now;
     this.log = opts.log ?? ((line) => console.log(line));
-    this.runtimes = opts.runtimes;
+    this.drivers = opts.drivers;
     this.runTimeoutMs = opts.runTimeoutMs;
     this.secret = opts.containerSecret;
     this.credentials = new Credentials({
@@ -231,7 +231,7 @@ export class Runner {
 
   private async runTrigger({ trigger, event, config, ctx, client, thread, state, workspace, cwd, env, log }: TriggerRun) {
     const agent = config.agents.find((a) => a.name === trigger.agent);
-    const factory = agent && this.runtimes[agent.runtime];
+    const factory = agent && this.drivers[agent.runtime];
     if (!agent || !factory) return reply(client, thread.ref, unrunnableAgent(trigger), log);
     const mention = typeof trigger.event.mention === "string" ? trigger.event.mention : undefined;
     // A run not started by a mention has nothing to say.
@@ -246,8 +246,8 @@ export class Runner {
     };
 
     try {
-      const runtime = factory(agent, ctx);
-      const key = await runtime.sessionKey();
+      const driver = factory(agent, ctx);
+      const key = await driver.sessionKey();
       // `/new`, no session yet, a changed session key, or another workspace start afresh. Compacting needs a session to compact.
       const previous = state.sessions[agent.name];
       const fresh = command.mode === "new" || !previous || previous.key !== key || previous.workspace !== workspace;
@@ -278,8 +278,8 @@ export class Runner {
       saveState();
       agentLog(`${fresh ? "new" : "resumed"} session ${id} (trigger ${trigger.name})`);
       const configDir = this.paths.agent(agent.name);
-      await runtime.configure(configDir);
-      const result = await runtime.run({
+      await driver.configure(configDir);
+      const result = await driver.run({
         thread: thread.ref,
         cwd,
         configDir,
@@ -298,7 +298,7 @@ export class Runner {
     }
   }
 
-  /** Session keys and runtimes read the container's startup files, so they're written here, once per config. */
+  /** Session keys and drivers read the container's startup files, so they're written here, once per config. */
   private contextFor = async.memo(async (config: LoadedConfig) => {
     const container = config.manifest.containers.find((c) => c.name === this.opts.container);
     if (!container) throw new Error(`The config at ${config.commit} has no container "${this.opts.container}"`);

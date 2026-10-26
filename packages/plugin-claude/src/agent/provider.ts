@@ -1,5 +1,5 @@
 import * as path from "node:path";
-import type { Agent as CoreAgent, AgentProvider, AgentRuntime, RunContext, RuntimeContext } from "@achq/core";
+import type { Agent as CoreAgent, AgentProvider, AgentDriver, RunContext, DriverContext } from "@achq/core";
 import { crypto } from "@achq/utils/crypto";
 import { disk } from "@achq/utils/disk";
 import { json } from "@achq/utils/json";
@@ -21,7 +21,7 @@ export class ClaudeAgentProvider implements AgentProvider {
   readonly containerEnv = [{ name: TOKEN_ENV, hint: "Run `claude setup-token`." }];
 
   /** A field, not a method: the container lists it by id, apart from the provider. */
-  readonly runtime = (coreAgent: CoreAgent, ctx: RuntimeContext): AgentRuntime => {
+  readonly driver = (coreAgent: CoreAgent, ctx: DriverContext): AgentDriver => {
     const agent = coreAgent as Agent;
     const config = agent.config;
     const claude = ctx.env[BIN_ENV] || DEFAULT_BIN;

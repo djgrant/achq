@@ -18,8 +18,12 @@ export type RunContext = {
 
 export type RunResult = { reply: string; error?: string };
 
-/** The runtime side of an Agent resource. */
-export interface AgentRuntime {
+/**
+ * One agent, set up in a container to run on its runtime: it drives the
+ * runtime's CLI, writing the agent's config, running a turn and giving the
+ * command that resumes a session. Its provider's `driver` makes it.
+ */
+export interface AgentDriver {
   readonly name: string;
   /** A hash of everything in the cached prefix. A different key means a fresh session. */
   sessionKey(): Promise<string>;
@@ -29,8 +33,8 @@ export interface AgentRuntime {
   resumeCommand(session: string, configDir: string): { argv: string[]; env: Record<string, string> };
 }
 
-/** What the container gives an agent's runtime, once per config commit. */
-export type RuntimeContext = {
+/** What the container gives an agent's driver, once per config commit. */
+export type DriverContext = {
   /** A file in `.achq/` at the config's commit, refusing paths that leave it. */
   readFile(relative: string): string;
   /** Startup files' contents by target path. A string names a file in `.achq/`. Anything else is written as JSON. */
@@ -41,16 +45,16 @@ export type RuntimeContext = {
   runnerPrompt: string;
   /** The container's startup files' contents, by target path. Part of every session key. */
   containerFiles: Record<string, string>;
-  /** The container's environment, without its private variables. A runtime reads its own settings from it, e.g. which binary to run. */
+  /** The container's environment, without its private variables. A driver reads its runtime's settings from it, e.g. which binary to run. */
   env: Vars;
 };
 
-export type RuntimeFactory = (agent: Agent, ctx: RuntimeContext) => AgentRuntime;
+export type DriverFactory = (agent: Agent, ctx: DriverContext) => AgentDriver;
 
-/** An agent runtime package, e.g. Claude. Its id is its agents' `runtime`. */
+/** An agent runtime, e.g. Claude Code, as a plugin provides it. Its id is what its agents' `runtime` names, and the infra's `AgentRuntime` declares it. */
 export interface AgentProvider {
   readonly id: string;
   /** What every container needs for it. `achq infra up` reads these from your environment. */
   readonly containerEnv: { name: string; hint?: string }[];
-  runtime: RuntimeFactory;
+  driver: DriverFactory;
 }

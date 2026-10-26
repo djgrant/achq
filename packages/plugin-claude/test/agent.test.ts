@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { resetDeclarations, type RunContext, type RuntimeContext } from "@achq/core";
+import { resetDeclarations, type RunContext, type DriverContext } from "@achq/core";
 import { fakeClaude } from "@achq/test-utils/fakes/vendors/claude";
 import { tempDir } from "@achq/test-utils/helpers/temp-dir";
 import { claudeAgentProvider } from "../src/agent/index.ts";
@@ -22,7 +22,7 @@ const setup = () => {
   fs.writeFileSync(path.join(achq, "statusline.sh"), "echo hi\n");
   const claude = fakeClaude(root);
   const read = (relative: string) => fs.readFileSync(path.join(achq, relative), "utf8");
-  const ctx: RuntimeContext = {
+  const ctx: DriverContext = {
     readFile: read,
     resolveFiles: (files) => Object.fromEntries(Object.entries(files ?? {}).map(([k, v]) => [k, typeof v === "string" ? read(v) : `${JSON.stringify(v, null, 2)}\n`])),
     home: path.join(root, "home"),
@@ -30,45 +30,45 @@ const setup = () => {
     containerFiles: { "~/.config/tool.toml": "level = 1\n" },
     env: { ACHQ_CLAUDE_BIN: claude.bin },
   };
-  const runtime = (config: AgentConfig, c: RuntimeContext = ctx, name = "coder") => claudeAgentProvider.runtime(new Agent(name, config), c);
-  return { root, achq, ctx, runtime, claude };
+  const driver = (config: AgentConfig, c: DriverContext = ctx, name = "coder") => claudeAgentProvider.driver(new Agent(name, config), c);
+  return { root, achq, ctx, driver, claude };
 };
 
 describe("session keys", () => {
   test("change with everything in the cached prefix, and nothing else", async () => {
-    const { achq, ctx, runtime } = setup();
+    const { achq, ctx, driver } = setup();
     const base: AgentConfig = { model: "claude-opus-5-5", effort: "high", systemPrompt: "./prompts/system.md", settings: { a: 1 }, files: { "~/.claude/statusline.sh": "./statusline.sh" } };
-    const key = await runtime(base).sessionKey();
-    expect(await runtime({ ...base }).sessionKey()).toBe(key);
+    const key = await driver(base).sessionKey();
+    expect(await driver({ ...base }).sessionKey()).toBe(key);
     // Key order in settings doesn't matter.
-    expect(await runtime({ ...base, settings: { a: 1 } }).sessionKey()).toBe(key);
+    expect(await driver({ ...base, settings: { a: 1 } }).sessionKey()).toBe(key);
 
     const different = [
-      await runtime(base, ctx, "other").sessionKey(),
-      await runtime({ ...base, model: "claude-haiku-5-5" }).sessionKey(),
-      await runtime({ ...base, effort: "max" }).sessionKey(),
-      await runtime({ ...base, settings: { a: 2 } }).sessionKey(),
-      await runtime(base, { ...ctx, runnerPrompt: "A new runner prompt.\n" }).sessionKey(),
-      await runtime(base, { ...ctx, containerFiles: { "~/.config/tool.toml": "level = 2\n" } }).sessionKey(),
+      await driver(base, ctx, "other").sessionKey(),
+      await driver({ ...base, model: "claude-haiku-5-5" }).sessionKey(),
+      await driver({ ...base, effort: "max" }).sessionKey(),
+      await driver({ ...base, settings: { a: 2 } }).sessionKey(),
+      await driver(base, { ...ctx, runnerPrompt: "A new runner prompt.\n" }).sessionKey(),
+      await driver(base, { ...ctx, containerFiles: { "~/.config/tool.toml": "level = 2\n" } }).sessionKey(),
     ];
     fs.writeFileSync(path.join(achq, "prompts/system.md"), "Changed repo prompt.\n");
-    different.push(await runtime(base).sessionKey());
+    different.push(await driver(base).sessionKey());
     fs.writeFileSync(path.join(achq, "prompts/system.md"), "Repo prompt.\n");
     fs.writeFileSync(path.join(achq, "statusline.sh"), "echo changed\n");
-    different.push(await runtime(base).sessionKey());
+    different.push(await driver(base).sessionKey());
     expect(new Set([key, ...different]).size).toBe(different.length + 1);
 
     // The binary isn't part of it (Claude Code's version isn't keyed).
     fs.writeFileSync(path.join(achq, "statusline.sh"), "echo hi\n");
-    expect(await runtime(base, { ...ctx, env: { ACHQ_CLAUDE_BIN: "/elsewhere/claude" } }).sessionKey()).toBe(key);
+    expect(await driver(base, { ...ctx, env: { ACHQ_CLAUDE_BIN: "/elsewhere/claude" } }).sessionKey()).toBe(key);
   });
 });
 
 describe("configure", () => {
   test("writes settings (defaults, then the repo's), the combined system prompt and agent files", async () => {
-    const { root, ctx, runtime } = setup();
+    const { root, ctx, driver } = setup();
     const configDir = path.join(root, "agents/coder");
-    const r = runtime({ effort: "xhigh", systemPrompt: "./prompts/system.md", settings: { model: "claude-sonnet-5", attribution: { commit: "x" } }, files: { "~/.claude/statusline.sh": "./statusline.sh", "~/.npmrc": { a: 1 } } });
+    const r = driver({ effort: "xhigh", systemPrompt: "./prompts/system.md", settings: { model: "claude-sonnet-5", attribution: { commit: "x" } }, files: { "~/.claude/statusline.sh": "./statusline.sh", "~/.npmrc": { a: 1 } } });
     await r.configure(configDir);
     expect(JSON.parse(fs.readFileSync(path.join(configDir, "settings.json"), "utf8"))).toEqual({ model: "claude-sonnet-5", effortLevel: "xhigh", attribution: { commit: "x" } });
     expect(fs.readFileSync(path.join(configDir, "achq-system-prompt.md"), "utf8")).toBe("Runner prompt.\n\nRepo prompt.\n");
@@ -76,7 +76,7 @@ describe("configure", () => {
     expect(JSON.parse(fs.readFileSync(path.join(ctx.home, ".npmrc"), "utf8"))).toEqual({ a: 1 });
     expect(JSON.parse(fs.readFileSync(path.join(configDir, ".claude.json"), "utf8")).hasCompletedOnboarding).toBe(true);
 
-    await runtime({}).configure(configDir);
+    await driver({}).configure(configDir);
     expect(JSON.parse(fs.readFileSync(path.join(configDir, "settings.json"), "utf8"))).toEqual({ model: "claude-opus-5-5", attribution: { commit: "", pr: "" } });
     expect(fs.readFileSync(path.join(configDir, "achq-system-prompt.md"), "utf8")).toBe("Runner prompt.\n");
   });
@@ -100,8 +100,8 @@ describe("run", () => {
   };
 
   test("runs claude headless with the session, system prompt and denials, returning the result", async () => {
-    const { root, runtime, claude } = setup();
-    const r = runtime({ effort: "max", systemPrompt: "./prompts/system.md" });
+    const { root, driver, claude } = setup();
+    const r = driver({ effort: "max", systemPrompt: "./prompts/system.md" });
     const ctx = context(root);
     await r.configure(ctx.configDir);
     expect(await r.run(ctx)).toEqual({ reply: "Reply for 11111111-1111-1111-1111-111111111111" });
@@ -125,8 +125,8 @@ describe("run", () => {
   });
 
   test("reports a failing claude with its stderr, and stops one that runs past its timeout", async () => {
-    const { root, runtime } = setup();
-    const r = runtime({});
+    const { root, driver } = setup();
+    const r = driver({});
     const failing = context(root);
     failing.env.FAKE_CLAUDE_FAIL = "out of disk";
     const failed = await r.run(failing);
@@ -142,8 +142,8 @@ describe("run", () => {
   });
 
   test("resumeCommand opens the session interactively with the agent's config", () => {
-    const { root, runtime, ctx } = setup();
-    const cmd = runtime({ effort: "max" }).resumeCommand("abc", path.join(root, "agents/coder"));
+    const { root, driver, ctx } = setup();
+    const cmd = driver({ effort: "max" }).resumeCommand("abc", path.join(root, "agents/coder"));
     expect(cmd.argv[0]).toBe(ctx.env.ACHQ_CLAUDE_BIN!);
     expect(cmd.argv).toContain("--resume=abc");
     expect(cmd.argv).not.toContain("-p");

@@ -29,7 +29,7 @@ export default achq(() => {
 
   new github.CodeHost("github");
   new github.Channel("github", { name: "acme-agents", org: "acme", router });
-  new claude.Runtime("claude");
+  new claude.AgentRuntime("claude");
 });
 ```
 

@@ -18,7 +18,7 @@ import { fetchMirror } from "../src/features/repo.ts";
 import { Runner } from "../src/features/runner.ts";
 import { paths as layout } from "../src/features/layout.ts";
 import { routes } from "../src/routes.ts";
-import { runtimesOf } from "../src/features/runtime-context.ts";
+import { driversOf } from "../src/features/driver-context.ts";
 import { readState } from "../src/state.ts";
 
 export const dirs: string[] = [];
@@ -50,7 +50,7 @@ export const world = async (opts: { maxRuns?: number } = {}) => {
   };
   const logs: string[] = [];
   // As the container loads them from its plugins: the test channel and policy provider, and Claude.
-  const loaded = { runtimes: runtimesOf(claudePlugin.agents!), privateEnv: privateEnv(claudePlugin) };
+  const loaded = { drivers: driversOf(claudePlugin.agents!), privateEnv: privateEnv(claudePlugin) };
   const runner = new Runner({
     repo: "acme/widgets",
     container: "dev",

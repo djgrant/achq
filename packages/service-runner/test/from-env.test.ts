@@ -47,7 +47,7 @@ test("the container installs the plugins ACHQ_PLUGINS names under its data dir, 
   const vars = { ACHQ_PLUGINS: JSON.stringify(CONTAINER_PLUGINS), ACHQ_GITHUB_APPS: "{}" };
   const loaded = await containerPlugins(vars, dataDir, { install });
   expect(loaded.providers.channels.map((c) => c.id)).toEqual(["github"]);
-  expect(Object.keys(loaded.runtimes)).toEqual(["claude"]);
+  expect(Object.keys(loaded.drivers)).toEqual(["claude"]);
   expect(loaded.privateEnv).toContain("ACHQ_GITHUB_APPS");
   // A config imports core as the runner's own copy, and each plugin from where it was installed.
   expect(Object.keys(loaded.modules)).toEqual(["@achq/core", "@achq/github", "@achq/claude"]);

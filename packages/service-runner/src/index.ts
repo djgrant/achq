@@ -4,7 +4,7 @@ export { withoutPrivate } from "./features/agent-env.ts";
 export { inRoot } from "./features/config.ts";
 export { paths, type Paths, slug } from "./features/layout.ts";
 export { Runner, type RunnerOptions } from "./features/runner.ts";
-export { containerContext, resolveFiles, runtimeContext, runtimesOf, writeFiles } from "./features/runtime-context.ts";
+export { containerContext, resolveFiles, driverContext, driversOf, writeFiles } from "./features/driver-context.ts";
 export { containerPlugins, runnerFromEnv } from "./from-env.ts";
 export { routes } from "./routes.ts";
 export { allStates, readState, type SessionState, sessionsFor, type ThreadState, writeState } from "./state.ts";

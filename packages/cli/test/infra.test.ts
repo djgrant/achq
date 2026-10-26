@@ -107,7 +107,7 @@ export default achq(() => {
   new github.Channel("personal", { name: "djgrant-claude", router });
   new github.Channel("notation", { name: "notation-achq", org: "notationlabs", router });
   new github.CodeHost("github");
-  new claude.Runtime("claude");
+  new claude.AgentRuntime("claude");
 });
 `,
   );
@@ -131,7 +131,7 @@ test("the infra declares one code host, and each agent runtime once", () => {
     })();
   expect(() => checkInfra(declare(() => {}))).toThrow("The infra must declare one code host");
   expect(() => checkInfra(declare(() => [new github.CodeHost("a"), new github.CodeHost("b")]))).toThrow("The infra must declare one code host");
-  expect(() => checkInfra(declare(() => [new github.CodeHost("github"), new claude.Runtime("a"), new claude.Runtime("b")]))).toThrow("Runtimes a and b are both claude");
+  expect(() => checkInfra(declare(() => [new github.CodeHost("github"), new claude.AgentRuntime("a"), new claude.AgentRuntime("b")]))).toThrow("Runtimes a and b are both claude");
   expect(checkInfra(declare(() => new github.CodeHost("github"))).runtimes).toEqual([]);
 });
 
@@ -146,7 +146,7 @@ export default achq(() => {
   const router = new railway.Router("router", { project: "achq" });
   new railway.Deployer("deployer", { router, owners: [] });
   new github.CodeHost("github");
-  new claude.Runtime("claude");
+  new claude.AgentRuntime("claude");
 });
 `,
   );

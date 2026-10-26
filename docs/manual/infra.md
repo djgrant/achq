@@ -24,7 +24,7 @@ export default achq(() => {
     router,
   });
 
-  new claude.Runtime("claude"); // <-- what outposts' agents run on
+  new claude.AgentRuntime("claude"); // <-- what outposts' agents run on
 });
 ```
 
@@ -36,7 +36,7 @@ Each repository then declares its own outpost in [`.achq/config.ts`](./outposts.
 | `Deployer` | Private, sleeps when idle | Builds outpost containers for repositories matching `owners` |
 | `CodeHost` | External platform | Where the repositories live; an infra has one |
 | `Channel` | External platform | Creates the GitHub App and points its webhook at `Router` |
-| `Runtime` | Every outpost | An agent runtime outposts can run, with what it needs from your environment, e.g. `CLAUDE_CODE_OAUTH_TOKEN` |
+| `AgentRuntime` | Every outpost | An agent runtime outposts can run, with what it needs from your environment, e.g. `CLAUDE_CODE_OAUTH_TOKEN` |
 
 Each resource carries the package it came from and its version. `achq infra up` gives the router and deployer the packages they load, and every outpost container the channels', policies' and runtimes', and each installs them from npm when it starts. Upgrading a plugin in the infrastructure repository and running `achq infra up` redeploys what loads it. An outpost agent whose runtime the infra doesn't declare fails its deploy.
 

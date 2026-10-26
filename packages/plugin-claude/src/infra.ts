@@ -1,1 +1,1 @@
-export { Runtime } from "./agent/runtime.ts";
+export { AgentRuntime } from "./agent/runtime.ts";

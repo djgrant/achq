@@ -87,7 +87,7 @@ export default achq(() => {
   new cloudflare.Deployer("deployer", { router, owners: ["acme"] });
   new github.CodeHost("github");
   new github.Channel("github", { name: "acme-agents", org: "acme", router });
-  new claude.Runtime("claude");
+  new claude.AgentRuntime("claude");
 });
 ```
 

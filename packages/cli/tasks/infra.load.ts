@@ -1,6 +1,6 @@
 import * as path from "node:path";
 import { defineTask } from "@pokit/core";
-import { type CodeHost, type Deployer, type Infra, isCodeHost, isDeployer, isRouter, isRuntime, type Resource, type Router, type Runtime } from "@achq/core";
+import { type CodeHost, type Deployer, type Infra, isCodeHost, isDeployer, isRouter, isAgentRuntime, type Resource, type Router, type AgentRuntime } from "@achq/core";
 import { collections } from "@achq/utils/collections";
 import { z } from "zod";
 
@@ -10,7 +10,7 @@ export type InfraResources = {
   /** Where the repos it serves live: an infra has one. */
   codeHost: CodeHost;
   /** The agent runtimes its containers can run. */
-  runtimes: Runtime[];
+  runtimes: AgentRuntime[];
   /** Everything the infra declares, the router and deployer among them. */
   resources: Resource[];
 };
@@ -44,7 +44,7 @@ export const checkInfra = ({ resources }: Infra) => {
   }
   const codeHost = collections.only(resources.filter(isCodeHost));
   if (!codeHost) throw new Error("The infra must declare one code host, e.g. `new github.CodeHost(\"github\")`");
-  const runtimes = resources.filter(isRuntime);
+  const runtimes = resources.filter(isAgentRuntime);
   for (const [i, runtime] of runtimes.entries()) {
     const other = runtimes.slice(0, i).find((r) => r.id === runtime.id);
     if (other) throw new Error(`Runtimes ${other.name} and ${runtime.name} are both ${runtime.id}: declare each runtime once`);

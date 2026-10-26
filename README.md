@@ -29,7 +29,7 @@ export default achq(() => {
   new github.Channel("personal", { name: "djgrant-claude", router });
   new github.Channel("notation", { name: "notation-achq", org: "notationlabs", router });
   // What the containers' agents run on.
-  new claude.Runtime("claude");
+  new claude.AgentRuntime("claude");
 });
 ```
 
@@ -48,7 +48,7 @@ export default achq(() => {
   new cloudflare.Deployer("deployer", { router, owners: ["djgrant", "notationlabs"], sshKeys: ["ssh-ed25519 AAAA… me@laptop"] });
   new github.CodeHost("github");
   new github.Channel("personal", { name: "djgrant-claude", router });
-  new claude.Runtime("claude");
+  new claude.AgentRuntime("claude");
 });
 ```
 
@@ -170,7 +170,7 @@ Each folder in `packages/` is a workspace package, prefixed with its kind. Packa
 | `provider.ts` | The provider, e.g. `GitHubPolicyProvider` |
 | `index.ts` | Exports the provider alone, as `providers.ts` lists it |
 
-GitHub's are `channel/` (`github.Channel` and `GitHubChannelProvider`), `policy/` (`github.Policy` and `GitHubPolicyProvider`) and `code-host/` (`github.CodeHost`, `GitHubCodeHostProvider`, the services' side, and `GitHubCodeHostAsYou`, the CLI's, through your `gh` login). Everything else is in the package's one `src/lib/`, a file per topic the concepts share: its Apps and their keys, webhooks, selectors, permissions and so on. The API client itself is `GitHub` in `@achq/utils/gh`, over Octokit. Railway's are `container/` (`RailwayContainerProvider`, whose `shell` is `railway ssh`; the resource is core's `Container`), `router/` (`railway.Router`) and `deployer/` (`railway.Deployer`), which hold only a resource; its `lib/` has Railway's own objects as resources (`Project`, `Service`, `Deployment`, `Variables`), and where one of achq's services runs among them (`service-parts.ts`, its `Placement`). The GraphQL client is `Railway` in `@achq/utils/railway`. Cloudflare's are `container/` (`CloudflareContainerProvider`, whose `shell` is `wrangler containers ssh` to the running instance it finds with Cloudflare's API), `router/` (`cloudflare.Router`) and `deployer/` (`cloudflare.Deployer`); its `lib/` has Cloudflare's own objects as resources (`Project`, its KV namespace and R2 bucket, `Worker`, `Variables`, `Secrets`, `Deployment`, `BuildTrigger`, `DeployerToken`), the deployer's Builds token (`build-token.ts`), where one of achq's services runs among them (`service-parts.ts`, its `Placement`), and how a container is made of them (`container-parts.ts`). The Worker every service and container runs as is its own package, `cloudflare-worker`, which it deploys from its entry and configures through `@achq/cloudflare-worker/settings`. The REST client is `Cloudflare` in `@achq/utils/cloudflare`. Claude's is `agent/` (`claude.Agent`, `claude.Runtime`, the infra's, and `ClaudeAgentProvider`). 1Password's is `vault/` (`OnePasswordVaultProvider`), with `onepassword.vault(name)` at its root for `achq.config.ts`'s `vault`, through `op` in its `lib/`.
+GitHub's are `channel/` (`github.Channel` and `GitHubChannelProvider`), `policy/` (`github.Policy` and `GitHubPolicyProvider`) and `code-host/` (`github.CodeHost`, `GitHubCodeHostProvider`, the services' side, and `GitHubCodeHostAsYou`, the CLI's, through your `gh` login). Everything else is in the package's one `src/lib/`, a file per topic the concepts share: its Apps and their keys, webhooks, selectors, permissions and so on. The API client itself is `GitHub` in `@achq/utils/gh`, over Octokit. Railway's are `container/` (`RailwayContainerProvider`, whose `shell` is `railway ssh`; the resource is core's `Container`), `router/` (`railway.Router`) and `deployer/` (`railway.Deployer`), which hold only a resource; its `lib/` has Railway's own objects as resources (`Project`, `Service`, `Deployment`, `Variables`), and where one of achq's services runs among them (`service-parts.ts`, its `Placement`). The GraphQL client is `Railway` in `@achq/utils/railway`. Cloudflare's are `container/` (`CloudflareContainerProvider`, whose `shell` is `wrangler containers ssh` to the running instance it finds with Cloudflare's API), `router/` (`cloudflare.Router`) and `deployer/` (`cloudflare.Deployer`); its `lib/` has Cloudflare's own objects as resources (`Project`, its KV namespace and R2 bucket, `Worker`, `Variables`, `Secrets`, `Deployment`, `BuildTrigger`, `DeployerToken`), the deployer's Builds token (`build-token.ts`), where one of achq's services runs among them (`service-parts.ts`, its `Placement`), and how a container is made of them (`container-parts.ts`). The Worker every service and container runs as is its own package, `cloudflare-worker`, which it deploys from its entry and configures through `@achq/cloudflare-worker/settings`. The REST client is `Cloudflare` in `@achq/utils/cloudflare`. Claude's is `agent/` (`claude.Agent`, `claude.AgentRuntime`, the infra's, and `ClaudeAgentProvider`). 1Password's is `vault/` (`OnePasswordVaultProvider`), with `onepassword.vault(name)` at its root for `achq.config.ts`'s `vault`, through `op` in its `lib/`.
 
 Besides its concept folders, a plugin's `src/` has two files:
 

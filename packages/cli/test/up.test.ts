@@ -51,7 +51,7 @@ const infra = () =>
       new railway.Deployer("deployer", { router, owners: ["djgrant", "notationlabs"] });
       new github.Channel("personal", { name: "djgrant-claude", router });
       new github.CodeHost("github");
-      new claude.Runtime("claude");
+      new claude.AgentRuntime("claude");
     })(),
   );
 

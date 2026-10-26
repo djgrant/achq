@@ -1,19 +1,19 @@
 # `@achq/claude`
 
-`@achq/claude` provides the Claude Code `Runtime` resource for `achq.infra.ts`, the `Agent` resource for `.achq/config.ts`, and the runtime adapter that executes `claude` inside outpost containers.
+`@achq/claude` provides the Claude Code `AgentRuntime` resource for `achq.infra.ts`, the `Agent` resource for `.achq/config.ts`, and the runtime adapter that executes `claude` inside outpost containers.
 
 ```sh
 pnpm add -D @achq/claude
 ```
 
-## Runtime
+## Agent runtime
 
 Declare Claude Code as a runtime outposts can run:
 
 ```ts [achq.infra.ts]
 import * as claude from "@achq/claude/infra";
 
-new claude.Runtime("claude");
+new claude.AgentRuntime("claude");
 ```
 
 Every outpost container then installs `@achq/claude` and gets `CLAUDE_CODE_OAUTH_TOKEN` from the environment `achq infra up` runs in. An outpost's `claude.Agent` fails its deploy unless the infrastructure declares it.

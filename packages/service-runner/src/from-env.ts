@@ -6,7 +6,7 @@ import { createConfigLoader } from "./features/config.ts";
 import { paths as layout } from "./features/layout.ts";
 import { fetchMirror } from "./features/repo.ts";
 import { Runner } from "./features/runner.ts";
-import { runtimesOf } from "./features/runtime-context.ts";
+import { driversOf } from "./features/driver-context.ts";
 
 const DEFAULT_DATA_DIR = "/data";
 export const DEFAULT_MAX_RUNS = 2;
@@ -29,7 +29,7 @@ export const runLimits = (env: Env) => ({
 /**
  * The plugins the container's environment names, installed under its data dir
  * and loaded: their providers, what's never given to an agent, the agent
- * runtimes by id, and what a config may import: core, as this runner's own
+ * drivers by id, and what a config may import: core, as this runner's own
  * copy, and the plugins.
  */
 export const containerPlugins = async (vars: Vars, dataDir: string, options: { install?: Install } = {}) => {
@@ -39,7 +39,7 @@ export const containerPlugins = async (vars: Vars, dataDir: string, options: { i
   return {
     providers,
     privateEnv: privateEnv(providers),
-    runtimes: runtimesOf(providers.agents),
+    drivers: driversOf(providers.agents),
     modules: configModules(plugins, dir, Bun.resolveSync("@achq/core", import.meta.dir)),
   };
 };
@@ -49,7 +49,7 @@ export const runnerFromEnv = async (vars: Vars, options: { log?: (line: string) 
   const env = new Env(vars);
   const { repo, container, dataDir, repoUrl } = settings(env);
   const paths = layout(dataDir);
-  const { providers, privateEnv, runtimes, modules } = await containerPlugins(vars, dataDir, options);
+  const { providers, privateEnv, drivers, modules } = await containerPlugins(vars, dataDir, options);
   let runner: Runner;
   const loadConfig = createConfigLoader({
     modules,
@@ -63,7 +63,7 @@ export const runnerFromEnv = async (vars: Vars, options: { log?: (line: string) 
     // Without the router's key or secrets: credentials come from the router.
     channelProviders: providers.channels.map((c) => c.create(vars)),
     policyProviders: providers.policies.map((p) => p.create(vars)),
-    runtimes,
+    drivers,
     privateEnv,
     routerUrl: env.require(ENV.routerUrl),
     containerSecret: env.require(ENV.containerSecret),

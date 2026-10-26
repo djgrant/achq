@@ -25,8 +25,8 @@ export const main = async () => {
       const number = required(args[0]);
       const session = required(args[1]);
       // Installed already, by the runner that served the session's runs.
-      const { privateEnv, runtimes, modules } = await containerPlugins(process.env, dataDir);
-      process.exit(await resume({ paths, number, session, loadConfig: resumeConfig(paths, repoUrl, modules), container, runtimes, privateEnv }));
+      const { privateEnv, drivers, modules } = await containerPlugins(process.env, dataDir);
+      process.exit(await resume({ paths, number, session, loadConfig: resumeConfig(paths, repoUrl, modules), container, drivers, privateEnv }));
     },
   };
   const named = Object.entries(COMMANDS).find(([, name]) => name === command)?.[0] as RunnerCommand | undefined;
