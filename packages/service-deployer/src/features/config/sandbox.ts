@@ -1,4 +1,9 @@
-import { getQuickJS, type QuickJSContext, type QuickJSHandle } from "quickjs-emscripten";
+import RELEASE_SYNC from "@jitl/quickjs-wasmfile-release-sync";
+import { newQuickJSWASMModuleFromVariant, type QuickJSContext, type QuickJSHandle, type QuickJSWASMModule } from "quickjs-emscripten-core";
+
+/** QuickJS's release build, loaded once. The only one installed: quickjs-emscripten would bring its debug and async builds too. */
+let quickjsModule: Promise<QuickJSWASMModule> | undefined;
+const getQuickJS = () => (quickjsModule ??= newQuickJSWASMModuleFromVariant(RELEASE_SYNC));
 
 export type Limits = {
   memoryBytes: number;

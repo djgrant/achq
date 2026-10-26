@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { sandbox } from "../src/sandbox.ts";
+import { sandbox } from "../src/features/config/sandbox.ts";
 
 describe("run", () => {
   test("modules import each other by relative path, and the entry's default export comes back", async () => {

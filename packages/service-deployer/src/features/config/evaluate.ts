@@ -2,7 +2,7 @@ import { posix } from "node:path";
 import { CONFIG_DIR, CONFIG_ENTRY } from "@achq/core";
 import { type ManifestInput, validateManifest } from "@achq/core/manifest";
 import { errors } from "@achq/utils/errors";
-import { type Limits, sandbox } from "@achq/utils/sandbox";
+import { type Limits, sandbox } from "./sandbox.ts";
 
 export class ConfigError extends Error {}
 

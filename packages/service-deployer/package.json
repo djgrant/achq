@@ -23,7 +23,9 @@
     "@achq/core": "workspace:*",
     "@achq/utils": "workspace:*",
     "@hono/zod-openapi": "^1.6.3",
+    "@jitl/quickjs-wasmfile-release-sync": "^0.32.0",
     "hono": "^4.13.13",
+    "quickjs-emscripten-core": "^0.32.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {

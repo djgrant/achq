@@ -28,7 +28,6 @@
     "./json": "./src/json.ts",
     "./names": "./src/names.ts",
     "./railway": "./src/railway/index.ts",
-    "./sandbox": "./src/sandbox.ts",
     "./store": "./src/store/index.ts",
     "./store/handler": "./src/store/handler.ts",
     "./store/json-store": "./src/store/json-store.ts",
@@ -44,7 +43,6 @@
     "@octokit/plugin-rest-endpoint-methods": "^17.0.0",
     "@octokit/request-error": "^7.1.2",
     "hono": "^4.13.13",
-    "quickjs-emscripten": "^0.32.0",
     "zod": "^4.3.6"
   }
 }
