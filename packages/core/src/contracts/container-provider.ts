@@ -53,7 +53,7 @@ export interface ContainerProvider {
 export type { JsonStore, Stores } from "@achq/utils/store/json-store";
 
 /**
- * A container provider as the registry lists it: the `ContainerProvider` the
+ * A container provider as a plugin provides it: the `ContainerProvider` the
  * deployer creates, and the durable storage the router and deployer keep what
  * they own in when they run on it.
  */

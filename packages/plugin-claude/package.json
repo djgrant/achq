@@ -23,6 +23,7 @@
   },
   "devDependencies": {
     "@achq/core": "workspace:*",
+    "@achq/github": "workspace:*",
     "@achq/test-utils": "workspace:*",
     "@achq/utils": "workspace:*"
   }

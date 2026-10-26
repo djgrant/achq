@@ -3,9 +3,11 @@
 Keep operator secrets and generated channel keys out of plaintext files:
 
 ```ts [achq.config.ts]
+import * as onepassword from "@achq/1password";
+
 export default {
-  env: "op run --env-file=.env --",                   // <-- 1. loads CLI env vars once at startup
-  vault: { provider: "1password", name: "acme-ops" }, // <-- 2. stores generated channel private keys
+  env: "op run --env-file=.env --",       // <-- 1. loads CLI env vars once at startup
+  vault: onepassword.vault("acme-ops"),   // <-- 2. stores generated channel private keys
 };
 ```
 

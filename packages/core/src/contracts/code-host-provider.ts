@@ -99,7 +99,7 @@ export interface CodeHostAsYou {
   howTo(change: "install" | "remove", source: string, repo: string, url: string): string;
 }
 
-/** A code host's services' side, made with `create`, and the CLI's, made with `asYou`. An infra has one: the registry's `CODE_HOST`. */
+/** A code host's services' side, made with `create`, and the CLI's, made with `asYou`. An infra has one, its `CodeHost` resource's `implementation`. */
 export type CodeHostImplementation = Implementation<CodeHostProvider> & {
   asYou(env: Vars): CodeHostAsYou;
 };

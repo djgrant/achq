@@ -30,14 +30,13 @@ RUN npm install -g bun@1.4.3
 # Repo-specific packages and toolchains
 RUN apt-get update && apt-get install -y jq postgresql-client && rm -rf /var/lib/apt/lists/*
 
-ARG ACHQ_REF=main
-RUN curl -fsSL "https://raw.githubusercontent.com/djgrant/achq/$ACHQ_REF/install.sh" | sh -s "$ACHQ_REF"
+RUN curl -fsSL https://raw.githubusercontent.com/djgrant/achq/main/install.sh | sh
 ```
 
 | Requirement | Reason |
 | --- | --- |
 | **Debian/Ubuntu base** | `install.sh` uses `apt-get` to install `git`, `gh`, `curl`, and process tools |
-| **Global `bun`** | `install.sh` uses `bun` to build `/usr/local/bin/achq-runner` |
+| **Global `bun`** | `/usr/local/bin/achq-runner` runs `@achq/runner` with `bunx`, at the version the deployer gives the container, and installs the infrastructure's plugins under `/data/plugins` |
 | **System-wide paths** | Runner drops privileges to user `agent` (`HOME=/data/home`) |
 | **No `CMD` / `ENTRYPOINT`** | Container provider starts `/usr/local/bin/achq-runner` directly |
 

@@ -108,6 +108,9 @@ importers:
       '@achq/core':
         specifier: workspace:*
         version: link:../core
+      '@achq/github':
+        specifier: workspace:*
+        version: link:../plugin-github
       '@achq/test-utils':
         specifier: workspace:*
         version: link:../test-utils
@@ -161,34 +164,6 @@ importers:
       '@achq/utils':
         specifier: workspace:*
         version: link:../utils
-
-  packages/registry:
-    dependencies:
-      '@achq/1password':
-        specifier: workspace:*
-        version: link:../plugin-1password
-      '@achq/claude':
-        specifier: workspace:*
-        version: link:../plugin-claude
-      '@achq/cloudflare':
-        specifier: workspace:*
-        version: link:../plugin-cloudflare
-      '@achq/core':
-        specifier: workspace:*
-        version: link:../core
-      '@achq/github':
-        specifier: workspace:*
-        version: link:../plugin-github
-      '@achq/railway':
-        specifier: workspace:*
-        version: link:../plugin-railway
-      '@achq/utils':
-        specifier: workspace:*
-        version: link:../utils
-    devDependencies:
-      '@achq/test-utils':
-        specifier: workspace:*
-        version: link:../test-utils
 
   packages/service-deployer:
     dependencies:

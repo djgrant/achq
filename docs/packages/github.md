@@ -8,8 +8,18 @@ pnpm add -D @achq/github
 
 | Import path | Used in | Exports |
 | --- | --- | --- |
-| `@achq/github/infra` | `achq.infra.ts` | `github.Channel` (provisions the GitHub App and webhook) |
+| `@achq/github/infra` | `achq.infra.ts` | `github.CodeHost` (where the repositories live), `github.Channel` (provisions the GitHub App and webhook) |
 | `@achq/github` | `.achq/config.ts` | `Channel.get`, `Policy`, `channel.issues`, `channel.issueComment`, `channel.issue` |
+
+## Code host
+
+Every infrastructure declares one code host, where the repositories it serves live:
+
+```ts [achq.infra.ts]
+new github.CodeHost("github");
+```
+
+The router checks push access and lists installed repositories through it, the deployer reads `.achq/` and writes `ACHQ_STATUS` with it, and the CLI reaches repositories through your `gh` login.
 
 ## Channel
 

@@ -78,13 +78,16 @@ Declare the central control plane graph:
 
 ```ts [achq.infra.ts]
 import { achq } from "@achq/core";
+import * as claude from "@achq/claude/infra";
 import * as cloudflare from "@achq/cloudflare/infra";
 import * as github from "@achq/github/infra";
 
 export default achq(() => {
   const router = new cloudflare.Router("router", { project: "acme-agents" });
   new cloudflare.Deployer("deployer", { router, owners: ["acme"] });
+  new github.CodeHost("github");
   new github.Channel("github", { name: "acme-agents", org: "acme", router });
+  new claude.Runtime("claude");
 });
 ```
 

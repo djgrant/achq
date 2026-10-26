@@ -47,7 +47,7 @@ const repoFiles = (overrides: Record<string, string | undefined> = {}) => {
   return Object.fromEntries(Object.entries(files).filter((e): e is [string, string] => e[1] !== undefined));
 };
 
-/** The deployer's GitHub code host, as main.ts builds it from the registry. */
+/** The deployer's GitHub code host, as main.ts builds it from the plugins it loaded. */
 const DEPLOYER_PERMISSIONS = { contents: "read", metadata: "read", actions_variables: "write" };
 const githubDeps = () => {
   const env = { GITHUB_API_URL: github.url };

@@ -7,13 +7,14 @@ Deploy an ACHQ control plane on Cloudflare, subscribe `acme/webapp`, trigger Cla
 In your infra repository, add the packages `achq.infra.ts` imports:
 
 ```sh
-pnpm add -D @achq/core @achq/cloudflare @achq/github
+pnpm add -D @achq/core @achq/cloudflare @achq/github @achq/claude
 ```
 
 Declare the control plane for the `acme` organization:
 
 ```ts [achq.infra.ts]
 import { achq } from "@achq/core";
+import * as claude from "@achq/claude/infra";
 import * as cloudflare from "@achq/cloudflare/infra";
 import * as github from "@achq/github/infra";
 
@@ -26,7 +27,9 @@ export default achq(() => {
     sshKeys: ["ssh-ed25519 AAAA... me@laptop"], // <-- ~/.ssh/id_ed25519.pub for `achq container resume`
   });
 
+  new github.CodeHost("github");
   new github.Channel("github", { name: "acme-agents", org: "acme", router });
+  new claude.Runtime("claude");
 });
 ```
 
@@ -58,8 +61,7 @@ Define the container image where agents will run:
 ```dockerfile [.achq/Dockerfile]
 FROM node:22.18-bookworm
 RUN npm install -g bun@1.4.3
-ARG ACHQ_REF=main
-RUN curl -fsSL "https://raw.githubusercontent.com/djgrant/achq/$ACHQ_REF/install.sh" | sh -s "$ACHQ_REF"
+RUN curl -fsSL https://raw.githubusercontent.com/djgrant/achq/main/install.sh | sh
 ```
 
 Wire GitHub issues and `@claude` mentions to that container:

@@ -20,12 +20,11 @@ See [CLI Reference](../manual/cli.md) for all commands and flags.
 Configure secret loading and vault storage for the CLI:
 
 ```ts [achq.config.ts]
+import * as onepassword from "@achq/1password";
+
 export default {
   env: "op run --env-file=.env --",
-  vault: {
-    provider: "1password", // <-- registered VaultProvider id
-    name: "Operations",    // <-- vault name passed to the provider
-  },
+  vault: onepassword.vault("Operations"), // <-- any object that reads and writes items
 };
 ```
 
@@ -34,4 +33,4 @@ Read from the ACHQ repository root before any `achq` command runs:
 | Field | Behavior |
 | --- | --- |
 | `env` | Command prefix run once to populate `process.env` before pre-flight checks |
-| `vault` | Selects a `VaultProvider` (such as [`@achq/1password`](./1password.md)) to store generated channel keys |
+| `vault` | A vault (such as [`@achq/1password`](./1password.md)'s) to store generated channel keys: anything with `read(item)` and `write(item, fields)` |

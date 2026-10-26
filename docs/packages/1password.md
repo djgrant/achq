@@ -1,16 +1,15 @@
 # `@achq/1password`
 
-`@achq/1password` stores and retrieves ACHQ secrets (such as generated GitHub App credentials) in a 1Password vault via the `op` CLI. It ships with [`@achq/cli`](./cli.md), so there's nothing to install: name it in `achq.config.ts`.
+`@achq/1password` stores and retrieves ACHQ secrets (such as generated GitHub App credentials) in a 1Password vault via the `op` CLI. Add it to the infrastructure repository (`pnpm add -D @achq/1password`) and give its vault in `achq.config.ts`.
 
 Load CLI secrets and persist generated channel keys in a 1Password vault:
 
 ```ts [achq.config.ts]
+import * as onepassword from "@achq/1password";
+
 export default {
   env: "op run --env-file=.env --",
-  vault: {
-    provider: "1password",
-    name: "Operations", // <-- 1Password vault name passed to `op --vault`
-  },
+  vault: onepassword.vault("Operations"), // <-- 1Password vault name passed to `op --vault`
 };
 ```
 
