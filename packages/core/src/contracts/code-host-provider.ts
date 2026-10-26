@@ -1,10 +1,10 @@
 import type { Vars } from "@achq/utils/env";
 import type { Credential } from "../model/credentials.ts";
-import type { RepoManifest } from "../model/manifest.ts";
+import type { RepoManifest } from "../model/resource-data.ts";
 import type { RepoIdentity } from "../model/repos.ts";
 import type { PolicyData } from "../model/resource-data.ts";
 import type { Implementation } from "./implementation.ts";
-import type { InstalledRepo, RepoInstallation, Status } from "../wire/protocol.ts";
+import type { InstalledRepo, RepoInstallation, Status } from "../wire/types.ts";
 
 /** A repo's default branch head, and the `.achq` tree in it. */
 export type ConfigTree = {

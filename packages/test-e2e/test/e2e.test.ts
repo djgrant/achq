@@ -1,7 +1,8 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { ENV, type InstallationRequest, type ReachRequest, type RepoRequest } from "@achq/core";
+import { ENV } from "@achq/core";
+import type { InstallationRequest, ReachRequest, RepoRequest } from "@achq/core/protocol";
 import { containerSecret } from "@achq/core/secrets";
 import { STATUS_VARIABLE } from "@achq/github";
 import { APP_BOT, BOT, DJ, INSTALLATION, KEY, MALLORY, REPO, type Sent, SLUG } from "./github-sends.ts";

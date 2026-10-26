@@ -1,4 +1,5 @@
-import { type ChannelEvent, type ChannelProvider, type ContainerEnvelope, type DeployerEnvelope, type FailedDelivery, fromTrustedPerson, type ReplayResult, repoName, type RouterRepoConfig, threadKey } from "@achq/core";
+import { type ChannelEvent, type ChannelProvider, fromTrustedPerson, repoName, threadKey } from "@achq/core";
+import type { ContainerEnvelope, DeployerEnvelope, FailedDelivery, ReplayResult, RouterRepoConfig } from "@achq/core/protocol";
 import { deployerRoutes } from "@achq/core/routes/deployer";
 import { runnerRoutes } from "@achq/core/routes/runner";
 import { adminSecret, containerSecret } from "@achq/core/secrets";

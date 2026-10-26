@@ -1,4 +1,5 @@
-import { type FailedDelivery, type ReplayResult, threadKey } from "@achq/core";
+import { threadKey } from "@achq/core";
+import type { FailedDelivery, ReplayResult } from "@achq/core/protocol";
 import { text } from "@achq/utils/text";
 
 /** `1 delivery`, `2 deliveries`. */

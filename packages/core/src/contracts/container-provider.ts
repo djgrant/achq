@@ -2,7 +2,7 @@ import type { Vars } from "@achq/utils/env";
 import type { JsonStore } from "@achq/utils/store/json-store";
 import { ENV } from "../wire/constants.ts";
 import type { RepoIdentity } from "../model/repos.ts";
-import type { Shell } from "../wire/protocol.ts";
+import type { Shell } from "../wire/types.ts";
 import type { Implementation } from "./implementation.ts";
 
 export type ContainerSpec = {

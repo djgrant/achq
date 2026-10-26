@@ -1,4 +1,5 @@
-import type { ChannelCredential, CredentialsResponse, PolicyProvider } from "@achq/core";
+import type { ChannelCredential, PolicyProvider } from "@achq/core";
+import type { CredentialsResponse } from "@achq/core/protocol";
 import { routerForContainer } from "@achq/core/clients/router";
 import { async } from "@achq/utils/async";
 import { disk } from "@achq/utils/disk";

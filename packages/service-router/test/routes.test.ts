@@ -2,7 +2,7 @@
 // from the same declarations. The `@ts-expect-error` lines are the proof that drift is a type
 // error: `pok typecheck` fails if any of them stops being one.
 import { describe, expect, expectTypeOf, test } from "bun:test";
-import type { DeployerVersion, DeployRecord, RouterRepoConfig, SyncRequest, SyncStarted, SyncStatus } from "@achq/core";
+import type { DeployerVersion, DeployRecord, RouterRepoConfig, SyncRequest, SyncStarted, SyncStatus } from "@achq/core/protocol";
 import { deployerClient } from "@achq/core/clients/deployer";
 import { repoParams, routerAdmin, routerForPusher } from "@achq/core/clients/router";
 import { deployerRoutes } from "@achq/core/routes/deployer";

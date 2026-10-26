@@ -1,4 +1,5 @@
-import { type ChannelProvider, type CodeHostProvider, type PolicyProvider, repoName, type RouterRepoConfig, type Stores } from "@achq/core";
+import { type ChannelProvider, type CodeHostProvider, type PolicyProvider, repoName, type Stores } from "@achq/core";
+import type { RouterRepoConfig } from "@achq/core/protocol";
 import { type Claims, createStore } from "./store.ts";
 
 /** Milliseconds between attempts while a sleeping service wakes: about five minutes in all. */

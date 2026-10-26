@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { RouterRepoConfig } from "@achq/core";
+import type { RouterRepoConfig } from "@achq/core/protocol";
 import { containerSecret } from "@achq/core/secrets";
 import { signedHeaders } from "@achq/core/signing";
 import { routerAdmin } from "@achq/core/clients/router";

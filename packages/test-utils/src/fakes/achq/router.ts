@@ -1,4 +1,5 @@
-import type { InstalledRepo, MintRequest, PolicyData, RouterRepoConfig, SourceSettings, ValidateRequest } from "@achq/core";
+import type { InstalledRepo, PolicyData, SourceSettings } from "@achq/core";
+import type { MintRequest, RouterRepoConfig, ValidateRequest } from "@achq/core/protocol";
 import { routerAdminRoutes as routes } from "@achq/core/routes/router-admin";
 import { adminSecret } from "@achq/core/secrets";
 import { verifySigned } from "@achq/core/signing";

@@ -1,4 +1,4 @@
-import type { DeployerEnvelope } from "@achq/core";
+import type { DeployerEnvelope } from "@achq/core/protocol";
 import type { DeployerContext } from "../context.ts";
 import { deploy, uninstall } from "./deploy.ts";
 

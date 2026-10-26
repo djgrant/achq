@@ -1,4 +1,5 @@
-import { repoName, type SyncRequest, type SyncResult } from "@achq/core";
+import { repoName } from "@achq/core";
+import type { SyncRequest, SyncResult } from "@achq/core/protocol";
 import type { RepoManifest } from "@achq/core/manifest";
 import type { DeployerContext } from "../context.ts";
 import type { StoredRecord } from "../store.ts";

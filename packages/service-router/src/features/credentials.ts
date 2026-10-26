@@ -1,4 +1,5 @@
-import type { PolicyData, RouterRepoConfig } from "@achq/core";
+import type { PolicyData } from "@achq/core";
+import type { RouterRepoConfig } from "@achq/core/protocol";
 import type { RouterContext } from "../context.ts";
 
 const noProvider = (id: string) => `No policy provider "${id}"`;

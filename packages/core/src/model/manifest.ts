@@ -1,7 +1,7 @@
 import { collections } from "@achq/utils/collections";
 import { json, type Json } from "@achq/utils/json";
 import { z } from "zod";
-import { type PolicyData, RESOURCE_NAME, type SelectorData, undeclaredRef } from "./resource-data.ts";
+import { type ManifestInput as ManifestInputType, type PolicyData, RESOURCE_NAME, type RepoManifest as RepoManifestType, type SelectorData, undeclaredRef } from "./resource-data.ts";
 
 /*
  * Kept out of @achq/core's index, so what runs in the config sandbox doesn't
@@ -25,11 +25,7 @@ type Parts<C extends z.core.$ZodObjectConfig> = {
   policy: z.ZodType<PolicyData>;
 };
 
-/**
- * What a repo's config evaluates to: every resource as plain data. Resources
- * refer to each other by name. Arrays keep declaration order, which decides
- * which workspace claims a thread. Written once for both roles, so they can't drift.
- */
+/** The manifest's shape (resource-data.ts's ManifestInput and RepoManifest), written once for both roles, so they can't drift. */
 const manifestShape = <C extends z.core.$ZodObjectConfig>({ object, list, name, text, key, runtime, data, selector, policy }: Parts<C>) =>
   object({
     policies: list(object({ name, policy }), 100),
@@ -67,8 +63,8 @@ export const ManifestInput = manifestShape({
   data: limitedData,
   selector: tagged<SelectorData>("channel"),
   policy: tagged<PolicyData>("provider"),
-});
-export type ManifestInput = z.infer<typeof ManifestInput>;
+}) satisfies z.ZodType<ManifestInputType>;
+export type ManifestInput = ManifestInputType;
 
 /** The manifest as another version of achq kept it, e.g. in `StoredRecord.deployed`: loose, without limits. */
 export const RepoManifest = manifestShape({
@@ -81,8 +77,8 @@ export const RepoManifest = manifestShape({
   data: z.json() as z.ZodType<Json>,
   selector: selectorData,
   policy: policyData,
-});
-export type RepoManifest = z.infer<typeof RepoManifest>;
+}) satisfies z.ZodType<RepoManifestType>;
+export type RepoManifest = RepoManifestType;
 
 type Named = { name: string };
 

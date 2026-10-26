@@ -1,5 +1,5 @@
 import { type Json, json } from "@achq/utils/json";
-import type { ManifestInput } from "../model/manifest.ts";
+import type { ManifestInput } from "../model/resource-data.ts";
 import { undeclaredRef } from "../model/resource-data.ts";
 import { isAgent, isContainer, isPolicy, isTrigger, isWorkspace } from "../resources/config.ts";
 import { declared, type Resource } from "../resources/resource.ts";

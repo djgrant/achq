@@ -3,7 +3,8 @@ import { generateKeyPairSync, createPublicKey, createVerify } from "node:crypto"
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { achq, CORE_PLUGIN, type SyncRequest, type SyncResult } from "@achq/core";
+import { achq, CORE_PLUGIN } from "@achq/core";
+import type { SyncRequest, SyncResult } from "@achq/core/protocol";
 import { adminSecret, implementationSecret } from "@achq/core/secrets";
 import { routerAdminRoutes } from "@achq/core/routes/router-admin";
 import { verifySigned } from "@achq/core/signing";

@@ -6,6 +6,7 @@ import type { ChannelEvent, DeployerEvent } from "../model/events.ts";
 import { policyData, selectorData } from "../model/manifest.ts";
 import { repoName } from "../model/repos.ts";
 import type { ThreadRef } from "../model/threads.ts";
+import type * as types from "./types.ts";
 
 /*
  * Each schema has one of two roles. A request schema is a `z.object`: it
@@ -66,13 +67,12 @@ export type RepoRequest = z.infer<typeof RepoRequest>;
 export const ReachRequest = RepoRequest.extend({ container: z.string(), command: z.array(z.string()), tty: z.boolean() });
 export type ReachRequest = z.infer<typeof ReachRequest>;
 
-/** A command your machine runs to open a shell in a container, as its container provider computed it just now, and the binaries it needs there. */
 export const Shell = z.object({
   argv: z.array(z.string()).min(1),
   env: z.record(z.string(), z.string()).optional(),
   requires: z.array(z.object({ binary: z.string(), install: z.string() })),
-});
-export type Shell = z.infer<typeof Shell>;
+}) satisfies z.ZodType<types.Shell>;
+export type Shell = types.Shell;
 
 /** Whether `source`, e.g. a GitHub App's slug, is installed on the repo: `POST /installation`. */
 export const InstallationRequest = RepoRequest.extend({ source: z.string() });
@@ -143,20 +143,14 @@ export const CredentialsResponse = z.looseObject({
 });
 export type CredentialsResponse = z.infer<typeof CredentialsResponse>;
 
-export const InstalledRepo = z.looseObject({ repo: z.string() });
-export type InstalledRepo = z.infer<typeof InstalledRepo>;
+export const InstalledRepo = z.looseObject({ repo: z.string() }) satisfies z.ZodType<types.InstalledRepo>;
+export type InstalledRepo = types.InstalledRepo;
 
-/**
- * A source's installation on a repo, as the router's code host sees it: whether
- * it covers the repo, and the page where you change that, e.g. a GitHub App's
- * install page, or its installation's settings, where you choose its repos.
- */
-export const RepoInstallation = z.looseObject({ installed: z.boolean(), url: z.string() });
-export type RepoInstallation = z.infer<typeof RepoInstallation>;
+export const RepoInstallation = z.looseObject({ installed: z.boolean(), url: z.string() }) satisfies z.ZodType<types.RepoInstallation>;
+export type RepoInstallation = types.RepoInstallation;
 
-/** What a source (e.g. a GitHub App) is set up to send and allow, for checks. */
-export const SourceSettings = z.looseObject({ channel: z.string(), source: z.string(), events: z.array(z.string()), permissions: z.record(z.string(), z.string()) });
-export type SourceSettings = z.infer<typeof SourceSettings>;
+export const SourceSettings = z.looseObject({ channel: z.string(), source: z.string(), events: z.array(z.string()), permissions: z.record(z.string(), z.string()) }) satisfies z.ZodType<types.SourceSettings>;
+export type SourceSettings = types.SourceSettings;
 
 export const SyncResult = z.looseObject({
   deployed: z.array(z.string()),
@@ -190,10 +184,9 @@ export const SyncStatus = z.discriminatedUnion("state", [
 ]);
 export type SyncStatus = z.infer<typeof SyncStatus>;
 
-export const DeployState = z.enum(["deployed", "failed", "uninstalled"]);
-export type DeployState = z.infer<typeof DeployState>;
+export const DeployState = z.enum(["deployed", "failed", "uninstalled"]) satisfies z.ZodType<types.DeployState>;
+export type DeployState = types.DeployState;
 
-/** The deployer's record of a repo, as ACHQ_STATUS and `/admin/status` show it. */
 export const DeployRecord = z.looseObject({
   repo: z.string(),
   state: DeployState,
@@ -205,9 +198,8 @@ export const DeployRecord = z.looseObject({
   warnings: z.array(z.string()).optional(),
   /** What only you can do to fix a failed deploy, in your browser. `achq repo install` opens it, then deploys again. */
   action: browserAction.optional(),
-});
-export type DeployRecord = z.infer<typeof DeployRecord>;
+}) satisfies z.ZodType<types.DeployRecord>;
+export type DeployRecord = types.DeployRecord;
 
-/** The status the deployer writes where the repo's CLI reads it, e.g. GitHub's ACHQ_STATUS variable: its record, and the router's public URL. */
-export const Status = DeployRecord.extend({ router: z.string() });
-export type Status = z.infer<typeof Status>;
+export const Status = DeployRecord.extend({ router: z.string() }) satisfies z.ZodType<types.Status>;
+export type Status = types.Status;

@@ -1,5 +1,5 @@
 import { defineTask } from "@pokit/core";
-import type { SyncRequest } from "@achq/core";
+import type { SyncRequest } from "@achq/core/protocol";
 import type { RouterAdmin } from "@achq/core/clients/router";
 import { async } from "@achq/utils/async";
 import { time } from "@achq/utils/time";

@@ -1,6 +1,6 @@
-import { type ChannelProvider, type CredentialsResponse, type DeployerEvent, repoName } from "@achq/core";
+import { type ChannelProvider, type DeployerEvent, repoName } from "@achq/core";
 import { DEPLOYER_SERVICE, deployerClient } from "@achq/core/clients/deployer";
-import { CredentialsRequest, type RepoRequest, type RouterRepoConfig } from "@achq/core/protocol";
+import { CredentialsRequest, type CredentialsResponse, type RepoRequest, type RouterRepoConfig } from "@achq/core/protocol";
 import { routerAdminRoutes as adminRoutes } from "@achq/core/routes/router-admin";
 import { routerContainerRoutes as containerRoutes } from "@achq/core/routes/router-container";
 import { routerPublicRoutes as publicRoutes } from "@achq/core/routes/router-public";

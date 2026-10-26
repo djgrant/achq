@@ -1,4 +1,4 @@
-import type { SyncResult } from "@achq/core";
+import type { SyncResult } from "@achq/core/protocol";
 import { text } from "@achq/utils/text";
 
 /** What a sync did, or would do on a dry run, a line for each kind of change. */

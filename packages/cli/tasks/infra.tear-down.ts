@@ -1,5 +1,6 @@
 import { defineTask } from "@pokit/core";
-import { type SyncRequest, teardown } from "@achq/core";
+import { teardown } from "@achq/core";
+import type { SyncRequest } from "@achq/core/protocol";
 import { routerAdmin } from "@achq/core/clients/router";
 import { context } from "@achq/core/context";
 import { z } from "zod";

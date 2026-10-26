@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { CredentialsResponse } from "@achq/core";
+import type { CredentialsResponse } from "@achq/core/protocol";
 import { containerSecret } from "@achq/core/secrets";
 import { signedHeaders } from "@achq/core/signing";
 import { key, repo, serve, fakeContainer, config, deployed } from "./harness.ts";

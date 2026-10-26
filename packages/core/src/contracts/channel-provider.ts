@@ -2,7 +2,7 @@ import type { ChannelCredential, Credential } from "../model/credentials.ts";
 import type { ChannelEvent, ParsedEvent } from "../model/events.ts";
 import type { SelectorData } from "../model/resource-data.ts";
 import type { Message, Thread, ThreadRef } from "../model/threads.ts";
-import type { SourceSettings } from "../wire/protocol.ts";
+import type { SourceSettings } from "../wire/types.ts";
 
 /** Where threads live. Hears events, reads threads, posts replies, decides who's trusted. */
 export interface ChannelProvider {
