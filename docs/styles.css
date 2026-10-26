@@ -24,6 +24,10 @@
   font-size: 1.375rem;
 }
 
+.prose :is(h1, h2) {
+  color: color-mix(in oklab, var(--tw-prose-headings) 92%, var(--color-surface));
+}
+
 .prose h3 {
   font-family: var(--font-sans);
 }
