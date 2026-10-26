@@ -18,6 +18,7 @@ import {
 import { collections } from "@achq/utils/collections";
 import { appWebhookSecret, joinApps } from "../src/lib/apps.ts";
 import { Channel } from "../src/channel/resource.ts";
+import { PLUGIN } from "../src/plugin.ts";
 
 const { privateKey: pem, publicKey } = generateKeyPairSync("rsa", { modulusLength: 2048, privateKeyEncoding: { type: "pkcs8", format: "pem" }, publicKeyEncoding: { type: "spki", format: "pem" } });
 const PERMISSIONS = { contents: "write", issues: "write", pull_requests: "write", metadata: "read", actions_variables: "write" };
@@ -92,6 +93,7 @@ type Service = { url: string; key: string; env: Record<string, string>; exists: 
 
 /** What the router's URL, key and variables come from. A new one's URL is only known once it's applied. */
 class RouterService extends ManagedResource<Service, true, Omit<Service, "exists">, "create"> {
+  readonly plugin = PLUGIN;
   readonly kind = "service";
   read = async ({ exists }: Service) => (exists ? (true as const) : undefined);
   diff = (_: Service, current: true | undefined) => (current ? [] : ["create" as const]);
@@ -102,6 +104,7 @@ class RouterService extends ManagedResource<Service, true, Omit<Service, "exists
 
 /** A router that's planned as its service alone. */
 class StubRouter extends Router {
+  readonly plugin = PLUGIN;
   readonly containerProvider = "stub";
   readonly url: Output<string>;
   protected readonly placement = undefined as unknown as Placement;

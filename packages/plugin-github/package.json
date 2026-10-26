@@ -16,15 +16,20 @@
     "./infra": "./src/infra.ts",
     "./channel": "./src/channel/index.ts",
     "./policy": "./src/policy/index.ts",
-    "./code-host": "./src/code-host/index.ts"
+    "./code-host": "./src/code-host/index.ts",
+    "./providers": "./src/providers.ts"
   },
   "dependencies": {
-    "@achq/core": "workspace:*",
-    "@achq/utils": "workspace:*",
     "@octokit/webhooks-methods": "^6.0.0",
     "zod": "^4.3.6"
   },
+  "peerDependencies": {
+    "@achq/core": "workspace:^",
+    "@achq/utils": "workspace:^"
+  },
   "devDependencies": {
-    "@achq/test-utils": "workspace:*"
+    "@achq/core": "workspace:*",
+    "@achq/test-utils": "workspace:*",
+    "@achq/utils": "workspace:*"
   }
 }

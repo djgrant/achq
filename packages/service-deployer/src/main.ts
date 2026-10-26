@@ -22,6 +22,7 @@ export const main = async () => {
       routerPublicUrl: env.require(ENV.routerPublicUrl),
       ref: env.require(ENV.ref),
       owners: text.commaList(env.require(ENV.owners)),
+      runtimes: text.commaList(env.optional(ENV.runtimes) ?? ""),
     },
     {
       containerProvider: containerProvider.provider.create(env.vars),

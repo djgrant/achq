@@ -13,13 +13,17 @@
   ],
   "exports": {
     ".": "./src/index.ts",
-    "./agent": "./src/agent/index.ts"
+    "./agent": "./src/agent/index.ts",
+    "./infra": "./src/infra.ts",
+    "./providers": "./src/providers.ts"
   },
-  "dependencies": {
-    "@achq/core": "workspace:*",
-    "@achq/utils": "workspace:*"
+  "peerDependencies": {
+    "@achq/core": "workspace:^",
+    "@achq/utils": "workspace:^"
   },
   "devDependencies": {
-    "@achq/test-utils": "workspace:*"
+    "@achq/core": "workspace:*",
+    "@achq/test-utils": "workspace:*",
+    "@achq/utils": "workspace:*"
   }
 }

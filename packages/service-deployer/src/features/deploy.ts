@@ -131,7 +131,7 @@ const deployOnce = async (ctx: DeployerContext, repo: string, dryRun: boolean): 
     const manifest = await ctx.evaluate(files).catch((error): never => {
       throw new DeployFailure(`${CONFIG_FILE}: ${errors.message(error)}`);
     });
-    const checked = checkManifest(manifest, { tree, sources: await ctx.router.sources() });
+    const checked = checkManifest(manifest, { tree, sources: await ctx.router.sources(), runtimes: ctx.env.runtimes });
     const policies = manifest.policies.map((p) => p.policy);
     const problems = policies.length ? (await ctx.router.validate({ body: { repo, policies } })).problems : [];
     // Warnings don't stop a deploy.

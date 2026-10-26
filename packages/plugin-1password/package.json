@@ -14,11 +14,13 @@
   "exports": {
     "./vault": "./src/vault/index.ts"
   },
-  "dependencies": {
-    "@achq/core": "workspace:*",
-    "@achq/utils": "workspace:*"
+  "peerDependencies": {
+    "@achq/core": "workspace:^",
+    "@achq/utils": "workspace:^"
   },
   "devDependencies": {
-    "@achq/test-utils": "workspace:*"
+    "@achq/core": "workspace:*",
+    "@achq/test-utils": "workspace:*",
+    "@achq/utils": "workspace:*"
   }
 }

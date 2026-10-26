@@ -3,6 +3,7 @@ import type { Output } from "@achq/core";
 import { CONTAINER_PROVIDER } from "../lib/constants.ts";
 import { Project } from "../lib/project.ts";
 import { ServiceParts } from "../lib/service-parts.ts";
+import { PLUGIN } from "../plugin.ts";
 
 /**
  * The router, as a Railway service in `project`: public, always on, with a
@@ -10,6 +11,7 @@ import { ServiceParts } from "../lib/service-parts.ts";
  * its private network. Applying waits for its deploy to go live.
  */
 export class Router extends core.Router {
+  readonly plugin = PLUGIN;
   readonly containerProvider = CONTAINER_PROVIDER;
   readonly project: Project;
   readonly url: Output<string>;

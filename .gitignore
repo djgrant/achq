@@ -8,3 +8,6 @@ secrets.env
 docs/.generated
 docs/dist
 docs/.wrangler
+
+# A second copy of core, made while core's tests run
+packages/core/.second-core

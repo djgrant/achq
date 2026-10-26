@@ -17,6 +17,7 @@ The design and the reasons behind it are in [docs/achq-design.md](docs/achq-desi
 ```ts
 // achq.infra.ts
 import { achq } from "@achq/core";
+import * as claude from "@achq/claude/infra";
 import * as github from "@achq/github/infra";
 import * as railway from "@achq/railway/infra";
 
@@ -24,8 +25,11 @@ export default achq(() => {
   const router = new railway.Router("router", { project: "achq" });
   // Runs in its router's Railway project, and puts containers there.
   new railway.Deployer("deployer", { router, owners: ["djgrant", "notationlabs"] });
+  new github.CodeHost("github");
   new github.Channel("personal", { name: "djgrant-claude", router });
   new github.Channel("notation", { name: "notation-achq", org: "notationlabs", router });
+  // What the containers' agents run on.
+  new claude.Runtime("claude");
 });
 ```
 
@@ -34,6 +38,7 @@ On Cloudflare, the router and deployer are Workers, each running its service in 
 ```ts
 // achq.infra.ts
 import { achq } from "@achq/core";
+import * as claude from "@achq/claude/infra";
 import * as cloudflare from "@achq/cloudflare/infra";
 import * as github from "@achq/github/infra";
 
@@ -41,7 +46,9 @@ export default achq(() => {
   const router = new cloudflare.Router("router", { project: "achq" });
   // Builds containers with Workers Builds, with a token of its own.
   new cloudflare.Deployer("deployer", { router, owners: ["djgrant", "notationlabs"], sshKeys: ["ssh-ed25519 AAAA… me@laptop"] });
+  new github.CodeHost("github");
   new github.Channel("personal", { name: "djgrant-claude", router });
+  new claude.Runtime("claude");
 });
 ```
 

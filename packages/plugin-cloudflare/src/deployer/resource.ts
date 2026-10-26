@@ -4,6 +4,7 @@ import { CLOUDFLARE_ENV, CONTAINER_PROVIDER } from "../lib/constants.ts";
 import { DeployerToken } from "../lib/deployer-token.ts";
 import { ServiceParts } from "../lib/service-parts.ts";
 import { Router } from "../router/resource.ts";
+import { PLUGIN } from "../plugin.ts";
 
 export type DeployerInputs = {
   router: core.Router;
@@ -24,6 +25,7 @@ export type DeployerInputs = {
  * deploy with the App's install page. It never gets your sign-in.
  */
 export class Deployer extends core.Deployer {
+  readonly plugin = PLUGIN;
   readonly containerProvider = CONTAINER_PROVIDER;
   protected readonly placement: ServiceParts;
   private readonly token: DeployerToken;

@@ -1,6 +1,7 @@
 import { type Change, type Context, known, ManagedResource } from "@achq/core";
 import { connect, deployerTokenPage, deployerTokenProblem, TOKENS_PAGE } from "./cloudflare.ts";
 import { CLOUDFLARE_ENV, TOKEN_ATTEMPTS } from "./constants.ts";
+import { PLUGIN } from "../plugin.ts";
 
 type Props = {
   /** The deployer's Worker. */
@@ -21,6 +22,7 @@ type TokenChange = "create" | "replace";
  * filled in, and you paste what it makes. It's checked before it's set.
  */
 export class DeployerToken extends ManagedResource<Props, State, {}, TokenChange> {
+  readonly plugin = PLUGIN;
   readonly kind = "cloudflare-deployer-token";
 
   async read({ worker, tag }: Props, ctx: Context) {

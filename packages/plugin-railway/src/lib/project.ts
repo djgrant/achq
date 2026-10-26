@@ -3,6 +3,7 @@ import { Env } from "@achq/utils/env";
 import { type ProjectAt, type ProjectSnapshot, RailwayError } from "@achq/utils/railway";
 import { RAILWAY_ENV } from "./constants.ts";
 import { railwayFromEnv } from "./railway.ts";
+import { PLUGIN } from "../plugin.ts";
 
 type Props = { name: string };
 
@@ -11,6 +12,7 @@ const placeOf = (project: ProjectSnapshot) => ({ projectId: project.id, environm
 
 /** A Railway project, found by name in RAILWAY_WORKSPACE_ID, or the token's only workspace. */
 export class Project extends CreateOnlyResource<Props, ProjectAt, ProjectAt> {
+  readonly plugin = PLUGIN;
   readonly kind = "railway-project";
   readonly what = "railway project";
 

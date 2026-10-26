@@ -3,6 +3,7 @@ import { CloudflareError, type RepoConnection, type Trigger, type TriggerSetting
 import { connect } from "./cloudflare.ts";
 import { BUILDS_GITHUB_APP, BUILDS_GITHUB_APP_INSTALL_URL, REPO_UNSEEN } from "./constants.ts";
 import { packed, type WorkerConfig } from "./wrangler.ts";
+import { PLUGIN } from "../plugin.ts";
 
 type Props = {
   worker: string;
@@ -82,6 +83,7 @@ const sameRepo = (trigger: Trigger, repo: string) => {
  * repo can't be changed.
  */
 export class BuildTrigger extends ManagedResource<Props, State, Outputs, TriggerChange> {
+  readonly plugin = PLUGIN;
   readonly kind = "cloudflare-build-trigger";
 
   async read({ tag, repo }: Props, ctx: Context) {

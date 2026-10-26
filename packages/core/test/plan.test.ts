@@ -3,6 +3,7 @@ import { type Change, plan, teardown } from "../src/engine/plan.ts";
 import { all, type Input, type Inputs, known, type Planned, UNKNOWN } from "../src/engine/values.ts";
 import { declared, resetDeclarations } from "../src/resources/resource.ts";
 import { type Context, DataSource, ManagedResource, Resource, type ResourceOptions } from "../src/resources/resource.ts";
+import { PLUGIN } from "../src/plugin.ts";
 
 type Db = { rows: Map<string, Row>; reads: string[]; writes: string[] };
 type Row = { id: string; value: string };
@@ -17,6 +18,7 @@ const ctx: Context = { env: {}, log: () => {}, newSecret: () => "secret", sleep:
 
 /** A row whose value is its one prop. Its id is known once it exists. */
 class Store extends ManagedResource<{ value: string }, Row, Row, "create" | "update"> {
+  readonly plugin = PLUGIN;
   readonly kind = "store";
   constructor(name: string, value: Input<string>, options: ResourceOptions & { after?: ManagedResource[]; protect?: boolean } = {}) {
     super(name, { value }, options);
@@ -56,6 +58,7 @@ class Doomed extends Store {
 
 /** A resource made of others: counts how often it's asked for them. */
 class Group extends Resource {
+  readonly plugin = PLUGIN;
   readonly kind = "group";
   asked = 0;
   parts: Resource[] = [];
@@ -268,6 +271,7 @@ test("teardown deletes what exists, each before what it depends on, and lists wh
 
 /** What a store's value comes from, e.g. an account: only read. */
 class Source extends DataSource<{}, { value: string }> {
+  readonly plugin = PLUGIN;
   readonly kind = "source";
   async read() {
     db.reads.push(this.name);

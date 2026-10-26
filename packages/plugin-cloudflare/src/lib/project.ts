@@ -1,5 +1,6 @@
 import { type Context, CreateOnlyResource, DataSource, type Planned, Resource, type ResourceOptions, UNKNOWN } from "@achq/core";
 import { connect } from "./cloudflare.ts";
+import { PLUGIN } from "../plugin.ts";
 
 type Named = { name: string };
 
@@ -7,6 +8,7 @@ type Named = { name: string };
 type AccountState = { accountId: string; workersDev: string };
 
 export class Account extends DataSource<{}, AccountState> {
+  readonly plugin = PLUGIN;
   readonly kind = "cloudflare-account";
 
   async read(_: {}, ctx: Context) {
@@ -19,6 +21,7 @@ export class Account extends DataSource<{}, AccountState> {
 
 /** A KV namespace, by its title. */
 export class Namespace extends CreateOnlyResource<Named, { id: string }, { namespaceId: string }> {
+  readonly plugin = PLUGIN;
   readonly kind = "cloudflare-kv-namespace";
   readonly what = "kv namespace";
 
@@ -43,6 +46,7 @@ export class Namespace extends CreateOnlyResource<Named, { id: string }, { names
 
 /** An R2 bucket. */
 export class Bucket extends CreateOnlyResource<Named, {}, { bucket: string }> {
+  readonly plugin = PLUGIN;
   readonly kind = "cloudflare-r2-bucket";
   readonly what = "r2 bucket";
 
@@ -73,6 +77,7 @@ export class Bucket extends CreateOnlyResource<Named, {}, { bucket: string }> {
  * archive their /data. Both are named after the project.
  */
 export class Project extends Resource {
+  readonly plugin = PLUGIN;
   readonly kind = "cloudflare-project";
   private readonly account: Account;
   private readonly namespace: Namespace;

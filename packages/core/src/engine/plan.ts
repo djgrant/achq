@@ -1,6 +1,6 @@
 import { graph } from "@achq/utils/graph";
 import { json } from "@achq/utils/json";
-import { type Context, ManagedResource, ReadableResource, type Resource } from "../resources/resource.ts";
+import { type Context, isManaged, isReadable, type ManagedResource, type ReadableResource, type Resource } from "../resources/resource.ts";
 import { dependencies, hasUnknown, type Input, type Outputs, resolve, type Unknown } from "./values.ts";
 
 /**
@@ -31,21 +31,21 @@ const dependsOn = (r: ReadableResource) => [...dependencies(r.props), ...r.after
 /** What `resource` is now, and what applying `props` would change: nothing, for a data source. */
 const readAndCompare = async (resource: ReadableResource, props: unknown, ctx: Context): Promise<Step> => {
   const current = await resource.read(props, ctx);
-  if (!(resource instanceof ManagedResource)) return { resource, props, current, changes: [], planned: current };
+  if (!isManaged(resource)) return { resource, props, current, changes: [], planned: current };
   const changes = resource.diff(props, current, ctx);
   return { resource, props, current, changes, planned: resource.planned(props, current, changes) };
 };
 
 /** The steps of what achq keeps in shape: not data sources. */
-const managed = (steps: Step[]) => steps.filter((s): s is Step & { resource: ManagedResource } => s.resource instanceof ManagedResource);
+const managed = (steps: Step[]) => steps.filter((s): s is Step & { resource: ManagedResource } => isManaged(s.resource));
 
 /** Reads `resources`, their children and everything they depend on, each after what it depends on. */
 const readAll = async (resources: Resource[], ctx: Context) => {
   // Each resource's children are asked for once.
-  const reached = graph.reachable(resources, (r) => [...(r instanceof ReadableResource ? dependsOn(r) : []), ...r.children(ctx)]);
+  const reached = graph.reachable(resources, (r) => [...(isReadable(r) ? dependsOn(r) : []), ...r.children(ctx)]);
   const outputs: Outputs = new Map();
   const steps: Step[] = [];
-  for (const resource of graph.topoSort(reached.filter((r) => r instanceof ReadableResource), dependsOn, label)) {
+  for (const resource of graph.topoSort(reached.filter(isReadable), dependsOn, label)) {
     const step = await readAndCompare(resource, resolve(resource.props, outputs), ctx);
     steps.push(step);
     outputs.set(resource, step.planned);

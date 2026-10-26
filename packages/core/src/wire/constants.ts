@@ -23,6 +23,8 @@ export const ENV = {
   repoUrl: "ACHQ_REPO_URL",
   /** What the deployer gives every container, as JSON: the agent runtimes' variables. */
   containerEnv: "ACHQ_CONTAINER_ENV",
+  /** The agent runtimes the infra declares, by id, comma-separated: the deployer deploys no agent on another. */
+  runtimes: "ACHQ_AGENT_RUNTIMES",
   /** A URL a container fetches every few minutes while it's working, on container providers that sleep idle services. */
   keepAwakeUrl: "ACHQ_KEEP_AWAKE_URL",
   /** The achq commit a container or service runs. */

@@ -13,7 +13,7 @@ export const dockerfileOf = (c: RepoManifest["containers"][number]) => {
 };
 
 /** What stops a deploy, and what only warns. */
-export const checkManifest = (manifest: RepoManifest, { tree, sources }: { tree: ConfigTree; sources: SourceSettings[] }) => {
+export const checkManifest = (manifest: RepoManifest, { tree, sources, runtimes }: { tree: ConfigTree; sources: SourceSettings[]; runtimes: string[] }) => {
   const failures: string[] = [];
   const warnings: string[] = [];
 
@@ -31,6 +31,11 @@ export const checkManifest = (manifest: RepoManifest, { tree, sources }: { tree:
     const image = dockerfileOf(c);
     if (!image) failures.push(`container ${c.name}'s image "${c.image}" isn't a path under ${CONFIG_DIR}/`);
     else if (!tree.blobs.has(image.path)) failures.push(`container ${c.name}'s image ${image.dockerfile} doesn't exist`);
+  }
+
+  // Its containers only have the runtimes the infra declares installed.
+  for (const a of manifest.agents) {
+    if (!runtimes.includes(a.runtime)) failures.push(`agent ${a.name} runs on ${a.runtime}, which the infra doesn't declare${runtimes.length ? ` (it declares ${runtimes.join(", ")})` : ""}`);
   }
 
   // A trigger's event must be one its source sends. A trigger no workspace's threads come from never runs, which is only a warning.

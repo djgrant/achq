@@ -5,6 +5,7 @@ import { crypto } from "@achq/utils/crypto";
 import { DEPLOY_STATUS, FAILED_DEPLOY_STATUSES, type InstanceSettings, type ServiceAt } from "@achq/utils/railway";
 import { DEPLOY_POLL_INTERVAL_MS, DEPLOY_TIMEOUT_MS, DEPLOYED } from "./constants.ts";
 import { serviceAt } from "./railway.ts";
+import { PLUGIN } from "../plugin.ts";
 
 type Props = {
   at: ServiceAt;
@@ -22,6 +23,7 @@ export const fingerprint = (spec: { settings: InstanceSettings; variables: Recor
   crypto.sha256Hex(JSON.stringify({ settings: spec.settings, variables: collections.sortKeys(spec.variables) }), FINGERPRINT_CHARS);
 
 export class Deployment extends ManagedResource<Props, State, Outputs, "deploy"> {
+  readonly plugin = PLUGIN;
   readonly kind = "railway-deployment";
 
   async read({ at }: Props, ctx: Context) {

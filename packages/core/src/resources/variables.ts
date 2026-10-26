@@ -3,6 +3,7 @@ import type { Change } from "../engine/plan.ts";
 import { all, GENERATED, type Output, type Planned, UNKNOWN } from "../engine/values.ts";
 import type { EnvValues } from "./infra.ts";
 import { type Context, DataSource, ManagedResource, type ResourceOptions } from "./resource.ts";
+import { PLUGIN } from "../plugin.ts";
 
 /** A group's variables as its props have them: GENERATED ones are made when they're first set. */
 export type DeclaredVariables = Record<string, string | typeof GENERATED>;
@@ -52,6 +53,7 @@ export abstract class VariableGroup<P extends { values: DeclaredVariables }> ext
  * but not its values, so it depends only on where they're kept.
  */
 export class CurrentVariables extends DataSource<object, Current> {
+  readonly plugin = PLUGIN;
   readonly kind = "current-variables";
 
   constructor(

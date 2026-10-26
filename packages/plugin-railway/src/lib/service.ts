@@ -2,6 +2,7 @@ import { type Change, type Context, known, ManagedResource, type Planned, UNKNOW
 import { async } from "@achq/utils/async";
 import type { Instance, InstanceSettings, PrivateEndpoint, ProjectAt, ServiceDomain } from "@achq/utils/railway";
 import { railwayFromEnv } from "./railway.ts";
+import { PLUGIN } from "../plugin.ts";
 
 type ServiceProps = {
   at: ProjectAt;
@@ -45,6 +46,7 @@ const isPublic = (props: ServiceProps, domain: ServiceDomain) => Boolean(props.p
 const kept = (props: ServiceProps, current: ServiceState | undefined) => current?.domains.find((d) => isPublic(props, d));
 
 export class Service extends ManagedResource<ServiceProps, ServiceState, ServiceOutputs, ServiceChange> {
+  readonly plugin = PLUGIN;
   readonly kind = "railway-service";
 
   async read(props: ServiceProps, ctx: Context) {

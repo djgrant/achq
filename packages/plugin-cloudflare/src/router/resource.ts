@@ -3,6 +3,7 @@ import type { Output } from "@achq/core";
 import { CONTAINER_PROVIDER } from "../lib/constants.ts";
 import { Project } from "../lib/project.ts";
 import { ServiceParts } from "../lib/service-parts.ts";
+import { PLUGIN } from "../plugin.ts";
 
 /**
  * The router, as a Worker named after `project`, e.g. `achq-router`: public,
@@ -12,6 +13,7 @@ import { ServiceParts } from "../lib/service-parts.ts";
  * services. Applying waits until it answers.
  */
 export class Router extends core.Router {
+  readonly plugin = PLUGIN;
   readonly containerProvider = CONTAINER_PROVIDER;
   readonly project: Project;
   readonly url: Output<string>;

@@ -4,6 +4,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import * as core from "@achq/core";
 import { achq } from "@achq/core";
+import * as claude from "@achq/claude/infra";
 import * as github from "@achq/github/infra";
 import * as railway from "@achq/railway/infra";
 import { agentContainerEnvCheck, infraChecks } from "../checks/infra.ts";
@@ -20,12 +21,14 @@ afterEach(() => fs.rmSync(tmp, { recursive: true, force: true }));
 const nothing = new core.Output<any>([], () => core.UNKNOWN);
 
 class ElsewhereRouter extends core.Router {
+  readonly plugin = core.CORE_PLUGIN;
   readonly containerProvider = "elsewhere";
   readonly url = nothing;
   protected readonly placement = undefined as unknown as core.Placement;
 }
 
 class ElsewhereDeployer extends core.Deployer {
+  readonly plugin = core.CORE_PLUGIN;
   readonly containerProvider = "elsewhere";
   protected readonly placement = undefined as unknown as core.Placement;
   constructor(
@@ -82,6 +85,8 @@ test("an achq.infra.ts file, written as the design shows, loads with its imports
   fs.writeFileSync(
     path.join(tmp, "achq.infra.ts"),
     `import { achq } from "@achq/core";
+import * as claude from "@achq/claude/infra";
+import * as claude from "@achq/claude/infra";
 import * as github from "@achq/github/infra";
 import * as railway from "@achq/railway/infra";
 
@@ -93,6 +98,8 @@ export default achq(() => {
   });
   new github.Channel("personal", { name: "djgrant-claude", router });
   new github.Channel("notation", { name: "notation-achq", org: "notationlabs", router });
+  new github.CodeHost("github");
+  new claude.Runtime("claude");
 });
 `,
   );
@@ -103,16 +110,33 @@ export default achq(() => {
   expect(channels.map((c) => [(c as any).inputs.name, (c as any).inputs.org])).toEqual([["djgrant-claude", undefined], ["notation-achq", "notationlabs"]]);
   // The infra's channel is the class the CLI knows: its imports resolved to this checkout.
   expect(channels[0]).toBeInstanceOf(github.Channel);
+  expect(loaded.codeHost.implementation.id).toBe("github");
+  expect(loaded.runtimes.map((r) => [r.id, r.containerEnv.map((e) => e.name)])).toEqual([["claude", ["CLAUDE_CODE_OAUTH_TOKEN"]]]);
+});
+
+test("the infra declares one code host, and each agent runtime once", () => {
+  const declare = (more: () => void) =>
+    achq(() => {
+      const router = new railway.Router("router", { project: "achq" });
+      new railway.Deployer("deployer", { router, owners: [] });
+      more();
+    })();
+  expect(() => checkInfra(declare(() => {}))).toThrow("The infra must declare one code host");
+  expect(() => checkInfra(declare(() => [new github.CodeHost("a"), new github.CodeHost("b")]))).toThrow("The infra must declare one code host");
+  expect(() => checkInfra(declare(() => [new github.CodeHost("github"), new claude.Runtime("a"), new claude.Runtime("b")]))).toThrow("Runtimes a and b are both claude");
+  expect(checkInfra(declare(() => new github.CodeHost("github"))).runtimes).toEqual([]);
 });
 
 test("before reaching the infra, achq checks what its container provider does, and that the agents' variables are set", async () => {
   fs.writeFileSync(
     path.join(tmp, "achq.infra.ts"),
     `import { achq } from "@achq/core";
+import * as github from "@achq/github/infra";
 import * as railway from "@achq/railway/infra";
 export default achq(() => {
   const router = new railway.Router("router", { project: "achq" });
   new railway.Deployer("deployer", { router, owners: [] });
+  new github.CodeHost("github");
 });
 `,
   );

@@ -3,8 +3,10 @@ import { Agent, collectManifest, Container, resetDeclarations, Trigger, Workspac
 import { configSource, configNeeds } from "../src/lib/config-needs.ts";
 import { Channel, Policy } from "../src/index.ts";
 import { githubCodeHostProvider } from "../src/code-host/index.ts";
+import { PLUGIN } from "../src/plugin.ts";
 
 class TestAgent extends Agent {
+  readonly plugin = PLUGIN;
   readonly runtime = "test";
 }
 

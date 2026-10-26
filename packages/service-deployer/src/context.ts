@@ -18,6 +18,8 @@ export type DeployerEnv = {
   ref: string;
   /** The code host owners whose repos it deploys. */
   owners: string[];
+  /** The agent runtimes the infra declares, by id: an agent on any other isn't deployed. */
+  runtimes: string[];
 };
 
 export type DeployerDeps = {

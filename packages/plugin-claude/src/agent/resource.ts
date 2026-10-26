@@ -1,5 +1,6 @@
 import { Agent as CoreAgent } from "@achq/core";
 import { RUNTIME } from "../lib/constants.ts";
+import { PLUGIN } from "../plugin.ts";
 
 export type AgentConfig = {
   model?: string;
@@ -14,5 +15,6 @@ export type AgentConfig = {
 
 /** An agent that runs Claude Code: `new claude.Agent("coder", { model, effort, systemPrompt })`. */
 export class Agent extends CoreAgent<AgentConfig> {
+  readonly plugin = PLUGIN;
   readonly runtime = RUNTIME;
 }

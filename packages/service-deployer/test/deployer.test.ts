@@ -26,7 +26,7 @@ import { routes } from "../src/routes.ts";
 const KEY = "test-webhook-key";
 const REPO = "notationlabs/yieldstar";
 const APP = "notation-achq";
-const ENV = { containerEnv: { CLAUDE_CODE_OAUTH_TOKEN: "claude-token" }, key: KEY, routerUrl: "http://router.internal:8081", routerPublicUrl: "https://router.example", ref: "abc123" };
+const ENV = { containerEnv: { CLAUDE_CODE_OAUTH_TOKEN: "claude-token" }, key: KEY, routerUrl: "http://router.internal:8081", routerPublicUrl: "https://router.example", ref: "abc123", runtimes: ["claude"] };
 
 const repoFiles = (overrides: Record<string, string | undefined> = {}) => {
   const files: Record<string, string | undefined> = {
@@ -246,6 +246,13 @@ describe("checks", () => {
     const { error } = await deploy(await makeDeployer(), REPO);
     expect(error).toContain("policy code names ghost, which the router doesn't know");
     expect(error).toContain("workspace docs names github:ghost, which the router doesn't know");
+    expect(containerProvider.ops()).toEqual([]);
+  });
+
+  test("an agent on a runtime the infra doesn't declare stops the deploy: its containers wouldn't have it", async () => {
+    github.commit(REPO, repoFiles());
+    const { error } = await deploy(await makeDeployer({ env: { ...ENV, runtimes: [] } }), REPO);
+    expect(error).toContain("agent coder runs on claude, which the infra doesn't declare");
     expect(containerProvider.ops()).toEqual([]);
   });
 

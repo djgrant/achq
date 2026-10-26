@@ -1,12 +1,13 @@
 import { json } from "@achq/utils/json";
 import type { ReadableResource } from "../resources/resource.ts";
+import { brand, branded } from "./brand.ts";
 
-/** A value not known until what it comes from is created, e.g. a new service's URL. */
-export const UNKNOWN: unique symbol = Symbol("known after apply");
+/** A value not known until what it comes from is created, e.g. a new service's URL. The same in every copy of core, as a plugin's resource compares what the engine gives it. */
+export const UNKNOWN: unique symbol = Symbol.for("achq.known-after-apply");
 export type Unknown = typeof UNKNOWN;
 
 /** A value generated once, then kept: e.g. a key, in a service's variables. */
-export const GENERATED: unique symbol = Symbol("generated once");
+export const GENERATED: unique symbol = Symbol.for("achq.generated-once");
 
 export const known = <T>(value: T | Unknown): value is T => value !== UNKNOWN;
 
@@ -16,8 +17,12 @@ export const hasUnknown = (value: unknown): boolean =>
 /** Each resource's outputs, as planned or as applied. */
 export type Outputs = Map<ReadableResource, unknown>;
 
+const OUTPUT = brand("output");
+
 /** A value resources produce, for another resource to take as an input. */
 export class Output<T> {
+  readonly [OUTPUT] = true;
+
   constructor(
     /** The resources it comes from: whatever takes it is planned after them. */
     readonly from: ReadableResource[],
@@ -33,6 +38,8 @@ export class Output<T> {
   }
 }
 
+export const isOutput = branded<Output<unknown>>(OUTPUT);
+
 export type Input<T> = T | Output<T>;
 /** A resource's props, any part of which can come from another resource. */
 export type Inputs<T> = Input<T> | (T extends object ? { [K in keyof T]: Inputs<T[K]> } : never);
@@ -43,7 +50,7 @@ export type Planned<A> = { [K in keyof A]: A[K] | Unknown };
 /** Joins several inputs into one, unknown while any of them is. */
 export const all = <T extends unknown[]>(inputs: { [K in keyof T]: Input<T[K]> }) =>
   new Output(
-    inputs.flatMap((i) => (i instanceof Output ? i.from : [])),
+    inputs.flatMap((i) => (isOutput(i) ? i.from : [])),
     (outputs) => {
       const values = inputs.map((i) => resolve(i, outputs));
       return hasUnknown(values) ? UNKNOWN : (values as T);
@@ -51,14 +58,14 @@ export const all = <T extends unknown[]>(inputs: { [K in keyof T]: Input<T[K]> }
   );
 
 export const resolve = (value: unknown, outputs: Outputs): any => {
-  if (value instanceof Output) return value.get(outputs);
+  if (isOutput(value)) return value.get(outputs);
   if (Array.isArray(value)) return value.map((v) => resolve(v, outputs));
   if (json.isPlainObject(value)) return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, resolve(v, outputs)]));
   return value;
 };
 
 export const dependencies = (value: unknown): ReadableResource[] => {
-  if (value instanceof Output) return value.from;
+  if (isOutput(value)) return value.from;
   if (Array.isArray(value)) return value.flatMap(dependencies);
   if (json.isPlainObject(value)) return Object.values(value).flatMap(dependencies);
   return [];

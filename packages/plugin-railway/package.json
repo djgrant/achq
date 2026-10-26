@@ -13,13 +13,16 @@
   ],
   "exports": {
     "./infra": "./src/infra.ts",
-    "./container": "./src/container/index.ts"
+    "./container": "./src/container/index.ts",
+    "./providers": "./src/providers.ts"
   },
-  "dependencies": {
-    "@achq/core": "workspace:*",
-    "@achq/utils": "workspace:*"
+  "peerDependencies": {
+    "@achq/core": "workspace:^",
+    "@achq/utils": "workspace:^"
   },
   "devDependencies": {
-    "@achq/test-utils": "workspace:*"
+    "@achq/core": "workspace:*",
+    "@achq/test-utils": "workspace:*",
+    "@achq/utils": "workspace:*"
   }
 }

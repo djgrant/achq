@@ -92,55 +92,47 @@ importers:
         version: 4.6.7
 
   packages/plugin-1password:
-    dependencies:
+    devDependencies:
       '@achq/core':
         specifier: workspace:*
         version: link:../core
-      '@achq/utils':
-        specifier: workspace:*
-        version: link:../utils
-    devDependencies:
       '@achq/test-utils':
         specifier: workspace:*
         version: link:../test-utils
+      '@achq/utils':
+        specifier: workspace:*
+        version: link:../utils
 
   packages/plugin-claude:
-    dependencies:
+    devDependencies:
       '@achq/core':
         specifier: workspace:*
         version: link:../core
-      '@achq/utils':
-        specifier: workspace:*
-        version: link:../utils
-    devDependencies:
       '@achq/test-utils':
         specifier: workspace:*
         version: link:../test-utils
+      '@achq/utils':
+        specifier: workspace:*
+        version: link:../utils
 
   packages/plugin-cloudflare:
     dependencies:
       '@achq/cloudflare-worker':
         specifier: workspace:*
         version: link:../cloudflare-worker
+    devDependencies:
       '@achq/core':
         specifier: workspace:*
         version: link:../core
-      '@achq/utils':
-        specifier: workspace:*
-        version: link:../utils
-    devDependencies:
       '@achq/test-utils':
         specifier: workspace:*
         version: link:../test-utils
-
-  packages/plugin-github:
-    dependencies:
-      '@achq/core':
-        specifier: workspace:*
-        version: link:../core
       '@achq/utils':
         specifier: workspace:*
         version: link:../utils
+
+  packages/plugin-github:
+    dependencies:
       '@octokit/webhooks-methods':
         specifier: ^6.0.0
         version: 6.0.0
@@ -148,22 +140,27 @@ importers:
         specifier: ^4.3.6
         version: 4.6.7
     devDependencies:
-      '@achq/test-utils':
-        specifier: workspace:*
-        version: link:../test-utils
-
-  packages/plugin-railway:
-    dependencies:
       '@achq/core':
         specifier: workspace:*
         version: link:../core
-      '@achq/utils':
-        specifier: workspace:*
-        version: link:../utils
-    devDependencies:
       '@achq/test-utils':
         specifier: workspace:*
         version: link:../test-utils
+      '@achq/utils':
+        specifier: workspace:*
+        version: link:../utils
+
+  packages/plugin-railway:
+    devDependencies:
+      '@achq/core':
+        specifier: workspace:*
+        version: link:../core
+      '@achq/test-utils':
+        specifier: workspace:*
+        version: link:../test-utils
+      '@achq/utils':
+        specifier: workspace:*
+        version: link:../utils
 
   packages/registry:
     dependencies:

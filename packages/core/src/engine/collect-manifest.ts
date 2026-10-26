@@ -1,10 +1,8 @@
 import { type Json, json } from "@achq/utils/json";
 import type { ManifestInput } from "../model/manifest.ts";
 import { undeclaredRef } from "../model/resource-data.ts";
-import { Agent, Container, Policy, Trigger, Workspace } from "../resources/config.ts";
+import { isAgent, isContainer, isPolicy, isTrigger, isWorkspace } from "../resources/config.ts";
 import { declared, type Resource } from "../resources/resource.ts";
-
-type ResourceClass<T extends Resource> = abstract new (...args: any[]) => T;
 
 /**
  * Turns the declared resources into a manifest. It only checks what needs the
@@ -13,7 +11,7 @@ type ResourceClass<T extends Resource> = abstract new (...args: any[]) => T;
  * rest, on what this returns.
  */
 export const collectManifest = (resources: Resource[] = declared()) => {
-  const ofKind = <T extends Resource>(type: ResourceClass<T>) => resources.filter((r): r is T => r instanceof type);
+  const ofKind = <T extends Resource>(is: (r: Resource) => r is T) => resources.filter(is);
   /** `r`'s name, for `from` to refer to it by. It has to be declared in this config. */
   const refName = (r: Resource, from: string) => {
     if (!resources.includes(r)) throw undeclaredRef(from, r.kind, r.name);
@@ -21,22 +19,22 @@ export const collectManifest = (resources: Resource[] = declared()) => {
   };
 
   return {
-    policies: ofKind(Policy).map((p) => ({ name: p.name, policy: p.policy })),
-    containers: ofKind(Container).map((c) => ({
+    policies: ofKind(isPolicy).map((p) => ({ name: p.name, policy: p.policy })),
+    containers: ofKind(isContainer).map((c) => ({
       name: c.name,
       image: c.inputs.image,
       policies: (c.inputs.policies ?? []).map((p) => refName(p, `container ${c.name}`)),
       files: json.from(c.inputs.files ?? {}, `container ${c.name} files`) as Record<string, Json>,
     })),
-    workspaces: ofKind(Workspace).map((w) => ({
+    workspaces: ofKind(isWorkspace).map((w) => ({
       name: w.name,
       container: refName(w.inputs.container, `workspace ${w.name}`),
       threads: w.inputs.threads.data,
       branch: w.inputs.branch,
       base: w.inputs.base,
     })),
-    agents: ofKind(Agent).map((a) => ({ name: a.name, runtime: a.runtime })),
-    triggers: ofKind(Trigger).map((t) => ({
+    agents: ofKind(isAgent).map((a) => ({ name: a.name, runtime: a.runtime })),
+    triggers: ofKind(isTrigger).map((t) => ({
       name: t.name,
       event: t.inputs.event.data,
       agent: refName(t.inputs.agent, `trigger ${t.name}`),

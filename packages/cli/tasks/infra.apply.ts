@@ -43,7 +43,7 @@ export const infraApply = defineTask({
     const ctx = context({ ...parts, prompt: parts.prompt ?? ((message) => readSecret(runner(r).prompter, message)) });
     if (rotateDeployerToken) deployer.rotateToken();
     const ref = await achqRef();
-    deployer.connect({ ref, containerEnv });
+    deployer.connect({ ref, containerEnv, runtimes: infra.runtimes.map((runtime) => runtime.id) });
 
     const planned = await plan(resources, ctx);
     if (!planned.changes.length) log("  up to date");

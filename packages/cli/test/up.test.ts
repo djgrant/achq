@@ -7,6 +7,7 @@ import { achq, type SyncRequest, type SyncResult } from "@achq/core";
 import { adminSecret, implementationSecret } from "@achq/core/secrets";
 import { routerAdminRoutes } from "@achq/core/routes/router-admin";
 import { verifySigned } from "@achq/core/signing";
+import * as claude from "@achq/claude/infra";
 import * as github from "@achq/github/infra";
 import { type FakeRailway, startFakeRailway } from "@achq/test-utils/fakes/vendors/railway";
 import * as railway from "@achq/railway/infra";
@@ -44,6 +45,8 @@ const infra = () =>
       const router = new railway.Router("router", { project: "achq" });
       new railway.Deployer("deployer", { router, owners: ["djgrant", "notationlabs"] });
       new github.Channel("personal", { name: "djgrant-claude", router });
+      new github.CodeHost("github");
+      new claude.Runtime("claude");
     })(),
   );
 
@@ -192,7 +195,7 @@ const FRESH = [
   "  ~ achq-router     deploy",
   "  + achq-deployer   service",
   "  + achq-deployer   volume           /data",
-  "  ~ achq-deployer   variables        12",
+  "  ~ achq-deployer   variables        13",
   "  ~ achq-deployer   deploy",
 ];
 

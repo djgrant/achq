@@ -6,6 +6,7 @@ import { connect, workerSecrets } from "./cloudflare.ts";
 import { ANSWER_POLL_INTERVAL_MS, ANSWER_TIMEOUT_MS } from "./constants.ts";
 import { KV_KEYS } from "./names.ts";
 import { type WorkerConfig, workerSourceHash, wranglerDeploy } from "./wrangler.ts";
+import { PLUGIN } from "../plugin.ts";
 
 type Props = {
   namespaceId: string;
@@ -35,6 +36,7 @@ export const fingerprint = (config: WorkerConfig, variables: Record<string, stri
  * the Worker answers on its public URL, which is the new version starting it.
  */
 export class Deployment extends ManagedResource<Props, State, Outputs, "deploy"> {
+  readonly plugin = PLUGIN;
   readonly kind = "cloudflare-deployment";
 
   async read({ namespaceId, config }: Props, ctx: Context) {

@@ -1,3 +1,6 @@
+import type { AgentProvider } from "../contracts/agent-provider.ts";
+import type { CodeHostImplementation } from "../contracts/code-host-provider.ts";
+import { brand, branded } from "../engine/brand.ts";
 import { all, GENERATED, type Input, type Output } from "../engine/values.ts";
 import { DEPLOYER_PORT, ENV, ROUTER_PRIVATE_PORT, ROUTER_PUBLIC_PORT } from "../wire/constants.ts";
 import { type Context, declared, Resource, resetDeclarations } from "./resource.ts";
@@ -101,8 +104,14 @@ export abstract class Service extends Resource {
   }
 }
 
+const ROUTER = brand("router");
+const DEPLOYER = brand("deployer");
+const RUNTIME = brand("agent-runtime");
+const CODE_HOST = brand("code-host");
+
 /** Receives, stores, filters and forwards events, and mints credentials. */
 export abstract class Router extends Service {
+  readonly [ROUTER] = true;
   readonly kind = "router";
   readonly entry = "packages/service-router/src/main.ts";
   readonly port = ROUTER_PUBLIC_PORT;
@@ -163,6 +172,7 @@ export abstract class Router extends Service {
 
 /** Evaluates repo config and deploys its containers, on its container provider. */
 export abstract class Deployer extends Service {
+  readonly [DEPLOYER] = true;
   readonly kind = "deployer";
   readonly entry = "packages/service-deployer/src/main.ts";
   readonly port = DEPLOYER_PORT;
@@ -180,10 +190,11 @@ export abstract class Deployer extends Service {
 
   /**
    * Gives its router and it what achq itself does: how they reach each other,
-   * what they run (`ref`, an achq commit), and what every container gets
-   * (`containerEnv`). `achq infra up` calls it once the infra is declared.
+   * what they run (`ref`, an achq commit), what every container gets
+   * (`containerEnv`), and the agent runtimes those can run, by id.
+   * `achq infra up` calls it once the infra is declared.
    */
-  connect({ ref, containerEnv }: { ref: string; containerEnv: Record<string, string> }) {
+  connect({ ref, containerEnv, runtimes }: { ref: string; containerEnv: Record<string, string>; runtimes: string[] }) {
     const { router, owners } = this.inputs;
     router.variables({
       [ENV.deployerUrl]: this.privateUrl(DEPLOYER_PORT),
@@ -197,11 +208,49 @@ export abstract class Deployer extends Service {
       [ENV.routerPublicUrl]: router.url,
       [ENV.owners]: owners.join(","),
       [ENV.containerEnv]: JSON.stringify(containerEnv),
+      [ENV.runtimes]: runtimes.join(","),
       [ENV.ref]: ref,
       [ENV.containerProvider]: this.containerProvider,
     });
   }
 }
+
+/**
+ * An agent runtime the infra's containers can run, e.g. Claude Code: its
+ * plugin is installed in every container, and what it needs from your
+ * environment is given to each. A repo's agent names one by its `id`.
+ */
+export abstract class Runtime extends Resource {
+  readonly [RUNTIME] = true;
+  readonly kind = "agent-runtime";
+  abstract readonly provider: AgentProvider;
+
+  /** What its agents' `runtime` names it by. */
+  get id() {
+    return this.provider.id;
+  }
+
+  /** What every container needs for it, read from your environment by `achq infra up`. */
+  get containerEnv() {
+    return this.provider.containerEnv;
+  }
+}
+
+/**
+ * Where every repo the infra serves lives: an infra has one, so repos are told
+ * apart by `owner/name` alone. The router and deployer reach it with its
+ * implementation's `create`, and the CLI with its `asYou`.
+ */
+export abstract class CodeHost extends Resource {
+  readonly [CODE_HOST] = true;
+  readonly kind = "code-host";
+  abstract readonly implementation: CodeHostImplementation;
+}
+
+export const isRouter = branded<Router>(ROUTER);
+export const isDeployer = branded<Deployer>(DEPLOYER);
+export const isRuntime = branded<Runtime>(RUNTIME);
+export const isCodeHost = branded<CodeHost>(CODE_HOST);
 
 export type Infra = { resources: Resource[] };
 

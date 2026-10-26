@@ -3,6 +3,7 @@ import { collections } from "@achq/utils/collections";
 import { crypto } from "@achq/utils/crypto";
 import { connect } from "./cloudflare.ts";
 import { KV_KEYS } from "./names.ts";
+import { PLUGIN } from "../plugin.ts";
 
 type Props = {
   namespaceId: string;
@@ -25,6 +26,7 @@ const fingerprint = (secrets: Record<string, string>) => crypto.sha256Hex(JSON.s
  * touching them. Its container gets them when it next starts.
  */
 export class Secrets extends ManagedResource<Props, State, Outputs, "set"> {
+  readonly plugin = PLUGIN;
   readonly kind = "cloudflare-secrets";
 
   async read({ namespaceId, worker, tag }: Props, ctx: Context) {

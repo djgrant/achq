@@ -1,6 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { Agent, CONFIG_DIR, CONFIG_ENTRY, collectManifest, declared, resetDeclarations } from "@achq/core";
+import { type Agent, CONFIG_DIR, CONFIG_ENTRY, collectManifest, declared, isAgent, resetDeclarations } from "@achq/core";
 import { type RepoManifest, validateManifest } from "@achq/core/manifest";
 import { async } from "@achq/utils/async";
 import { disk } from "@achq/utils/disk";
@@ -83,7 +83,7 @@ export const evaluateBundle = (bundle: string) =>
     try {
       await import(bundle);
       const resources = declared();
-      return { manifest: validateManifest(collectManifest(resources)), agents: resources.filter((r) => r instanceof Agent) };
+      return { manifest: validateManifest(collectManifest(resources)), agents: resources.filter(isAgent) };
     } finally {
       resetDeclarations();
     }

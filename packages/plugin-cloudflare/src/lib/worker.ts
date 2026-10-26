@@ -2,6 +2,7 @@ import { COMPATIBILITY } from "@achq/cloudflare-worker/settings";
 import { type Context, CreateOnlyResource, type Planned, UNKNOWN } from "@achq/core";
 import { connect } from "./cloudflare.ts";
 import { publicUrl } from "./names.ts";
+import { PLUGIN } from "../plugin.ts";
 
 type Props = { name: string; workersDev: string };
 
@@ -19,6 +20,7 @@ const PLACEHOLDER = `export default { fetch: () => new Response("achq: not deplo
  * deploy. Its URL is known before it exists.
  */
 export class Worker extends CreateOnlyResource<Props, State, Outputs> {
+  readonly plugin = PLUGIN;
   readonly kind = "cloudflare-worker";
   readonly what = "worker";
 

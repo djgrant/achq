@@ -1,5 +1,6 @@
 import { type Context, type DeclaredVariables, known, VariableGroup } from "@achq/core";
 import { connect } from "./cloudflare.ts";
+import { PLUGIN } from "../plugin.ts";
 
 /** `key` is where they're kept in the project's namespace; `target` names them in a plan. */
 type Props = { namespaceId: string; key: string; target: string; values: DeclaredVariables };
@@ -16,6 +17,7 @@ export const readVariables = async (ctx: Context, namespaceId: string, key: stri
  * generated keys have to be. What runs gets them as secrets when it's deployed.
  */
 export class Variables extends VariableGroup<Props> {
+  readonly plugin = PLUGIN;
   readonly kind = "cloudflare-variables";
 
   async read({ namespaceId, key }: Props, ctx: Context) {

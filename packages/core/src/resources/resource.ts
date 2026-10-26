@@ -1,17 +1,25 @@
 import type { Vars } from "@achq/utils/env";
+import { brand, branded, perProcess } from "../engine/brand.ts";
 import type { Change } from "../engine/plan.ts";
 import { hasUnknown, type Inputs, Output, type Planned, UNKNOWN, type Unknown } from "../engine/values.ts";
 import { RESOURCE_NAME } from "../model/resource-data.ts";
 
-/** The resources the config being evaluated has declared so far. */
-let declarations: Resource[] = [];
+/** The resources the config being evaluated has declared so far: one list, whichever copy of core each was declared through. */
+const declarations = perProcess<{ list: Resource[] }>("declarations", () => ({ list: [] }));
 
 /** Starts afresh, for evaluating another config in the same process. */
 export const resetDeclarations = () => {
-  declarations = [];
+  declarations.list = [];
 };
 
-export const declared = () => [...declarations];
+export const declared = () => [...declarations.list];
+
+/**
+ * An npm package a resource's providers come from, at the version installed
+ * where it was declared: the router, deployer and containers install it to
+ * load them.
+ */
+export type Plugin = { package: string; version: string };
 
 /**
  * Where `achq infra up` keeps a secret it makes once and reuses on another
@@ -53,6 +61,10 @@ export type ResourceOptions = {
  */
 export abstract class Resource {
   abstract readonly kind: string;
+  /** The npm package this resource's provider comes from, for the processes that load it. */
+  abstract readonly plugin: Plugin;
+  /** What it is to the processes that load its plugin, where its kind doesn't say: e.g. `channel` for a `github-channel`. */
+  readonly role?: string;
   readonly parent?: Resource;
 
   constructor(
@@ -62,7 +74,7 @@ export abstract class Resource {
     this.parent = options.parent;
     if (this.parent || options.declared === false) return;
     if (!RESOURCE_NAME.test(name)) throw new Error(`Resource name "${name}" must be lowercase letters, digits and dashes, starting with a letter`);
-    declarations.push(this);
+    declarations.list.push(this);
   }
 
   /** What it's made of. Called once, when it's planned, so parts can still be declared until then. */
@@ -76,7 +88,12 @@ export abstract class Resource {
  * source, which it only reads, or a managed resource, which it keeps in shape.
  * Planned after what its props take outputs from, and what it's `after`.
  */
+const READABLE = brand("readable-resource");
+const MANAGED = brand("managed-resource");
+
 export abstract class ReadableResource<P = any, O = any> extends Resource {
+  readonly [READABLE] = true;
+
   constructor(
     name: string,
     readonly props: Inputs<P>,
@@ -102,6 +119,9 @@ export abstract class ReadableResource<P = any, O = any> extends Resource {
   }
 }
 
+export const isReadable = branded<ReadableResource>(READABLE);
+export const isManaged = branded<ManagedResource>(MANAGED);
+
 /**
  * What achq only reads, e.g. the account the infra is on: it's never changed,
  * deleted or listed, only taken outputs from. Its props are known when it's
@@ -122,6 +142,8 @@ export abstract class DataSource<P = any, O = any> extends ReadableResource<P, O
  * compares again if any changed since.
  */
 export abstract class ManagedResource<P = any, S = any, O = any, C = any> extends ReadableResource<P, O> {
+  readonly [MANAGED] = true;
+
   constructor(name: string, props: Inputs<P>, options: ResourceOptions & { after?: ReadableResource[]; protect?: boolean } = {}) {
     super(name, props, options);
     this.protect = options.protect ?? false;

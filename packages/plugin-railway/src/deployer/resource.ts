@@ -5,6 +5,7 @@ import { CONTAINER_PROVIDER, RAILWAY_ENV } from "../lib/constants.ts";
 import type { Project } from "../lib/project.ts";
 import { ServiceParts } from "../lib/service-parts.ts";
 import { Router } from "../router/resource.ts";
+import { PLUGIN } from "../plugin.ts";
 
 /**
  * The deployer, as a Railway service in its router's project: private,
@@ -12,6 +13,7 @@ import { Router } from "../router/resource.ts";
  * what its container provider needs: the token and the project.
  */
 export class Deployer extends core.Deployer {
+  readonly plugin = PLUGIN;
   readonly containerProvider = CONTAINER_PROVIDER;
   readonly project: Project;
   protected readonly placement: ServiceParts;

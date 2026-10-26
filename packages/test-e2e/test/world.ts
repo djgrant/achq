@@ -266,7 +266,7 @@ export const startWorld = async () => {
 
   // The deployer, reaching the router on its private port.
   const deployer = await createDeployerContext(
-    { containerEnv: { CLAUDE_CODE_OAUTH_TOKEN: "claude-oauth-token" }, key: KEY, routerUrl: routerPrivate, routerPublicUrl: routerPublic, ref: "e2e", owners: [OWNER] },
+    { containerEnv: { CLAUDE_CODE_OAUTH_TOKEN: "claude-oauth-token" }, key: KEY, routerUrl: routerPrivate, routerPublicUrl: routerPublic, ref: "e2e", owners: [OWNER], runtimes: ["claude"] },
     {
       containerProvider,
       router: routerAdmin({ url: routerPrivate, key: KEY }),

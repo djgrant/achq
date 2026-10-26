@@ -1,3 +1,4 @@
+import * as claude from "@achq/claude/infra";
 import * as cloudflare from "@achq/cloudflare/infra";
 import * as core from "@achq/core";
 import * as github from "@achq/github/infra";
@@ -12,6 +13,7 @@ export const CONFIG_MODULES = ["@achq/core", "@achq/github", "@achq/claude"];
 /** What the infra file's imports resolve to. */
 export const INFRA_MODULES: Record<string, object> = {
   "@achq/core": core,
+  "@achq/claude/infra": claude,
   "@achq/cloudflare/infra": cloudflare,
   "@achq/github/infra": github,
   "@achq/railway/infra": railway,

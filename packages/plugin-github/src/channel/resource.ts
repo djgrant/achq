@@ -5,6 +5,7 @@ import { GITHUB_ENV, githubUrls } from "../lib/constants.ts";
 import { appSlug, manifestFlow } from "../lib/manifest.ts";
 import { APP_EVENTS, APP_PERMISSIONS, lacking } from "../lib/permissions.ts";
 import { ChannelRef } from "./config.ts";
+import { PLUGIN } from "../plugin.ts";
 
 export type ChannelInputs = {
   name: string;
@@ -54,7 +55,9 @@ const appPage = (web: string, org: string | undefined, slug: string, page: strin
   org ? `${web}/organizations/${org}/settings/apps/${slug}/${page}` : `${web}/settings/apps/${slug}/${page}`;
 
 export class Channel extends ManagedResource<ChannelProps, ChannelState, ChannelAttrs, ChannelChange> {
+  readonly plugin = PLUGIN;
   readonly kind = "github-channel";
+  readonly role = "channel";
   readonly slug: string;
 
   constructor(
