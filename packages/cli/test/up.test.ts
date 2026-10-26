@@ -40,9 +40,10 @@ const pemBody = pem.split("\n")[5]; // a line from the middle of the key
 const appWebhookSecret = (key: string, appId: string | number) => implementationSecret(key, `github-app-webhook:${appId}`);
 
 /** The plugins the infra's resources come from, as this checkout's packages are versioned. */
-const RAILWAY = { package: "@achq/railway", version: "0.1.0" };
-const GITHUB = { package: "@achq/github", version: "0.1.0" };
-const CLAUDE = { package: "@achq/claude", version: "0.1.0" };
+// Releases are lockstep, so each plugin is at core's version.
+const RAILWAY = { package: "@achq/railway", version: CORE_PLUGIN.version };
+const GITHUB = { package: "@achq/github", version: CORE_PLUGIN.version };
+const CLAUDE = { package: "@achq/claude", version: CORE_PLUGIN.version };
 
 const infra = () =>
   checkInfra(
@@ -181,7 +182,7 @@ const deps = (log: string[] = []): UpDeps => ({
   // Every package is on npm, and takes this core.
   npm: async (pkg) => {
     published.push(pkg);
-    return { peerDependencies: { "@achq/core": "^0.1.0" } };
+    return { peerDependencies: { "@achq/core": `^${CORE_PLUGIN.version}` } };
   },
   routerUrl: () => `http://localhost:${routerServer.port}`,
   log: (line) => log.push(line),
@@ -344,7 +345,7 @@ test("up waits for the new deployer to replace the old before it syncs", async (
   replacing = 2;
   const log: string[] = [];
   expect((await up(infra(), { prune: false, dryRun: false }, deps(log)))?.deployed).toEqual(["djgrant/x"]);
-  expect(log).toContain(`  waiting for the deployer to run @achq/deployer@${CORE_PLUGIN.version}, @achq/railway@0.1.0, @achq/github@0.1.0…`);
+  expect(log).toContain(`  waiting for the deployer to run @achq/deployer@${CORE_PLUGIN.version}, @achq/railway@${RAILWAY.version}, @achq/github@${GITHUB.version}…`);
   expect(replacing).toBe(-1);
 });
 
@@ -387,9 +388,9 @@ test("a plugin at another version shows as variables and a deploy, and a dry run
 
 test("a plugin that isn't on npm, or doesn't take the services' core, stops up before anything is planned", async () => {
   const log: string[] = [];
-  const npm = async (pkg: string) => (pkg === "@achq/claude" ? undefined : { peerDependencies: { "@achq/core": pkg === "@achq/github" ? "^9.0.0" : "^0.1.0" } });
+  const npm = async (pkg: string) => (pkg === "@achq/claude" ? undefined : { peerDependencies: { "@achq/core": pkg === "@achq/github" ? "^9.0.0" : `^${CORE_PLUGIN.version}` } });
   await expect(up(infra(), { prune: false, dryRun: true }, { ...deps(log), npm })).rejects.toThrow(
-    `The infra's plugins can't be installed:\n  @achq/github@0.1.0 needs @achq/core@^9.0.0, but the services run ${CORE_PLUGIN.version}\n  @achq/claude@0.1.0 isn't on npm`,
+    `The infra's plugins can't be installed:\n  @achq/github@${GITHUB.version} needs @achq/core@^9.0.0, but the services run ${CORE_PLUGIN.version}\n  @achq/claude@${CLAUDE.version} isn't on npm`,
   );
   expect(log).toEqual([]);
   expect(fake.mutations).toEqual([]);

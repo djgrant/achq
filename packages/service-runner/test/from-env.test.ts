@@ -1,6 +1,7 @@
 import { afterEach, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { CORE_PLUGIN } from "@achq/core";
 import { CONTAINER_PLUGINS, linkWorkspace } from "@achq/test-utils/helpers/plugins";
 import { tempDir } from "@achq/test-utils/helpers/temp-dir";
 import { time } from "@achq/utils/time";
@@ -56,8 +57,8 @@ test("the container installs the plugins ACHQ_PLUGINS names under its data dir, 
   expect(loaded.modules["@achq/core"]).toBe(Bun.resolveSync("@achq/core", path.join(import.meta.dir, "..", "src")));
   // Core and utils are installed beside them at the runner's own version, as their peer.
   expect(JSON.parse(fs.readFileSync(path.join(dataDir, "plugins", "package.json"), "utf8")).dependencies).toEqual({
-    "@achq/core": "0.1.0",
-    "@achq/utils": "0.1.0",
+    "@achq/core": CORE_PLUGIN.version,
+    "@achq/utils": CORE_PLUGIN.version,
     "@achq/github": "0.1.0",
     "@achq/claude": "0.1.0",
   });
