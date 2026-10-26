@@ -3,7 +3,6 @@ import { CONFIG_DIR, CONFIG_ENTRY } from "@achq/core";
 import { type ManifestInput, validateManifest } from "@achq/core/manifest";
 import { errors } from "@achq/utils/errors";
 import { type Limits, sandbox } from "@achq/utils/sandbox";
-import { CONFIG_MODULES } from "@achq/registry/modules";
 
 export class ConfigError extends Error {}
 
@@ -16,21 +15,34 @@ const SANDBOX_ROOT = `/${CONFIG_DIR}`;
 const SANDBOX_LIB = "/achq";
 const SANDBOX_ENTRY = "/entry.js";
 
-/** The files a config's bare imports mean, then the module that collects the manifest. */
-const ENTRYPOINTS = [...CONFIG_MODULES.map((specifier) => Bun.resolveSync(specifier, import.meta.dir)), Bun.resolveSync("./manifest.ts", import.meta.dir)];
-/** The directory every entrypoint is in, so each one's output keeps its own path under SANDBOX_LIB: there are several `index.ts`s. */
-const BUILD_ROOT = ENTRYPOINTS.map(posix.dirname).reduce((a, b) => {
-  while (!`${b}/`.startsWith(`${a}/`)) a = posix.dirname(a);
-  return a;
-});
-/** Where an entrypoint's output is in the sandbox. */
-const sandboxPath = (entry: string) => posix.join(SANDBOX_LIB, posix.relative(BUILD_ROOT, entry).replace(/\.[a-z]+$/, ".js"));
-/** What a config's bare imports resolve to: each package's entry module. */
-const SANDBOX_IMPORTS = Object.fromEntries(CONFIG_MODULES.map((specifier, i) => [specifier, sandboxPath(ENTRYPOINTS[i]!)]));
+/**
+ * What a config may import, by bare specifier, and the file each one means:
+ * core and the plugins the infra installed for containers, e.g.
+ * `{ "@achq/core": …, "@achq/github": …, "@achq/claude": … }`.
+ */
+export type ConfigModules = Record<string, string>;
 
+/** The module that collects the manifest. */
+const MANIFEST_MODULE = Bun.resolveSync("./manifest.ts", import.meta.dir);
 const CONFIG_MODULE = `${SANDBOX_ROOT}/${CONFIG_ENTRY}`;
-/** Imports the config, which declares its resources, then collects them. */
-const ENTRY_SOURCE = `import "${CONFIG_MODULE}"; import manifest from "${sandboxPath(ENTRYPOINTS.at(-1)!)}"; export default manifest();`;
+
+/** Where `modules` and the manifest module go in the sandbox, and the entry that imports the config, which declares its resources, then collects them. */
+const layoutOf = (modules: ConfigModules) => {
+  const entrypoints = [...Object.values(modules), MANIFEST_MODULE];
+  // The directory every entrypoint is in, so each one's output keeps its own path under SANDBOX_LIB: there are several `index.ts`s.
+  const root = entrypoints.map(posix.dirname).reduce((a, b) => {
+    while (!`${b}/`.startsWith(`${a}/`)) a = posix.dirname(a);
+    return a;
+  });
+  const sandboxPath = (entry: string) => posix.join(SANDBOX_LIB, posix.relative(root, entry).replace(/\.[a-z]+$/, ".js"));
+  return {
+    entrypoints,
+    root,
+    // What a config's bare imports resolve to: each package's entry module.
+    imports: Object.fromEntries(Object.entries(modules).map(([specifier, file]) => [specifier, sandboxPath(file)])) as Record<string, string>,
+    entry: `import "${CONFIG_MODULE}"; import manifest from "${sandboxPath(MANIFEST_MODULE)}"; export default manifest();`,
+  };
+};
 
 const LOG_LINES_QUOTED = 3;
 
@@ -65,24 +77,29 @@ const transpile = (path: string, contents: string) => {
   return transpilers.get(loader)!.transformSync(contents);
 };
 
-let built: Promise<Record<string, string>> | undefined;
+const built = new Map<string, Promise<Record<string, string>>>();
 
-/** The modules a config may import, built once, with code splitting so they share one list of declarations, plus the manifest entry. */
-const achqModules = () =>
-  (built ??= (async () => {
-    const result = await Bun.build({
-      entrypoints: ENTRYPOINTS,
-      root: BUILD_ROOT,
-      target: "browser",
-      format: "esm",
-      splitting: true,
-      naming: { entry: "[dir]/[name].js", chunk: "chunk-[hash].js" },
-    });
-    if (!result.success) throw new AggregateError(result.logs, "Building achq for the sandbox failed");
-    const out: Record<string, string> = {};
-    for (const output of result.outputs) out[posix.join(SANDBOX_LIB, output.path)] = await output.text();
-    return out;
-  })());
+/** The modules a config may import, built once for each set of them, with code splitting so they share their modules, plus the manifest entry. */
+const achqModules = ({ entrypoints, root }: ReturnType<typeof layoutOf>) => {
+  const key = JSON.stringify(entrypoints);
+  if (!built.has(key)) built.set(key, build(entrypoints, root));
+  return built.get(key)!;
+};
+
+const build = async (entrypoints: string[], root: string) => {
+  const result = await Bun.build({
+    entrypoints,
+    root,
+    target: "browser",
+    format: "esm",
+    splitting: true,
+    naming: { entry: "[dir]/[name].js", chunk: "chunk-[hash].js" },
+  });
+  if (!result.success) throw new AggregateError(result.logs, "Building achq for the sandbox failed");
+  const out: Record<string, string> = {};
+  for (const output of result.outputs) out[posix.join(SANDBOX_LIB, output.path)] = await output.text();
+  return out;
+};
 
 const parseJson = (text: string): unknown => {
   try {
@@ -92,9 +109,14 @@ const parseJson = (text: string): unknown => {
   }
 };
 
-/** `files` are `.achq/`'s files, keyed by path relative to it (`config.ts`, `lib/x.ts`). Other than source files, they're skipped. */
-export const evaluateConfig = async (files: Record<string, string>, limits: Partial<Limits> = {}) => {
-  const modules = { ...(await achqModules()) };
+/**
+ * `files` are `.achq/`'s files, keyed by path relative to it (`config.ts`,
+ * `lib/x.ts`). Other than source files, they're skipped. Its bare imports can
+ * only be `allowed`'s.
+ */
+export const evaluateConfig = async (files: Record<string, string>, allowed: ConfigModules, limits: Partial<Limits> = {}) => {
+  const layout = layoutOf(allowed);
+  const modules = { ...(await achqModules(layout)) };
   for (const [path, contents] of Object.entries(files)) {
     const normal = normaliseRepoPath(path);
     if (!normal) throw new ConfigError(`${CONFIG_DIR}/${path} is not a valid path`);
@@ -107,11 +129,11 @@ export const evaluateConfig = async (files: Record<string, string>, limits: Part
     }
   }
   if (!(CONFIG_MODULE in modules)) throw new ConfigError(`There's no ${CONFIG_DIR}/${CONFIG_ENTRY}`);
-  modules[SANDBOX_ENTRY] = ENTRY_SOURCE;
+  modules[SANDBOX_ENTRY] = layout.entry;
 
   /** achq's own modules by name, and paths to the module they mean: the file itself, then with each extension, then its index. Anything else can't be imported. */
   const resolve = (specifier: string, importer: string) => {
-    if (specifier in SANDBOX_IMPORTS) return SANDBOX_IMPORTS[specifier];
+    if (specifier in layout.imports) return layout.imports[specifier];
     if (!specifier.startsWith("./") && !specifier.startsWith("../") && !specifier.startsWith("/")) return undefined;
     const path = posix.normalize(specifier.startsWith("/") ? specifier : posix.join(posix.dirname(importer), specifier));
     return [path, ...Object.keys(LOADERS).flatMap((ext) => [`${path}.${ext}`, `${path}/index.${ext}`])].find((p) => p in modules);

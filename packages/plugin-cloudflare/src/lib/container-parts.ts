@@ -31,8 +31,8 @@ export type ContainerPlace = {
  */
 export const containerParts = (spec: ContainerSpec, place: ContainerPlace) => {
   const name = containerWorkerName(place.project, spec.repo, spec.name);
-  const ref = spec.env[ENV.ref];
-  if (!ref) throw new Error(`${spec.repo}'s ${spec.name} has no ${ENV.ref}: the achq Worker its build deploys is taken from that commit`);
+  const version = spec.env[ENV.version];
+  if (!version) throw new Error(`${spec.repo}'s ${spec.name} has no ${ENV.version}: its build deploys the achq Worker at that version`);
   const worker = new Worker(name, { name, workersDev: place.workersDev }, { declared: false });
   const values = {
     ...spec.env,
@@ -63,7 +63,7 @@ export const containerParts = (spec: ContainerSpec, place: ContainerPlace) => {
   const config = workerConfig(settings, { main: CONTAINER_MAIN, bucket: place.bucket, images, sshKeys: place.sshKeys });
   const trigger = new BuildTrigger(
     "build",
-    { worker: name, tag: worker.out("tag"), repo: spec.repo, identity: spec.identity, branch: spec.branch, buildToken: place.buildToken, config, ref },
+    { worker: name, tag: worker.out("tag"), repo: spec.repo, identity: spec.identity, branch: spec.branch, buildToken: place.buildToken, config, version },
     { parent: worker },
   );
   return { name, trigger, resources: [worker, variables, secrets, trigger] };

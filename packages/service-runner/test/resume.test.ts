@@ -19,7 +19,7 @@ describe("sessions and resume", () => {
     expect(sessionsFor(w.paths).map((s) => s.thread)).toEqual(["8", "8"]);
 
     const out: string[] = [];
-    const base = { paths: w.paths, number: "8", loadConfig: w.load, container: "dev", env: w.env, stdio: ["ignore", "ignore", "ignore"] as ["ignore", "ignore", "ignore"], out: (t: string) => out.push(t) };
+    const base = { paths: w.paths, number: "8", loadConfig: w.load, container: "dev", ...w.loaded, env: w.env, stdio: ["ignore", "ignore", "ignore"] as ["ignore", "ignore", "ignore"], out: (t: string) => out.push(t) };
     const triage = sessions.find((s) => s.agent === "triage")!;
     // Only an exact id.
     expect(await resume({ ...base, session: "triage" })).toBe(1);

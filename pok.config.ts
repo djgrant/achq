@@ -1,8 +1,17 @@
+import * as fs from "node:fs";
 import { defineConfig } from "@pokit/core";
 import { docs, release } from "pok-plugins";
 
-/** The packages published to npm, in lockstep. They ship their TypeScript source, which Bun runs, so none has a build. */
-const PUBLISHED = ["utils", "core", "cloudflare-worker", "plugin-github", "plugin-claude", "plugin-cloudflare", "plugin-railway", "plugin-1password", "registry", "service-deployer", "cli"];
+/** Packages only this repo's tests use. */
+const UNPUBLISHED = ["test-utils", "test-e2e"];
+
+/**
+ * The packages published to npm, in lockstep: every workspace package but the
+ * tests'. They ship their TypeScript source, which Bun runs, so none has a
+ * build. The services run from npm at the version that planned them, and
+ * containers' Workers are built from it, so each version is published whole.
+ */
+const PUBLISHED = fs.readdirSync(new URL("./packages", import.meta.url)).sort().filter((dir) => !UNPUBLISHED.includes(dir) && fs.existsSync(new URL(`./packages/${dir}/package.json`, import.meta.url)));
 
 // Mounts `pok docs dev|build|deploy`, which run `pnpm exec docs <cmd>` in ./docs,
 // and `pok version` and `pok publish`.

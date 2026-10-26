@@ -22,11 +22,15 @@ import { FakeRouter } from "@achq/test-utils/fakes/achq/router";
 import { MemoryContainerProvider } from "@achq/test-utils/fakes/achq/container-provider";
 import { dirStores } from "@achq/test-utils/helpers/stores";
 import { routes } from "../src/routes.ts";
+import { workspaceConfigModules } from "@achq/test-utils/helpers/plugins";
+
+/** What configs may import: core and the first-party container plugins, from this checkout. */
+const MODULES = workspaceConfigModules();
 
 const KEY = "test-webhook-key";
 const REPO = "notationlabs/yieldstar";
 const APP = "notation-achq";
-const ENV = { containerEnv: { CLAUDE_CODE_OAUTH_TOKEN: "claude-token" }, key: KEY, routerUrl: "http://router.internal:8081", routerPublicUrl: "https://router.example", ref: "abc123", runtimes: ["claude"] };
+const ENV = { containerEnv: { CLAUDE_CODE_OAUTH_TOKEN: "claude-token" }, key: KEY, routerUrl: "http://router.internal:8081", routerPublicUrl: "https://router.example", version: "0.1.0", plugins: [], runtimes: ["claude"] };
 
 const repoFiles = (overrides: Record<string, string | undefined> = {}) => {
   const files: Record<string, string | undefined> = {
@@ -66,7 +70,7 @@ const makeDeployer = (options: { owners?: string[]; env?: typeof ENV } = {}) =>
     ...githubDeps(),
     evaluate: (files) => {
       evaluations++;
-      return evaluateConfig(files);
+      return evaluateConfig(files, MODULES);
     },
     now: () => new Date(Date.UTC(2026, 9, 17, 10, 0, clock++)),
     log: (line) => logs.push(line),
@@ -133,7 +137,7 @@ describe("install", () => {
         ACHQ_CONTAINER: "dev",
         ACHQ_CONTAINER_SECRET: containerSecret(KEY, REPO, "dev"),
         ACHQ_ROUTER_URL: ENV.routerUrl,
-        ACHQ_REF: ENV.ref,
+        ACHQ_VERSION: ENV.version,
       },
     });
 
@@ -194,7 +198,7 @@ describe("install", () => {
       router: routerAdmin({ url: router.url, key: KEY }),
       stores: dirStores(dataDir),
       ...githubDeps(),
-      evaluate: (files) => evaluateConfig(files, { timeoutMs: 200 }),
+      evaluate: (files) => evaluateConfig(files, MODULES, { timeoutMs: 200 }),
       log: () => {},
     });
     expect((await deploy(deployer, REPO)).outcome).toBe("failed");
@@ -450,7 +454,7 @@ describe("deliveries", () => {
         most = Math.max(most, ++active);
         await Bun.sleep(20);
         try {
-          return await evaluateConfig(files);
+          return await evaluateConfig(files, MODULES);
         } finally {
           active--;
         }

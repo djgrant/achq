@@ -1,13 +1,11 @@
 #!/bin/sh
-# Installs achq-runner into a Debian-based image that already has bun.
+# Installs what achq-runner needs into a Debian-based image that already has
+# bun, and achq-runner itself, which runs the runner from npm.
 # Usage in a repo's .achq/Dockerfile:
-#   ARG ACHQ_REF=main
-#   RUN curl -fsSL "https://raw.githubusercontent.com/djgrant/achq/$ACHQ_REF/install.sh" | sh -s "$ACHQ_REF"
+#   RUN curl -fsSL https://raw.githubusercontent.com/djgrant/achq/main/install.sh | sh
 # No CMD: the container provider starts the runner itself.
-# Set ACHQ_SOURCE to a local achq checkout to install from it instead.
 set -eu
 
-ref=${1:-main}
 command -v bun > /dev/null || { echo "achq-runner needs bun on PATH" >&2; exit 1; }
 
 # perl runs the thread locks, and Debian always has perl-base. setpriv comes
@@ -29,20 +27,27 @@ curl -fsSL https://claude.ai/install.sh | HOME="$tmp" bash
 install -m 755 "$(readlink -f "$tmp/.local/bin/claude")" /usr/local/bin/claude
 rm -rf "$tmp"
 
-# The runner itself, with its workspace packages linked by `bun install`, which
-# installs the versions in pnpm-lock.yaml (it converts it to a bun.lock).
-# Repo configs' `@achq/*` imports resolve to /opt/achq/packages, the runner's own copy.
-rm -rf /opt/achq
-mkdir -p /opt/achq
-if [ -n "${ACHQ_SOURCE:-}" ]; then
-  cp -R "$ACHQ_SOURCE/packages" "$ACHQ_SOURCE/patches" "$ACHQ_SOURCE/package.json" "$ACHQ_SOURCE/pnpm-lock.yaml" "$ACHQ_SOURCE/pnpm-workspace.yaml" /opt/achq
-else
-  curl -fsSL "https://codeload.github.com/djgrant/achq/tar.gz/$ref" \
-    | tar -xz --strip-components=1 -C /opt/achq --wildcards '*/packages/*' '*/patches/*' '*/package.json' '*/pnpm-lock.yaml' '*/pnpm-workspace.yaml'
+# The runner itself comes from npm when the container starts, at the version
+# its deployer gives it as ACHQ_VERSION, with the plugins ACHQ_PLUGINS names
+# installed under DATA_DIR. This is what's on PATH: it hands the volume to the
+# `agent` user, as a platform may mount it root-owned, and runs the runner as
+# that user, with Bun's cache on the volume, so a wake doesn't download it
+# again. Agents such as Claude refuse to skip permission prompts as root.
+cat > /usr/local/bin/achq-runner <<'RUNNER'
+#!/bin/sh
+set -eu
+data=${DATA_DIR:-/data}
+if [ "$(id -u)" = 0 ]; then
+  mkdir -p "$data"
+  chown agent:agent "$data"
+  # The image's WORKDIR may be unreadable to `agent` (oven/bun's is /home/bun/app).
+  cd "$data"
+  exec setpriv --reuid=agent --regid=agent --init-groups env HOME="$data/home" "$0" "$@"
 fi
-rm -rf /opt/achq/packages/*/node_modules
-(cd /opt/achq && bun install --production --frozen-lockfile)
-chmod 755 /opt/achq/packages/service-runner/bin/achq-runner
-ln -sf /opt/achq/packages/service-runner/bin/achq-runner /usr/local/bin/achq-runner
+: "${ACHQ_VERSION:?achq-runner needs ACHQ_VERSION, which its deployer sets}"
+export BUN_INSTALL_CACHE_DIR="$data/bun-cache"
+exec bunx "@achq/runner@$ACHQ_VERSION" "$@"
+RUNNER
+chmod 755 /usr/local/bin/achq-runner
 
 id agent > /dev/null 2>&1 || useradd --create-home --shell /bin/bash agent

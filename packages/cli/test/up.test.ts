@@ -3,7 +3,7 @@ import { generateKeyPairSync, createPublicKey, createVerify } from "node:crypto"
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { achq, type SyncRequest, type SyncResult } from "@achq/core";
+import { achq, CORE_PLUGIN, type SyncRequest, type SyncResult } from "@achq/core";
 import { adminSecret, implementationSecret } from "@achq/core/secrets";
 import { routerAdminRoutes } from "@achq/core/routes/router-admin";
 import { verifySigned } from "@achq/core/signing";
@@ -39,6 +39,11 @@ const pemBody = pem.split("\n")[5]; // a line from the middle of the key
 /** GitHub's webhook secret for an App: github's label under the router's key. */
 const appWebhookSecret = (key: string, appId: string | number) => implementationSecret(key, `github-app-webhook:${appId}`);
 
+/** The plugins the infra's resources come from, as this checkout's packages are versioned. */
+const RAILWAY = { package: "@achq/railway", version: "0.1.0" };
+const GITHUB = { package: "@achq/github", version: "0.1.0" };
+const CLAUDE = { package: "@achq/claude", version: "0.1.0" };
+
 const infra = () =>
   checkInfra(
     achq(() => {
@@ -69,6 +74,8 @@ let replacing = 0;
 let hook: { url?: string; content_type?: string; insecure_ssl?: string; secret?: string };
 let tmp: string;
 let secrets = 0;
+/** Each package `achq infra up` looked up on npm. */
+let published: string[] = [];
 // Distinct per call, so a key made again on apply would show.
 const newSecret = () => (++secrets).toString(16).padStart(64, "0");
 const realHome = process.env.HOME;
@@ -82,6 +89,7 @@ const jwtValid = (auth: string | null) => {
 
 beforeEach(() => {
   fake = startFakeRailway();
+  published = [];
   ghCalls = [];
   syncs = [];
   downs = [];
@@ -116,7 +124,11 @@ beforeEach(() => {
   });
   // The deployer runs what the router was given, as a new one does once it's replaced the old.
   admin.openapi(routerAdminRoutes.deployerVersion, (c) =>
-    replacing-- > 0 ? (replacing % 2 ? c.text("the deployer didn't answer", 504) : c.json({ ref: "old" }, 200)) : c.json({ ref: fake.service("achq-router")!.variables.ACHQ_REF }, 200),
+    replacing-- > 0
+      ? replacing % 2
+        ? c.text("the deployer didn't answer", 504)
+        : c.json({ version: "0.0.1", plugins: [] }, 200)
+      : c.json({ version: CORE_PLUGIN.version, plugins: JSON.parse(fake.service("achq-router")!.variables.ACHQ_PLUGINS!) }, 200),
   );
   // A sync starts, then is asked after: running once, then done.
   admin.openapi(routerAdminRoutes.sync, (c) => {
@@ -166,7 +178,11 @@ const deps = (log: string[] = []): UpDeps => ({
     throw new Error("nothing asks for a secret");
   },
   containerEnv: { CLAUDE_CODE_OAUTH_TOKEN: "claude-token" },
-  achqRef: async () => "abc123",
+  // Every package is on npm, and takes this core.
+  npm: async (pkg) => {
+    published.push(pkg);
+    return { peerDependencies: { "@achq/core": "^0.1.0" } };
+  },
   routerUrl: () => `http://localhost:${routerServer.port}`,
   log: (line) => log.push(line),
   // The real manifest flow, with a "browser" that follows the page to GitHub and back.
@@ -245,9 +261,16 @@ test("up creates everything, puts the App's key only in the router's variables, 
     ACHQ_ROUTER_PUBLIC_URL: ROUTER_URL,
     ACHQ_CONTAINER_PROVIDER: "railway",
     ACHQ_RAILWAY_PROJECT_ID: fake.project("achq")!.id,
-    ACHQ_CONTAINER_ENV: JSON.stringify({ CLAUDE_CODE_OAUTH_TOKEN: "claude-token" }),
-    ACHQ_REF: "abc123",
+    // Every container loads the channel's plugin and the runtime's.
+    ACHQ_CONTAINER_ENV: JSON.stringify({ CLAUDE_CODE_OAUTH_TOKEN: "claude-token", ACHQ_PLUGINS: JSON.stringify([GITHUB, CLAUDE]) }),
+    ACHQ_AGENT_RUNTIMES: "claude",
+    ACHQ_PLUGINS: JSON.stringify([RAILWAY, GITHUB]),
   });
+  // The router runs on Railway, and is the channel's and code host's.
+  expect(router.variables.ACHQ_PLUGINS).toBe(JSON.stringify([RAILWAY, GITHUB]));
+  expect(router.settings.startCommand).toBe(`env BUN_INSTALL_CACHE_DIR=/data/bun-cache bunx @achq/router@${CORE_PLUGIN.version}`);
+  // Each was checked on npm first, with the services and runner at core's version.
+  expect(published.sort()).toEqual(["@achq/claude", "@achq/deployer", "@achq/github", "@achq/railway", "@achq/router", "@achq/runner"]);
   // One graph: the router deploys once, with the App's key already in its variables.
   expect(router.deployments).toHaveLength(1);
 
@@ -321,7 +344,7 @@ test("up waits for the new deployer to replace the old before it syncs", async (
   replacing = 2;
   const log: string[] = [];
   expect((await up(infra(), { prune: false, dryRun: false }, deps(log)))?.deployed).toEqual(["djgrant/x"]);
-  expect(log).toContain("  waiting for the deployer to run abc123…");
+  expect(log).toContain(`  waiting for the deployer to run @achq/deployer@${CORE_PLUGIN.version}, @achq/railway@0.1.0, @achq/github@0.1.0…`);
   expect(replacing).toBe(-1);
 });
 
@@ -350,12 +373,25 @@ test("a second up changes nothing, keeps the key, and fixes a webhook URL that d
   expect(hook.secret).toBe(appWebhookSecret(key, 4242));
 });
 
-test("a changed achq ref shows as variables and a deploy, and a dry run applies none of it", async () => {
+test("a plugin at another version shows as variables and a deploy, and a dry run applies none of it", async () => {
   await up(infra(), { prune: false, dryRun: false }, deps());
   fake.mutations.length = 0;
   const log: string[] = [];
-  await up(infra(), { prune: false, dryRun: true }, { ...deps(log), achqRef: async () => "def456" });
-  expect(log.slice(0, 4)).toEqual(["  ~ achq-router    variables  1", "  ~ achq-router    deploy", "  ~ achq-deployer  variables  1", "  ~ achq-deployer  deploy"]);
+  // As if the infra repo had installed another version of the GitHub plugin.
+  const bumped = infra();
+  for (const r of bumped.resources) if (r.plugin.package === "@achq/github") Object.assign(r, { plugin: { ...r.plugin, version: "0.1.1" } });
+  await up(bumped, { prune: false, dryRun: true }, deps(log));
+  expect(log.slice(0, 4)).toEqual(["  ~ achq-router    variables  1", "  ~ achq-router    deploy", "  ~ achq-deployer  variables  2", "  ~ achq-deployer  deploy"]);
+  expect(fake.mutations).toEqual([]);
+});
+
+test("a plugin that isn't on npm, or doesn't take the services' core, stops up before anything is planned", async () => {
+  const log: string[] = [];
+  const npm = async (pkg: string) => (pkg === "@achq/claude" ? undefined : { peerDependencies: { "@achq/core": pkg === "@achq/github" ? "^9.0.0" : "^0.1.0" } });
+  await expect(up(infra(), { prune: false, dryRun: true }, { ...deps(log), npm })).rejects.toThrow(
+    `The infra's plugins can't be installed:\n  @achq/github@0.1.0 needs @achq/core@^9.0.0, but the services run ${CORE_PLUGIN.version}\n  @achq/claude@0.1.0 isn't on npm`,
+  );
+  expect(log).toEqual([]);
   expect(fake.mutations).toEqual([]);
 });
 

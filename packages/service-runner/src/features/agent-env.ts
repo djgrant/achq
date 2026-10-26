@@ -1,21 +1,20 @@
 import { collections } from "@achq/utils/collections";
 import { disk } from "@achq/utils/disk";
 import type { Vars } from "@achq/utils/env";
-import { privateEnv } from "@achq/registry";
 
 /** Only the agent's user reads its credentials. */
 const PRIVATE_FILE_MODE = 0o600;
 const PRIVATE_DIR_MODE = 0o700;
 const GIT_IDENTITY_PREFIXES = ["GIT_AUTHOR_", "GIT_COMMITTER_"];
 
-/** `env` without what's never given to an agent: the registry's `privateEnv`. */
-export const withoutPrivate = (env: Vars) => {
-  const hidden = new Set(privateEnv());
+/** `env` without what's never given to an agent: `hidden`, core's `privateEnv` of the providers the container loaded. */
+export const withoutPrivate = (env: Vars, privateEnv: string[]) => {
+  const hidden = new Set(privateEnv);
   return Object.fromEntries(Object.entries(env).filter(([name, value]) => value !== undefined && !hidden.has(name))) as Record<string, string>;
 };
 
-export const agentEnv = (base: Vars, home: string, credentialEnv: Record<string, string>, { name, email }: { name: string; email: string }) => ({
-  ...withoutPrivate(base),
+export const agentEnv = (base: Vars, privateEnv: string[], home: string, credentialEnv: Record<string, string>, { name, email }: { name: string; email: string }) => ({
+  ...withoutPrivate(base, privateEnv),
   HOME: home,
   ...credentialEnv,
   GIT_AUTHOR_NAME: name,

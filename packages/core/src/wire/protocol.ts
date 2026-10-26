@@ -167,8 +167,11 @@ export const SyncResult = z.looseObject({
 });
 export type SyncResult = z.infer<typeof SyncResult>;
 
-/** The achq commit the deployer runs: a new one reaches it some time after its Worker is deployed. */
-export const DeployerVersion = z.looseObject({ ref: z.string() });
+/** A plugin, as the services are given it: an npm package at a version. */
+export const PluginRef = z.object({ package: z.string(), version: z.string() });
+
+/** What the deployer runs: its version and the plugins it loaded. A new deployer reaches it some time after its deploy. */
+export const DeployerVersion = z.looseObject({ version: z.string(), plugins: z.array(PluginRef) });
 export type DeployerVersion = z.infer<typeof DeployerVersion>;
 
 /** What `POST /sync` answers: the sync it started, which `GET /sync/<id>` reports on. */

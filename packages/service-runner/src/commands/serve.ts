@@ -11,7 +11,7 @@ const ALL_INTERFACES = "::";
 /** `serve()`, what the container provider starts it with: tells threads about runs a restart cut short, then serves the router's deliveries. */
 export const serve = async (vars: Vars, paths: Paths, { repo, container }: { repo: string; container: string }) => {
   process.env.HOME = paths.home;
-  const runner = runnerFromEnv(vars);
+  const runner = await runnerFromEnv(vars);
   await runner.reportInterrupted().catch((e) => console.error("reporting interrupted runs failed", e));
   Bun.serve({ port: CONTAINER_PORT, hostname: ALL_INTERFACES, fetch: routes(runner).fetch });
   console.log(`${RUNNER_BINARY} for ${repo} (${container}), listening on :${CONTAINER_PORT}`);

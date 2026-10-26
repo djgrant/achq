@@ -9,23 +9,26 @@
   },
   "type": "module",
   "files": [
+    "bin",
     "src"
   ],
   "exports": {
     ".": "./src/index.ts",
     "./config": "./src/features/config/evaluate.ts"
   },
+  "bin": {
+    "achq-deployer": "bin/achq-deployer"
+  },
   "dependencies": {
-    "@achq/claude": "workspace:*",
     "@achq/core": "workspace:*",
-    "@achq/github": "workspace:*",
-    "@achq/registry": "workspace:*",
     "@achq/utils": "workspace:*",
     "@hono/zod-openapi": "^1.6.3",
     "hono": "^4.13.13",
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@achq/claude": "workspace:*",
+    "@achq/github": "workspace:*",
     "@achq/test-utils": "workspace:*"
   }
 }

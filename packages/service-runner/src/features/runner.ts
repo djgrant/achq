@@ -14,7 +14,7 @@ import { Credentials } from "./credentials.ts";
 import { configLoadFailed, failureReply, NOTHING_TO_COMPACT, runFailed, runInterrupted, unrunnableAgent, worktreeFailed } from "./messages.ts";
 import { buildPrompt, type Command, parseCommand } from "./prompt.ts";
 import { describeHead, ensureWorktree, fetchMirror, fillBranch } from "./repo.ts";
-import { containerContext, defaultRuntimes, writeFiles } from "./runtime-context.ts";
+import { containerContext, writeFiles } from "./runtime-context.ts";
 import { allStates, firstDelivery, readState, type ThreadState, writeState } from "../state.ts";
 import { paths as layout, type Paths } from "./layout.ts";
 
@@ -30,7 +30,10 @@ export type RunnerOptions = {
   dataDir: string;
   repoUrl: string;
   loadConfig: (commit: string) => Promise<LoadedConfig>;
-  runtimes?: Record<string, RuntimeFactory>;
+  /** The agent runtimes the container loaded, by id. */
+  runtimes: Record<string, RuntimeFactory>;
+  /** What's never given to an agent: core's `privateEnv` of the providers the container loaded. */
+  privateEnv: string[];
   /** Runs going at once; more wait for one to finish. */
   maxRuns: number;
   runTimeoutMs: number;
@@ -119,7 +122,7 @@ export class Runner {
     this.paths = layout(opts.dataDir);
     this.now = opts.now ?? Date.now;
     this.log = opts.log ?? ((line) => console.log(line));
-    this.runtimes = opts.runtimes ?? defaultRuntimes;
+    this.runtimes = opts.runtimes;
     this.runTimeoutMs = opts.runTimeoutMs;
     this.secret = opts.containerSecret;
     this.credentials = new Credentials({
@@ -220,7 +223,7 @@ export class Runner {
       }
       const ctx = await this.contextFor(config);
       // Saved for `resume`, which opens sessions outside the runner.
-      const env = agentEnv(this.baseEnv, this.paths.home, credentialEnv, await client.identity());
+      const env = agentEnv(this.baseEnv, this.opts.privateEnv, this.paths.home, credentialEnv, await client.identity());
       saveAgentEnv(this.paths.agentEnv, credentialEnv, env);
       for (const trigger of triggers) await this.runTrigger({ trigger, event, config, ctx, client, thread, state, workspace: workspace.name, cwd, env, log });
     });
@@ -299,7 +302,7 @@ export class Runner {
   private contextFor = async.memo(async (config: LoadedConfig) => {
     const container = config.manifest.containers.find((c) => c.name === this.opts.container);
     if (!container) throw new Error(`The config at ${config.commit} has no container "${this.opts.container}"`);
-    const ctx = containerContext(config, this.paths.home, this.baseEnv, container);
+    const ctx = containerContext(config, this.paths.home, this.baseEnv, this.opts.privateEnv, container);
     writeFiles(ctx.containerFiles, this.paths.home);
     return ctx;
   });

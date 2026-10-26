@@ -18,6 +18,7 @@
     "./commands": "./src/wire/commands.ts",
     "./context": "./src/engine/context.ts",
     "./manifest": "./src/model/manifest.ts",
+    "./plugins": "./src/wire/plugins.ts",
     "./protocol": "./src/wire/protocol.ts",
     "./routes/deployer": "./src/wire/routes/deployer.ts",
     "./routes/router-admin": "./src/wire/routes/router-admin.ts",

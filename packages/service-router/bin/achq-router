@@ -1,0 +1,5 @@
+#!/usr/bin/env bun
+// What `bunx @achq/router@<version>` runs: the router, with the plugins its environment names.
+import { main } from "../src/main.ts";
+
+await main();

@@ -1,7 +1,7 @@
-import type { CodeHostProvider, ContainerProvider, FileLimits, Stores } from "@achq/core";
+import type { CodeHostProvider, ContainerProvider, FileLimits, Plugin, Stores } from "@achq/core";
 import type { RouterAdmin } from "@achq/core/clients/router";
 import { async } from "@achq/utils/async";
-import { type Evaluate, evaluateConfig } from "./features/config/evaluate.ts";
+import type { Evaluate } from "./features/config/evaluate.ts";
 import { createStore } from "./store.ts";
 
 export const DEFAULT_FILE_LIMITS: FileLimits = { maxFiles: 200, maxBytes: 1024 * 1024 };
@@ -14,8 +14,10 @@ export type DeployerEnv = {
   routerUrl: string;
   /** The router's public URL, for ACHQ_STATUS. */
   routerPublicUrl: string;
-  /** The achq commit it runs. */
-  ref: string;
+  /** The version of `@achq/deployer` it runs, which its containers run `@achq/runner` at. */
+  version: string;
+  /** The plugins it loaded its providers from. */
+  plugins: Plugin[];
   /** The code host owners whose repos it deploys. */
   owners: string[];
   /** The agent runtimes the infra declares, by id: an agent on any other isn't deployed. */
@@ -30,7 +32,8 @@ export type DeployerDeps = {
   codeHost: CodeHostProvider;
   /** Where it keeps its records: its container provider's store. */
   stores: Stores;
-  evaluate?: Evaluate;
+  /** Evaluates a repo's config in the sandbox, which can import core and the containers' plugins. */
+  evaluate: Evaluate;
   now?: () => Date;
   fileLimits?: FileLimits;
   log?: (line: string) => void;
@@ -43,7 +46,6 @@ export const createContext = async (env: DeployerEnv, { stores, ...deps }: Deplo
     ...deps,
     env,
     store: await createStore(stores, log),
-    evaluate: deps.evaluate ?? ((files) => evaluateConfig(files)),
     now: deps.now ?? (() => new Date()),
     log,
     /** Lowercased. */

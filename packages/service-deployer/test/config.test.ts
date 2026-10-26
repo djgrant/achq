@@ -3,7 +3,11 @@ import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DOC_CONFIG, DOC_PLAN } from "@achq/test-utils/fixtures/config";
+import { workspaceConfigModules } from "@achq/test-utils/helpers/plugins";
 import { evaluateConfig } from "../src/features/config/evaluate.ts";
+
+/** What configs may import: core and the first-party container plugins, from this checkout. */
+const MODULES = workspaceConfigModules();
 
 /** A config that declares a container, then runs `body`, then exports whatever `body` left in `leak`. */
 const probe = (body: string) => ({
@@ -15,20 +19,20 @@ new Container("dev", { image: "./Dockerfile" });
 new Policy("probe", { provider: "probe", leak: String(leak) });
 `,
 });
-const leakOf = async (body: string) => (await evaluateConfig(probe(body))).policies[0]!.policy.leak as string;
+const leakOf = async (body: string) => (await evaluateConfig(probe(body), MODULES)).policies[0]!.policy.leak as string;
 
 describe("evaluateConfig", () => {
   test("evaluates the design doc's config across files into the exact manifest", async () => {
-    expect(await evaluateConfig(DOC_CONFIG)).toEqual(DOC_PLAN as never);
+    expect(await evaluateConfig(DOC_CONFIG, MODULES)).toEqual(DOC_PLAN as never);
   });
 
   test("each evaluation starts from no declarations", async () => {
-    await evaluateConfig(DOC_CONFIG);
-    expect((await evaluateConfig(DOC_CONFIG)).containers).toHaveLength(1);
+    await evaluateConfig(DOC_CONFIG, MODULES);
+    expect((await evaluateConfig(DOC_CONFIG, MODULES)).containers).toHaveLength(1);
   });
 
   test("a config that logs doesn't crash", async () => {
-    const manifest = await evaluateConfig({ "config.ts": `import { Container } from "@achq/core"; console.log("hi", { a: 1 }); new Container("dev", { image: "./Dockerfile" });` });
+    const manifest = await evaluateConfig({ "config.ts": `import { Container } from "@achq/core"; console.log("hi", { a: 1 }); new Container("dev", { image: "./Dockerfile" });` }, MODULES);
     expect(manifest.containers[0]!.name).toBe("dev");
   });
 });
@@ -60,14 +64,14 @@ describe("the sandbox has no host access", () => {
   });
 
   test("a dynamic import has no loader to reach", async () => {
-    await expect(evaluateConfig({ "config.ts": `const m = "node:" + "fs"; await import(m);` })).rejects.toThrow();
-    const manifest = await evaluateConfig(probe(`(import(["node", "fs"].join(":")) as Promise<any>).catch(() => {}); leak = "still here";`));
+    await expect(evaluateConfig({ "config.ts": `const m = "node:" + "fs"; await import(m);` }, MODULES)).rejects.toThrow();
+    const manifest = await evaluateConfig(probe(`(import(["node", "fs"].join(":")) as Promise<any>).catch(() => {}); leak = "still here";`), MODULES);
     expect(manifest.policies[0]!.policy.leak).toBe("still here");
   });
 
   test("an infinite loop is stopped by the time limit", async () => {
     const started = Date.now();
-    await expect(evaluateConfig({ "config.ts": `while (true) {}` }, { timeoutMs: 300 })).rejects.toThrow("ran for longer than 300ms");
+    await expect(evaluateConfig({ "config.ts": `while (true) {}` }, MODULES, { timeoutMs: 300 })).rejects.toThrow("ran for longer than 300ms");
     expect(Date.now() - started).toBeLessThan(3000);
   });
 
@@ -78,7 +82,7 @@ describe("the sandbox has no host access", () => {
     "many small allocations hit the memory limit",
     async () => {
       await expect(
-        evaluateConfig({ "config.ts": `const a: object[] = []; for (let i = 0; ; i++) a.push({ i, items: new Array(1e4).fill(i) });` }, { memoryBytes: 16 * 1024 * 1024 }),
+        evaluateConfig({ "config.ts": `const a: object[] = []; for (let i = 0; ; i++) a.push({ i, items: new Array(1e4).fill(i) });` }, MODULES, { memoryBytes: 16 * 1024 * 1024 }),
       ).rejects.toThrow("ran out of memory");
     },
     OUT_OF_MEMORY_TIMEOUT_MS,
@@ -87,7 +91,7 @@ describe("the sandbox has no host access", () => {
   test(
     "a huge allocation hits the memory limit",
     async () => {
-      await expect(evaluateConfig({ "config.ts": `const a = []; for (;;) a.push(new Array(1e6).fill(1));` }, { memoryBytes: 16 * 1024 * 1024 })).rejects.toThrow(
+      await expect(evaluateConfig({ "config.ts": `const a = []; for (;;) a.push(new Array(1e6).fill(1));` }, MODULES, { memoryBytes: 16 * 1024 * 1024 })).rejects.toThrow(
         "ran out of memory",
       );
     },
@@ -95,12 +99,12 @@ describe("the sandbox has no host access", () => {
   );
 
   test("unbounded recursion overflows the stack, not the deployer", async () => {
-    await expect(evaluateConfig({ "config.ts": `const f = (): number => f() + 1; f();` })).rejects.toThrow(/stack|memory/);
+    await expect(evaluateConfig({ "config.ts": `const f = (): number => f() + 1; f();` }, MODULES)).rejects.toThrow(/stack|memory/);
   });
 });
 
 describe("imports are limited to achq and .achq/", () => {
-  const rejects = (config: string, message: string) => expect(evaluateConfig({ "config.ts": config, "lib/x.ts": "export const x = 1;" })).rejects.toThrow(message);
+  const rejects = (config: string, message: string) => expect(evaluateConfig({ "config.ts": config, "lib/x.ts": "export const x = 1;" }, MODULES)).rejects.toThrow(message);
 
   test("node and bun builtins", async () => {
     await rejects(`import { readFileSync } from "node:fs"; readFileSync("/etc/passwd");`, `.achq/config.ts imports "node:fs", which doesn't exist`);
@@ -124,13 +128,13 @@ describe("imports are limited to achq and .achq/", () => {
       "config.ts": `import { Container } from "@achq/core"; import { image } from "./lib/x"; import data from "./data.json"; new Container(data.name, { image });`,
       "lib/x.ts": `export const image = "./Dockerfile";`,
       "data.json": `{ "name": "dev" }`,
-    });
+    }, MODULES);
     expect(manifest.containers[0]).toMatchObject({ name: "dev", image: "./Dockerfile" });
   });
 
   test("a bad path in the file map is refused", async () => {
-    await expect(evaluateConfig({ "config.ts": "", "../x.ts": "" })).rejects.toThrow("not a valid path");
-    await expect(evaluateConfig({ "lib/x.ts": "" })).rejects.toThrow("no .achq/config.ts");
+    await expect(evaluateConfig({ "config.ts": "", "../x.ts": "" }, MODULES)).rejects.toThrow("not a valid path");
+    await expect(evaluateConfig({ "lib/x.ts": "" }, MODULES)).rejects.toThrow("no .achq/config.ts");
   });
 });
 
@@ -141,7 +145,7 @@ describe("macros don't run", () => {
   test("a macro from node:fs is refused at bundle time, before it can write", async () => {
     const target = join(dir, "pwned-builtin");
     await expect(
-      evaluateConfig({ "config.ts": `import { writeFileSync } from "node:fs" with { type: "macro" }; writeFileSync(${JSON.stringify(target)}, "x");` }),
+      evaluateConfig({ "config.ts": `import { writeFileSync } from "node:fs" with { type: "macro" }; writeFileSync(${JSON.stringify(target)}, "x");` }, MODULES),
     ).rejects.toThrow();
     expect(existsSync(target)).toBe(false);
   });
@@ -152,7 +156,7 @@ describe("macros don't run", () => {
       evaluateConfig({
         "config.ts": `import { boom } from "./macro.ts" with { type: "macro" }; export const x = boom();`,
         "macro.ts": `import { writeFileSync } from "node:fs"; export const boom = () => { writeFileSync(${JSON.stringify(target)}, "x"); return 1; };`,
-      }),
+      }, MODULES),
     ).rejects.toThrow();
     expect(existsSync(target)).toBe(false);
   });
@@ -161,29 +165,29 @@ describe("macros don't run", () => {
     const target = join(dir, "pwned-disk");
     const macro = join(dir, "macro.ts");
     writeFileSync(macro, `import { writeFileSync } from "node:fs"; export const boom = () => { writeFileSync(${JSON.stringify(target)}, "x"); return 1; };`);
-    await expect(evaluateConfig({ "config.ts": `import { boom } from ${JSON.stringify(macro)} with { type: "macro" }; export const x = boom();` })).rejects.toThrow();
+    await expect(evaluateConfig({ "config.ts": `import { boom } from ${JSON.stringify(macro)} with { type: "macro" }; export const x = boom();` }, MODULES)).rejects.toThrow();
     expect(existsSync(target)).toBe(false);
   });
 });
 
 describe("errors read well in ACHQ_STATUS", () => {
   test("a syntax error says where", async () => {
-    await expect(evaluateConfig({ "config.ts": `const a = 1;\nconst x = ;` })).rejects.toThrow(".achq/config.ts:2:11: Unexpected ;");
+    await expect(evaluateConfig({ "config.ts": `const a = 1;\nconst x = ;` }, MODULES)).rejects.toThrow(".achq/config.ts:2:11: Unexpected ;");
   });
 
   test("a throw in config, and the manifest's checks", async () => {
-    await expect(evaluateConfig({ "config.ts": `throw new Error("nope");` })).rejects.toThrow("The config threw: Error: nope");
-    await expect(evaluateConfig({ "config.ts": `import "@achq/core";` })).rejects.toThrow("The config declares no containers");
-    await expect(evaluateConfig({ "config.ts": `import { Container } from "@achq/core"; new Container("dev", { image: "x" }); new Container("dev", { image: "y" });` })).rejects.toThrow(
+    await expect(evaluateConfig({ "config.ts": `throw new Error("nope");` }, MODULES)).rejects.toThrow("The config threw: Error: nope");
+    await expect(evaluateConfig({ "config.ts": `import "@achq/core";` }, MODULES)).rejects.toThrow("The config declares no containers");
+    await expect(evaluateConfig({ "config.ts": `import { Container } from "@achq/core"; new Container("dev", { image: "x" }); new Container("dev", { image: "y" });` }, MODULES)).rejects.toThrow(
       'Two containers are named "dev"',
     );
-    await expect(evaluateConfig({ "config.ts": `import { Container } from "@achq/core"; new Container("Bad", { image: "x" });` })).rejects.toThrow("must be lowercase");
+    await expect(evaluateConfig({ "config.ts": `import { Container } from "@achq/core"; new Container("Bad", { image: "x" });` }, MODULES)).rejects.toThrow("must be lowercase");
   });
 
   test("a config that forges its manifest is still checked", async () => {
     const forge = (manifest: string) => evaluateConfig({
         "config.ts": `import { Container } from "@achq/core"; new Container("dev", { image: "x" }); const s = JSON.stringify; JSON.stringify = () => ${manifest};`,
-      });
+      }, MODULES);
     await expect(forge(`"not json"`)).rejects.toThrow("isn't valid JSON");
     await expect(forge(`s({ policies: [] })`)).rejects.toThrow("invalid at containers");
     await expect(

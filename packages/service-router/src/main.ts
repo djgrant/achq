@@ -1,6 +1,6 @@
-import { ENV, ROUTER_PRIVATE_PORT, ROUTER_PUBLIC_PORT } from "@achq/core";
+import { ENV, onlyCodeHost, providerNamed, ROUTER_PRIVATE_PORT, ROUTER_PUBLIC_PORT, type Stores } from "@achq/core";
+import { loadPlugins, parsePlugins, pluginsDir } from "@achq/core/plugins";
 import { Env } from "@achq/utils/env";
-import { CHANNEL_PROVIDERS, CODE_HOST, POLICY_PROVIDERS, serviceContainerProvider } from "@achq/registry";
 import { createContext } from "./context.ts";
 import { replay } from "./features/deliveries.ts";
 import { routes } from "./routes.ts";
@@ -10,13 +10,16 @@ const ALL_INTERFACES = "::";
 
 export const main = async () => {
   const env = new Env(process.env);
-  const { stores } = serviceContainerProvider(env);
+  const providers = await loadPlugins(parsePlugins(env.require(ENV.plugins)), pluginsDir(env.require(ENV.dataDir)));
+  // Where it keeps what it stores: its container provider's store.
+  const containerProvider = providerNamed("container provider", providers.containers, env.require(ENV.containerProvider));
+  const stores: Stores = (collection) => containerProvider.store(env.vars, collection);
   const ctx = await createContext(
     { key: env.require(ENV.key), deployerUrl: env.require(ENV.deployerUrl) },
     {
-      channelProviders: CHANNEL_PROVIDERS.map((c) => c.create(env.vars)),
-      policyProviders: POLICY_PROVIDERS.map((p) => p.create(env.vars)),
-      codeHost: CODE_HOST.create(env.vars),
+      channelProviders: providers.channels.map((c) => c.create(env.vars)),
+      policyProviders: providers.policies.map((p) => p.create(env.vars)),
+      codeHost: onlyCodeHost(providers).create(env.vars),
       stores,
     },
   );

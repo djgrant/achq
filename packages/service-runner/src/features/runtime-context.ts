@@ -1,17 +1,17 @@
 import * as fs from "node:fs";
-import type { RuntimeContext } from "@achq/core";
+import type { AgentProvider, RuntimeContext, RuntimeFactory } from "@achq/core";
 import type { RepoManifest } from "@achq/core/manifest";
 import { collections } from "@achq/utils/collections";
 import { disk } from "@achq/utils/disk";
 import type { Vars } from "@achq/utils/env";
-import { AGENT_PROVIDERS } from "@achq/registry";
 import { withoutPrivate } from "./agent-env.ts";
 import { inRoot, type LoadedConfig } from "./config.ts";
 import { runnerPrompt } from "./prompt.ts";
 
 type Container = RepoManifest["containers"][number];
 
-export const defaultRuntimes = Object.fromEntries(AGENT_PROVIDERS.map((a) => [a.id, a.runtime]));
+/** Each agent provider's runtime, by the id agents name it by. */
+export const runtimesOf = (agents: AgentProvider[]): Record<string, RuntimeFactory> => Object.fromEntries(agents.map((a) => [a.id, a.runtime]));
 
 /**
  * Startup files' contents: a string value is a file in `.achq/`, anything else
@@ -32,11 +32,11 @@ export const runtimeContext = (root: string, rest: Omit<RuntimeContext, "readFil
   ...rest,
 }) satisfies RuntimeContext;
 
-/** What runtimes get in this container: its HOME, achq's prompt, `container`'s startup files, and `env` without private variables. */
-export const containerContext = (config: LoadedConfig, home: string, env: Vars, container: Container | undefined) =>
+/** What runtimes get in this container: its HOME, achq's prompt, `container`'s startup files, and `env` without `privateEnv`. */
+export const containerContext = (config: LoadedConfig, home: string, env: Vars, privateEnv: string[], container: Container | undefined) =>
   runtimeContext(config.root, {
     home,
     runnerPrompt: runnerPrompt(),
     containerFiles: resolveFiles(container?.files, config.root),
-    env: withoutPrivate(env),
+    env: withoutPrivate(env, privateEnv),
   });

@@ -56,7 +56,7 @@ describe("admin", () => {
     expect(await (await r.admin("GET", "/admin/sync/s1")).json()).toMatchObject({ state: "done", result: { deployed: [repo] } });
     expect(await (await r.admin("GET", "/admin/status")).json()).toEqual([{ repo, state: "deployed", at: "2026-10-25T00:00:00.000Z" }]);
     // The deployer's `/version`, by the router's name for it.
-    expect(await (await r.admin("GET", "/admin/deployer")).json()).toEqual({ ref: "abc123" });
+    expect(await (await r.admin("GET", "/admin/deployer")).json()).toEqual({ version: "0.1.0", plugins: [{ package: "@achq/github", version: "0.1.0" }] });
   });
 
   test("a forwarded sync is validated before it reaches the deployer", async () => {

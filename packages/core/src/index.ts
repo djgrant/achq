@@ -23,5 +23,4 @@ export * from "./contracts/agent-provider.ts";
 export * from "./contracts/vault-provider.ts";
 export * from "./contracts/providers.ts";
 export * from "./wire/constants.ts";
-export * from "./wire/achq-source.ts";
 export type * from "./wire/protocol.ts";

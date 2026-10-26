@@ -1,14 +1,25 @@
 {
   "name": "@achq/router",
   "version": "0.1.0",
-  "private": true,
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/djgrant/achq.git",
+    "directory": "packages/service-router"
+  },
   "type": "module",
+  "files": [
+    "bin",
+    "src"
+  ],
   "exports": {
     ".": "./src/index.ts"
   },
+  "bin": {
+    "achq-router": "bin/achq-router"
+  },
   "dependencies": {
     "@achq/core": "workspace:*",
-    "@achq/registry": "workspace:*",
     "@achq/utils": "workspace:*",
     "@hono/zod-openapi": "^1.6.3",
     "hono": "^4.13.13",

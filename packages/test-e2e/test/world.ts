@@ -6,6 +6,7 @@ import * as path from "node:path";
 import { type BrowserAction, BrowserActionNeeded, type ContainerProvider, type ContainerSpec, repoName } from "@achq/core";
 import { type Runner, readState, routes as runnerRoutes, runnerFromEnv } from "@achq/runner";
 import { createContext as createDeployerContext, routes as deployerRoutes } from "@achq/deployer";
+import { evaluateConfig } from "@achq/deployer/config";
 import { githubChannelProvider } from "@achq/github/channel";
 import { githubCodeHostProvider } from "@achq/github/code-host";
 import { githubPolicyProvider } from "@achq/github/policy";
@@ -13,6 +14,7 @@ import { createContext as createRouterContext, replay, routes as routerRoutes, s
 import { fakeClaude } from "@achq/test-utils/fakes/vendors/claude";
 import { FakeGitHub, makeApp } from "@achq/test-utils/fakes/vendors/github";
 import { makeOrigin } from "@achq/test-utils/fixtures/origin";
+import { CONTAINER_PLUGINS, linkWorkspace, workspaceConfigModules } from "@achq/test-utils/helpers/plugins";
 import { dirStores } from "@achq/test-utils/helpers/stores";
 import { tempDir } from "@achq/test-utils/helpers/temp-dir";
 import { APP_EVENTS, APP_ID, APP_PERMISSIONS, BOT, DJ, githubSends, INSTALLATION, KEY, MALLORY, OWNER, REPO, SLUG } from "./github-sends.ts";
@@ -106,9 +108,9 @@ class TestContainerProvider implements ContainerProvider {
     return hosted;
   }
 
-  /** What the container sees: the spec's env, plus what the image and its volume would provide. */
+  /** What the container sees: the spec's env, plus what the image and its volume would provide. Its plugins are this checkout's, linked as if installed. */
   private runnerFor(spec: ContainerSpec) {
-    return runnerFromEnv({ ...spec.env, ...this.local(spec) }, { log: (line) => this.logs.push(`${spec.name}: ${line}`) });
+    return runnerFromEnv({ ...spec.env, ...this.local(spec) }, { log: (line) => this.logs.push(`${spec.name}: ${line}`), install: linkWorkspace });
   }
 
   async ensure(spec: ContainerSpec, { build }: { build: boolean }) {
@@ -130,7 +132,7 @@ class TestContainerProvider implements ContainerProvider {
           return h.fetch(req);
         },
       });
-      const runner = this.runnerFor(spec);
+      const runner = await this.runnerFor(spec);
       hosted = { spec, runner, fetch: runnerRoutes(runner).fetch, server, requests, asleepFor: 0 };
       this.containers.set(id, hosted);
     }
@@ -170,7 +172,7 @@ class TestContainerProvider implements ContainerProvider {
       if (command[0] === "perl" && command.join(" ").includes(locks)) process.kill(Number(pid), "SIGKILL");
     }
     this.crashed.push(hosted.runner);
-    hosted.runner = this.runnerFor(hosted.spec);
+    hosted.runner = await this.runnerFor(hosted.spec);
     hosted.fetch = runnerRoutes(hosted.runner).fetch;
     await hosted.runner.reportInterrupted();
   }
@@ -266,12 +268,23 @@ export const startWorld = async () => {
 
   // The deployer, reaching the router on its private port.
   const deployer = await createDeployerContext(
-    { containerEnv: { CLAUDE_CODE_OAUTH_TOKEN: "claude-oauth-token" }, key: KEY, routerUrl: routerPrivate, routerPublicUrl: routerPublic, ref: "e2e", owners: [OWNER], runtimes: ["claude"] },
+    {
+      // As `achq infra up` gives it: the agents' variables, and the plugins every container loads.
+      containerEnv: { CLAUDE_CODE_OAUTH_TOKEN: "claude-oauth-token", ACHQ_PLUGINS: JSON.stringify(CONTAINER_PLUGINS) },
+      key: KEY,
+      routerUrl: routerPrivate,
+      routerPublicUrl: routerPublic,
+      version: "0.1.0",
+      plugins: [{ package: "@achq/github", version: "0.1.0" }],
+      owners: [OWNER],
+      runtimes: ["claude"],
+    },
     {
       containerProvider,
       router: routerAdmin({ url: routerPrivate, key: KEY }),
       stores: dirStores(path.join(root, "deployer")),
       codeHost,
+      evaluate: (files) => evaluateConfig(files, workspaceConfigModules()),
       log: (line) => logs.push(`deployer: ${line}`),
     },
   );

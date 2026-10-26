@@ -27,7 +27,7 @@ const spec = {
     ACHQ_REPO: "NotationLabs/yieldstar",
     ACHQ_CONTAINER: "dev",
     ACHQ_ROUTER_URL: "http://8081.achq-router.achq.internal",
-    ACHQ_REF: "abc123",
+    ACHQ_VERSION: "0.2.0",
   },
 };
 
@@ -111,12 +111,13 @@ test("ensure makes a placeholder Worker, its variables and secrets, and a trigge
   });
   expect(trigger.deploy_command).not.toBe("npx wrangler deploy");
   expect(trigger.deploy_command).toContain("wrangler@4 deploy --config .achq-wrangler.json");
-  // The achq Worker comes from achq at the container's ACHQ_REF.
-  expect(trigger.build_command).toContain("https://codeload.github.com/djgrant/achq/tar.gz/$ACHQ_REF");
-  expect(trigger.variables.ACHQ_REF).toEqual({ value: "abc123", is_secret: false });
+  // The achq Worker comes from npm, at the container's ACHQ_VERSION, with the one module of utils it imports.
+  expect(trigger.build_command).toContain(`"https://registry.npmjs.org/@achq/cloudflare-worker/-/cloudflare-worker-$ACHQ_VERSION.tgz"`);
+  expect(trigger.build_command).toContain(`"https://registry.npmjs.org/@achq/utils/-/utils-$ACHQ_VERSION.tgz"`);
+  expect(trigger.variables.ACHQ_VERSION).toEqual({ value: "0.2.0", is_secret: false });
   expect(builtConfig()).toMatchObject({
     name: worker,
-    main: ".achq-worker/cloudflare-worker/src/index.ts",
+    main: ".achq-worker/node_modules/@achq/cloudflare-worker/src/index.ts",
     compatibility_flags: ["global_fetch_strictly_public"],
     // Its Durable Object starts it with the runner, not the Dockerfile's CMD.
     vars: { ACHQ_SERVICE: { name: worker, port: 3000, sleeps: true, restartOnChange: false, image: "app", entrypoint: serve(), instance: "standard-1", workersDev: "acme.workers.dev" } },
@@ -231,9 +232,9 @@ test("list reads containers' repo and name, shell reaches the running instance, 
   expect(registeredToken()).toBeDefined();
 });
 
-test("only builds at a known achq commit", async () => {
-  const { ACHQ_REF: _, ...withoutRef } = spec.env;
-  await expect(host.ensure({ ...spec, env: withoutRef }, NO_BUILD)).rejects.toThrow("has no ACHQ_REF");
+test("only builds at a known achq version", async () => {
+  const { ACHQ_VERSION: _, ...withoutVersion } = spec.env;
+  await expect(host.ensure({ ...spec, env: withoutVersion }, NO_BUILD)).rejects.toThrow("has no ACHQ_VERSION");
 });
 
 test("the deployer makes it from its environment", async () => {

@@ -3,10 +3,14 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as claude from "@achq/claude";
 import { makeOrigin } from "@achq/test-utils/fixtures/origin";
+import { workspaceConfigModules } from "@achq/test-utils/helpers/plugins";
 import { tempDir } from "@achq/test-utils/helpers/temp-dir";
 import { bundleConfig, createConfigLoader, evaluateBundle } from "../src/features/config.ts";
 import { paths as layout } from "../src/features/layout.ts";
 import { fetchMirror } from "../src/features/repo.ts";
+
+/** What configs may import: core and the first-party container plugins, from this checkout. */
+const MODULES = workspaceConfigModules();
 
 const dirs: string[] = [];
 afterEach(() => {
@@ -19,7 +23,7 @@ describe("loadConfig", () => {
     const git = await makeOrigin(root);
     const paths = layout(path.join(root, "data"));
     let fetches = 0;
-    const load = createConfigLoader({ mirror: paths.mirror, dir: paths.config, fetch: () => (fetches++, fetchMirror(paths.mirror, git.origin)) });
+    const load = createConfigLoader({ modules: MODULES, mirror: paths.mirror, dir: paths.config, fetch: () => (fetches++, fetchMirror(paths.mirror, git.origin)) });
 
     const config = await load(git.first);
     expect(config.manifest.containers).toEqual([{ name: "dev", image: "./Dockerfile", policies: [], files: { "~/.config/tool.toml": "./tool.toml" } }]);
@@ -50,8 +54,8 @@ describe("loadConfig", () => {
       [`import { x } from "../outside.ts"; console.log(x);`, "its own files"],
     ]) {
       fs.writeFileSync(path.join(achq, "config.ts"), source!);
-      await expect(bundleConfig(achq, path.join(root, "out"))).rejects.toThrow();
-      const err = await bundleConfig(achq, path.join(root, "out")).catch((e) => e);
+      await expect(bundleConfig(achq, path.join(root, "out"), MODULES)).rejects.toThrow();
+      const err = await bundleConfig(achq, path.join(root, "out"), MODULES).catch((e) => e);
       expect(String(err.errors?.map(String) ?? err)).toContain(message);
     }
   });
@@ -61,6 +65,6 @@ describe("loadConfig", () => {
     const achq = path.join(root, ".achq");
     fs.mkdirSync(achq);
     fs.writeFileSync(path.join(achq, "config.ts"), `import * as claude from "@achq/claude"; new claude.Agent("a", {});`);
-    await expect(evaluateBundle(await bundleConfig(achq, path.join(root, "out")))).rejects.toThrow("no containers");
+    await expect(evaluateBundle(await bundleConfig(achq, path.join(root, "out"), MODULES))).rejects.toThrow("no containers");
   });
 });

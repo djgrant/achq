@@ -177,7 +177,7 @@ test("a new project plans in one pass and writes nothing, with the router's URL 
         sleeps: false,
         restartOnChange: true,
         image: "cloudflare/debian-trixie",
-        entrypoint: startCommand("packages/service-router/src/main.ts"),
+        entrypoint: startCommand("@achq/router", core.CORE_PLUGIN.version),
         workersDev: "acme.workers.dev",
       },
     },

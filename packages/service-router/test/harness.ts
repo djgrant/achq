@@ -146,7 +146,7 @@ export const fakeDeployer = () => {
     c.req.valid("param").id === "s1" ? c.json({ state: "done" as const, result: { deployed: [repo], unchanged: [], uninstalled: [], pruned: [], failed: [] } }, 200) : c.text("no such sync", 404),
   );
   app.openapi(deployerRoutes.status, (c) => c.json([{ repo, state: "deployed" as const, at: "2026-10-25T00:00:00.000Z" }], 200));
-  app.openapi(deployerRoutes.version, (c) => c.json({ ref: "abc123" }, 200));
+  app.openapi(deployerRoutes.version, (c) => c.json({ version: "0.1.0", plugins: [{ package: "@achq/github", version: "0.1.0" }] }, 200));
   // A shell in any container but `ghost`.
   app.openapi(deployerRoutes.shell, (c) => {
     const { container, command, tty } = c.req.valid("json");

@@ -1,7 +1,9 @@
 import type { AgentProvider } from "../contracts/agent-provider.ts";
 import type { CodeHostImplementation } from "../contracts/code-host-provider.ts";
 import { brand, branded } from "../engine/brand.ts";
+import type { PluginLists } from "../engine/plugins.ts";
 import { all, GENERATED, type Input, type Output } from "../engine/values.ts";
+import { PLUGIN } from "../plugin.ts";
 import { DEPLOYER_PORT, ENV, ROUTER_PRIVATE_PORT, ROUTER_PUBLIC_PORT } from "../wire/constants.ts";
 import { type Context, declared, Resource, resetDeclarations } from "./resource.ts";
 import { CurrentVariables, type VariableGroup, VariableGroups, type VariableValues } from "./variables.ts";
@@ -34,8 +36,14 @@ export interface Placement {
 export abstract class Service extends Resource {
   /** The `ContainerProvider` it runs on, by id. */
   abstract readonly containerProvider: string;
-  /** The file in achq it runs, e.g. `packages/service-router/src/main.ts`. */
-  abstract readonly entry: string;
+  /** The npm package it runs, e.g. `@achq/router`, whose `bin` serves it. */
+  abstract readonly package: string;
+  /**
+   * The version of its package it runs: core's, which the infra's plugins
+   * were installed against, as achq's packages are versioned together. A
+   * literal in its start command, so a new version redeploys it.
+   */
+  readonly version = PLUGIN.version;
   /** A public service gets a public URL for this port. */
   abstract readonly port: number;
   abstract readonly public: boolean;
@@ -113,7 +121,7 @@ const CODE_HOST = brand("code-host");
 export abstract class Router extends Service {
   readonly [ROUTER] = true;
   readonly kind = "router";
-  readonly entry = "packages/service-router/src/main.ts";
+  readonly package = "@achq/router";
   readonly port = ROUTER_PUBLIC_PORT;
   readonly public = true;
   readonly sleeps = false;
@@ -174,7 +182,7 @@ export abstract class Router extends Service {
 export abstract class Deployer extends Service {
   readonly [DEPLOYER] = true;
   readonly kind = "deployer";
-  readonly entry = "packages/service-deployer/src/main.ts";
+  readonly package = "@achq/deployer";
   readonly port = DEPLOYER_PORT;
   readonly public = false;
   readonly sleeps = true;
@@ -190,15 +198,18 @@ export abstract class Deployer extends Service {
 
   /**
    * Gives its router and it what achq itself does: how they reach each other,
-   * what they run (`ref`, an achq commit), what every container gets
-   * (`containerEnv`), and the agent runtimes those can run, by id.
-   * `achq infra up` calls it once the infra is declared.
+   * the plugins each loads (`plugins.services`) and every container loads
+   * (`plugins.containers`), what every container gets (`containerEnv`), and
+   * the agent runtimes those can run, by id. A change to any of them
+   * redeploys what it's given to. `achq infra up` calls it once the infra is
+   * declared.
    */
-  connect({ ref, containerEnv, runtimes }: { ref: string; containerEnv: Record<string, string>; runtimes: string[] }) {
+  connect({ plugins, containerEnv, runtimes }: { plugins: PluginLists; containerEnv: Record<string, string>; runtimes: string[] }) {
     const { router, owners } = this.inputs;
+    const services = JSON.stringify(plugins.services);
     router.variables({
       [ENV.deployerUrl]: this.privateUrl(DEPLOYER_PORT),
-      [ENV.ref]: ref,
+      [ENV.plugins]: services,
       // Where it keeps what it stores: its container provider's store.
       [ENV.containerProvider]: router.containerProvider,
     });
@@ -207,9 +218,9 @@ export abstract class Deployer extends Service {
       [ENV.routerUrl]: router.privateUrl(ROUTER_PRIVATE_PORT),
       [ENV.routerPublicUrl]: router.url,
       [ENV.owners]: owners.join(","),
-      [ENV.containerEnv]: JSON.stringify(containerEnv),
+      [ENV.containerEnv]: JSON.stringify({ ...containerEnv, [ENV.plugins]: JSON.stringify(plugins.containers) }),
       [ENV.runtimes]: runtimes.join(","),
-      [ENV.ref]: ref,
+      [ENV.plugins]: services,
       [ENV.containerProvider]: this.containerProvider,
     });
   }

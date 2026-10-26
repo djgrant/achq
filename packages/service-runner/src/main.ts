@@ -4,7 +4,7 @@ import { resume, resumeConfig } from "./commands/resume.ts";
 import { serve } from "./commands/serve.ts";
 import { sessions } from "./commands/sessions.ts";
 import { paths as layout } from "./features/layout.ts";
-import { settings } from "./from-env.ts";
+import { containerPlugins, settings } from "./from-env.ts";
 
 export const main = async () => {
   const { repo, container, dataDir, repoUrl } = settings(new Env(process.env));
@@ -22,7 +22,11 @@ export const main = async () => {
   const commands: Record<RunnerCommand, () => Promise<void>> = {
     sessions: async () => sessions(paths, args[0]),
     resume: async () => {
-      process.exit(await resume({ paths, number: required(args[0]), session: required(args[1]), loadConfig: resumeConfig(paths, repoUrl), container }));
+      const number = required(args[0]);
+      const session = required(args[1]);
+      // Installed already, by the runner that served the session's runs.
+      const { privateEnv, runtimes, modules } = await containerPlugins(process.env, dataDir);
+      process.exit(await resume({ paths, number, session, loadConfig: resumeConfig(paths, repoUrl, modules), container, runtimes, privateEnv }));
     },
   };
   const named = Object.entries(COMMANDS).find(([, name]) => name === command)?.[0] as RunnerCommand | undefined;

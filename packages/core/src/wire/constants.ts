@@ -27,8 +27,10 @@ export const ENV = {
   runtimes: "ACHQ_AGENT_RUNTIMES",
   /** A URL a container fetches every few minutes while it's working, on container providers that sleep idle services. */
   keepAwakeUrl: "ACHQ_KEEP_AWAKE_URL",
-  /** The achq commit a container or service runs. */
-  ref: "ACHQ_REF",
+  /** The version of `@achq/runner` a container runs: the deployer's own, as achq's packages are versioned together. */
+  version: "ACHQ_VERSION",
+  /** The plugins a service or container installs and loads its providers from, as JSON: `{ package, version }[]`. */
+  plugins: "ACHQ_PLUGINS",
   /** Where a service or container keeps what outlives a restart. Its container provider sets it. */
   dataDir: "DATA_DIR",
   /** How many runs a container has going at once. Optional. */

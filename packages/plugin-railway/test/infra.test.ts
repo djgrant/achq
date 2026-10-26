@@ -93,7 +93,7 @@ test("a new project plans in one pass and writes nothing, with the router's URL 
   });
   expect(fake.service("achq-deployer")!.domains).toEqual([]);
   expect(fake.service("achq-deployer")!.settings).toMatchObject({ sleepApplication: true });
-  expect(fake.service("achq-router")!.settings).toMatchObject({ healthcheckPath: "/", sleepApplication: false, startCommand: startCommand("packages/service-router/src/main.ts") });
+  expect(fake.service("achq-router")!.settings).toMatchObject({ healthcheckPath: "/", sleepApplication: false, startCommand: startCommand("@achq/router", core.CORE_PLUGIN.version) });
   expect(fake.service("achq-router")!.source.image).toBe("oven/bun:1-slim");
   expect(fake.service("achq-router")!.deployments).toHaveLength(1);
   expect(fake.service("achq-deployer")!.deployments).toHaveLength(1);
@@ -157,7 +157,7 @@ test("a setting changed on Railway is set back without a deploy: the deploy is o
 test("a service's deploy is over its settings and every group of its variables as one map", async () => {
   const { router } = declare("a", "1");
   await (await plan([router], ctx)).apply();
-  const settings = { source: { image: "oven/bun:1-slim" }, startCommand: startCommand("packages/service-router/src/main.ts"), healthcheckPath: "/", sleepApplication: false };
+  const settings = { source: { image: "oven/bun:1-slim" }, startCommand: startCommand("@achq/router", core.CORE_PLUGIN.version), healthcheckPath: "/", sleepApplication: false };
   const variables = { AGENT_WEBHOOK_KEY: "generated-key", ACHQ_REF: "a", GITHUB_APP_ID: "1", DATA_DIR: "/data", PORT: "8080" };
   expect(fake.service("achq-router")!.variables.ACHQ_DEPLOYED).toBe(fingerprint({ settings, variables }));
 
@@ -170,7 +170,7 @@ test("a router deployed before variables came in groups doesn't redeploy: its fi
   const railway = new Railway("t", fake.url);
   const { id: projectId, environmentId } = await railway.readProject(await railway.createProject("achq", "ws"));
   const service = await railway.project({ projectId, environmentId }).createService("achq-router");
-  const settings = { source: { image: "oven/bun:1-slim" }, startCommand: startCommand("packages/service-router/src/main.ts"), healthcheckPath: "/", sleepApplication: false };
+  const settings = { source: { image: "oven/bun:1-slim" }, startCommand: startCommand("@achq/router", core.CORE_PLUGIN.version), healthcheckPath: "/", sleepApplication: false };
   const variables = { AGENT_WEBHOOK_KEY: "old-key", ACHQ_REF: "a", GITHUB_APP_ID: "7", DATA_DIR: "/data", PORT: "8080" };
   const sorted = Object.fromEntries(Object.entries(variables).sort(([a], [b]) => a.localeCompare(b)));
   const deployed = createHash("sha256").update(JSON.stringify({ settings, variables: sorted })).digest("hex").slice(0, 16);

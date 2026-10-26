@@ -1,5 +1,5 @@
 import { DATA_DIR, MANAGED_IMAGE, type WorkerSettings } from "@achq/cloudflare-worker/settings";
-import { achqStartScript, all, type EnvValues, type ManagedResource, type Output, type Placement, type Service as AchqService } from "@achq/core";
+import { all, type EnvValues, type ManagedResource, type Output, type Placement, type Service as AchqService } from "@achq/core";
 import { BUN_VERSION, INSTANCE } from "./constants.ts";
 import { Deployment } from "./deployment.ts";
 import { KV_KEYS, privateUrl, serviceWorkerName } from "./names.ts";
@@ -9,16 +9,18 @@ import { WORKER_MAIN, workerConfig } from "./wrangler.ts";
 import { Worker } from "./worker.ts";
 
 /**
- * Runs `entry` (e.g. `packages/service-router/src/main.ts`) from achq at
- * ACHQ_REF, in Cloudflare's image, which has Node but not Bun: Bun is
- * installed under DATA_DIR on the first start. The script must not contain
- * single quotes, because it's quoted for the shell.
+ * Runs `pkg` (e.g. `@achq/router`) at `version` from npm, in Cloudflare's
+ * image, which has Node but not Bun: Bun is installed under DATA_DIR on the
+ * first start, and keeps its cache there, which its snapshots keep, so only a
+ * new version is downloaded.
  */
-export const startCommand = (entry: string) => {
-  // Under DATA_DIR, which its snapshots keep.
-  const script = achqStartScript(entry, { root: `"${DATA_DIR}/achq"`, timed: true });
+export const startCommand = (pkg: string, version: string) => {
   const bun = `${DATA_DIR}/bun`;
-  return ["sh", "-c", `set -e; export PATH="${bun}/bin:$PATH"; command -v bun >/dev/null || npm install -g --prefix ${bun} bun@${BUN_VERSION}; exec bun -e '${script}'`];
+  return [
+    "sh",
+    "-c",
+    `set -e; export PATH="${bun}/bin:$PATH" BUN_INSTALL_CACHE_DIR="${DATA_DIR}/bun-cache"; command -v bun >/dev/null || npm install -g --prefix ${bun} bun@${BUN_VERSION}; exec bunx ${pkg}@${version}`,
+  ];
 };
 
 /** Where one of achq's own services runs on Cloudflare: its Worker, in `project`, and its deploy. */
@@ -63,7 +65,7 @@ export class ServiceParts implements Placement {
       sleeps: owner.sleeps,
       restartOnChange: true,
       image: MANAGED_IMAGE,
-      entrypoint: startCommand(owner.entry),
+      entrypoint: startCommand(owner.package, owner.version),
       instance: INSTANCE,
       workersDev,
     };

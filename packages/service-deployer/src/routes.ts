@@ -37,7 +37,7 @@ export const routes = (ctx: DeployerContext) => {
       // A failed one's error is only logged.
       return c.json(found.state === "failed" ? { state: "failed" as const } : found, 200);
     })
-    .openapi(deployerRoutes.version, (c) => c.json({ ref: ctx.env.ref }, 200))
+    .openapi(deployerRoutes.version, (c) => c.json({ version: ctx.env.version, plugins: ctx.env.plugins }, 200))
     .openapi(deployerRoutes.status, async (c) => c.json(await status(ctx), 200))
     .openapi(deployerRoutes.shell, async (c) => {
       const found = await shell(ctx, c.req.valid("json"));

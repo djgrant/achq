@@ -120,7 +120,7 @@ const deployOnce = async (ctx: DeployerContext, repo: string, dryRun: boolean): 
     commit = tree.commit;
 
     // What the deployer gives every container, e.g. the agents' tokens. A change to it redeploys every repo; it's hashed, as it holds secrets.
-    const shared = { ...ctx.env.containerEnv, [ENV.routerUrl]: ctx.env.routerUrl, [ENV.ref]: ctx.env.ref };
+    const shared = { ...ctx.env.containerEnv, [ENV.routerUrl]: ctx.env.routerUrl, [ENV.version]: ctx.env.version };
     const given = crypto.sha256Hex(json.stableStringify(shared));
     if (previous?.state === "deployed" && tree.tree && previous.deployed?.tree === tree.tree && previous.deployed.given === given) {
       ctx.log(`${repo}: ${CONFIG_DIR}/ unchanged at ${tree.commit}`);
