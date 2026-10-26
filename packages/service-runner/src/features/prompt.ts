@@ -1,11 +1,13 @@
-import * as fs from "node:fs";
-import * as path from "node:path";
 import type { Message, Thread } from "@achq/core";
 import { crypto } from "@achq/utils/crypto";
 import { text } from "@achq/utils/text";
 import Mustache from "mustache";
+import NEW from "../../prompts/new.md" with { type: "text" };
+import RESUME from "../../prompts/resume.md" with { type: "text" };
+import SYSTEM from "../../prompts/system.md" with { type: "text" };
 
-const PROMPTS = path.join(import.meta.dir, "..", "..", "prompts");
+/** Imported as text, so a bundle carries them. */
+const TEMPLATES = { new: NEW, resume: RESUME };
 const EMPTY = "(empty)";
 const UNTRUSTED_OPENING = "(Left out: the opening post is by a user without write access.)";
 
@@ -33,7 +35,7 @@ export const parseCommand = (body: string, trigger: string) => {
 };
 
 /** achq's system prompt, which every agent gets before the repo's. */
-export const runnerPrompt = () => fs.readFileSync(path.join(PROMPTS, "system.md"), "utf8");
+export const runnerPrompt = () => SYSTEM;
 
 export type PromptInput = {
   mode: "new" | "resume";
@@ -83,7 +85,7 @@ export const buildPrompt = (input: PromptInput) => {
   const body = !first ? EMPTY : !openingTrusted ? UNTRUSTED_OPENING : first.body.trim() || EMPTY;
 
   // The prompt is markdown, not HTML: values go in as written.
-  const template = fs.readFileSync(path.join(PROMPTS, `${input.mode}.md`), "utf8");
+  const template = TEMPLATES[input.mode];
   const view = {
     thread: { id: input.thread.ref.id, title: input.thread.title, url: input.thread.url, body },
     messages: shown.map((m) => ({ author: m.author, date: m.at, body: stripNew(m.body, input.mention).trim() })),

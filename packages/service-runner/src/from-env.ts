@@ -29,8 +29,7 @@ export const runLimits = (env: Env) => ({
 /**
  * The plugins the container's environment names, installed under its data dir
  * and loaded: their providers, what's never given to an agent, the agent
- * drivers by id, and what a config may import: core, as this runner's own
- * copy, and the plugins.
+ * drivers by id, and what a config may import: core and the plugins, as installed beside them.
  */
 export const containerPlugins = async (vars: Vars, dataDir: string, options: { install?: Install } = {}) => {
   const plugins = parsePlugins(new Env(vars).require(ENV.plugins));
@@ -40,7 +39,7 @@ export const containerPlugins = async (vars: Vars, dataDir: string, options: { i
     providers,
     privateEnv: privateEnv(providers),
     drivers: driversOf(providers.agents),
-    modules: configModules(plugins, dir, Bun.resolveSync("@achq/core", import.meta.dir)),
+    modules: configModules(plugins, dir),
   };
 };
 

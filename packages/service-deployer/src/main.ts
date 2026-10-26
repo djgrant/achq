@@ -23,7 +23,7 @@ export const main = async () => {
   const providers = await loadPlugins([...plugins, ...containerPlugins.filter((c) => !plugins.some((p) => p.package === c.package))], dir);
   const containerProvider = providerNamed("container provider", providers.containers, env.require(ENV.containerProvider));
   const stores: Stores = (collection) => containerProvider.store(env.vars, collection);
-  const allowed = configModules(containerPlugins, dir, Bun.resolveSync("@achq/core", import.meta.dir));
+  const allowed = configModules(containerPlugins, dir);
 
   const ctx = await createContext(
     {

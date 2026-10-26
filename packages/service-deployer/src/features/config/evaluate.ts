@@ -1,5 +1,5 @@
 import { posix } from "node:path";
-import { CONFIG_DIR, CONFIG_ENTRY } from "@achq/core";
+import { CONFIG_DIR, CONFIG_ENTRY, CORE_PLUGIN } from "@achq/core";
 import { type ManifestInput, validateManifest } from "@achq/core/manifest";
 import { errors } from "@achq/utils/errors";
 import { type Limits, sandbox } from "./sandbox.ts";
@@ -22,25 +22,24 @@ const SANDBOX_ENTRY = "/entry.js";
  */
 export type ConfigModules = Record<string, string>;
 
-/** The module that collects the manifest. */
-const MANIFEST_MODULE = Bun.resolveSync("./manifest.ts", import.meta.dir);
 const CONFIG_MODULE = `${SANDBOX_ROOT}/${CONFIG_ENTRY}`;
 
-/** Where `modules` and the manifest module go in the sandbox, and the entry that imports the config, which declares its resources, then collects them. */
+/** Where `modules` go in the sandbox, and the entry that imports the config, which declares its resources, then has core collect them. */
 const layoutOf = (modules: ConfigModules) => {
-  const entrypoints = [...Object.values(modules), MANIFEST_MODULE];
+  const entrypoints = Object.values(modules);
   // The directory every entrypoint is in, so each one's output keeps its own path under SANDBOX_LIB: there are several `index.ts`s.
   const root = entrypoints.map(posix.dirname).reduce((a, b) => {
     while (!`${b}/`.startsWith(`${a}/`)) a = posix.dirname(a);
     return a;
   });
   const sandboxPath = (entry: string) => posix.join(SANDBOX_LIB, posix.relative(root, entry).replace(/\.[a-z]+$/, ".js"));
+  // What a config's bare imports resolve to: each package's entry module.
+  const imports = Object.fromEntries(Object.entries(modules).map(([specifier, file]) => [specifier, sandboxPath(file)])) as Record<string, string>;
   return {
     entrypoints,
     root,
-    // What a config's bare imports resolve to: each package's entry module.
-    imports: Object.fromEntries(Object.entries(modules).map(([specifier, file]) => [specifier, sandboxPath(file)])) as Record<string, string>,
-    entry: `import "${CONFIG_MODULE}"; import manifest from "${sandboxPath(MANIFEST_MODULE)}"; export default manifest();`,
+    imports,
+    entry: `import "${CONFIG_MODULE}"; import { collectManifest } from "${imports[CORE_PLUGIN.package]}"; export default JSON.stringify(collectManifest());`,
   };
 };
 
@@ -79,7 +78,7 @@ const transpile = (path: string, contents: string) => {
 
 const built = new Map<string, Promise<Record<string, string>>>();
 
-/** The modules a config may import, built once for each set of them, with code splitting so they share their modules, plus the manifest entry. */
+/** The modules a config may import, built once for each set of them, with code splitting so they share their modules. */
 const achqModules = ({ entrypoints, root }: ReturnType<typeof layoutOf>) => {
   const key = JSON.stringify(entrypoints);
   if (!built.has(key)) built.set(key, build(entrypoints, root));

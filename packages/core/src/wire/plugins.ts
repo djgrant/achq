@@ -54,8 +54,14 @@ export const loadPlugins = async (plugins: Plugin[], dir: string, { install = bu
   return mergeProviders(loaded);
 };
 
-/** Where a config's import of `specifier`, one of `plugins` or core, resolves: core to this process's own copy, a plugin to its install in `dir`. */
-export const configModules = (plugins: Plugin[], dir: string, core: string) => ({
-  [PLUGIN.package]: core,
+/**
+ * Where a config's import of `specifier`, one of `plugins` or core, resolves:
+ * to its install in `dir`. Core there is the process's version, and keeps its
+ * declarations once per process, so a config declares what the process reads
+ * even when the process is bundled with its own copy. With no plugins there's
+ * no install, and nothing a config may import.
+ */
+export const configModules = (plugins: Plugin[], dir: string): Record<string, string> => ({
+  ...(plugins.length ? { [PLUGIN.package]: Bun.resolveSync(PLUGIN.package, dir) } : {}),
   ...Object.fromEntries(plugins.map((p) => [p.package, Bun.resolveSync(p.package, dir)])),
 });
