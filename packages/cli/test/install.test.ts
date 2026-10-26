@@ -12,15 +12,15 @@ import { repoReadStatus, STATUS_TIMEOUT_MS } from "../tasks/repo.read-status.ts"
 import { repoUninstall } from "../tasks/repo.uninstall.ts";
 import { run } from "../tasks/run.ts";
 import { testRunner } from "./runner.ts";
-import * as achq from "achq";
-import * as claude from "achq/claude";
-import * as github from "achq/github";
+import * as core from "@achq/core";
+import * as claude from "@achq/claude";
+import * as github from "@achq/github";
 
 // A real .achq/ directory, as the design's example writes it, with a local import.
 const CONFIG = `
-import { Container, Workspace, Trigger } from "achq";
-import * as claude from "achq/claude";
-import * as github from "achq/github";
+import { Container, Workspace, Trigger } from "@achq/core";
+import * as claude from "@achq/claude";
+import * as github from "@achq/github";
 import { docsLabels } from "./lib/labels.ts";
 
 const channel = github.Channel.get("notation-achq");
@@ -50,7 +50,7 @@ const registerConfigModules = () =>
   Bun.plugin({
     name: "achq-config",
     setup(build) {
-      for (const [specifier, exports] of Object.entries({ achq, "achq/claude": claude, "achq/github": github })) build.module(specifier, () => ({ exports: { ...exports }, loader: "object" }));
+      for (const [specifier, exports] of Object.entries({ "@achq/core": core, "@achq/claude": claude, "@achq/github": github })) build.module(specifier, () => ({ exports: { ...exports }, loader: "object" }));
     },
   });
 

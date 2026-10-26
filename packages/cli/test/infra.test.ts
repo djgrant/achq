@@ -81,7 +81,9 @@ test("the deployer and every resource that names a router use the infra's", () =
 test("an achq.infra.ts file, written as the design shows, loads with its imports resolved to achq", async () => {
   fs.writeFileSync(
     path.join(tmp, "achq.infra.ts"),
-    `import { achq, github, railway } from "achq/infra";
+    `import { achq } from "@achq/core";
+import * as github from "@achq/github/infra";
+import * as railway from "@achq/railway/infra";
 
 export default achq(() => {
   const router = new railway.Router("router", { project: "achq" });
@@ -106,7 +108,8 @@ export default achq(() => {
 test("before reaching the infra, achq checks what its container provider does, and that the agents' variables are set", async () => {
   fs.writeFileSync(
     path.join(tmp, "achq.infra.ts"),
-    `import { achq, railway } from "achq/infra";
+    `import { achq } from "@achq/core";
+import * as railway from "@achq/railway/infra";
 export default achq(() => {
   const router = new railway.Router("router", { project: "achq" });
   new railway.Deployer("deployer", { router, owners: [] });

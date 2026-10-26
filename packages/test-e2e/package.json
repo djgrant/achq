@@ -5,12 +5,12 @@
   "type": "module",
   "exports": {},
   "dependencies": {
+    "@achq/claude": "workspace:*",
     "@achq/core": "workspace:*",
     "@achq/deployer": "workspace:*",
     "@achq/github": "workspace:*",
     "@achq/router": "workspace:*",
-    "@achq/runner": "workspace:*",
-    "achq": "workspace:*"
+    "@achq/runner": "workspace:*"
   },
   "devDependencies": {
     "@achq/test-utils": "workspace:*",

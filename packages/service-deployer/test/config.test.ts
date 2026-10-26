@@ -8,7 +8,7 @@ import { evaluateConfig } from "../src/features/config/evaluate.ts";
 /** A config that declares a container, then runs `body`, then exports whatever `body` left in `leak`. */
 const probe = (body: string) => ({
   "config.ts": `
-import { Container, Policy } from "achq";
+import { Container, Policy } from "@achq/core";
 let leak: unknown = "unset";
 try { ${body} } catch (e) { leak = "threw: " + String(e); }
 new Container("dev", { image: "./Dockerfile" });
@@ -28,7 +28,7 @@ describe("evaluateConfig", () => {
   });
 
   test("a config that logs doesn't crash", async () => {
-    const manifest = await evaluateConfig({ "config.ts": `import { Container } from "achq"; console.log("hi", { a: 1 }); new Container("dev", { image: "./Dockerfile" });` });
+    const manifest = await evaluateConfig({ "config.ts": `import { Container } from "@achq/core"; console.log("hi", { a: 1 }); new Container("dev", { image: "./Dockerfile" });` });
     expect(manifest.containers[0]!.name).toBe("dev");
   });
 });
@@ -115,13 +115,13 @@ describe("imports are limited to achq and .achq/", () => {
     await rejects(`import "/etc/passwd";`, `imports "/etc/passwd"`);
     await rejects(`import "https://example.com/x.js";`, `imports "https://example.com/x.js"`);
     await rejects(`import { z } from "zod"; z.string();`, `imports "zod"`);
-    await rejects(`import "achq/../core/secrets.ts";`, `imports "achq/../core/secrets.ts"`);
+    await rejects(`import "@achq/core/../utils/src/env.ts";`, `imports "@achq/core/../utils/src/env.ts"`);
     await rejects(`import "./nope.ts";`, `imports "./nope.ts", which doesn't exist`);
   });
 
   test("files under .achq/ resolve, with or without an extension", async () => {
     const manifest = await evaluateConfig({
-      "config.ts": `import { Container } from "achq"; import { image } from "./lib/x"; import data from "./data.json"; new Container(data.name, { image });`,
+      "config.ts": `import { Container } from "@achq/core"; import { image } from "./lib/x"; import data from "./data.json"; new Container(data.name, { image });`,
       "lib/x.ts": `export const image = "./Dockerfile";`,
       "data.json": `{ "name": "dev" }`,
     });
@@ -173,16 +173,16 @@ describe("errors read well in ACHQ_STATUS", () => {
 
   test("a throw in config, and the manifest's checks", async () => {
     await expect(evaluateConfig({ "config.ts": `throw new Error("nope");` })).rejects.toThrow("The config threw: Error: nope");
-    await expect(evaluateConfig({ "config.ts": `import "achq";` })).rejects.toThrow("The config declares no containers");
-    await expect(evaluateConfig({ "config.ts": `import { Container } from "achq"; new Container("dev", { image: "x" }); new Container("dev", { image: "y" });` })).rejects.toThrow(
+    await expect(evaluateConfig({ "config.ts": `import "@achq/core";` })).rejects.toThrow("The config declares no containers");
+    await expect(evaluateConfig({ "config.ts": `import { Container } from "@achq/core"; new Container("dev", { image: "x" }); new Container("dev", { image: "y" });` })).rejects.toThrow(
       'Two containers are named "dev"',
     );
-    await expect(evaluateConfig({ "config.ts": `import { Container } from "achq"; new Container("Bad", { image: "x" });` })).rejects.toThrow("must be lowercase");
+    await expect(evaluateConfig({ "config.ts": `import { Container } from "@achq/core"; new Container("Bad", { image: "x" });` })).rejects.toThrow("must be lowercase");
   });
 
   test("a config that forges its manifest is still checked", async () => {
     const forge = (manifest: string) => evaluateConfig({
-        "config.ts": `import { Container } from "achq"; new Container("dev", { image: "x" }); const s = JSON.stringify; JSON.stringify = () => ${manifest};`,
+        "config.ts": `import { Container } from "@achq/core"; new Container("dev", { image: "x" }); const s = JSON.stringify; JSON.stringify = () => ${manifest};`,
       });
     await expect(forge(`"not json"`)).rejects.toThrow("isn't valid JSON");
     await expect(forge(`s({ policies: [] })`)).rejects.toThrow("invalid at containers");

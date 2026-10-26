@@ -4,7 +4,7 @@ import type { RepoManifest } from "@achq/core/manifest";
 import { collections } from "@achq/utils/collections";
 import { disk } from "@achq/utils/disk";
 import type { Vars } from "@achq/utils/env";
-import { AGENT_PROVIDERS } from "achq/registry";
+import { AGENT_PROVIDERS } from "@achq/registry";
 import { withoutPrivate } from "./agent-env.ts";
 import { inRoot, type LoadedConfig } from "./config.ts";
 import { runnerPrompt } from "./prompt.ts";

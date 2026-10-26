@@ -60,7 +60,7 @@ describe("loadConfig", () => {
     const root = tempDir(dirs);
     const achq = path.join(root, ".achq");
     fs.mkdirSync(achq);
-    fs.writeFileSync(path.join(achq, "config.ts"), `import * as claude from "achq/claude"; new claude.Agent("a", {});`);
+    fs.writeFileSync(path.join(achq, "config.ts"), `import * as claude from "@achq/claude"; new claude.Agent("a", {});`);
     await expect(evaluateBundle(await bundleConfig(achq, path.join(root, "out")))).rejects.toThrow("no containers");
   });
 });

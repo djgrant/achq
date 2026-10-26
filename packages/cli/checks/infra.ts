@@ -1,6 +1,6 @@
 import type { Check } from "@achq/core";
 import { Env, type Vars } from "@achq/utils/env";
-import { agentContainerEnv, containerProviderNamed } from "achq/registry";
+import { agentContainerEnv, containerProviderNamed } from "@achq/registry";
 import { loadInfra } from "../tasks/infra.load.ts";
 
 /** What to make sure of before reaching the infra in `file`: what its container provider checks, e.g. that Railway takes your token. */

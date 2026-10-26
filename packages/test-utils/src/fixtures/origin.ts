@@ -3,8 +3,8 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 
 export const CONFIG = `
-import { Container, EventSelector, ThreadSelector, Trigger, Workspace } from "achq";
-import * as claude from "achq/claude";
+import { Container, EventSelector, ThreadSelector, Trigger, Workspace } from "@achq/core";
+import * as claude from "@achq/claude";
 import { settingsFor } from "./lib/settings.ts";
 
 const dev = new Container("dev", { image: "./Dockerfile", files: { "~/.config/tool.toml": "./tool.toml" } });

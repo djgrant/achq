@@ -1,7 +1,7 @@
 import { collections } from "@achq/utils/collections";
 import { disk } from "@achq/utils/disk";
 import type { Vars } from "@achq/utils/env";
-import { privateEnv } from "achq/registry";
+import { privateEnv } from "@achq/registry";
 
 /** Only the agent's user reads its credentials. */
 const PRIVATE_FILE_MODE = 0o600;

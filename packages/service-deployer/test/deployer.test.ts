@@ -188,7 +188,7 @@ describe("install", () => {
   });
 
   test("a config that fails in the sandbox is reported in ACHQ_STATUS and deploys nothing", async () => {
-    github.commit(REPO, repoFiles({ ".achq/config.ts": `import { Container } from "achq"; while (true) {}` }));
+    github.commit(REPO, repoFiles({ ".achq/config.ts": `import { Container } from "@achq/core"; while (true) {}` }));
     const deployer = await createContext({ ...ENV, owners: ["notationlabs"] }, {
       containerProvider,
       router: routerAdmin({ url: router.url, key: KEY }),

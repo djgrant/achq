@@ -7,16 +7,17 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
+    "@achq/claude": "workspace:*",
     "@achq/core": "workspace:*",
+    "@achq/github": "workspace:*",
+    "@achq/registry": "workspace:*",
     "@achq/utils": "workspace:*",
     "@hono/zod-openapi": "^1.6.3",
-    "achq": "workspace:*",
     "hono": "^4.13.13",
     "mustache": "^4",
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@achq/claude": "workspace:*",
     "@achq/test-utils": "workspace:*",
     "@types/mustache": "^4.2.6"
   },

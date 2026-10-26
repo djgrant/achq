@@ -1,6 +1,6 @@
 import { ENV, ROUTER_PRIVATE_PORT, ROUTER_PUBLIC_PORT } from "@achq/core";
 import { Env } from "@achq/utils/env";
-import { CHANNEL_PROVIDERS, CODE_HOST, POLICY_PROVIDERS, serviceContainerProvider } from "achq/registry";
+import { CHANNEL_PROVIDERS, CODE_HOST, POLICY_PROVIDERS, serviceContainerProvider } from "@achq/registry";
 import { createContext } from "./context.ts";
 import { replay } from "./features/deliveries.ts";
 import { routes } from "./routes.ts";

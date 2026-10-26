@@ -1,15 +1,11 @@
 {
-  "name": "achq",
+  "name": "@achq/registry",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts",
-    "./claude": "./src/claude.ts",
-    "./github": "./src/github.ts",
-    "./infra": "./src/infra.ts",
-    "./modules": "./src/modules.ts",
-    "./registry": "./src/registry.ts"
+    ".": "./src/registry.ts",
+    "./modules": "./src/modules.ts"
   },
   "dependencies": {
     "@achq/1password": "workspace:*",

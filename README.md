@@ -8,7 +8,7 @@ The design and the reasons behind it are in [docs/achq-design.md](docs/achq-desi
 
 ## Layers
 
-- **achq** (this repo): the CLI, the router, the deployer, the container runtime, and the resource library repos and the infra import.
+- **achq** (this repo): the CLI, the router, the deployer, the container runtime, and the packages repos and the infra import: `@achq/core` and a plugin per vendor.
 - **ACHQ infra**: a repo with `achq.infra.ts`, declaring the router, the deployer and the GitHub Apps. `achq infra up` runs it.
 - **ACHQ repos**: any repo with `.achq/config.ts` and a Dockerfile. Installing one of the infra's Apps on it deploys it.
 
@@ -16,7 +16,9 @@ The design and the reasons behind it are in [docs/achq-design.md](docs/achq-desi
 
 ```ts
 // achq.infra.ts
-import { achq, github, railway } from "achq/infra";
+import { achq } from "@achq/core";
+import * as github from "@achq/github/infra";
+import * as railway from "@achq/railway/infra";
 
 export default achq(() => {
   const router = new railway.Router("router", { project: "achq" });
@@ -31,7 +33,9 @@ On Cloudflare, the router and deployer are Workers, each running its service in 
 
 ```ts
 // achq.infra.ts
-import { achq, cloudflare, github } from "achq/infra";
+import { achq } from "@achq/core";
+import * as cloudflare from "@achq/cloudflare/infra";
+import * as github from "@achq/github/infra";
 
 export default achq(() => {
   const router = new cloudflare.Router("router", { project: "achq" });
@@ -43,7 +47,7 @@ export default achq(() => {
 
 `sshKeys` are public key lines, as in `~/.ssh/id_ed25519.pub`, that the deployer writes into each container Worker's `authorized_keys`. `achq container ssh` and `resume` open a shell with `wrangler containers ssh`, which connects as one of them, with its private key on your machine; a container Worker without any can't be reached that way. Railway doesn't need them: `railway ssh` connects as you're signed in to Railway.
 
-For types, add the `achq` package to the infra repo.
+For types, add `@achq/core` and the plugins it imports to the infra repo. `achq infra up` loads them from the CLI itself, so their versions match it.
 
 `achq infra up` needs `CLAUDE_CODE_OAUTH_TOKEN` (from `claude setup-token`) in its environment, and its container provider's credentials: `RAILWAY_API_TOKEN` on Railway. On Cloudflare, it needs no API token: sign Wrangler in once (`npx wrangler login`), and the `infra` commands use its sign-in. `CLOUDFLARE_API_TOKEN` is used instead if it's set, e.g. in CI, and `CLOUDFLARE_ACCOUNT_ID` names the account if your sign-in reaches more than one. How they get there is up to you. The `infra` commands check first that they're set and that the container provider takes them. An `achq.config.ts` beside the infra file can name a command that puts them in the environment, and achq takes on the environment it sets: `export default { env: "op run --env-file=.env --" }`. It plans the container provider's project, the router, the deployer and each channel as one graph, prints what would change, then makes it. An App that doesn't exist yet is created through GitHub's manifest flow in your browser. If `achq.config.ts` names a vault, `vault: { provider: "1password", name: "<vault>" }`, its private key is kept there (with `op`, as you're signed in to it), and the router gets it from the vault, so an App can move to another router or be run from another machine; a key only a router has is refused, not copied into the vault. Without a vault, the key goes straight into the router's variables. On Cloudflare, Workers Builds clones repos with Cloudflare's GitHub App ("Cloudflare Workers and Pages"). Only Cloudflare can tell whether it's installed, so a repo it can't see fails its deploy, with the App's install page in `ACHQ_STATUS`, and `achq repo install` opens it. On Railway, a container builds from its repo through Railway's GitHub App ("Railway App") in the same way: a repo it can't see fails its deploy with that App's install page. Once, it opens your browser to create the deployer's own API token on Cloudflare's create-token page with its permissions filled in: paste it when asked (it isn't echoed). It's checked, then set only as the deployer Worker's secret, never written to disk or kept with the variables; `--rotate-deployer-token` makes a new one. The deployer builds containers with it, with Workers Builds, and never gets your sign-in. It deploys the router and deployer with Wrangler (`npx wrangler@4`), as it's signed in. Then it syncs every installed repo. Re-running it changes only what differs; `--dry-run` shows what would change.
 
@@ -57,9 +61,9 @@ For types, add the `achq` package to the infra repo.
 
 ```ts
 // .achq/config.ts
-import { Container, Trigger, Workspace } from "achq";
-import * as claude from "achq/claude";
-import * as github from "achq/github";
+import { Container, Trigger, Workspace } from "@achq/core";
+import * as claude from "@achq/claude";
+import * as github from "@achq/github";
 
 const channel = github.Channel.get("notation-achq");
 
@@ -144,7 +148,7 @@ Each folder in `packages/` is a workspace package, prefixed with its kind. Packa
 | Service | `service-router`, `service-deployer`, `service-runner` | What runs: `main.ts` reads its settings from the environment and wires it up from the registry. The services share one file map: `main.ts` reads the environment, builds the context and serves; `context.ts`'s `createContext(env, deps)` builds the context; `store.ts`'s `createStore(stores)` opens its collections, migrated, the only code given the raw `Stores`; `routes.ts`'s `routes(ctx)` serves each `core/src/wire/routes/` declaration it answers as an `OpenAPIHono` app, and how they're mounted; and `features/` holds its domain, e.g. the router's `deliveries.ts`, an event's way to its targets, and the deployer's `deploy.ts` and `sync.ts`. The runner, `achq-runner` in each repo container, follows it: `from-env.ts`'s `runnerFromEnv` builds it from the container's environment, `state.ts`, in place of a store, keeps thread state and the deliveries it has handled in local files, `routes.ts`'s `routes(runner)` serves its event route, `commands/` holds one file per command (`serve`, `sessions`, `resume`), and `features/` the runner, the agent process's env, config loading and the data layout |
 | Worker | `cloudflare-worker` | The Worker every service and container runs as on Cloudflare, in Cloudflare's runtime rather than Bun: its entry, the lifecycle of its container, and its routes. Its contract with `plugin-cloudflare`, which deploys it, is `@achq/cloudflare-worker/settings` |
 | Tool | `cli` | Built on pok, a folder per kind of thing: `main.ts` takes on `achq.config.ts`'s environment and runs pok; `commands/` holds one file per command, which runs `tasks/`, one per step that reports, waits, prompts or is shared, named `domain.verb` as commands are (`infra.apply`, `infra.sync`, `repo.install`, `container.reach`, …), each with the timeouts it waits on; `checks/` what's checked before reaching the infra; `envs/` `achq.config.ts`, its `env` command as a pok resolver; `renderers/` and `pickers/` pure functions of what it prints and picks; and `io/` the terminal and where it's run |
-| Facade | `achq` | What configs import (`achq`, `achq/github`, `achq/claude`) and what the infra imports (`achq/infra`), `achq/modules`, which lists both for the sandbox and the CLI, and `achq/registry`: one list of implementations per contract, but one code host, `CODE_HOST` |
+| Registry | `registry` | `@achq/registry`: one list of implementations per contract, but one code host, `CODE_HOST`; and `@achq/registry/modules`, the packages configs may import (`@achq/core`, `@achq/github`, `@achq/claude`) and those the infra file's imports resolve to (`@achq/core` and each plugin's `/infra`), for the sandbox and the CLI |
 | Library | `utils` | Know nothing about achq. A module per domain, exporting one namespace (`errors`, `json`, `text`, `collections`, `graph`, `async`, `crypto`, `disk`, `subprocess`, `http`, `flock`, `sandbox`), or classes where it builds on something (`Env`, `Git`, `GitHub` over Octokit, `Railway`, `Cloudflare`, `JsonDirStore`, `HttpJsonStore`). Callers keep the namespace, `json.from(…)`, `async.retry(…)`, so where a helper comes from is plain |
 | Testing | `test-utils`, `test-e2e` | Fakes shared across packages; the whole system end to end |
 
@@ -163,9 +167,9 @@ Each folder in `packages/` is a workspace package, prefixed with its kind. Packa
 
 GitHub's are `channel/` (`github.Channel` and `GitHubChannelProvider`), `policy/` (`github.Policy` and `GitHubPolicyProvider`) and `code-host/` (`GitHubCodeHostProvider`, the services' side, and `GitHubCodeHostAsYou`, the CLI's, through your `gh` login). Everything else is in the package's one `src/lib/`, a file per topic the concepts share: its Apps and their keys, webhooks, selectors, permissions and so on. The API client itself is `GitHub` in `@achq/utils/gh`, over Octokit. Railway's are `container/` (`RailwayContainerProvider`, with its shell, `railway ssh`; the resource is core's `Container`), `router/` (`railway.Router`) and `deployer/` (`railway.Deployer`), which hold only a resource; its `lib/` has Railway's own objects as resources (`Project`, `Service`, `Deployment`, `Variables`), and where one of achq's services runs among them (`service-parts.ts`, its `Placement`). The GraphQL client is `Railway` in `@achq/utils/railway`. Cloudflare's are `container/` (`CloudflareContainerProvider`, with its shell, `wrangler containers ssh`), `router/` (`cloudflare.Router`) and `deployer/` (`cloudflare.Deployer`); its `lib/` has Cloudflare's own objects as resources (`Project`, its KV namespace and R2 bucket, `Worker`, `Variables`, `Secrets`, `Deployment`, `BuildTrigger`, `DeployerToken`), the deployer's Builds token (`build-token.ts`), where one of achq's services runs among them (`service-parts.ts`, its `Placement`), and how a container is made of them (`container-parts.ts`). The Worker every service and container runs as is its own package, `cloudflare-worker`, which it deploys from its entry and configures through `@achq/cloudflare-worker/settings`. The REST client is `Cloudflare` in `@achq/utils/cloudflare`. Claude's is `agent/` (`claude.Agent` and `ClaudeAgentProvider`). 1Password's is `vault/` (`OnePasswordVaultProvider`, for `achq.config.ts`'s `vault`), through `op` in its `lib/`.
 
-`src/index.ts` is what repo configs import: it runs in the deployer's sandbox, so it and everything it imports is typechecked without Bun or Node types (`tsconfig.sandbox.json`). `src/infra.ts` is what the infra file imports.
+Core's and a plugin's `src/index.ts` is what repo configs import: it runs in the deployer's sandbox, so it and everything it imports is typechecked without Bun or Node types (`tsconfig.sandbox.json`). A plugin's `src/infra.ts` is what the infra file imports.
 
-The services and the CLI never import a plugin. They use core's contracts and find implementations by id in `achq/registry`, or for the code host, the one it has. Adding one means implementing the contract in its concept's folder and listing it there.
+The services and the CLI never import a plugin. They use core's contracts and find implementations by id in `@achq/registry`, or for the code host, the one it has. Adding one means implementing the contract in its concept's folder and listing it there.
 
 ```sh
 bun install

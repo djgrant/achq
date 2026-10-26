@@ -7,9 +7,9 @@
   "include": [],
   "files": [
     "sandbox-globals.d.ts",
-    "packages/achq/src/index.ts",
-    "packages/achq/src/github.ts",
-    "packages/achq/src/claude.ts",
+    "packages/core/src/index.ts",
+    "packages/plugin-github/src/index.ts",
+    "packages/plugin-claude/src/index.ts",
     "packages/service-deployer/src/features/config/manifest.ts"
   ]
 }

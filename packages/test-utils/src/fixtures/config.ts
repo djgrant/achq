@@ -1,7 +1,7 @@
 export const DOC_CONFIG = {
   "config.ts": `
-import { Container, Workspace, Trigger } from "achq";
-import * as github from "achq/github";
+import { Container, Workspace, Trigger } from "@achq/core";
+import * as github from "@achq/github";
 import { coder, triage } from "./agents.ts";
 
 const channel = github.Channel.get("notation-achq");
@@ -21,7 +21,7 @@ new Trigger("mention", { event: channel.issueComment({ actions: ["created", "edi
 new Trigger("triage", { event: channel.issue({ actions: ["opened"] }), agent: triage });
 `,
   "agents.ts": `
-import * as claude from "achq/claude";
+import * as claude from "@achq/claude";
 export const coder = new claude.Agent("coder", { model: "claude-opus-5-5", effort: "high", systemPrompt: "./prompts/system.md", settings: { hooks: [1, 2].map((n) => n * 2) } });
 export const triage = new claude.Agent("triage", { model: "claude-haiku-5-5", systemPrompt: "./prompts/triage.md" });
 `,

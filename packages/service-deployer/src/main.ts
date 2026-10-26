@@ -2,7 +2,7 @@ import { DEPLOYER_PORT, ENV } from "@achq/core";
 import { routerAdmin } from "@achq/core/clients/router";
 import { Env } from "@achq/utils/env";
 import { text } from "@achq/utils/text";
-import { CODE_HOST, serviceContainerProvider } from "achq/registry";
+import { CODE_HOST, serviceContainerProvider } from "@achq/registry";
 import { createContext } from "./context.ts";
 import { routes } from "./routes.ts";
 

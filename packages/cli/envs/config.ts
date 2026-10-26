@@ -3,7 +3,7 @@ import * as path from "node:path";
 import { defineEnvResolver } from "@pokit/core";
 import { disk } from "@achq/utils/disk";
 import type { Vars } from "@achq/utils/env";
-import { vaultProviderNamed } from "achq/registry";
+import { vaultProviderNamed } from "@achq/registry";
 import { z } from "zod";
 import { callerCwd, repoRoot } from "../io/workdir.ts";
 

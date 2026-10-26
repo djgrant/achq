@@ -3,7 +3,7 @@ import { CONFIG_DIR, CONFIG_ENTRY } from "@achq/core";
 import { type ManifestInput, validateManifest } from "@achq/core/manifest";
 import { errors } from "@achq/utils/errors";
 import { type Limits, sandbox } from "@achq/utils/sandbox";
-import { CONFIG_MODULES } from "achq/modules";
+import { CONFIG_MODULES } from "@achq/registry/modules";
 
 export class ConfigError extends Error {}
 
@@ -15,14 +15,22 @@ const LOADERS = { ts: "ts", mts: "ts", tsx: "tsx", js: "js", mjs: "js", json: "j
 const SANDBOX_ROOT = `/${CONFIG_DIR}`;
 const SANDBOX_LIB = "/achq";
 const SANDBOX_ENTRY = "/entry.js";
-/** What a config's bare imports resolve to: `achq` is the package's index, `achq/<x>` its `<x>` module. */
-const SANDBOX_IMPORTS = Object.fromEntries(
-  CONFIG_MODULES.map((specifier) => [specifier, `${SANDBOX_LIB}/${specifier === "achq" ? "index" : specifier.slice("achq/".length)}.js`]),
-);
+
+/** The files a config's bare imports mean, then the module that collects the manifest. */
+const ENTRYPOINTS = [...CONFIG_MODULES.map((specifier) => Bun.resolveSync(specifier, import.meta.dir)), Bun.resolveSync("./manifest.ts", import.meta.dir)];
+/** The directory every entrypoint is in, so each one's output keeps its own path under SANDBOX_LIB: there are several `index.ts`s. */
+const BUILD_ROOT = ENTRYPOINTS.map(posix.dirname).reduce((a, b) => {
+  while (!`${b}/`.startsWith(`${a}/`)) a = posix.dirname(a);
+  return a;
+});
+/** Where an entrypoint's output is in the sandbox. */
+const sandboxPath = (entry: string) => posix.join(SANDBOX_LIB, posix.relative(BUILD_ROOT, entry).replace(/\.[a-z]+$/, ".js"));
+/** What a config's bare imports resolve to: each package's entry module. */
+const SANDBOX_IMPORTS = Object.fromEntries(CONFIG_MODULES.map((specifier, i) => [specifier, sandboxPath(ENTRYPOINTS[i]!)]));
 
 const CONFIG_MODULE = `${SANDBOX_ROOT}/${CONFIG_ENTRY}`;
 /** Imports the config, which declares its resources, then collects them. */
-const ENTRY_SOURCE = `import "${CONFIG_MODULE}"; import manifest from "${SANDBOX_LIB}/manifest.js"; export default manifest();`;
+const ENTRY_SOURCE = `import "${CONFIG_MODULE}"; import manifest from "${sandboxPath(ENTRYPOINTS.at(-1)!)}"; export default manifest();`;
 
 const LOG_LINES_QUOTED = 3;
 
@@ -63,15 +71,16 @@ let built: Promise<Record<string, string>> | undefined;
 const achqModules = () =>
   (built ??= (async () => {
     const result = await Bun.build({
-      entrypoints: [...CONFIG_MODULES.map((specifier) => Bun.resolveSync(specifier, import.meta.dir)), Bun.resolveSync("./manifest.ts", import.meta.dir)],
+      entrypoints: ENTRYPOINTS,
+      root: BUILD_ROOT,
       target: "browser",
       format: "esm",
       splitting: true,
-      naming: { entry: "[name].js", chunk: "chunk-[hash].js" },
+      naming: { entry: "[dir]/[name].js", chunk: "chunk-[hash].js" },
     });
     if (!result.success) throw new AggregateError(result.logs, "Building achq for the sandbox failed");
     const out: Record<string, string> = {};
-    for (const output of result.outputs) out[posix.join(SANDBOX_LIB, posix.basename(output.path))] = await output.text();
+    for (const output of result.outputs) out[posix.join(SANDBOX_LIB, output.path)] = await output.text();
     return out;
   })());
 

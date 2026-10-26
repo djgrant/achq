@@ -1,7 +1,7 @@
 import { ENV } from "@achq/core";
 import { Env, type Vars } from "@achq/utils/env";
 import { time } from "@achq/utils/time";
-import { CHANNEL_PROVIDERS, POLICY_PROVIDERS } from "achq/registry";
+import { CHANNEL_PROVIDERS, POLICY_PROVIDERS } from "@achq/registry";
 import { createConfigLoader } from "./features/config.ts";
 import { paths as layout } from "./features/layout.ts";
 import { fetchMirror } from "./features/repo.ts";

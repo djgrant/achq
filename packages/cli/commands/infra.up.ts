@@ -1,7 +1,7 @@
 import { defineCommand, dryRunContext } from "@pokit/core";
 import { ACHQ_SOURCE } from "@achq/core";
 import { Env } from "@achq/utils/env";
-import { agentContainerEnv, CODE_HOST } from "achq/registry";
+import { agentContainerEnv, CODE_HOST } from "@achq/registry";
 import { z } from "zod";
 import { agentContainerEnvCheck, infraChecks } from "../checks/infra.ts";
 import { configVault, loadConfig } from "../envs/config.ts";

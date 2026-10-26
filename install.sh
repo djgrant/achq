@@ -30,7 +30,7 @@ install -m 755 "$(readlink -f "$tmp/.local/bin/claude")" /usr/local/bin/claude
 rm -rf "$tmp"
 
 # The runner itself, with its workspace packages linked by `bun install`.
-# Repo configs' `achq` and `achq/github` imports resolve to /opt/achq/packages/achq.
+# Repo configs' `@achq/*` imports resolve to /opt/achq/packages, the runner's own copy.
 rm -rf /opt/achq
 mkdir -p /opt/achq
 if [ -n "${ACHQ_SOURCE:-}" ]; then

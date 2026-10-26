@@ -23,8 +23,8 @@ export const THREAD = (n: number) => `github:${REPO}#${n}`;
 
 /** `.achq/config.ts`; `review` adds a second container, and `broken` makes it throw. */
 export const configTs = ({ review = false, broken = false } = {}) => `
-import { Container, Workspace, Trigger } from "achq";
-import * as github from "achq/github";
+import { Container, Workspace, Trigger } from "@achq/core";
+import * as github from "@achq/github";
 import { channel } from "./channel.ts";
 import { coder } from "./agents/coder.ts";
 ${broken ? `\nthrow new Error("broken");\n` : ""}
@@ -53,11 +53,11 @@ new Trigger("opened", { event: channel.issue({ actions: ["opened"] }), agent: co
 const ACHQ: Record<string, string> = {
   ".achq/config.ts": configTs(),
   ".achq/channel.ts": `
-import * as github from "achq/github";
+import * as github from "@achq/github";
 export const channel = github.Channel.get("${SLUG}");
 `,
   ".achq/agents/coder.ts": `
-import * as claude from "achq/claude";
+import * as claude from "@achq/claude";
 const deny = ["secrets", "keys"].map((dir) => \`Read(./\${dir}/**)\`);
 export const coder = new claude.Agent("coder", { model: "claude-opus-5-5", effort: "high", systemPrompt: "./prompts/system.md", settings: { permissions: { deny } } });
 `,

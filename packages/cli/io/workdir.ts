@@ -4,7 +4,7 @@ import type { CodeHostAsYou } from "@achq/core";
 import type { Vars } from "@achq/utils/env";
 import { Git } from "@achq/utils/git";
 import { z } from "zod";
-import { CODE_HOST } from "achq/registry";
+import { CODE_HOST } from "@achq/registry";
 
 /** The ACHQ infra file, at the infra repo's root. */
 const INFRA_FILE = "achq.infra.ts";

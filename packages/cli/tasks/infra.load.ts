@@ -2,8 +2,8 @@ import * as path from "node:path";
 import { defineTask } from "@pokit/core";
 import { Deployer, type Infra, type Resource, Router } from "@achq/core";
 import { collections } from "@achq/utils/collections";
-import { INFRA_MODULES } from "achq/modules";
-import { containerProviderNamed } from "achq/registry";
+import { INFRA_MODULES } from "@achq/registry/modules";
+import { containerProviderNamed } from "@achq/registry";
 import { z } from "zod";
 
 export type InfraResources = {
