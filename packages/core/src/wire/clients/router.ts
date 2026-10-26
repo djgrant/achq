@@ -41,6 +41,6 @@ const bearerFetcher =
  */
 export const routerForPusher = ({ url, token }: { url: string; token: string }) => {
   const root = url.replace(/\/+$/, "");
-  const { wake, installation, deploy } = routerPublicRoutes;
-  return routeClient({ wake, installation, deploy }, bearerFetcher(token, root), { service: `Router ${root}` });
+  const { reach, installation, deploy } = routerPublicRoutes;
+  return routeClient({ reach, installation, deploy }, bearerFetcher(token, root), { service: `Router ${root}` });
 };

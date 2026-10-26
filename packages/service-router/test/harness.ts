@@ -147,6 +147,11 @@ export const fakeDeployer = () => {
   );
   app.openapi(deployerRoutes.status, (c) => c.json([{ repo, state: "deployed" as const, at: "2026-10-25T00:00:00.000Z" }], 200));
   app.openapi(deployerRoutes.version, (c) => c.json({ ref: "abc123" }, 200));
+  // A shell in any container but `ghost`.
+  app.openapi(deployerRoutes.shell, (c) => {
+    const { container, command, tty } = c.req.valid("json");
+    return container === "ghost" ? c.text("no such container", 404) : c.json({ argv: ["ssh", ...(tty ? ["-t"] : []), container, ...command], requires: [] }, 200);
+  });
   fake.url = serve(app.fetch);
   return fake;
 };
@@ -180,8 +185,8 @@ export const boot = async ({ dir = mkdtempSync(join(tmpdir(), "achq-router-")), 
     /** A public endpoint for the repo CLI, with your code host token. */
     asYou: (path: string, body: object, token?: string) =>
       fetch(`${pub}${path}`, { method: "POST", body: JSON.stringify(body), headers: { "content-type": "application/json", ...(token && { authorization: `Bearer ${token}` }) } }),
-    wake: (body: object, token?: string) =>
-      fetch(`${pub}/wake`, { method: "POST", body: JSON.stringify(body), headers: { "content-type": "application/json", ...(token && { authorization: `Bearer ${token}` }) } }),
+    reach: (body: object, token?: string) =>
+      fetch(`${pub}/reach`, { method: "POST", body: JSON.stringify(body), headers: { "content-type": "application/json", ...(token && { authorization: `Bearer ${token}` }) } }),
   };
 };
 

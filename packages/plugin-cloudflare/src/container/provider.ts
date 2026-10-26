@@ -1,11 +1,10 @@
 import { archiveKey, ENV_FILE, SERVICE_CLASS } from "@achq/cloudflare-worker/settings";
-import { type Context, type ContainerProvider, type ContainerShell, type ContainerSpec, containerOf, plan } from "@achq/core";
+import { type Context, type ContainerProvider, type ContainerSpec, containerOf, plan } from "@achq/core";
 import { context } from "@achq/core/context";
 import { async } from "@achq/utils/async";
 import { BUILD_STOPPED, BUILD_SUCCEEDED, CLOUDFLARE_API, Cloudflare } from "@achq/utils/cloudflare";
-import { subprocess } from "@achq/utils/subprocess";
 import { text } from "@achq/utils/text";
-import { BUILD_POLL_INTERVAL_MS, BUILD_TIMEOUT_MS, BUILDS_GITHUB_APP_INSTALL_URL, CLOUDFLARE_ENV, CONTAINER_PROVIDER, LOG_TAIL_LINES, WRANGLER } from "../lib/constants.ts";
+import { BUILD_POLL_INTERVAL_MS, BUILD_TIMEOUT_MS, BUILDS_GITHUB_APP_INSTALL_URL, CLOUDFLARE_ENV, LOG_TAIL_LINES, NPX, WRANGLER } from "../lib/constants.ts";
 import { buildToken, registered } from "../lib/build-token.ts";
 import { type ContainerPlace, containerParts } from "../lib/container-parts.ts";
 import { containerUrl, containerWorkerName, KV_KEYS } from "../lib/names.ts";
@@ -119,15 +118,25 @@ export class CloudflareContainerProvider implements ContainerProvider {
     if (own) await this.cf.builds.deleteToken(own);
   }
 
-  /** Its container application, whose running instance `wrangler containers ssh` connects to. Known once its first build has deployed. */
-  async locate(repo: string, name: string) {
+  /**
+   * Through Wrangler, as you're signed in to it, with a key the deployer put in
+   * the container's `authorized_keys`, to its application's running instance:
+   * a Durable Object runs one, and its id changes when it's replaced.
+   */
+  async shell(repo: string, name: string, command: string[], tty: boolean) {
     const worker = this.worker(repo, name);
     const application = await this.cf.containers.application(worker);
-    return { containerProvider: CONTAINER_PROVIDER, account: this.options.accountId, worker, ...(application && { application: application.id }) };
+    if (!application) throw new Error(`${worker} has no container yet: its first build hasn't deployed`);
+    const instances = await this.cf.containers.instances(application.id);
+    const instance = (instances.find((i) => i.running) ?? instances[0])?.id;
+    if (!instance) throw new Error(`${worker} has no running instance`);
+    return {
+      argv: [...WRANGLER, "containers", "ssh", instance, ...(tty ? ["--tty"] : []), "--", ...withEnv(command)],
+      env: { CLOUDFLARE_ACCOUNT_ID: this.options.accountId },
+      requires: [NPX],
+    };
   }
 }
-
-// ── The shell, on your machine ──
 
 /** Runs the command with the container's environment, which `ssh` doesn't pass on; without one, a login shell. */
 const withEnv = (command: string[]) => [
@@ -137,35 +146,3 @@ const withEnv = (command: string[]) => [
   "sh",
   ...command,
 ];
-
-const wrangler = (location: Record<string, string>, args: string[]) => ({
-  argv: [...WRANGLER, ...args],
-  env: { ...process.env, CLOUDFLARE_ACCOUNT_ID: location.account! },
-});
-
-/** The application's running instance: a Durable Object runs one. */
-const runningInstance = async (location: Record<string, string>) => {
-  const { argv, env } = wrangler(location, ["containers", "instances", location.application!, "--json"]);
-  const stdout = await subprocess.output(argv, { env }, `Couldn't list ${location.worker}'s instances`);
-  const instances = JSON.parse(stdout.slice(stdout.indexOf("["))) as { id: string; state?: string }[];
-  const running = instances.find((i) => i.state === "running") ?? instances[0];
-  if (!running) throw new Error(`${location.worker} has no running instance`);
-  return running.id;
-};
-
-const sshArgs = (instance: string, command: string[], tty: boolean) => ["containers", "ssh", instance, ...(tty ? ["--tty"] : []), "--", ...withEnv(command)];
-
-/** Through Wrangler, as you're signed in to it, with a key the deployer put in the container's `authorized_keys`. */
-export const cloudflareShell: ContainerShell = {
-  reachable: (location) => Boolean(location.account && location.application && location.worker),
-
-  async open(location, command) {
-    const { argv, env } = wrangler(location, sshArgs(await runningInstance(location), command, true));
-    return Bun.spawn(argv, { env, stdio: ["inherit", "inherit", "inherit"] }).exited;
-  },
-
-  async run(location, command) {
-    const { argv, env } = wrangler(location, sshArgs(await runningInstance(location), command, false));
-    return subprocess.output(argv, { env }, `${command.join(" ")} failed in ${location.worker}`);
-  },
-};

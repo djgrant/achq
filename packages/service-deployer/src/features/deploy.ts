@@ -1,4 +1,4 @@
-import { BrowserActionNeeded, CONFIG_DIR, CONFIG_ENTRY, type DeployRecord, ENV, type RepoClient, repoName, type Status } from "@achq/core";
+import { BrowserActionNeeded, CONFIG_DIR, CONFIG_ENTRY, type DeployRecord, ENV, type ReachRequest, type RepoClient, repoName, type Status } from "@achq/core";
 import { repoParams } from "@achq/core/clients/router";
 import type { RepoManifest } from "@achq/core/manifest";
 import { containerSecret } from "@achq/core/secrets";
@@ -78,6 +78,13 @@ export const uninstall = (ctx: DeployerContext, repo: string, { dryRun = false, 
 
 /** Every repo's record: what `achq infra status` shows from the infra. */
 export const status = async (ctx: DeployerContext) => (await ctx.store.all()).map(wireRecord);
+
+/** How to open a shell in one of a repo's containers, from its last deploy that succeeded, or undefined if it has no such container. */
+export const shell = async (ctx: DeployerContext, { repo, container, command, tty }: ReachRequest) => {
+  const record = await ctx.store.get(repo);
+  if (!record || record.state === "uninstalled" || !record.deployed?.manifest.containers.some((c) => c.name === container)) return undefined;
+  return ctx.containerProvider.shell(record.repo, container, command, tty);
+};
 
 /** One deploy of one repo. Run one per repo at a time. */
 const deployOnce = async (ctx: DeployerContext, repo: string, dryRun: boolean): Promise<DeployOutcome> => {
@@ -166,9 +173,8 @@ const deployOnce = async (ctx: DeployerContext, repo: string, dryRun: boolean): 
       },
     });
 
-    // Where each container is, for `achq container ssh` and `achq container resume`.
-    const containers: NonNullable<DeployRecord["containers"]> = [];
-    for (const c of manifest.containers) containers.push({ name: c.name, location: await ctx.containerProvider.locate(repo, c.name) });
+    // Which containers there are, for `achq container ssh` and `achq container resume` to pick from.
+    const containers: NonNullable<DeployRecord["containers"]> = manifest.containers.map((c) => ({ name: c.name }));
 
     const record: StoredRecord = { repo, state: "deployed", at: ctx.now().toISOString(), commit: tree.commit, containers };
     await save({ ...withWarnings(record, checked.warnings), deployed: { tree: tree.tree, manifest, images, given } });

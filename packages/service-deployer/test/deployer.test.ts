@@ -12,7 +12,7 @@ import { HttpError } from "@achq/utils/http";
 import { evaluateConfig } from "../src/features/config/evaluate.ts";
 import { DOC_CONFIG, DOC_PLAN } from "@achq/test-utils/fixtures/config";
 import { createContext } from "../src/context.ts";
-import { deploy, status } from "../src/features/deploy.ts";
+import { deploy, shell, status } from "../src/features/deploy.ts";
 import { handleEvent } from "../src/features/events.ts";
 import { sync } from "../src/features/sync.ts";
 import { githubChannelProvider } from "@achq/github/channel";
@@ -152,7 +152,7 @@ describe("install", () => {
       state: "deployed",
       at: "2026-10-17T10:00:00.000Z",
       commit,
-      containers: [{ name: "dev", location: { containerProvider: "memory", service: `${REPO}/dev` } }],
+      containers: [{ name: "dev" }],
       router: "https://router.example",
     });
     const { router: _router, ...record } = github.variable(REPO, STATUS_VARIABLE);
@@ -384,15 +384,20 @@ test("a container provider's failure only you can fix, in your browser, goes in 
 });
 
 describe("uninstall", () => {
-  test("removes the router config and keeps containers; reinstalling brings it back without a rebuild", async () => {
+  test("removes the router config and keeps containers, which can't be reached; reinstalling brings it back without a rebuild", async () => {
     github.commit(REPO, repoFiles());
     const deployer = await makeDeployer();
     await handleEvent(deployer, event("installation.created", [REPO]));
+    const reachDev = { repo: REPO, container: "dev", command: ["ls"], tty: false };
+    expect(await shell(deployer, reachDev)).toEqual({ argv: ["memory-ssh", `${REPO}/dev`, "ls"], requires: [] });
+    expect(await shell(deployer, { ...reachDev, container: "ghost" })).toBeUndefined();
     await handleEvent(deployer, event("installation_repositories.removed", [REPO]));
     expect(router.repos.has(REPO)).toBe(false);
     expect(containerProvider.ops("remove")).toEqual([]);
     expect(containerProvider.services.has(`${REPO}/dev`)).toBe(true);
     expect((await status(deployer))[0]).toMatchObject({ repo: REPO, state: "uninstalled" });
+    // Its containers are kept, but nobody reaches them through an hq they've left.
+    expect(await shell(deployer, reachDev)).toBeUndefined();
 
     await handleEvent(deployer, event("installation_repositories.added", [REPO]));
     expect(router.repos.get(REPO)).toBeDefined();

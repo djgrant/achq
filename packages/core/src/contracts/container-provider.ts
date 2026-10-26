@@ -2,6 +2,7 @@ import type { Vars } from "@achq/utils/env";
 import type { JsonStore } from "@achq/utils/store/json-store";
 import { ENV } from "../wire/constants.ts";
 import type { RepoIdentity } from "../model/repos.ts";
+import type { Shell } from "../wire/protocol.ts";
 import type { Implementation } from "./implementation.ts";
 
 export type ContainerSpec = {
@@ -39,17 +40,13 @@ export interface ContainerProvider {
   list(): Promise<ContainerRef[]>;
   /** Deletes the container and its data. Only `achq infra up --prune` and `achq infra down` call this. */
   remove(repo: string, name: string): Promise<void>;
-  /** Where to find it, for the repo CLI (`ssh`, `resume`). Not secret. */
-  locate(repo: string, name: string): Promise<Record<string, string>>;
-}
-
-/** A container at a location its provider's `locate` gave, for `achq container ssh` and `achq container resume`. */
-export interface ContainerShell {
-  /** Whether the location has what `open` and `run` need. */
-  reachable(location: Record<string, string>): boolean;
-  /** A shell in the container, interactive or running `command`. Returns the exit code. */
-  open(location: Record<string, string>, command: string[]): Promise<number>;
-  run(location: Record<string, string>, command: string[]): Promise<string>;
+  /**
+   * How to open a shell in the container from a laptop signed in to this
+   * provider, running `command` or, without one, a login shell; `tty` for an
+   * interactive one. Computed now, as the deployer asks it for the router's
+   * `/reach`: e.g. a running instance's id can change. Not secret.
+   */
+  shell(repo: string, name: string, command: string[], tty: boolean): Promise<Shell>;
 }
 
 /** What the router and deployer keep, defined beside its implementations in `@achq/utils/store`, from the one module of it the config sandbox can type: a service's `store.ts` opens each collection against its schema. */
@@ -57,11 +54,10 @@ export type { JsonStore, Stores } from "@achq/utils/store/json-store";
 
 /**
  * A container provider as the registry lists it: the `ContainerProvider` the
- * deployer creates, the shell the repo CLI opens, and the durable storage the
- * router and deployer keep what they own in when they run on it.
+ * deployer creates, and the durable storage the router and deployer keep what
+ * they own in when they run on it.
  */
 export type ContainerProviderImplementation = Implementation<ContainerProvider> & {
-  shell: ContainerShell;
   /**
    * One of the router's or deployer's collections, kept wherever this provider
    * makes a write durable once it resolves: the router writes each webhook it

@@ -15,6 +15,6 @@ export const command = defineCommand({
   run: clean(async (r, { context }) => {
     const container = await run(r, containerReach, { here: needRepo(context.repo), wanted: context.container });
     const separator = process.argv.indexOf("--");
-    process.exitCode = await container.shell.open(container.location, separator < 0 ? [] : process.argv.slice(separator + 1));
+    process.exitCode = await container.open(separator < 0 ? [] : process.argv.slice(separator + 1));
   }),
 });

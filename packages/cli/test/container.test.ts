@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import type { Status } from "@achq/core";
 import { parseSessions } from "@achq/core/commands";
-import type { ContainerShell } from "@achq/core";
+import { reachable } from "../io/shell.ts";
 import { containersOf, pickContainer } from "../pickers/container.ts";
 import { pickSession } from "../pickers/session.ts";
 import { sessionTable } from "../renderers/sessions.ts";
@@ -9,20 +9,15 @@ import { containerListSessions } from "../tasks/container.list-sessions.ts";
 import { run } from "../tasks/run.ts";
 import { testRunner } from "./runner.ts";
 
-const location = (service: string) => ({ containerProvider: "railway", project: "p1", environment: "e1", service });
 const status: Status = {
   repo: "notationlabs/yieldstar",
   state: "deployed",
   at: "2026-10-17T10:02:00Z",
   router: "https://achq-router.up.railway.app",
-  containers: [
-    { name: "dev", location: location("notationlabs-yieldstar-dev") },
-    { name: "docs", location: location("notationlabs-yieldstar-docs") },
-    { name: "elsewhere", location: { containerProvider: "fly" } },
-  ],
+  containers: [{ name: "dev" }, { name: "docs" }],
 };
 
-test("containers come from ACHQ_STATUS; only ones on a container provider achq knows are listed", () => {
+test("containers come from ACHQ_STATUS", () => {
   expect(containersOf(status).map((c) => c.name)).toEqual(["dev", "docs"]);
 });
 
@@ -30,7 +25,7 @@ test("one container is picked without asking; several need --container or a pick
   const all = containersOf(status);
   expect(pickContainer([all[0]])?.name).toBe("dev");
   expect(pickContainer(all)).toBeUndefined();
-  expect(pickContainer(all, "docs")?.location.service).toBe("notationlabs-yieldstar-docs");
+  expect(pickContainer(all, "docs")?.name).toBe("docs");
   expect(() => pickContainer(all, "nope")).toThrow("there's dev, docs");
   expect(() => pickContainer([])).toThrow("no containers");
 });
@@ -68,16 +63,14 @@ test("reads what the container's `achq-runner sessions` prints", async () => {
 /** A container whose shell has only the binaries given, answering `sessions` with OUT, and failing as `run` does for the rest. */
 const shellWith = (binaries: string[], missing = (binary: string) => `sh: 1: exec: ${binary}: not found`) => {
   const ran: string[][] = [];
-  const shell: ContainerShell = {
-    reachable: () => true,
-    open: async () => 0,
-    run: async (_location, command) => {
+  const container = {
+    run: async (command: string[]) => {
       ran.push(command);
       if (!binaries.includes(command[0]!)) throw new Error(`${command.join(" ")} failed in dev: ${missing(command[0]!)}`);
       return OUT;
     },
   };
-  return { container: { location: {}, shell }, ran };
+  return { container, ran };
 };
 
 /** Lists the container's sessions as `achq container resume` does. */
@@ -93,4 +86,18 @@ test("a failure is the runner's, and isn't asked again", async () => {
   const { container, ran } = shellWith([]);
   await expect(listSessions(container)).rejects.toThrow("achq-runner sessions failed in dev: sh: 1: exec: achq-runner: not found");
   expect(ran).toHaveLength(1);
+});
+
+test("a reached container's shell runs what the router answered, afresh each time, once what it needs is on your machine", async () => {
+  const asked: [string[], boolean][] = [];
+  const dev = reachable("dev", async (command, tty) => {
+    asked.push([command, tty]);
+    return { argv: ["sh", "-c", 'echo "$GREETING $0"; [ "$0" != fail ]', ...command], env: { GREETING: "hi" }, requires: [{ binary: "sh", install: "it's everywhere" }] };
+  });
+  expect(await dev.run(["there"])).toBe("hi there\n");
+  await expect(dev.run(["fail"])).rejects.toThrow("fail failed in dev");
+  expect(asked).toEqual([[["there"], false], [["fail"], false]]);
+
+  const missing = reachable("dev", async () => ({ argv: ["achq-no-such-binary"], requires: [{ binary: "achq-no-such-binary", install: "brew install it" }] }));
+  await expect(missing.run([])).rejects.toThrow("Needs achq-no-such-binary: brew install it");
 });

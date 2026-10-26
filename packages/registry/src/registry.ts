@@ -29,8 +29,6 @@ export const channelProviderNamed = lookup("channel provider", CHANNEL_PROVIDERS
 export const policyProviderNamed = lookup("policy provider", POLICY_PROVIDERS);
 export const containerProviderNamed = lookup("container provider", CONTAINER_PROVIDERS);
 export const vaultProviderNamed = lookup("vault provider", VAULT_PROVIDERS);
-/** For a location's `containerProvider`, which may name a provider this build doesn't have. */
-export const findContainerProvider = (id: string | undefined) => CONTAINER_PROVIDERS.find((h) => h.id === id);
 
 /** The container provider a router or deployer runs on, as ENV.containerProvider names it, and the stores it keeps what outlives a restart in. */
 export const serviceContainerProvider = (env: Env) => {

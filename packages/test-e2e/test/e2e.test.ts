@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { ENV, type InstallationRequest, type RepoRequest, type WakeRequest } from "@achq/core";
+import { ENV, type InstallationRequest, type ReachRequest, type RepoRequest } from "@achq/core";
 import { containerSecret } from "@achq/core/secrets";
 import { STATUS_VARIABLE } from "@achq/github";
 import { APP_BOT, BOT, DJ, INSTALLATION, KEY, MALLORY, REPO, type Sent, SLUG } from "./github-sends.ts";
@@ -49,7 +49,7 @@ describe("installing", () => {
       state: "deployed",
       at: expect.any(String),
       commit: w.repo.first,
-      containers: [{ name: "dev", location: { containerProvider: "test", service: `${REPO}/dev` } }],
+      containers: [{ name: "dev" }],
       router: w.routerPublic,
     });
 
@@ -89,18 +89,19 @@ describe("installing", () => {
     expect(w.dev().requests).toEqual([]);
   });
 
-  test("`achq container ssh`'s wake reaches the container through the router, for someone who can push to the repo", async () => {
+  test("`achq container ssh` reaches the container through the router, which wakes it and asks the deployer how, for someone who can push to the repo", async () => {
     // What `achq container ssh` sends before it connects.
-    const wake = (token: string) =>
-      fetch(`${w.routerPublic}/wake`, {
+    const reach = (token: string) =>
+      fetch(`${w.routerPublic}/reach`, {
         method: "POST",
         headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
-        body: JSON.stringify({ repo: REPO, container: "dev" } satisfies WakeRequest),
+        body: JSON.stringify({ repo: REPO, container: "dev", command: ["ls"], tty: true } satisfies ReachRequest),
       });
-    const refused = await wake("gho_mallory");
+    const refused = await reach("gho_mallory");
     expect([refused.status, await refused.text()]).toEqual([403, "no push access"]);
     expect(w.dev().requests).toEqual([]);
-    expect((await wake("gho_djgrant")).status).toBe(200);
+    const res = await reach("gho_djgrant");
+    expect([res.status, await res.json()]).toEqual([200, { argv: ["test-ssh", "-t", `${REPO.toLowerCase()}/dev`, "ls"], requires: [] }]);
     expect(w.dev().requests).toEqual([{ method: "GET", path: "/" }]);
   });
 });

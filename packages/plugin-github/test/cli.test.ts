@@ -115,8 +115,8 @@ test("ACHQ_STATUS is read from the repository variable, and is undefined before 
 
 test("an ACHQ_STATUS achq can't read, as anyone who can push could write, says where it's wrong and how to fix it", async () => {
   const remedy = `Deploying again rewrites it, or delete it with \`gh variable delete ACHQ_STATUS -R ${REPO}\`.`;
-  fake.status = { value: JSON.stringify({ ...STATUS, containers: [{ name: "dev", location: "somewhere" }] }) };
-  await expect(you().status(REPO)).rejects.toThrow(`${REPO}'s ACHQ_STATUS isn't a status achq can read: containers.0.location: expected object.\n${remedy}`);
+  fake.status = { value: JSON.stringify({ ...STATUS, containers: [{ name: 42 }] }) };
+  await expect(you().status(REPO)).rejects.toThrow(`${REPO}'s ACHQ_STATUS isn't a status achq can read: containers.0.name: expected string.\n${remedy}`);
   fake.status = { value: "{not json" };
   await expect(you().status(REPO)).rejects.toThrow(`${REPO}'s ACHQ_STATUS isn't a status achq can read: it isn't JSON.\n${remedy}`);
   expect(you().statusLocation(REPO)).toBe(`${REPO}'s \`ACHQ_STATUS\` variable`);

@@ -4,7 +4,7 @@ import { Env } from "@achq/utils/env";
 import { JsonDirStore } from "@achq/utils/store";
 import { CONTAINER_PROVIDER, PRIVATE_ENV, RAILWAY_ENV } from "../lib/constants.ts";
 import { tokenCheck } from "../lib/railway.ts";
-import { RailwayContainerProvider, railwayShell } from "./provider.ts";
+import { RailwayContainerProvider } from "./provider.ts";
 
 /** What the router and deployer keep is theirs alone: it holds every repo's config and deploy state. */
 const PRIVATE_FILE_MODE = 0o600;
@@ -27,6 +27,5 @@ export const railwayContainerProvider: ContainerProviderImplementation = {
   },
   privateEnv: PRIVATE_ENV,
   checks: (vars) => [tokenCheck(vars)],
-  shell: railwayShell,
   store: (vars, collection) => new JsonDirStore(join(new Env(vars).require(ENV.dataDir), collection), { mode: PRIVATE_FILE_MODE }),
 };

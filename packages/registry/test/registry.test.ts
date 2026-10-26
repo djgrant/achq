@@ -1,15 +1,12 @@
 import { expect, test } from "bun:test";
-import { agentContainerEnv, CHANNEL_PROVIDERS, channelProviderNamed, CONTAINER_PROVIDERS, containerProviderNamed, findContainerProvider, privateEnv, CODE_HOST, POLICY_PROVIDERS, vaultProviderNamed } from "../src/registry.ts";
+import { agentContainerEnv, CHANNEL_PROVIDERS, channelProviderNamed, CONTAINER_PROVIDERS, containerProviderNamed, privateEnv, CODE_HOST, POLICY_PROVIDERS, vaultProviderNamed } from "../src/registry.ts";
 
 test("finds each implementation by id, and names what it knows when it can't", () => {
   expect(channelProviderNamed("github")).toBe(CHANNEL_PROVIDERS[0]!);
   expect(CODE_HOST.id).toBe("github");
   expect(containerProviderNamed("railway")).toBe(CONTAINER_PROVIDERS[0]!);
   expect(() => channelProviderNamed("slack")).toThrow(`achq doesn't know the channel provider "slack"; it knows github`);
-  expect(findContainerProvider("fly")).toBeUndefined();
-  expect(findContainerProvider(undefined)).toBeUndefined();
-  expect(findContainerProvider("railway")?.shell).toBeDefined();
-  expect(containerProviderNamed("cloudflare").shell).toBeDefined();
+  expect(containerProviderNamed("cloudflare").id).toBe("cloudflare");
   expect(vaultProviderNamed("1password").id).toBe("1password");
   expect(() => vaultProviderNamed("keychain")).toThrow(`achq doesn't know the vault provider "keychain"; it knows 1password`);
 });

@@ -59,6 +59,8 @@ export const WRANGLER_TOKEN_REUSE_MS = 5 * time.MINUTE_MS;
 export const MAX_WORKER_NAME = 63;
 
 export const WRANGLER = ["npx", "-y", "wrangler@4"];
+/** What runs WRANGLER on your machine, for `achq container ssh`. */
+export const NPX = { binary: "npx", install: "install Node.js, which comes with it" };
 
 /** Bun, as the router and deployer get it on their first start: Cloudflare's image has only Node. */
 export const BUN_VERSION = "1.4.3";

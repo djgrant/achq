@@ -1,17 +1,10 @@
-import type { ContainerShell, Status } from "@achq/core";
-import { findContainerProvider } from "@achq/registry";
+import type { Status } from "@achq/core";
 
-export type Located = { name: string; location: Record<string, string>; shell: ContainerShell };
-
-/** The containers ACHQ_STATUS says the repo has, that a container provider achq knows can reach. */
-export const containersOf = (status: Status) =>
-  (status.containers ?? []).flatMap((c) => {
-    const shell = findContainerProvider(c.location.containerProvider)?.shell;
-    return shell?.reachable(c.location) ? [{ name: c.name, location: c.location, shell }] : [];
-  });
+/** The containers ACHQ_STATUS says the repo has. */
+export const containersOf = (status: Status) => (status.containers ?? []).map((c) => ({ name: c.name }));
 
 /** The one container, the one `wanted` names, or `undefined` when the caller has to ask. */
-export const pickContainer = (containers: Located[], wanted?: string, repo = "The repo") => {
+export const pickContainer = <C extends { name: string }>(containers: C[], wanted?: string, repo = "The repo") => {
   if (wanted) {
     const found = containers.find((c) => c.name === wanted);
     if (!found) throw new Error(`No container ${wanted}; there's ${containers.map((c) => c.name).join(", ") || "none"}`);

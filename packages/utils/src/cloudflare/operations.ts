@@ -5,6 +5,8 @@ import {
   BuildLogPage,
   BuildToken,
   ContainerApplication,
+  ContainerInstances,
+  ContainerInstancesInfo,
   KvKey,
   KvKeysInfo,
   KvNamespaceSummary,
@@ -202,6 +204,13 @@ export const CLOUDFLARE_OPERATIONS = named({
     path: (p: Account & { name: string }) => `${at(p)}/containers/applications`,
     query: ({ name }: { name: string }) => ({ name }),
     result: z.array(ContainerApplication),
+  },
+  listContainerInstances: {
+    method: "GET",
+    path: (p: Account & { id: string; pageToken?: string }) => `${at(p)}/containers/dash/applications/${enc(p.id)}/instances`,
+    query: ({ pageToken }: { pageToken?: string }) => ({ per_page: PAGE, page_token: pageToken }),
+    result: ContainerInstances,
+    info: ContainerInstancesInfo,
   },
   deleteContainerApplication: { method: "DELETE", path: (p: Account & { id: string }) => `${at(p)}/containers/applications/${enc(p.id)}`, result: unread },
 });

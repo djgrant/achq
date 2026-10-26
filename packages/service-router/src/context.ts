@@ -17,7 +17,7 @@ export type RouterDeps = {
   /** Each one's sources are what the deployer checks. */
   channelProviders: ChannelProvider[];
   policyProviders: PolicyProvider[];
-  /** Where repos live: `/wake` checks push access with it, and the repos installed on it are what the deployer serves. */
+  /** Where repos live: `/reach` checks push access with it, and the repos installed on it are what the deployer serves. */
   codeHost: CodeHostProvider;
   /** Where it keeps what outlives a crash: its container provider's store. */
   stores: Stores;

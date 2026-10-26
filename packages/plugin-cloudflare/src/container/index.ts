@@ -4,7 +4,7 @@ import { Env } from "@achq/utils/env";
 import { HttpJsonStore } from "@achq/utils/store";
 import { CLOUDFLARE_ENV, CONTAINER_PROVIDER, PRIVATE_ENV } from "../lib/constants.ts";
 import { tokenCheck } from "../lib/cloudflare.ts";
-import { CloudflareContainerProvider, cloudflareShell } from "./provider.ts";
+import { CloudflareContainerProvider } from "./provider.ts";
 
 /**
  * Containers as Workers on the deployer's account, each built from its repo by
@@ -32,6 +32,5 @@ export const cloudflareContainerProvider: ContainerProviderImplementation = {
   },
   privateEnv: PRIVATE_ENV,
   checks: (vars) => [tokenCheck(vars)],
-  shell: cloudflareShell,
   store: (_vars, collection) => new HttpJsonStore(`http://${INTERNAL_HOSTS.store}/${collection}`),
 };

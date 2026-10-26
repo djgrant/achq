@@ -62,8 +62,17 @@ export type RepoParams = z.infer<typeof RepoParams>;
 export const RepoRequest = z.object({ repo: z.string() });
 export type RepoRequest = z.infer<typeof RepoRequest>;
 
-export const WakeRequest = RepoRequest.extend({ container: z.string() });
-export type WakeRequest = z.infer<typeof WakeRequest>;
+/** A shell in one of the repo's containers: `POST /reach`, which wakes it, and the deployer's `POST /shell`. `tty` for an interactive one. */
+export const ReachRequest = RepoRequest.extend({ container: z.string(), command: z.array(z.string()), tty: z.boolean() });
+export type ReachRequest = z.infer<typeof ReachRequest>;
+
+/** A command your machine runs to open a shell in a container, as its container provider computed it just now, and the binaries it needs there. */
+export const Shell = z.object({
+  argv: z.array(z.string()).min(1),
+  env: z.record(z.string(), z.string()).optional(),
+  requires: z.array(z.object({ binary: z.string(), install: z.string() })),
+});
+export type Shell = z.infer<typeof Shell>;
 
 /** Whether `source`, e.g. a GitHub App's slug, is installed on the repo: `POST /installation`. */
 export const InstallationRequest = RepoRequest.extend({ source: z.string() });
@@ -188,8 +197,8 @@ export const DeployRecord = z.looseObject({
   at: z.string(),
   error: z.string().optional(),
   commit: z.string().optional(),
-  /** Per container: where to find it, from `ContainerProvider.locate`: its fields as strings. */
-  containers: z.array(z.looseObject({ name: z.string(), location: z.object({}).catchall(z.string()) })).optional(),
+  /** The containers deployed, by name: the router's `/reach` opens a shell in one. */
+  containers: z.array(z.looseObject({ name: z.string() })).optional(),
   warnings: z.array(z.string()).optional(),
   /** What only you can do to fix a failed deploy, in your browser. `achq repo install` opens it, then deploys again. */
   action: browserAction.optional(),

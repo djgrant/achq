@@ -1,7 +1,7 @@
 // The router's public routes: channels' webhooks, and the repo CLI's, each answering only someone who can push to the repo.
 import { route } from "@achq/utils/http";
 import { createRoute } from "@hono/zod-openapi";
-import { InstallationRequest, RepoInstallation, RepoRequest, WakeRequest } from "../protocol.ts";
+import { InstallationRequest, ReachRequest, RepoInstallation, RepoRequest, Shell } from "../protocol.ts";
 
 /** How the repo CLI's routes refuse: no bearer token, a repo name that isn't one, or a token that can't push to it. */
 const refusals = { 400: route.text("bad request"), 401: route.text("missing token"), 403: route.text("no push access") };
@@ -18,12 +18,16 @@ export const webhook = createRoute({
   },
 });
 
-/** For `achq container ssh`: wakes a container, answering once it's up. */
-export const wake = createRoute({
+/**
+ * For `achq container ssh` and `resume`: wakes a container, then answers with
+ * the command that opens a shell in it from your machine, which its deployer
+ * computes with the container provider's credentials.
+ */
+export const reach = createRoute({
   method: "post",
-  path: "/wake",
-  request: { body: route.body(WakeRequest) },
-  responses: { 200: route.text("awake"), ...refusals, 404: route.text("not deployed"), 504: route.text("it didn't wake") },
+  path: "/reach",
+  request: { body: route.body(ReachRequest) },
+  responses: { 200: route.json(Shell), ...refusals, 404: route.text("not deployed"), 504: route.text("it didn't wake, or the deployer didn't answer") },
 });
 
 /** For `achq repo install` and `uninstall`: whether the config's source is installed on the repo, and where you'd change that. */
@@ -42,4 +46,4 @@ export const deploy = createRoute({
   responses: { 202: route.text("accepted"), ...refusals },
 });
 
-export const routerPublicRoutes = { webhook, wake, installation, deploy };
+export const routerPublicRoutes = { webhook, reach, installation, deploy };

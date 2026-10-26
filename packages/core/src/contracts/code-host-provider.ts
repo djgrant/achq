@@ -33,7 +33,7 @@ export interface RepoClient {
 
 /**
  * Where repos live, as achq's services reach it, made from their env: the
- * deployer reads configs from it, the router checks `/wake` against it and
+ * deployer reads configs from it, the router checks `/reach` against it and
  * lists the repos set up for achq, containers clone from it. A repo on it is
  * set up for achq or not: installing and uninstalling are its lifecycle.
  */

@@ -1,8 +1,7 @@
-import { BrowserActionNeeded, type Context, type ContainerProvider, type ContainerShell, type ContainerSpec, containerOf, plan, repoName } from "@achq/core";
+import { BrowserActionNeeded, type Context, type ContainerProvider, type ContainerSpec, containerOf, plan, repoName } from "@achq/core";
 import { context } from "@achq/core/context";
 import { RAILWAY_API, Railway, RailwayError, type RailwayProject, type RailwayService } from "@achq/utils/railway";
-import { subprocess } from "@achq/utils/subprocess";
-import { CONNECTED, CONTAINER_PROVIDER, RAILWAY_ENV, REPO_UNSEEN, SOURCE_GITHUB_APP, SOURCE_GITHUB_APP_INSTALL_URL } from "../lib/constants.ts";
+import { CONNECTED, RAILWAY_CLI, RAILWAY_ENV, REPO_UNSEEN, SOURCE_GITHUB_APP, SOURCE_GITHUB_APP_INSTALL_URL } from "../lib/constants.ts";
 import { containerServiceName, containerUrl } from "../lib/names.ts";
 import { containerParts } from "../lib/container-parts.ts";
 
@@ -78,34 +77,13 @@ export class RailwayContainerProvider implements ContainerProvider {
     for (const volume of found.volumes) await this.project.deleteVolume(volume.id);
   }
 
-  async locate(repo: string, name: string) {
-    return { containerProvider: CONTAINER_PROVIDER, project: this.options.projectId, environment: this.options.environmentId, service: containerServiceName(repo, name) };
+  /** Through the Railway CLI, as you're signed in to it. */
+  async shell(repo: string, name: string, command: string[]) {
+    const { projectId, environmentId } = this.options;
+    const service = containerServiceName(repo, name);
+    return {
+      argv: ["railway", "ssh", "--project", projectId, "--environment", environmentId, "--service", service, ...(command.length ? ["--", ...command] : [])],
+      requires: [RAILWAY_CLI],
+    };
   }
 }
-
-const sshArgs = (location: Record<string, string>, command: string[]) => [
-  "ssh",
-  "--project",
-  location.project!,
-  "--environment",
-  location.environment!,
-  "--service",
-  location.service!,
-  ...(command.length ? ["--", ...command] : []),
-];
-
-const requireRailwayCli = () => subprocess.requireBinary("railway", "the Railway CLI", "brew install railway");
-
-export const railwayShell: ContainerShell = {
-  reachable: (location) => Boolean(location.project && location.environment && location.service),
-
-  async open(location, command) {
-    requireRailwayCli();
-    return Bun.spawn(["railway", ...sshArgs(location, command)], { stdio: ["inherit", "inherit", "inherit"] }).exited;
-  },
-
-  async run(location, command) {
-    requireRailwayCli();
-    return subprocess.output(["railway", ...sshArgs(location, command)], {}, `${command.join(" ")} failed in ${location.service}`);
-  },
-};

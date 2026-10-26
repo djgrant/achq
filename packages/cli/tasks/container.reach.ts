@@ -2,12 +2,13 @@ import { defineTask } from "@pokit/core";
 import { routerForPusher } from "@achq/core/clients/router";
 import { z } from "zod";
 import { chooseOne } from "../io/terminal.ts";
+import { reachable } from "../io/shell.ts";
 import { notSetUp, type RepoHere } from "../io/workdir.ts";
 import { containersOf, pickContainer } from "../pickers/container.ts";
 import { given } from "./params.ts";
 import { runner } from "./run.ts";
 
-/** The repo's container, the one `wanted` names or picked at the terminal, and woken through the router. */
+/** The repo's container, the one `wanted` names or picked at the terminal, reached through the router, which wakes it each time. */
 export const containerReach = defineTask({
   label: "Reach the container",
   params: z.object({ here: given<RepoHere>(), wanted: z.string().optional() }),
@@ -26,7 +27,7 @@ export const containerReach = defineTask({
       },
     });
     // The router checks, on the code host, that you can push to the repo.
-    await routerForPusher({ url: status.router, token: codeHost.token() }).wake({ body: { repo, container: container.name } });
-    return container;
+    const router = routerForPusher({ url: status.router, token: codeHost.token() });
+    return reachable(container.name, (command, tty) => router.reach({ body: { repo, container: container.name, command, tty } }));
   },
 });

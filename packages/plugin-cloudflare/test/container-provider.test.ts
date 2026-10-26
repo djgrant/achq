@@ -193,7 +193,7 @@ test("a build builds the spec's branch with the trigger and waits for its versio
   await expect(host.ensure(spec, BUILD)).rejects.toThrow("deployed no version with a container image");
 });
 
-test("list reads containers' repo and name, locate says where, remove deletes the Worker and all that's kept for it", async () => {
+test("list reads containers' repo and name, shell reaches the running instance, remove deletes the Worker and all that's kept for it", async () => {
   await host.ensure(spec, NO_BUILD);
   await host.ensure({ ...spec, name: "docs", env: { ...spec.env, ACHQ_CONTAINER: "docs" } }, NO_BUILD);
   expect(await host.list()).toEqual([
@@ -201,10 +201,16 @@ test("list reads containers' repo and name, locate says where, remove deletes th
     { repo: spec.repo, name: "docs" },
   ]);
   // Its container application only exists once a build has deployed it.
-  expect(await host.locate(spec.repo, "dev")).toEqual({ containerProvider: "cloudflare", account: fake.accountId, worker });
+  await expect(host.shell(spec.repo, "dev", [], true)).rejects.toThrow(`${worker} has no container yet`);
   await host.ensure(spec, BUILD);
   const application = fake.applications.find((a) => a.name === worker)!;
-  expect(await host.locate(spec.repo, "dev")).toEqual({ containerProvider: "cloudflare", account: fake.accountId, worker, application: application.id });
+  // To its Durable Object's id, with the container's environment, through Wrangler as you're signed in to the account.
+  expect(await host.shell(spec.repo, "dev", ["achq-runner", "sessions"], false)).toEqual({
+    argv: ["npx", "-y", "wrangler@4", "containers", "ssh", `do-${application.id}`, "--", "sh", "-c", 'set -a; . /run/achq/env; exec "$@"', "sh", "achq-runner", "sessions"],
+    env: { CLOUDFLARE_ACCOUNT_ID: fake.accountId },
+    requires: [{ binary: "npx", install: "install Node.js, which comes with it" }],
+  });
+  expect((await host.shell(spec.repo, "dev", [], true)).argv.slice(3, 8)).toEqual(["containers", "ssh", `do-${application.id}`, "--tty", "--"]);
 
   fake.buckets.get("achq")!.set(`${worker}/data.tar.gz`, "archive");
   await host.remove(spec.repo, "dev");

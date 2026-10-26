@@ -29,7 +29,7 @@ export class MemoryContainerProvider implements ContainerProvider {
     this.calls.push({ op: "remove", repo, name });
     this.services.delete(this.id(repo, name));
   }
-  async locate(repo: string, name: string) {
-    return { containerProvider: "memory", service: this.id(repo, name) };
+  async shell(repo: string, name: string, command: string[], tty: boolean) {
+    return { argv: ["memory-ssh", ...(tty ? ["-t"] : []), this.id(repo, name), ...command], requires: [] };
   }
 }

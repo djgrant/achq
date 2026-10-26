@@ -98,3 +98,20 @@ export type WorkerVersion = z.infer<typeof WorkerVersion>;
 
 export const ContainerApplication = z.looseObject({ id: z.string(), name: z.string() });
 export type ContainerApplication = z.infer<typeof ContainerApplication>;
+
+/**
+ * An application's instances, as the dashboard lists them: each Durable Object
+ * with the deployment running its container, if any. `wrangler containers ssh`
+ * takes a Durable Object's id, or an instance's where there are none.
+ */
+export const ContainerInstances = z.looseObject({
+  instances: z.array(
+    z.looseObject({
+      id: z.string(),
+      current_placement: z.looseObject({ status: z.looseObject({ container_status: z.string().nullish(), health: z.string().nullish() }).nullish() }).nullish(),
+    }),
+  ),
+  durable_objects: z.array(z.looseObject({ id: z.string(), deployment_id: z.string().nullish() })).nullish(),
+});
+export type ContainerInstances = z.infer<typeof ContainerInstances>;
+export const ContainerInstancesInfo = z.looseObject({ next_page_token: z.string().nullish() }).nullish();

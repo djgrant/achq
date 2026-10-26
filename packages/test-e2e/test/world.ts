@@ -147,8 +147,8 @@ class TestContainerProvider implements ContainerProvider {
     this.containers.delete(id);
     this.removed.push(id);
   }
-  async locate(repo: string, name: string) {
-    return { containerProvider: "test", service: this.id(repo, name) };
+  async shell(repo: string, name: string, command: string[], tty: boolean) {
+    return { argv: ["test-ssh", ...(tty ? ["-t"] : []), this.id(repo, name), ...command], requires: [] };
   }
 
   /** The container answers 503 to the next `attempts` requests. */

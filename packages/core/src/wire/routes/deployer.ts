@@ -4,7 +4,7 @@
 import { route } from "@achq/utils/http";
 import { createRoute } from "@hono/zod-openapi";
 import { z } from "zod";
-import { DeployerEnvelope, DeployerVersion, DeployRecord, SyncRequest, SyncStarted, SyncStatus } from "../protocol.ts";
+import { DeployerEnvelope, DeployerVersion, DeployRecord, ReachRequest, Shell, SyncRequest, SyncStarted, SyncStatus } from "../protocol.ts";
 
 /** A delivery the router forwards. Answered once handled, so the router keeps it until it's done. */
 export const events = createRoute({
@@ -42,4 +42,12 @@ export const status = createRoute({
   responses: { 200: route.json(z.array(DeployRecord)) },
 });
 
-export const deployerRoutes = { events, sync, syncStatus, version, status };
+/** For the router's `/reach`, once it's checked you can push to the repo: the command that opens a shell in a container it deployed. */
+export const shell = createRoute({
+  method: "post",
+  path: "/shell",
+  request: { body: route.body(ReachRequest) },
+  responses: { 200: route.json(Shell), 404: route.text("no such container") },
+});
+
+export const deployerRoutes = { events, sync, syncStatus, version, status, shell };

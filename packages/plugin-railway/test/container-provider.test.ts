@@ -109,19 +109,19 @@ test("the first build connects the repo to the spec's branch and turns automatic
   expect(service.autoDeploy).toBe(false);
 });
 
-test("list reads services' repo and container, locate says where, remove deletes the volume too", async () => {
+test("list reads services' repo and container, shell names its service, remove deletes the volume too", async () => {
   await host.ensure(spec, NO_BUILD);
   await host.ensure({ ...spec, name: "docs", env: { ...spec.env, ACHQ_CONTAINER: "docs" } }, NO_BUILD);
   expect(await host.list()).toEqual([
     { repo: spec.repo, name: "dev" },
     { repo: spec.repo, name: "docs" },
   ]);
-  expect(await host.locate(spec.repo, "dev")).toEqual({
-    containerProvider: "railway",
-    project: host.options.projectId,
-    environment: host.options.environmentId,
-    service: "notationlabs-yieldstar-dev",
+  const { projectId, environmentId } = host.options;
+  expect(await host.shell(spec.repo, "dev", ["ls", "/data"])).toEqual({
+    argv: ["railway", "ssh", "--project", projectId, "--environment", environmentId, "--service", "notationlabs-yieldstar-dev", "--", "ls", "/data"],
+    requires: [{ binary: "railway", install: "brew install railway" }],
   });
+  expect((await host.shell(spec.repo, "dev", [])).argv.at(-1)).toBe("notationlabs-yieldstar-dev");
 
   await host.remove(spec.repo, "dev");
   const project = fake.project("achq")!;

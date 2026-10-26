@@ -21,6 +21,12 @@ const DELIVERY_ID = /^[\w.-]{1,200}$/;
 
 type Container = RouterRepoConfig["containers"][number];
 
+/** A deployer's refusal keeps its status and body, and one that never answered is a 504, as the deployer client throws them. Anything else is the service's to answer. */
+const deployerRefusal = (error: Error) => {
+  if (error instanceof HttpError && error.service === DEPLOYER_SERVICE) return new Response(error.body, { status: error.status, headers: { "content-type": "text/plain; charset=UTF-8" } });
+  throw error;
+};
+
 /** `@achq/core/routes/router-admin`: for the deployer and the infra CLI, on both ports, signed with the admin secret. */
 const adminApp = (ctx: RouterContext) => {
   /** The deployer, woken as it's called. What a forwarded route answers is what it decoded, encoded again. */
@@ -28,11 +34,7 @@ const adminApp = (ctx: RouterContext) => {
   const admin = new OpenAPIHono();
   // On its own: chained, `use` returns a plain Hono, which has no `openapi`.
   admin.use(signedBy(adminSecret(ctx.env.key), ctx.now));
-  // A deployer's refusal keeps its status and body, and one that never answered is a 504, as the deployer client throws them. Anything else is the service's to answer.
-  admin.onError((error) => {
-    if (error instanceof HttpError && error.service === DEPLOYER_SERVICE) return new Response(error.body, { status: error.status, headers: { "content-type": "text/plain; charset=UTF-8" } });
-    throw error;
-  });
+  admin.onError(deployerRefusal);
   admin.openapi(adminRoutes.listRepos, (c) => c.json([...ctx.repos.values()], 200));
   admin.openapi(
     adminRoutes.putRepo,
@@ -79,6 +81,7 @@ const adminApp = (ctx: RouterContext) => {
 
 /** `@achq/core/routes/router-public`: for channels' webhooks and the repo CLI, on the public port. */
 const publicApp = (ctx: RouterContext) => {
+  const deployer = deployerClient(toDeployer(ctx));
   /**
    * The response refusing the request, unless its bearer token can push to the
    * repo on the code host. Checked before saying anything about the repo, so
@@ -100,6 +103,7 @@ const publicApp = (ctx: RouterContext) => {
   };
 
   const pub = new OpenAPIHono();
+  pub.onError(deployerRefusal);
   pub
     .openapi(publicRoutes.webhook, async (c) => {
       const body = await c.req.text();
@@ -140,8 +144,8 @@ const publicApp = (ctx: RouterContext) => {
       }
       return c.text(accepted ? "accepted" : "duplicate", 202);
     })
-    // For `achq container ssh`: wakes a container for someone who can push to its repo.
-    .openapi(publicRoutes.wake, async (c) => {
+    // For `achq container ssh` and `resume`: wakes a container for someone who can push to its repo, then asks the deployer how to reach it.
+    .openapi(publicRoutes.reach, async (c) => {
       const request = c.req.valid("json");
       const refused = await refusal(c, request);
       if (refused) return refused;
@@ -152,7 +156,8 @@ const publicApp = (ctx: RouterContext) => {
       const result = await reach(ctx.delays, (signal) => ctx.fetch(`${container.url}/`, { signal }), ctx.attemptTimeout);
       if (!result.ok) return c.text(result.error, 504);
       await result.res.body?.cancel();
-      return c.text("awake", 200);
+      // Only the deployer has the container provider's credentials, which finding the container can take.
+      return c.json(await deployer.shell({ body: request }), 200);
     })
     // For `achq repo install` and `uninstall`: whether the config's source is installed on the repo, which only the App's key can tell.
     .openapi(publicRoutes.installation, async (c) => {

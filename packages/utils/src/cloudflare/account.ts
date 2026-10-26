@@ -276,6 +276,21 @@ class Containers {
     return found.find((a) => a.name === name);
   }
 
+  /** The application's instances, each by the id `wrangler containers ssh` takes, and whether its container is running. */
+  async instances(application: string) {
+    const rows: { id: string; running: boolean }[] = [];
+    let pageToken: string | undefined;
+    do {
+      const { result, info } = await this.t.page(OPS.listContainerInstances, { ...this.at, id: application, pageToken });
+      const running = new Map(result.instances.map((i) => [i.id, (i.current_placement?.status?.container_status ?? i.current_placement?.status?.health) === "running"]));
+      const objects = result.durable_objects ?? [];
+      if (objects.length) rows.push(...objects.map((o) => ({ id: o.id, running: !!o.deployment_id && !!running.get(o.deployment_id) })));
+      else rows.push(...[...running].map(([id, up]) => ({ id, running: up })));
+      pageToken = info?.next_page_token || undefined;
+    } while (pageToken);
+    return rows;
+  }
+
   async deleteApplication(id: string) {
     await this.t.find(OPS.deleteContainerApplication, { ...this.at, id });
   }

@@ -18,6 +18,9 @@ export const PRIVATE_ENV = [RAILWAY_ENV.token, "RAILWAY_TOKEN"];
 
 export const VOLUME = "/data";
 
+/** What `achq container ssh` runs on your machine to reach a container. */
+export const RAILWAY_CLI = { binary: "railway", install: "brew install railway" };
+
 /** Services reach each other at `<service>.<PRIVATE_DOMAIN>` over the project's private network. */
 export const PRIVATE_DOMAIN = "railway.internal";
 

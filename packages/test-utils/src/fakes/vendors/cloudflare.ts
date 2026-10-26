@@ -297,6 +297,12 @@ export const startFakeCloudflare = (seed: { accountId?: string; subdomain?: stri
 
     // ── Containers ──
     if (p === "/containers/applications") return ok(applications.filter((a) => !query.get("name") || a.name === query.get("name")));
+    // Each application runs one Durable Object, with its container running.
+    if ((m = p.match(/^\/containers\/dash\/applications\/([^/]+)\/instances$/))) {
+      if (!applications.some((a) => a.id === m![1])) return fail(404, "Application not found");
+      const deployment = `dep-${m[1]}`;
+      return ok({ instances: [{ id: deployment, current_placement: { status: { container_status: "running" } } }], durable_objects: [{ id: `do-${m[1]}`, deployment_id: deployment }] });
+    }
     if ((m = p.match(/^\/containers\/applications\/([^/]+)$/)) && method === "DELETE") {
       const at = applications.findIndex((a) => a.id === m![1]);
       if (at >= 0) applications.splice(at, 1);

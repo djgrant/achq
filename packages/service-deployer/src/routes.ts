@@ -4,7 +4,7 @@ import { signedBy } from "@achq/core/signing";
 import { handler, http } from "@achq/utils/http";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import type { DeployerContext } from "./context.ts";
-import { status } from "./features/deploy.ts";
+import { shell, status } from "./features/deploy.ts";
 import { handleEvent } from "./features/events.ts";
 import { sync } from "./features/sync.ts";
 
@@ -38,7 +38,11 @@ export const routes = (ctx: DeployerContext) => {
       return c.json(found.state === "failed" ? { state: "failed" as const } : found, 200);
     })
     .openapi(deployerRoutes.version, (c) => c.json({ ref: ctx.env.ref }, 200))
-    .openapi(deployerRoutes.status, async (c) => c.json(await status(ctx), 200));
+    .openapi(deployerRoutes.status, async (c) => c.json(await status(ctx), 200))
+    .openapi(deployerRoutes.shell, async (c) => {
+      const found = await shell(ctx, c.req.valid("json"));
+      return found ? c.json(found, 200) : c.text("no such container", 404);
+    });
   return {
     deployer,
     fetch: http.service((line) => ctx.log(`deployer ${line}`)).route("/", deployer).fetch,

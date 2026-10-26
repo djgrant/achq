@@ -31,6 +31,6 @@ export const command = defineCommand({
     });
     // Without a terminal, the list is all there is to show.
     if (!session) return;
-    process.exitCode = await container.shell.open(container.location, ["env", ...terminalEnv(), ...resume(session.thread, session.id)]);
+    process.exitCode = await container.open(["env", ...terminalEnv(), ...resume(session.thread, session.id)]);
   }),
 });
