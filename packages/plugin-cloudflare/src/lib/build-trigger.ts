@@ -35,15 +35,12 @@ const tarball = (scoped: string) => `"https://registry.npmjs.org/@achq/${scoped}
 
 /**
  * The Worker at ACHQ_VERSION, from its npm tarball, and the config from its
- * variable. The Worker's one import from another package,
- * `@achq/utils/store/handler`, imports nothing itself, so utils' tarball is
- * unpacked beside it, where Wrangler's bundler finds it as it would any
- * package in node_modules: nothing is installed.
+ * variable. The tarball is the Worker's bundle, which imports nothing but the
+ * Workers runtime, so it's unpacked, not installed.
  */
 const BUILD_COMMAND = [
-  `mkdir -p ${WORKER_DIR}/node_modules/@achq/cloudflare-worker ${WORKER_DIR}/node_modules/@achq/utils`,
+  `mkdir -p ${WORKER_DIR}/node_modules/@achq/cloudflare-worker`,
   `curl -fsSL ${tarball("cloudflare-worker")} | tar -xz --strip-components=1 -C ${WORKER_DIR}/node_modules/@achq/cloudflare-worker`,
-  `curl -fsSL ${tarball("utils")} | tar -xz --strip-components=1 -C ${WORKER_DIR}/node_modules/@achq/utils`,
   `echo "$ACHQ_WRANGLER_CONFIG" | base64 -d | gunzip > ${CONFIG_FILE}`,
 ].join(" && ");
 
@@ -54,7 +51,7 @@ const DEPLOY_COMMAND = `npx -y wrangler@4 deploy --config ${CONFIG_FILE}`;
 const NEVER = { path_includes: ["achq-never-matches/**"], path_excludes: ["*"] };
 
 /** Where the container Worker's build finds its config's entry, relative to the config. */
-export const CONTAINER_MAIN = `${WORKER_DIR}/node_modules/@achq/cloudflare-worker/src/index.ts`;
+export const CONTAINER_MAIN = `${WORKER_DIR}/node_modules/@achq/cloudflare-worker/dist/index.js`;
 
 /** The trigger's variables, as Builds takes them. */
 const variablesOf = ({ config, version }: Props) => ({ ACHQ_WRANGLER_CONFIG: packed(JSON.stringify(config)), ACHQ_VERSION: version });

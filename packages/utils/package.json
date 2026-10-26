@@ -1,6 +1,7 @@
 {
   "name": "@achq/utils",
   "version": "1.0.0",
+  "private": true,
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -8,9 +9,6 @@
     "directory": "packages/utils"
   },
   "type": "module",
-  "files": [
-    "src"
-  ],
   "exports": {
     "./async": "./src/async.ts",
     "./cloudflare": "./src/cloudflare/index.ts",

@@ -25,16 +25,15 @@ export const parsePlugins = (json: string): Plugin[] => PluginRef.array().parse(
 
 /**
  * Installs `plugins` in `dir`, if they aren't already, and loads each one's
- * `./providers`. Core and utils are installed beside them at this process's
- * own version, which the plugins' peer ranges were checked against, so the
- * plugins' copy of core is the same code as the process's: Bun installs a
- * peer dependency where it's missing, and `dir` isn't under the process's
- * own install.
+ * `./providers`. Core is installed beside them at this process's own version,
+ * which the plugins' peer ranges were checked against, so the plugins' copy of
+ * core is the same code as the process's: Bun installs a peer dependency where
+ * it's missing, and `dir` isn't under the process's own install. Each is a
+ * bundle, with nothing else to install.
  */
 export const loadPlugins = async (plugins: Plugin[], dir: string, { install = bunInstall }: { install?: Install } = {}) => {
   if (!plugins.length) return mergeProviders([]);
-  // achq's packages are versioned together, so utils is at core's version.
-  const dependencies = { [PLUGIN.package]: PLUGIN.version, "@achq/utils": PLUGIN.version, ...Object.fromEntries(plugins.map((p) => [p.package, p.version])) };
+  const dependencies = { [PLUGIN.package]: PLUGIN.version, ...Object.fromEntries(plugins.map((p) => [p.package, p.version])) };
   const manifest = `${JSON.stringify({ private: true, dependencies }, null, 2)}\n`;
   const installed = path.join(dir, INSTALLED);
   if (!fs.existsSync(installed) || fs.readFileSync(installed, "utf8") !== manifest) {

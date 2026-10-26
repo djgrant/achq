@@ -111,13 +111,13 @@ test("ensure makes a placeholder Worker, its variables and secrets, and a trigge
   });
   expect(trigger.deploy_command).not.toBe("npx wrangler deploy");
   expect(trigger.deploy_command).toContain("wrangler@4 deploy --config .achq-wrangler.json");
-  // The achq Worker comes from npm, at the container's ACHQ_VERSION, with the one module of utils it imports.
+  // The achq Worker comes from npm, at the container's ACHQ_VERSION: its bundle, which needs nothing else.
   expect(trigger.build_command).toContain(`"https://registry.npmjs.org/@achq/cloudflare-worker/-/cloudflare-worker-$ACHQ_VERSION.tgz"`);
-  expect(trigger.build_command).toContain(`"https://registry.npmjs.org/@achq/utils/-/utils-$ACHQ_VERSION.tgz"`);
+  expect(trigger.build_command).not.toContain("@achq/utils");
   expect(trigger.variables.ACHQ_VERSION).toEqual({ value: "0.2.0", is_secret: false });
   expect(builtConfig()).toMatchObject({
     name: worker,
-    main: ".achq-worker/node_modules/@achq/cloudflare-worker/src/index.ts",
+    main: ".achq-worker/node_modules/@achq/cloudflare-worker/dist/index.js",
     compatibility_flags: ["global_fetch_strictly_public"],
     // Its Durable Object starts it with the runner, not the Dockerfile's CMD.
     vars: { ACHQ_SERVICE: { name: worker, port: 3000, sleeps: true, restartOnChange: false, image: "app", entrypoint: serve(), instance: "standard-1", workersDev: "acme.workers.dev" } },

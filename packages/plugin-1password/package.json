@@ -9,15 +9,22 @@
   },
   "type": "module",
   "files": [
-    "src"
+    "dist"
   ],
   "exports": {
     ".": "./src/index.ts",
     "./vault": "./src/vault/index.ts"
   },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    }
+  },
   "peerDependencies": {
-    "@achq/core": "workspace:^",
-    "@achq/utils": "workspace:^"
+    "@achq/core": "workspace:^"
   },
   "devDependencies": {
     "@achq/core": "workspace:*",

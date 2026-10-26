@@ -9,7 +9,7 @@
   },
   "type": "module",
   "files": [
-    "src"
+    "dist"
   ],
   "exports": {
     ".": "./src/index.ts",
@@ -28,7 +28,15 @@
     "./secrets": "./src/wire/secrets.ts",
     "./signing": "./src/wire/signing.ts"
   },
-  "dependencies": {
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    }
+  },
+  "devDependencies": {
     "@achq/utils": "workspace:*",
     "@hono/zod-openapi": "^1.6.3",
     "hono": "^4.13.13",

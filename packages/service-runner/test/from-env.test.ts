@@ -55,10 +55,9 @@ test("the container installs the plugins ACHQ_PLUGINS names under its data dir, 
   // Linked here, as installing them is: it resolves through the link to this checkout's package.
   expect(loaded.modules["@achq/github"]).toBe(path.join(import.meta.dir, "..", "..", "plugin-github", "src", "index.ts"));
   expect(loaded.modules["@achq/core"]).toBe(Bun.resolveSync("@achq/core", path.join(import.meta.dir, "..", "src")));
-  // Core and utils are installed beside them at the runner's own version, as their peer.
+  // Core is installed beside them at the runner's own version, as their peer.
   expect(JSON.parse(fs.readFileSync(path.join(dataDir, "plugins", "package.json"), "utf8")).dependencies).toEqual({
     "@achq/core": CORE_PLUGIN.version,
-    "@achq/utils": CORE_PLUGIN.version,
     "@achq/github": "0.1.0",
     "@achq/claude": "0.1.0",
   });

@@ -9,13 +9,18 @@
   },
   "type": "module",
   "files": [
-    "src"
+    "dist"
   ],
   "exports": {
     ".": "./src/index.ts",
     "./settings": "./src/settings.ts"
   },
-  "dependencies": {
+  "publishConfig": {
+    "exports": {
+      ".": "./dist/index.js"
+    }
+  },
+  "devDependencies": {
     "@achq/utils": "workspace:*"
   }
 }

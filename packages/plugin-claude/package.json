@@ -9,7 +9,7 @@
   },
   "type": "module",
   "files": [
-    "src"
+    "dist"
   ],
   "exports": {
     ".": "./src/index.ts",
@@ -17,9 +17,21 @@
     "./infra": "./src/infra.ts",
     "./providers": "./src/providers.ts"
   },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "./infra": {
+        "types": "./dist/infra.d.ts",
+        "default": "./dist/infra.js"
+      },
+      "./providers": "./dist/providers.js"
+    }
+  },
   "peerDependencies": {
-    "@achq/core": "workspace:^",
-    "@achq/utils": "workspace:^"
+    "@achq/core": "workspace:^"
   },
   "devDependencies": {
     "@achq/core": "workspace:*",

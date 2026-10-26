@@ -9,7 +9,7 @@
   },
   "type": "module",
   "files": [
-    "src"
+    "dist"
   ],
   "exports": {
     ".": "./src/index.ts",
@@ -19,17 +19,27 @@
     "./code-host": "./src/code-host/index.ts",
     "./providers": "./src/providers.ts"
   },
-  "dependencies": {
-    "@octokit/webhooks-methods": "^6.0.0",
-    "zod": "^4.3.6"
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "./infra": {
+        "types": "./dist/infra.d.ts",
+        "default": "./dist/infra.js"
+      },
+      "./providers": "./dist/providers.js"
+    }
   },
   "peerDependencies": {
-    "@achq/core": "workspace:^",
-    "@achq/utils": "workspace:^"
+    "@achq/core": "workspace:^"
   },
   "devDependencies": {
     "@achq/core": "workspace:*",
     "@achq/test-utils": "workspace:*",
-    "@achq/utils": "workspace:*"
+    "@achq/utils": "workspace:*",
+    "@octokit/webhooks-methods": "^6.0.0",
+    "zod": "^4.3.6"
   }
 }

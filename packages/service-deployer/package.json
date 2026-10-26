@@ -22,9 +22,7 @@
     "bin": {
       "achq-deployer": "dist/achq-deployer.js"
     },
-    "exports": {
-      "./config": "./dist/config.js"
-    }
+    "exports": {}
   },
   "devDependencies": {
     "@achq/claude": "workspace:*",

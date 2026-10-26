@@ -10,23 +10,26 @@ import { subprocess } from "@achq/utils/subprocess";
 import { wranglerCommand } from "./cloudflare.ts";
 import { CLOUDFLARE_ENV, LOG_TAIL_LINES } from "./constants.ts";
 
-/** The achq Worker's entry in this checkout, @achq/cloudflare-worker's, which the CLI deploys the router and deployer from. */
+/** The achq Worker's entry, where @achq/cloudflare-worker is installed: its bundle, or its source in this checkout. The CLI deploys the router and deployer from it. */
 export const WORKER_MAIN = fileURLToPath(import.meta.resolve("@achq/cloudflare-worker"));
-/** The Worker's source, beside its entry. */
+/** The Worker's modules, beside its entry. */
 const WORKER_DIR = path.dirname(WORKER_MAIN);
-/** The one module the Worker imports from another package: the store's server side. */
-const STORE_HANDLER = fileURLToPath(import.meta.resolve("@achq/utils/store/handler"));
+const FROM_SOURCE = WORKER_MAIN.endsWith(".ts");
 
-/** A hash of the Worker's source, and the store handler it bundles, so a change to either redeploys. */
+/**
+ * A hash of what Wrangler deploys as the Worker, so a change redeploys: its
+ * bundle, which has everything it imports, or its source and the one module it
+ * imports from another package, the store's server side.
+ */
 export const workerSourceHash = () =>
   crypto.sha256Hex(
     [
       ...fs
         .readdirSync(WORKER_DIR)
-        .filter((f) => f.endsWith(".ts"))
+        .filter((f) => f.endsWith(FROM_SOURCE ? ".ts" : ".js"))
         .sort()
         .map((f) => `${f}\n${fs.readFileSync(path.join(WORKER_DIR, f), "utf8")}`),
-      `@achq/utils/store/handler\n${fs.readFileSync(STORE_HANDLER, "utf8")}`,
+      ...(FROM_SOURCE ? [`@achq/utils/store/handler\n${fs.readFileSync(fileURLToPath(import.meta.resolve("@achq/utils/store/handler")), "utf8")}`] : []),
     ].join("\n"),
   );
 
