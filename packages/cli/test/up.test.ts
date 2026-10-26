@@ -14,7 +14,7 @@ import * as railway from "@achq/railway/infra";
 import { fakeOp } from "@achq/test-utils/fakes/vendors/1password";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import type { z } from "zod";
-import { configVault } from "../envs/config.ts";
+import * as onepassword from "@achq/1password";
 import { infraApply } from "../tasks/infra.apply.ts";
 import { infraFindRouter } from "../tasks/infra.find-router.ts";
 import { checkInfra, type InfraResources } from "../tasks/infra.load.ts";
@@ -407,7 +407,9 @@ test("`achq infra status` finds the router's URL and key by planning it, and cha
 test("with a vault, a new App's key is kept in it too, and a new router gets it from there without making the App again", async () => {
   const op = fakeOp();
   try {
-    const vault = configVault({ vault: { provider: "1password", name: "Infra" } }, { ACHQ_1PASSWORD_OP: op.bin });
+    // As achq.config.ts gives it, with `op` found once it's used.
+    process.env.ACHQ_1PASSWORD_OP = op.bin;
+    const vault = onepassword.vault("Infra");
     await up(infra(), { prune: false, dryRun: false }, { ...deps(), vault });
     const [item] = op.items();
     expect(item).toMatchObject({ vault: "Infra", title: "GitHub App djgrant-claude", archived: false });
@@ -431,6 +433,7 @@ test("with a vault, a new App's key is kept in it too, and a new router gets it 
     expect(hook.secret).toBe(appWebhookSecret(router.variables.AGENT_WEBHOOK_KEY, 4242));
     expect(ghCalls.filter((c) => c.path.startsWith("/app-manifests"))).toHaveLength(1);
   } finally {
+    delete process.env.ACHQ_1PASSWORD_OP;
     op.stop();
   }
 });

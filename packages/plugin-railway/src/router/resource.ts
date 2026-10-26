@@ -1,9 +1,9 @@
 import * as core from "@achq/core";
 import type { Output } from "@achq/core";
-import { CONTAINER_PROVIDER } from "../lib/constants.ts";
 import { Project } from "../lib/project.ts";
 import { ServiceParts } from "../lib/service-parts.ts";
 import { PLUGIN } from "../plugin.ts";
+import { railwayContainerProvider } from "../container/index.ts";
 
 /**
  * The router, as a Railway service in `project`: public, always on, with a
@@ -12,7 +12,7 @@ import { PLUGIN } from "../plugin.ts";
  */
 export class Router extends core.Router {
   readonly plugin = PLUGIN;
-  readonly containerProvider = CONTAINER_PROVIDER;
+  readonly provider = railwayContainerProvider;
   readonly project: Project;
   readonly url: Output<string>;
   protected readonly placement: ServiceParts;

@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { createPublicKey, createVerify, generateKeyPairSync } from "node:crypto";
 import {
   type Change,
+  type ContainerProviderImplementation,
   type Context,
   type EnvValue,
   type Vault,
@@ -105,7 +106,7 @@ class RouterService extends ManagedResource<Service, true, Omit<Service, "exists
 /** A router that's planned as its service alone. */
 class StubRouter extends Router {
   readonly plugin = PLUGIN;
-  readonly containerProvider = "stub";
+  readonly provider = { id: "stub", privateEnv: [] } as unknown as ContainerProviderImplementation;
   readonly url: Output<string>;
   protected readonly placement = undefined as unknown as Placement;
   private readonly service: RouterService;

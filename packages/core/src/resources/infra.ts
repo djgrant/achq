@@ -1,5 +1,6 @@
 import type { AgentProvider } from "../contracts/agent-provider.ts";
 import type { CodeHostImplementation } from "../contracts/code-host-provider.ts";
+import type { ContainerProviderImplementation } from "../contracts/container-provider.ts";
 import { brand, branded } from "../engine/brand.ts";
 import type { PluginLists } from "../engine/plugins.ts";
 import { all, GENERATED, type Input, type Output } from "../engine/values.ts";
@@ -34,8 +35,13 @@ export interface Placement {
 
 /** The router or the deployer: one of achq's services, on its container provider. */
 export abstract class Service extends Resource {
-  /** The `ContainerProvider` it runs on, by id. */
-  abstract readonly containerProvider: string;
+  /** The container provider it runs on: where it keeps what it stores, and, for the deployer, where it puts containers. */
+  abstract readonly provider: ContainerProviderImplementation;
+
+  /** Its container provider's id. */
+  get containerProvider() {
+    return this.provider.id;
+  }
   /** The npm package it runs, e.g. `@achq/router`, whose `bin` serves it. */
   abstract readonly package: string;
   /**

@@ -2,8 +2,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { defineEnvResolver } from "@pokit/core";
 import { disk } from "@achq/utils/disk";
-import type { Vars } from "@achq/utils/env";
-import { vaultProviderNamed } from "@achq/registry";
+import type { Vault } from "@achq/core";
 import { z } from "zod";
 import { callerCwd, repoRoot } from "../io/workdir.ts";
 
@@ -13,8 +12,8 @@ const CONFIG_FILE = "achq.config.ts";
 const Config = z.object({
   /** A command prefix that puts secrets in the environment, e.g. `op run --env-file=.env --`. achq takes on the environment it sets. */
   env: z.string().optional(),
-  /** Where `achq infra up` keeps GitHub Apps' private keys, to give them to another router: a vault provider by id, and its vault's name. */
-  vault: z.object({ provider: z.string(), name: z.string() }).optional(),
+  /** Where `achq infra up` keeps GitHub Apps' private keys, to give them to another router, e.g. `onepassword.vault("achq")`: anything that reads and writes items. */
+  vault: z.custom<Vault>((v) => typeof (v as Vault | undefined)?.read === "function" && typeof (v as Vault).write === "function", "a vault, e.g. onepassword.vault(\"achq\")").optional(),
 });
 
 export type CliConfig = z.infer<typeof Config> & { dir: string };
@@ -28,10 +27,6 @@ export const loadConfig = async (dir = callerCwd()) => {
   if (!parsed.success) throw new Error(`${file}: ${z.prettifyError(parsed.error)}`);
   return { ...parsed.data, dir: root };
 };
-
-/** The vault the config names, if it names one. */
-export const configVault = (config: Pick<CliConfig, "vault"> | undefined, env: Vars) =>
-  config?.vault ? vaultProviderNamed(config.vault.provider).create(env).vault(config.vault.name) : undefined;
 
 /**
  * The environment the config's `env` command gives what it runs, run from the config's directory so its relative paths hold.

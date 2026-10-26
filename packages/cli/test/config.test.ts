@@ -2,6 +2,7 @@ import { afterEach, beforeEach, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { linkWorkspace } from "@achq/test-utils/helpers/plugins";
 import { envFrom, loadConfig } from "../envs/config.ts";
 
 let tmp: string;
@@ -21,9 +22,18 @@ test("a config names the command to run under, and where it is", async () => {
   expect(await loadConfig(tmp)).toEqual({ env: "env FOO=bar", dir: tmp });
 });
 
-test("a config can name a vault, by its provider and its name", async () => {
+test("a config can give a vault, from the vault plugin the repo installed", async () => {
+  fs.writeFileSync(path.join(tmp, "package.json"), JSON.stringify({ dependencies: { "@achq/1password": "0.1.0" } }));
+  await linkWorkspace(tmp);
+  writeConfig(`import * as onepassword from "@achq/1password";\nexport default { vault: onepassword.vault("Infra") };`);
+  const config = await loadConfig(tmp);
+  expect(typeof config?.vault?.read).toBe("function");
+  expect(typeof config?.vault?.write).toBe("function");
+});
+
+test("a vault named by its provider, as configs once did, isn't a vault", async () => {
   writeConfig(`export default { vault: { provider: "1password", name: "Infra" } };`);
-  expect(await loadConfig(tmp)).toEqual({ vault: { provider: "1password", name: "Infra" }, dir: tmp });
+  await expect(loadConfig(tmp)).rejects.toThrow('a vault, e.g. onepassword.vault("achq")');
 });
 
 test("a config that isn't one says what's wrong", async () => {

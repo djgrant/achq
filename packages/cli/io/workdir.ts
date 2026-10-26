@@ -4,7 +4,15 @@ import type { CodeHostAsYou } from "@achq/core";
 import type { Vars } from "@achq/utils/env";
 import { Git } from "@achq/utils/git";
 import { z } from "zod";
-import { CODE_HOST } from "@achq/registry";
+import { githubCodeHostProvider } from "@achq/github/code-host";
+
+/**
+ * Where repos are, as you reach them: a repo has no infra file to say, and
+ * its ACHQ_STATUS, which names its router, is kept on the code host, so the
+ * code host is where every repo command starts. The one edge of achq that
+ * isn't a plugin.
+ */
+const CODE_HOST = githubCodeHostProvider;
 
 /** The ACHQ infra file, at the infra repo's root. */
 const INFRA_FILE = "achq.infra.ts";

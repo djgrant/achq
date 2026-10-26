@@ -23,7 +23,7 @@
   "dependencies": {
     "@achq/core": "workspace:*",
     "@achq/deployer": "workspace:*",
-    "@achq/registry": "workspace:*",
+    "@achq/github": "workspace:*",
     "@achq/utils": "workspace:*",
     "@hono/zod-openapi": "^1.6.3",
     "@pokit/core": "^0.10.0",
@@ -31,8 +31,8 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@achq/1password": "workspace:*",
     "@achq/claude": "workspace:*",
-    "@achq/github": "workspace:*",
     "@achq/railway": "workspace:*",
     "@achq/runner": "workspace:*",
     "@achq/test-utils": "workspace:*"

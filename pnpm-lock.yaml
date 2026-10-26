@@ -35,9 +35,9 @@ importers:
       '@achq/deployer':
         specifier: workspace:*
         version: link:../service-deployer
-      '@achq/registry':
+      '@achq/github':
         specifier: workspace:*
-        version: link:../registry
+        version: link:../plugin-github
       '@achq/utils':
         specifier: workspace:*
         version: link:../utils
@@ -54,12 +54,12 @@ importers:
         specifier: ^4.3.6
         version: 4.6.7
     devDependencies:
+      '@achq/1password':
+        specifier: workspace:*
+        version: link:../plugin-1password
       '@achq/claude':
         specifier: workspace:*
         version: link:../plugin-claude
-      '@achq/github':
-        specifier: workspace:*
-        version: link:../plugin-github
       '@achq/railway':
         specifier: workspace:*
         version: link:../plugin-railway

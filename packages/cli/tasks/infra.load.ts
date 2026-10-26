@@ -2,8 +2,6 @@ import * as path from "node:path";
 import { defineTask } from "@pokit/core";
 import { type CodeHost, type Deployer, type Infra, isCodeHost, isDeployer, isRouter, isRuntime, type Resource, type Router, type Runtime } from "@achq/core";
 import { collections } from "@achq/utils/collections";
-import { INFRA_MODULES } from "@achq/registry/modules";
-import { containerProviderNamed } from "@achq/registry";
 import { z } from "zod";
 
 export type InfraResources = {
@@ -17,20 +15,13 @@ export type InfraResources = {
   resources: Resource[];
 };
 
-let modulesRegistered = false;
-
-/** Runs the infra file's default export and checks what it declares. */
+/**
+ * Runs the infra file's default export and checks what it declares. Its
+ * imports resolve as any module's do, to what the infra repo installed: core
+ * and its plugins, whose copy of core needn't be achq's own, as core
+ * recognises its classes whichever copy made them.
+ */
 export const loadInfra = async (file: string) => {
-  // Its `achq/infra` imports are this checkout's modules, so what it declares is made of the classes achq knows.
-  if (!modulesRegistered) {
-    modulesRegistered = true;
-    Bun.plugin({
-      name: "achq",
-      setup(build) {
-        for (const [specifier, exports] of Object.entries(INFRA_MODULES)) build.module(specifier, () => ({ exports: { ...exports }, loader: "object" }));
-      },
-    });
-  }
   const mod = await import(path.resolve(file));
   if (typeof mod.default !== "function") throw new Error(`${file} must \`export default achq(() => { … })\``);
   return checkInfra(mod.default() as Infra);
@@ -45,8 +36,6 @@ export const checkInfra = ({ resources }: Infra) => {
   if (router.containerProvider !== deployer.containerProvider) {
     throw new Error(`The router runs on ${router.containerProvider} and the deployer on ${deployer.containerProvider}; they must share a container provider`);
   }
-  // The deployer puts containers on its own container provider, so achq has to know it: this throws if it doesn't.
-  containerProviderNamed(deployer.containerProvider);
   if (deployer.inputs.router !== router) throw new Error(`Deployer ${deployer.name} must use router ${router.name}`);
   for (const r of resources) {
     // Resources only share `inputs` by convention, so this looks for a router rather than assumes one.

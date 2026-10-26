@@ -12,6 +12,7 @@
     "src"
   ],
   "exports": {
+    ".": "./src/index.ts",
     "./vault": "./src/vault/index.ts"
   },
   "peerDependencies": {

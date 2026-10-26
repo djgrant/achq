@@ -1,10 +1,11 @@
 import * as core from "@achq/core";
 import { type Context, type EnvValues, Output } from "@achq/core";
-import { CLOUDFLARE_ENV, CONTAINER_PROVIDER } from "../lib/constants.ts";
+import { CLOUDFLARE_ENV } from "../lib/constants.ts";
 import { DeployerToken } from "../lib/deployer-token.ts";
 import { ServiceParts } from "../lib/service-parts.ts";
 import { Router } from "../router/resource.ts";
 import { PLUGIN } from "../plugin.ts";
+import { cloudflareContainerProvider } from "../container/index.ts";
 
 export type DeployerInputs = {
   router: core.Router;
@@ -26,7 +27,7 @@ export type DeployerInputs = {
  */
 export class Deployer extends core.Deployer {
   readonly plugin = PLUGIN;
-  readonly containerProvider = CONTAINER_PROVIDER;
+  readonly provider = cloudflareContainerProvider;
   protected readonly placement: ServiceParts;
   private readonly token: DeployerToken;
   private readonly router: Router;

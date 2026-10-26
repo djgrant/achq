@@ -1,7 +1,7 @@
 import { defineCommand, dryRunContext } from "@pokit/core";
 import { z } from "zod";
 import { infraChecks } from "../checks/infra.ts";
-import { configVault, loadConfig } from "../envs/config.ts";
+import { loadConfig } from "../envs/config.ts";
 import { clean, confirm } from "../io/terminal.ts";
 import { needInfra } from "../io/workdir.ts";
 import { infraLoad } from "../tasks/infra.load.ts";
@@ -21,7 +21,7 @@ export const command = defineCommand({
       infra: await run(r, infraLoad, { file: needInfra() }),
       dryRun: context.dryRun,
       confirm: async (message) => context.yes || (await confirm(r.prompter, message)),
-      vault: configVault(await loadConfig(), process.env),
+      vault: (await loadConfig())?.vault,
     });
   }),
 });

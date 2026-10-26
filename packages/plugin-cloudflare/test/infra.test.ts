@@ -296,7 +296,7 @@ test("an account without a workers.dev subdomain can't be planned", async () => 
 test("the deployer runs in a Cloudflare router's project", () => {
   class Elsewhere extends core.Router {
     readonly plugin = core.CORE_PLUGIN;
-    readonly containerProvider = "elsewhere";
+    readonly provider = { id: "elsewhere", privateEnv: [] } as unknown as core.ContainerProviderImplementation;
     readonly url = undefined as unknown as Output<string>;
     protected readonly placement = undefined as unknown as core.Placement;
   }

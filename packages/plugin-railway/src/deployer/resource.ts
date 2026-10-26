@@ -1,11 +1,12 @@
 import * as core from "@achq/core";
 import type { Context, EnvValues } from "@achq/core";
 import { Env } from "@achq/utils/env";
-import { CONTAINER_PROVIDER, RAILWAY_ENV } from "../lib/constants.ts";
+import { RAILWAY_ENV } from "../lib/constants.ts";
 import type { Project } from "../lib/project.ts";
 import { ServiceParts } from "../lib/service-parts.ts";
 import { Router } from "../router/resource.ts";
 import { PLUGIN } from "../plugin.ts";
+import { railwayContainerProvider } from "../container/index.ts";
 
 /**
  * The deployer, as a Railway service in its router's project: private,
@@ -14,7 +15,7 @@ import { PLUGIN } from "../plugin.ts";
  */
 export class Deployer extends core.Deployer {
   readonly plugin = PLUGIN;
-  readonly containerProvider = CONTAINER_PROVIDER;
+  readonly provider = railwayContainerProvider;
   readonly project: Project;
   protected readonly placement: ServiceParts;
 
