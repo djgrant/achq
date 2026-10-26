@@ -11,3 +11,6 @@ docs/.wrangler
 
 # A second copy of core, made while core's tests run
 packages/core/.second-core
+
+# The services' bundles (scripts/bundle.ts), which is what they publish
+packages/*/dist

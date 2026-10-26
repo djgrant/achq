@@ -9,8 +9,7 @@
   },
   "type": "module",
   "files": [
-    "bin",
-    "src"
+    "dist"
   ],
   "exports": {
     ".": "./src/index.ts",
@@ -19,18 +18,24 @@
   "bin": {
     "achq-deployer": "bin/achq-deployer"
   },
-  "dependencies": {
+  "publishConfig": {
+    "bin": {
+      "achq-deployer": "dist/achq-deployer.js"
+    },
+    "exports": {
+      "./config": "./dist/config.js"
+    }
+  },
+  "devDependencies": {
+    "@achq/claude": "workspace:*",
     "@achq/core": "workspace:*",
+    "@achq/github": "workspace:*",
+    "@achq/test-utils": "workspace:*",
     "@achq/utils": "workspace:*",
     "@hono/zod-openapi": "^1.6.3",
     "@jitl/quickjs-wasmfile-release-sync": "^0.32.0",
     "hono": "^4.13.13",
     "quickjs-emscripten-core": "^0.32.0",
     "zod": "^4.3.6"
-  },
-  "devDependencies": {
-    "@achq/claude": "workspace:*",
-    "@achq/github": "workspace:*",
-    "@achq/test-utils": "workspace:*"
   }
 }

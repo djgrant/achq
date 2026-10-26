@@ -166,10 +166,19 @@ importers:
         version: link:../utils
 
   packages/service-deployer:
-    dependencies:
+    devDependencies:
+      '@achq/claude':
+        specifier: workspace:*
+        version: link:../plugin-claude
       '@achq/core':
         specifier: workspace:*
         version: link:../core
+      '@achq/github':
+        specifier: workspace:*
+        version: link:../plugin-github
+      '@achq/test-utils':
+        specifier: workspace:*
+        version: link:../test-utils
       '@achq/utils':
         specifier: workspace:*
         version: link:../utils
@@ -188,22 +197,15 @@ importers:
       zod:
         specifier: ^4.3.6
         version: 4.6.7
-    devDependencies:
-      '@achq/claude':
-        specifier: workspace:*
-        version: link:../plugin-claude
-      '@achq/github':
-        specifier: workspace:*
-        version: link:../plugin-github
-      '@achq/test-utils':
-        specifier: workspace:*
-        version: link:../test-utils
 
   packages/service-router:
-    dependencies:
+    devDependencies:
       '@achq/core':
         specifier: workspace:*
         version: link:../core
+      '@achq/test-utils':
+        specifier: workspace:*
+        version: link:../test-utils
       '@achq/utils':
         specifier: workspace:*
         version: link:../utils
@@ -216,22 +218,30 @@ importers:
       zod:
         specifier: ^4.3.6
         version: 4.6.7
-    devDependencies:
-      '@achq/test-utils':
-        specifier: workspace:*
-        version: link:../test-utils
 
   packages/service-runner:
-    dependencies:
+    devDependencies:
+      '@achq/claude':
+        specifier: workspace:*
+        version: link:../plugin-claude
       '@achq/core':
         specifier: workspace:*
         version: link:../core
+      '@achq/github':
+        specifier: workspace:*
+        version: link:../plugin-github
+      '@achq/test-utils':
+        specifier: workspace:*
+        version: link:../test-utils
       '@achq/utils':
         specifier: workspace:*
         version: link:../utils
       '@hono/zod-openapi':
         specifier: ^1.6.3
         version: 1.6.3(hono@4.13.14)(zod@4.6.7)
+      '@types/mustache':
+        specifier: ^4.2.6
+        version: 4.2.6
       hono:
         specifier: ^4.13.13
         version: 4.13.14
@@ -241,19 +251,6 @@ importers:
       zod:
         specifier: ^4.3.6
         version: 4.6.7
-    devDependencies:
-      '@achq/claude':
-        specifier: workspace:*
-        version: link:../plugin-claude
-      '@achq/github':
-        specifier: workspace:*
-        version: link:../plugin-github
-      '@achq/test-utils':
-        specifier: workspace:*
-        version: link:../test-utils
-      '@types/mustache':
-        specifier: ^4.2.6
-        version: 4.2.6
 
   packages/test-e2e:
     dependencies:

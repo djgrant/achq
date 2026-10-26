@@ -114,6 +114,8 @@ const parseJson = (text: string): unknown => {
  * only be `allowed`'s.
  */
 export const evaluateConfig = async (files: Record<string, string>, allowed: ConfigModules, limits: Partial<Limits> = {}) => {
+  // Core collects the manifest. It's installed with the plugins, so with none there's nothing to evaluate against.
+  if (!(CORE_PLUGIN.package in allowed)) throw new Error(`Configs can't be evaluated without ${CORE_PLUGIN.package}, which is installed with the containers' plugins, and there are none`);
   const layout = layoutOf(allowed);
   const modules = { ...(await achqModules(layout)) };
   for (const [path, contents] of Object.entries(files)) {

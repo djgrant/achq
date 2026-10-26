@@ -9,8 +9,7 @@
   },
   "type": "module",
   "files": [
-    "bin",
-    "src"
+    "dist"
   ],
   "exports": {
     ".": "./src/index.ts"
@@ -18,14 +17,18 @@
   "bin": {
     "achq-router": "bin/achq-router"
   },
-  "dependencies": {
+  "publishConfig": {
+    "bin": {
+      "achq-router": "dist/achq-router.js"
+    },
+    "exports": {}
+  },
+  "devDependencies": {
     "@achq/core": "workspace:*",
+    "@achq/test-utils": "workspace:*",
     "@achq/utils": "workspace:*",
     "@hono/zod-openapi": "^1.6.3",
     "hono": "^4.13.13",
     "zod": "^4.3.6"
-  },
-  "devDependencies": {
-    "@achq/test-utils": "workspace:*"
   }
 }
