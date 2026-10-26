@@ -1,13 +1,21 @@
 # Quick Start
 
-Deploy an ACHQ control plane on Cloudflare, subscribe `acme/webapp`, trigger Claude Code from a GitHub issue, and resume the session in your terminal.
+Deploy an ACHQ control plane on Cloudflare, subscribe `acme/webapp`, trigger Claude Code from a GitHub issue, and resume the session in your terminal. Install the CLI first (see [Installation](./installation.md)).
 
 ## 1. Deploy ACHQ (`achq.infra.ts`)
+
+In your infra repository, add the packages `achq.infra.ts` imports:
+
+```sh
+bun add -D @achq/core @achq/cloudflare @achq/github
+```
 
 Declare the control plane for the `acme` organization:
 
 ```ts [achq.infra.ts]
-import { achq, cloudflare, github } from "achq/infra";
+import { achq } from "@achq/core";
+import * as cloudflare from "@achq/cloudflare/infra";
+import * as github from "@achq/github/infra";
 
 export default achq(() => {
   const router = new cloudflare.Router("router", { project: "acme-agents" });
@@ -39,7 +47,13 @@ achq infra up
 
 ## 2. Declare an outpost (`.achq/`)
 
-In `acme/webapp`, define the container image where agents will run:
+In `acme/webapp`, add the packages `.achq/config.ts` imports:
+
+```sh
+bun add -D @achq/core @achq/github @achq/claude
+```
+
+Define the container image where agents will run:
 
 ```dockerfile [.achq/Dockerfile]
 FROM node:22.18-bookworm
@@ -51,9 +65,9 @@ RUN curl -fsSL "https://raw.githubusercontent.com/djgrant/achq/$ACHQ_REF/install
 Wire GitHub issues and `@claude` mentions to that container:
 
 ```ts [.achq/config.ts]
-import { Container, Trigger, Workspace } from "achq";
-import * as claude from "achq/claude";
-import * as github from "achq/github";
+import { Container, Trigger, Workspace } from "@achq/core";
+import * as claude from "@achq/claude";
+import * as github from "@achq/github";
 
 const channel = github.Channel.get("acme-agents");
 const code = new github.Policy("code", {

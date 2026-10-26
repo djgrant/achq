@@ -15,7 +15,7 @@ export default defineConfig({
       pagesDirectory: "pages",
       logo: "./views/logo.tsx",
       // Resolved against the repo root
-      version: { packageJson: "packages/achq/package.json" },
+      version: { packageJson: "packages/core/package.json" },
       deployment: {
         name: "achq-docs", // Cloudflare Worker name
         compatibilityDate: "2025-09-24",

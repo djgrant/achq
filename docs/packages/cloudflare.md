@@ -1,13 +1,18 @@
 # `@achq/cloudflare`
 
-`@achq/cloudflare` runs ACHQ (`Router` and `Deployer`) and repository outposts on Cloudflare Workers and Durable Object Containers. Re-exported as `cloudflare` from `achq/infra`.
+`@achq/cloudflare` runs ACHQ (`Router` and `Deployer`) and repository outposts on Cloudflare Workers and Durable Object Containers. Imported in `achq.infra.ts` from `@achq/cloudflare/infra`.
+
+```sh
+bun add -D @achq/cloudflare
+```
 
 ## Router & Deployer
 
 Provision the control plane and outpost builder on Cloudflare:
 
 ```ts [achq.infra.ts]
-import { achq, cloudflare } from "achq/infra";
+import { achq } from "@achq/core";
+import * as cloudflare from "@achq/cloudflare/infra";
 
 export default achq(() => {
   const router = new cloudflare.Router("router", {

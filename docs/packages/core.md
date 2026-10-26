@@ -1,14 +1,25 @@
-# `achq`
+# `@achq/core`
 
-`achq` is the single package imported by both ACHQ infrastructure configs (`achq.infra.ts`) and repository outpost configs (`.achq/config.ts`).
+`@achq/core` holds the resources both ACHQ infrastructure configs (`achq.infra.ts`) and repository outpost configs (`.achq/config.ts`) declare, and the contracts every plugin implements.
 
-| Import path | Used in | Exports |
+```sh
+bun add -D @achq/core
+```
+
+| Used in | Exports |
+| --- | --- |
+| `.achq/config.ts` | `Container`, `Policy`, `Workspace`, `Trigger`, `EventSelector`, `ThreadSelector` |
+| `achq.infra.ts` | `achq`, `Router`, `Deployer` |
+
+Plugins add the vendor-specific resources alongside it:
+
+| Package | Import path | Used in |
 | --- | --- | --- |
-| `achq` | `.achq/config.ts` | `Container`, `Policy`, `Workspace`, `Agent`, `Trigger`, `EventSelector`, `ThreadSelector` |
-| `achq/infra` | `achq.infra.ts` | `achq`, `Router`, `Deployer`, `cloudflare`, `railway`, `github` |
-| `achq/github` | `.achq/config.ts` | [`@achq/github`](./github.md) (`Channel.get`, `Policy`, thread & event selectors) |
-| `achq/claude` | `.achq/config.ts` | [`@achq/claude`](./claude.md) (`Agent`, `AgentConfig`) |
-| `achq/registry` | Runtime & CLI | `CONTAINER_PROVIDERS`, `CHANNEL_PROVIDERS`, `POLICY_PROVIDERS`, `AGENT_PROVIDERS`, `CODE_HOST`, `VAULT_PROVIDERS` |
+| [`@achq/github`](./github.md) | `@achq/github` | `.achq/config.ts` (`Channel.get`, `Policy`, thread & event selectors) |
+| [`@achq/github`](./github.md) | `@achq/github/infra` | `achq.infra.ts` (`Channel`) |
+| [`@achq/claude`](./claude.md) | `@achq/claude` | `.achq/config.ts` (`Agent`) |
+| [`@achq/cloudflare`](./cloudflare.md) | `@achq/cloudflare/infra` | `achq.infra.ts` (`Router`, `Deployer`) |
+| [`@achq/railway`](./railway.md) | `@achq/railway/infra` | `achq.infra.ts` (`Router`, `Deployer`) |
 
 ## Outpost primitives (`.achq/config.ts`)
 
@@ -66,7 +77,9 @@ Binds a channel `EventSelector` to an `Agent` subclass so matching events run th
 Declare the central control plane graph:
 
 ```ts [achq.infra.ts]
-import { achq, cloudflare, github } from "achq/infra";
+import { achq } from "@achq/core";
+import * as cloudflare from "@achq/cloudflare/infra";
+import * as github from "@achq/github/infra";
 
 export default achq(() => {
   const router = new cloudflare.Router("router", { project: "acme-agents" });

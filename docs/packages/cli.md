@@ -1,6 +1,11 @@
 # `@achq/cli`
 
-`@achq/cli` provides the `achq` executable:
+`@achq/cli` provides the `achq` executable. It runs on [Bun](https://bun.sh):
+
+```sh
+bun add -g @achq/cli
+```
+
 
 | Command group | Purpose |
 | --- | --- |

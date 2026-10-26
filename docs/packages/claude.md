@@ -2,12 +2,16 @@
 
 `@achq/claude` provides the Claude Code `Agent` resource for `.achq/config.ts` and the runtime adapter that executes `claude` inside outpost containers.
 
+```sh
+bun add -D @achq/claude
+```
+
 ## Agent
 
 Configure a Claude Code agent for an outpost:
 
 ```ts [.achq/config.ts]
-import * as claude from "achq/claude";
+import * as claude from "@achq/claude";
 
 const coder = new claude.Agent("coder", {
   model: "claude-opus-5-5",

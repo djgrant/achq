@@ -8,8 +8,8 @@ export const packages: DocCategory = {
       heading: "Entrypoints",
       icon: "terminal",
       links: [
-        { label: "achq", slug: "packages/achq" },
         { label: "@achq/cli", slug: "packages/cli" },
+        { label: "@achq/core", slug: "packages/core" },
       ],
     },
     {

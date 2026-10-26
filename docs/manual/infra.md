@@ -3,7 +3,9 @@
 Stand up a central control plane to serve all of your repositories:
 
 ```ts [achq.infra.ts]
-import { achq, cloudflare, github } from "achq/infra";
+import { achq } from "@achq/core";
+import * as cloudflare from "@achq/cloudflare/infra";
+import * as github from "@achq/github/infra";
 
 export default achq(() => {
   const router = new cloudflare.Router("router", { project: "acme-agents" });

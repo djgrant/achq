@@ -2,17 +2,23 @@
 
 `@achq/github` connects GitHub repositories and issues to ACHQ across two entrypoints:
 
+```sh
+bun add -D @achq/github
+```
+
 | Import path | Used in | Exports |
 | --- | --- | --- |
-| `achq/infra` (`github`) | `achq.infra.ts` | `github.Channel` (provisions the GitHub App and webhook) |
-| `achq/github` | `.achq/config.ts` | `Channel.get`, `Policy`, `channel.issues`, `channel.issueComment`, `channel.issue` |
+| `@achq/github/infra` | `achq.infra.ts` | `github.Channel` (provisions the GitHub App and webhook) |
+| `@achq/github` | `.achq/config.ts` | `Channel.get`, `Policy`, `channel.issues`, `channel.issueComment`, `channel.issue` |
 
 ## Channel
 
 Register a GitHub App and wire its webhooks to your router:
 
 ```ts [achq.infra.ts]
-import { achq, cloudflare, github } from "achq/infra";
+import { achq } from "@achq/core";
+import * as cloudflare from "@achq/cloudflare/infra";
+import * as github from "@achq/github/infra";
 
 export default achq(() => {
   const router = new cloudflare.Router("router", { project: "acme-agents" });
@@ -70,7 +76,7 @@ new Trigger("mention", {
 Grant an outpost container scoped installation tokens for a repository:
 
 ```ts [.achq/config.ts]
-import * as github from "achq/github";
+import * as github from "@achq/github";
 
 const code = new github.Policy("code", {
   channel,

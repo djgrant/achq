@@ -1,13 +1,18 @@
 # `@achq/railway`
 
-`@achq/railway` runs ACHQ (`Router` and `Deployer`) and repository outposts inside a shared Railway project with persistent `/data` volumes and private networking. Re-exported as `railway` from `achq/infra`.
+`@achq/railway` runs ACHQ (`Router` and `Deployer`) and repository outposts inside a shared Railway project with persistent `/data` volumes and private networking. Imported in `achq.infra.ts` from `@achq/railway/infra`.
+
+```sh
+bun add -D @achq/railway
+```
 
 ## Router & Deployer
 
 Provision the control plane and outpost builder in a Railway project:
 
 ```ts [achq.infra.ts]
-import { achq, railway } from "achq/infra";
+import { achq } from "@achq/core";
+import * as railway from "@achq/railway/infra";
 
 export default achq(() => {
   const router = new railway.Router("router", {
