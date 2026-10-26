@@ -1,0 +1,4 @@
+# Bun installs the workspace (package.json `workspaces`). This is for `pok publish`,
+# which publishes with pnpm, so `workspace:*` ranges become the published versions.
+packages:
+  - packages/*

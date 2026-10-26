@@ -1,8 +1,16 @@
 {
   "name": "@achq/github",
   "version": "0.1.0",
-  "private": true,
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/djgrant/achq.git",
+    "directory": "packages/plugin-github"
+  },
   "type": "module",
+  "files": [
+    "src"
+  ],
   "exports": {
     ".": "./src/index.ts",
     "./infra": "./src/infra.ts",

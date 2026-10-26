@@ -1,8 +1,16 @@
 {
   "name": "@achq/cloudflare",
   "version": "0.1.0",
-  "private": true,
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/djgrant/achq.git",
+    "directory": "packages/plugin-cloudflare"
+  },
   "type": "module",
+  "files": [
+    "src"
+  ],
   "exports": {
     "./infra": "./src/infra.ts",
     "./container": "./src/container/index.ts"

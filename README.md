@@ -176,3 +176,5 @@ bun install
 bun test
 bun run typecheck
 ```
+
+Releases are lockstep: every published package (the `PUBLISHED` list in the root `pok.config.ts`) has the same version. They ship their TypeScript source, so there's no build. `pok version patch` bumps them, commits, tags `v<version>` and pushes; `pok publish` publishes them with pnpm, which turns `workspace:*` into that version (`--dry-run` to see what it would do). The services and the test packages aren't published: the router and deployer run achq from GitHub at a commit, and containers install the runner with `install.sh`.

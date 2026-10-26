@@ -1,8 +1,16 @@
 {
   "name": "@achq/deployer",
   "version": "0.1.0",
-  "private": true,
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/djgrant/achq.git",
+    "directory": "packages/service-deployer"
+  },
   "type": "module",
+  "files": [
+    "src"
+  ],
   "exports": {
     ".": "./src/index.ts",
     "./config": "./src/features/config/evaluate.ts"
