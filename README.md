@@ -187,8 +187,8 @@ pnpm manages the workspace's packages; Bun runs them and their tests.
 
 ```sh
 pnpm install
-pnpm test
-pnpm typecheck
+pok test
+pok typecheck
 ```
 
 Releases are lockstep: every published package (every workspace package but `test-utils` and `test-e2e`, as the root `pok.config.ts` lists them) has the same version. They ship their TypeScript source, so there's no build. `pok version patch` bumps them, commits, tags `v<version>` and pushes; `pok publish` publishes them with pnpm, which turns `workspace:*` into that version (`--dry-run` to see what it would do). The services are published too: the router and deployer start with `bunx @achq/router@<version>` and `bunx @achq/deployer@<version>`, where the version is the infra's `@achq/core`'s, and a container's `achq-runner`, which `install.sh` installs, runs `bunx @achq/runner@$ACHQ_VERSION`, the deployer's version. A container Worker on Cloudflare is built from `@achq/cloudflare-worker`'s npm tarball at that version.

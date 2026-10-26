@@ -1,6 +1,6 @@
 // The router's and deployer's routes, declared once in core's wire: served, faked and called
 // from the same declarations. The `@ts-expect-error` lines are the proof that drift is a type
-// error: `bun run typecheck` fails if any of them stops being one.
+// error: `pok typecheck` fails if any of them stops being one.
 import { describe, expect, expectTypeOf, test } from "bun:test";
 import type { DeployerVersion, DeployRecord, RouterRepoConfig, SyncRequest, SyncStarted, SyncStatus } from "@achq/core";
 import { deployerClient } from "@achq/core/clients/deployer";
