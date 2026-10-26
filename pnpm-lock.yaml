@@ -41,9 +41,6 @@ importers:
       '@achq/utils':
         specifier: workspace:*
         version: link:../utils
-      '@hono/zod-openapi':
-        specifier: ^1.6.3
-        version: 1.6.3(hono@4.13.14)(zod@4.6.7)
       '@pokit/core':
         specifier: ^0.10.0
         version: 0.10.0(patch_hash=ad88c82325e92d8eebc3bc67bfeb82c92a5bdc1393902ab83ed612383206afc7)(zod@4.6.7)
@@ -69,6 +66,9 @@ importers:
       '@achq/test-utils':
         specifier: workspace:*
         version: link:../test-utils
+      '@hono/zod-openapi':
+        specifier: ^1.6.3
+        version: 1.6.3(hono@4.13.14)(zod@4.6.7)
 
   packages/cloudflare-worker:
     dependencies:

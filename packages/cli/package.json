@@ -25,7 +25,6 @@
     "@achq/deployer": "workspace:*",
     "@achq/github": "workspace:*",
     "@achq/utils": "workspace:*",
-    "@hono/zod-openapi": "^1.6.3",
     "@pokit/core": "^0.10.0",
     "@pokit/terminal": "^0.10.0",
     "zod": "^4.3.6"
@@ -35,7 +34,8 @@
     "@achq/claude": "workspace:*",
     "@achq/railway": "workspace:*",
     "@achq/runner": "workspace:*",
-    "@achq/test-utils": "workspace:*"
+    "@achq/test-utils": "workspace:*",
+    "@hono/zod-openapi": "^1.6.3"
   },
   "bin": {
     "achq": "bin/achq"
