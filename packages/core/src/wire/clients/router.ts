@@ -1,5 +1,5 @@
 // Clients for the router's routes, each built from their declarations in `../routes/`.
-import { type RouteFetcher, routeClient } from "@achq/utils/http";
+import { routeClient, type RouteFetcher } from "@achq/utils/routes";
 import { routerAdminRoutes } from "../routes/router-admin.ts";
 import { routerContainerRoutes } from "../routes/router-container.ts";
 import { routerPublicRoutes } from "../routes/router-public.ts";

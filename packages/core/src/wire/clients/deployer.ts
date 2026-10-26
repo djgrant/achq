@@ -1,5 +1,5 @@
 // A client for the deployer's routes, built from their declarations in `../routes/deployer.ts`.
-import { type RouteFetcher, routeClient } from "@achq/utils/http";
+import { routeClient, type RouteFetcher } from "@achq/utils/routes";
 import { deployerRoutes } from "../routes/deployer.ts";
 
 /** The service a deployer client's HttpErrors name. */

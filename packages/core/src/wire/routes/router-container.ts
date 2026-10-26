@@ -1,5 +1,5 @@
 // The router's route for containers, on the port the public can't reach, signed with each container's secret.
-import { route } from "@achq/utils/http";
+import { route } from "@achq/utils/routes";
 import { createRoute } from "@hono/zod-openapi";
 import { CredentialsRequest, CredentialsResponse } from "../protocol.ts";
 

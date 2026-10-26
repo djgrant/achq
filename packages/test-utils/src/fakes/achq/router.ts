@@ -2,7 +2,7 @@ import type { InstalledRepo, MintRequest, PolicyData, RouterRepoConfig, SourceSe
 import { routerAdminRoutes as routes } from "@achq/core/routes/router-admin";
 import { adminSecret } from "@achq/core/secrets";
 import { verifySigned } from "@achq/core/signing";
-import { handler } from "@achq/utils/http";
+import { handler } from "@achq/utils/routes";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import type { FakeGitHub } from "../vendors/github.ts";
 

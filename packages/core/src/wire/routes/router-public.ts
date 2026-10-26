@@ -1,5 +1,5 @@
 // The router's public routes: channels' webhooks, and the repo CLI's, each answering only someone who can push to the repo.
-import { route } from "@achq/utils/http";
+import { route } from "@achq/utils/routes";
 import { createRoute } from "@hono/zod-openapi";
 import { InstallationRequest, ReachRequest, RepoInstallation, RepoRequest, Shell } from "../protocol.ts";
 

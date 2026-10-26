@@ -1,7 +1,7 @@
 import { adminSecret } from "@achq/core/secrets";
 import { signedFetcher, signedRequestInit } from "@achq/core/signing";
 import { async, type Attempt } from "@achq/utils/async";
-import type { RouteFetcher } from "@achq/utils/http";
+import type { RouteFetcher } from "@achq/utils/routes";
 import type { RouterContext } from "../context.ts";
 
 /** What a service that never answered is, as a response: the router gave up waiting for it. */

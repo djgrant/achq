@@ -1,5 +1,5 @@
 // The runner's route, for the router, on each repo container, signed with that container's secret.
-import { route } from "@achq/utils/http";
+import { route } from "@achq/utils/routes";
 import { createRoute } from "@hono/zod-openapi";
 import { ContainerEnvelope } from "../protocol.ts";
 

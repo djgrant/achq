@@ -1,6 +1,6 @@
 // The router's admin routes, for the deployer and the infra CLI, signed with the admin secret.
 // Paths are relative to where the router mounts them, `/admin`, on both its ports.
-import { route } from "@achq/utils/http";
+import { route } from "@achq/utils/routes";
 import { createRoute } from "@hono/zod-openapi";
 import { z } from "zod";
 import {

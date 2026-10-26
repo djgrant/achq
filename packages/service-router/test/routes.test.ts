@@ -9,7 +9,8 @@ import { deployerRoutes } from "@achq/core/routes/deployer";
 import { routerAdminRoutes } from "@achq/core/routes/router-admin";
 import { adminSecret } from "@achq/core/secrets";
 import { signedFetcher } from "@achq/core/signing";
-import { handler, HttpError } from "@achq/utils/http";
+import { HttpError } from "@achq/utils/http";
+import { handler } from "@achq/utils/routes";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { config, deployed, fakeContainer, key, repo } from "./harness.ts";
 

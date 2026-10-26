@@ -1,7 +1,8 @@
 import { describe, expect, expectTypeOf, test } from "bun:test";
 import { createRoute, OpenAPIHono } from "@hono/zod-openapi";
 import { z } from "zod";
-import { handler, HttpError, route, routeClient, type RouteFetcher, type RouteRequest } from "../src/http.ts";
+import { HttpError } from "../src/http.ts";
+import { handler, route, routeClient, type RouteFetcher, type RouteRequest, service } from "../src/routes.ts";
 
 const Thing = z.looseObject({ id: z.string(), size: z.number() });
 
@@ -143,5 +144,27 @@ describe("handlers are checked against their route's responses", () => {
     // The server validates too: a param or body the route's schema refuses is a 400 from its validator.
     expect((await app.request("/things/t", { method: "PUT", body: "{}", headers: { "content-type": "application/json" } })).status).toBe(400);
     expect((await app.request("/things/t", { method: "PUT" })).status).toBe(400);
+  });
+});
+
+describe("service", () => {
+  const logged: string[] = [];
+  const app = service((line) => logged.push(line))
+    .get("/hello", (c) => c.text(`hello ${c.req.query("a")}`))
+    .post("/boom", () => {
+      throw new Error("secret detail");
+    });
+
+  test("health, a handled route, and 404 for the rest", async () => {
+    expect(await (await app.fetch(new Request("http://x/"))).text()).toBe("ok");
+    expect(await (await app.fetch(new Request("http://x/hello?a=1"))).text()).toBe("hello 1");
+    expect((await app.fetch(new Request("http://x/nope"))).status).toBe(404);
+  });
+
+  test("a throw is logged and answered with a 500 that doesn't leak it", async () => {
+    const res = await app.fetch(new Request("http://x/boom", { method: "POST" }));
+    expect(res.status).toBe(500);
+    expect(await res.text()).toBe("internal error");
+    expect(logged.at(-1)).toStartWith("POST /boom: Error: secret detail");
   });
 });

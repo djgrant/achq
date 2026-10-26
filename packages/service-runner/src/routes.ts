@@ -1,6 +1,6 @@
 import { runnerRoutes } from "@achq/core/routes/runner";
 import { signedBy } from "@achq/core/signing";
-import { http } from "@achq/utils/http";
+import { service } from "@achq/utils/routes";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import type { Runner } from "./features/runner.ts";
 
@@ -18,5 +18,5 @@ export const routes = (runner: Runner) => {
     runner.accept(c.req.valid("json"));
     return c.text("accepted", 202);
   });
-  return { runner: app, fetch: http.service(runner.log).route("/", app).fetch };
+  return { runner: app, fetch: service(runner.log).route("/", app).fetch };
 };

@@ -25,25 +25,3 @@ test("bearerToken reads the Authorization header", () => {
   expect(http.bearerToken(new Request("http://x/", { headers: { authorization: "token abc" } }))).toBeUndefined();
   expect(http.bearerToken(new Request("http://x/"))).toBeUndefined();
 });
-
-describe("service", () => {
-  const logged: string[] = [];
-  const app = http.service((line) => logged.push(line))
-    .get("/hello", (c) => c.text(`hello ${c.req.query("a")}`))
-    .post("/boom", () => {
-      throw new Error("secret detail");
-    });
-
-  test("health, a handled route, and 404 for the rest", async () => {
-    expect(await (await app.fetch(new Request("http://x/"))).text()).toBe("ok");
-    expect(await (await app.fetch(new Request("http://x/hello?a=1"))).text()).toBe("hello 1");
-    expect((await app.fetch(new Request("http://x/nope"))).status).toBe(404);
-  });
-
-  test("a throw is logged and answered with a 500 that doesn't leak it", async () => {
-    const res = await app.fetch(new Request("http://x/boom", { method: "POST" }));
-    expect(res.status).toBe(500);
-    expect(await res.text()).toBe("internal error");
-    expect(logged.at(-1)).toStartWith("POST /boom: Error: secret detail");
-  });
-});

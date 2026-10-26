@@ -1,5 +1,5 @@
 import { crypto } from "@achq/utils/crypto";
-import type { RouteFetcher } from "@achq/utils/http";
+import type { RouteFetcher } from "@achq/utils/routes";
 import { time } from "@achq/utils/time";
 import type { Context } from "hono";
 import { createMiddleware } from "hono/factory";

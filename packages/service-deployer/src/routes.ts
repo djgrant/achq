@@ -1,7 +1,7 @@
 import { deployerRoutes } from "@achq/core/routes/deployer";
 import { adminSecret } from "@achq/core/secrets";
 import { signedBy } from "@achq/core/signing";
-import { handler, http } from "@achq/utils/http";
+import { handler, service } from "@achq/utils/routes";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import type { DeployerContext } from "./context.ts";
 import { shell, status } from "./features/deploy.ts";
@@ -45,6 +45,6 @@ export const routes = (ctx: DeployerContext) => {
     });
   return {
     deployer,
-    fetch: http.service((line) => ctx.log(`deployer ${line}`)).route("/", deployer).fetch,
+    fetch: service((line) => ctx.log(`deployer ${line}`)).route("/", deployer).fetch,
   };
 };

@@ -1,7 +1,7 @@
 // The deployer's routes, for the router, each signed with the admin secret. A sync runs in the
 // background, as its builds can take longer than any hop keeps a request open: `sync` answers
 // with its ID, and `syncStatus` with how it's going.
-import { route } from "@achq/utils/http";
+import { route } from "@achq/utils/routes";
 import { createRoute } from "@hono/zod-openapi";
 import { z } from "zod";
 import { DeployerEnvelope, DeployerVersion, DeployRecord, ReachRequest, Shell, SyncRequest, SyncStarted, SyncStatus } from "../protocol.ts";

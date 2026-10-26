@@ -28,6 +28,7 @@
     "./json": "./src/json.ts",
     "./names": "./src/names.ts",
     "./railway": "./src/railway/index.ts",
+    "./routes": "./src/routes.ts",
     "./store": "./src/store/index.ts",
     "./store/handler": "./src/store/handler.ts",
     "./store/json-store": "./src/store/json-store.ts",

@@ -6,7 +6,8 @@ import { routerContainerRoutes as containerRoutes } from "@achq/core/routes/rout
 import { routerPublicRoutes as publicRoutes } from "@achq/core/routes/router-public";
 import { adminSecret, containerSecret } from "@achq/core/secrets";
 import { isSigned, signedBy } from "@achq/core/signing";
-import { handler, http, HttpError } from "@achq/utils/http";
+import { http, HttpError } from "@achq/utils/http";
+import { handler, service } from "@achq/utils/routes";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import type { Context } from "hono";
 import { createMiddleware } from "hono/factory";
@@ -227,7 +228,7 @@ export const routes = (ctx: RouterContext) => {
     admin,
     public: pub,
     container,
-    publicFetch: http.service(ctx.log).route("/admin", admin).route("/", pub).fetch,
-    privateFetch: http.service(ctx.log).route("/admin", admin).route("/", container).fetch,
+    publicFetch: service(ctx.log).route("/admin", admin).route("/", pub).fetch,
+    privateFetch: service(ctx.log).route("/admin", admin).route("/", container).fetch,
   };
 };
