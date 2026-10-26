@@ -1,4 +1,5 @@
-# Bun installs the workspace (package.json `workspaces`). This is for `pok publish`,
-# which publishes with pnpm, so `workspace:*` ranges become the published versions.
 packages:
   - packages/*
+
+patchedDependencies:
+  "@pokit/core@0.10.0": patches/@pokit%2Fcore@0.10.0.patch

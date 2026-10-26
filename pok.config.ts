@@ -13,7 +13,6 @@ export default defineConfig({
     docs({ name: "achq-docs" }),
     release({
       packages: PUBLISHED.map((dir) => ({ file: `packages/${dir}/package.json`, build: false as const })),
-      install: "bun install --frozen-lockfile",
     }),
   ],
 });

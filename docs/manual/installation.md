@@ -5,7 +5,7 @@
 Install the `achq` CLI globally from npm:
 
 ```sh
-bun add -g @achq/cli
+pnpm add -g @achq/cli
 ```
 
 The CLI runs on [Bun](https://bun.sh), which must be on your `PATH`.
@@ -17,13 +17,13 @@ Add the packages your config imports as dev dependencies, for type-checking and 
 In an infrastructure repository, add `@achq/core` and the plugins `achq.infra.ts` declares resources from:
 
 ```sh
-bun add -D @achq/core @achq/cloudflare @achq/github  # or @achq/railway
+pnpm add -D @achq/core @achq/cloudflare @achq/github  # or @achq/railway
 ```
 
 In an outpost repository, add `@achq/core` and the plugins `.achq/config.ts` imports:
 
 ```sh
-bun add -D @achq/core @achq/github @achq/claude
+pnpm add -D @achq/core @achq/github @achq/claude
 ```
 
 | Package | Imported in | As |

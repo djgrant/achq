@@ -3,7 +3,7 @@
 `@achq/claude` provides the Claude Code `Agent` resource for `.achq/config.ts` and the runtime adapter that executes `claude` inside outpost containers.
 
 ```sh
-bun add -D @achq/claude
+pnpm add -D @achq/claude
 ```
 
 ## Agent

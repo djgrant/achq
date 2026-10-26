@@ -46,6 +46,7 @@ export const achqStartScript = (entry: string, { root, timed = false }: { root: 
     `  fs.renameSync(tmp, dir);`,
     ...took("downloaded"),
     `}`,
+    // Bun installs the versions in pnpm-lock.yaml: it converts it to a bun.lock, so the service needs no pnpm.
     `if (!fs.existsSync(dir + "/node_modules")) {`,
     ...started,
     `  const install = Bun.spawnSync(["bun", "install", "--production", "--frozen-lockfile"], { cwd: dir, stdout: "inherit", stderr: "inherit" });`,

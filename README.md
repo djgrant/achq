@@ -47,7 +47,7 @@ export default achq(() => {
 
 `sshKeys` are public key lines, as in `~/.ssh/id_ed25519.pub`, that the deployer writes into each container Worker's `authorized_keys`. `achq container ssh` and `resume` open a shell with `wrangler containers ssh`, which connects as one of them, with its private key on your machine; a container Worker without any can't be reached that way. Railway doesn't need them: `railway ssh` connects as you're signed in to Railway.
 
-For types, add `@achq/core` and the plugins it imports to the infra repo: `bun add -D @achq/core @achq/railway @achq/github`. A repo's `.achq/config.ts` takes `bun add -D @achq/core @achq/github @achq/claude`. `achq infra up` loads them from the CLI itself, so their versions match it.
+For types, add `@achq/core` and the plugins it imports to the infra repo: `pnpm add -D @achq/core @achq/railway @achq/github`. A repo's `.achq/config.ts` takes `pnpm add -D @achq/core @achq/github @achq/claude`. `achq infra up` loads them from the CLI itself, so their versions match it.
 
 `achq infra up` needs `CLAUDE_CODE_OAUTH_TOKEN` (from `claude setup-token`) in its environment, and its container provider's credentials: `RAILWAY_API_TOKEN` on Railway. On Cloudflare, it needs no API token: sign Wrangler in once (`npx wrangler login`), and the `infra` commands use its sign-in. `CLOUDFLARE_API_TOKEN` is used instead if it's set, e.g. in CI, and `CLOUDFLARE_ACCOUNT_ID` names the account if your sign-in reaches more than one. How they get there is up to you. The `infra` commands check first that they're set and that the container provider takes them. An `achq.config.ts` beside the infra file can name a command that puts them in the environment, and achq takes on the environment it sets: `export default { env: "op run --env-file=.env --" }`. It plans the container provider's project, the router, the deployer and each channel as one graph, prints what would change, then makes it. An App that doesn't exist yet is created through GitHub's manifest flow in your browser. If `achq.config.ts` names a vault, `vault: { provider: "1password", name: "<vault>" }`, its private key is kept there (with `op`, as you're signed in to it), and the router gets it from the vault, so an App can move to another router or be run from another machine; a key only a router has is refused, not copied into the vault. Without a vault, the key goes straight into the router's variables. On Cloudflare, Workers Builds clones repos with Cloudflare's GitHub App ("Cloudflare Workers and Pages"). Only Cloudflare can tell whether it's installed, so a repo it can't see fails its deploy, with the App's install page in `ACHQ_STATUS`, and `achq repo install` opens it. On Railway, a container builds from its repo through Railway's GitHub App ("Railway App") in the same way: a repo it can't see fails its deploy with that App's install page. Once, it opens your browser to create the deployer's own API token on Cloudflare's create-token page with its permissions filled in: paste it when asked (it isn't echoed). It's checked, then set only as the deployer Worker's secret, never written to disk or kept with the variables; `--rotate-deployer-token` makes a new one. The deployer builds containers with it, with Workers Builds, and never gets your sign-in. It deploys the router and deployer with Wrangler (`npx wrangler@4`), as it's signed in. Then it syncs every installed repo. Re-running it changes only what differs; `--dry-run` shows what would change.
 
@@ -107,7 +107,7 @@ The runner posts the agent's final message as a comment. Only messages from user
 
 ## Commands
 
-`bun add -g @achq/cli` installs `achq`. It runs on Bun, which must be on your `PATH`. In this repo, `packages/cli/bin/achq` runs the checkout's CLI after `bun install`.
+`pnpm add -g @achq/cli` installs `achq`. It runs on Bun, which must be on your `PATH`. In this repo, `packages/cli/bin/achq` runs the checkout's CLI after `pnpm install`.
 
 | Command | Run from | Does |
 |---|---|---|
@@ -171,10 +171,12 @@ Core's and a plugin's `src/index.ts` is what repo configs import: it runs in the
 
 The services and the CLI never import a plugin. They use core's contracts and find implementations by id in `@achq/registry`, or for the code host, the one it has. Adding one means implementing the contract in its concept's folder and listing it there.
 
+pnpm manages the workspace's packages; Bun runs them and their tests.
+
 ```sh
-bun install
-bun test
-bun run typecheck
+pnpm install
+pnpm test
+pnpm typecheck
 ```
 
 Releases are lockstep: every published package (the `PUBLISHED` list in the root `pok.config.ts`) has the same version. They ship their TypeScript source, so there's no build. `pok version patch` bumps them, commits, tags `v<version>` and pushes; `pok publish` publishes them with pnpm, which turns `workspace:*` into that version (`--dry-run` to see what it would do). The services and the test packages aren't published: the router and deployer run achq from GitHub at a commit, and containers install the runner with `install.sh`.

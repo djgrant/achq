@@ -13,7 +13,7 @@ import { infraLoad } from "../tasks/infra.load.ts";
 import { run } from "../tasks/run.ts";
 
 /** The paths in achq whose latest commit is the version the router and deployer run. */
-const ACHQ_CODE_PATHS = ["packages", "package.json", "bun.lock"];
+const ACHQ_CODE_PATHS = ["packages", "patches", "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml"];
 
 export const command = defineCommand({
   label: "Deploy the infra",

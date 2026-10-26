@@ -3,7 +3,7 @@
 `@achq/github` connects GitHub repositories and issues to ACHQ across two entrypoints:
 
 ```sh
-bun add -D @achq/github
+pnpm add -D @achq/github
 ```
 
 | Import path | Used in | Exports |

@@ -7,7 +7,7 @@ Deploy an ACHQ control plane on Cloudflare, subscribe `acme/webapp`, trigger Cla
 In your infra repository, add the packages `achq.infra.ts` imports:
 
 ```sh
-bun add -D @achq/core @achq/cloudflare @achq/github
+pnpm add -D @achq/core @achq/cloudflare @achq/github
 ```
 
 Declare the control plane for the `acme` organization:
@@ -50,7 +50,7 @@ achq infra up
 In `acme/webapp`, add the packages `.achq/config.ts` imports:
 
 ```sh
-bun add -D @achq/core @achq/github @achq/claude
+pnpm add -D @achq/core @achq/github @achq/claude
 ```
 
 Define the container image where agents will run:

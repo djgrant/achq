@@ -3,7 +3,7 @@
 `@achq/cli` provides the `achq` executable. It runs on [Bun](https://bun.sh):
 
 ```sh
-bun add -g @achq/cli
+pnpm add -g @achq/cli
 ```
 
 

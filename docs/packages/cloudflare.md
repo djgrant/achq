@@ -3,7 +3,7 @@
 `@achq/cloudflare` runs ACHQ (`Router` and `Deployer`) and repository outposts on Cloudflare Workers and Durable Object Containers. Imported in `achq.infra.ts` from `@achq/cloudflare/infra`.
 
 ```sh
-bun add -D @achq/cloudflare
+pnpm add -D @achq/cloudflare
 ```
 
 ## Router & Deployer

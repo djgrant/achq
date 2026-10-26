@@ -29,15 +29,16 @@ curl -fsSL https://claude.ai/install.sh | HOME="$tmp" bash
 install -m 755 "$(readlink -f "$tmp/.local/bin/claude")" /usr/local/bin/claude
 rm -rf "$tmp"
 
-# The runner itself, with its workspace packages linked by `bun install`.
+# The runner itself, with its workspace packages linked by `bun install`, which
+# installs the versions in pnpm-lock.yaml (it converts it to a bun.lock).
 # Repo configs' `@achq/*` imports resolve to /opt/achq/packages, the runner's own copy.
 rm -rf /opt/achq
 mkdir -p /opt/achq
 if [ -n "${ACHQ_SOURCE:-}" ]; then
-  cp -R "$ACHQ_SOURCE/packages" "$ACHQ_SOURCE/patches" "$ACHQ_SOURCE/package.json" "$ACHQ_SOURCE/bun.lock" /opt/achq
+  cp -R "$ACHQ_SOURCE/packages" "$ACHQ_SOURCE/patches" "$ACHQ_SOURCE/package.json" "$ACHQ_SOURCE/pnpm-lock.yaml" "$ACHQ_SOURCE/pnpm-workspace.yaml" /opt/achq
 else
   curl -fsSL "https://codeload.github.com/djgrant/achq/tar.gz/$ref" \
-    | tar -xz --strip-components=1 -C /opt/achq --wildcards '*/packages/*' '*/patches/*' '*/package.json' '*/bun.lock'
+    | tar -xz --strip-components=1 -C /opt/achq --wildcards '*/packages/*' '*/patches/*' '*/package.json' '*/pnpm-lock.yaml' '*/pnpm-workspace.yaml'
 fi
 rm -rf /opt/achq/packages/*/node_modules
 (cd /opt/achq && bun install --production --frozen-lockfile)
