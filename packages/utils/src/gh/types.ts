@@ -22,7 +22,8 @@ export type ReactionTarget = { issue: number } | { comment: number };
 export type ReactionContent = Rest["reactions"]["createForIssue"]["parameters"]["content"];
 export type CommitSummary = ResponseData<Rest["repos"]["listCommits"]>[number];
 export type TreeEntry = ResponseData<Rest["git"]["getTree"]>["tree"][number];
-export type HookConfig = ResponseData<Rest["apps"]["getWebhookConfigForApp"]>;
+/** An App's webhook config. Plain, as a channel keeps it in its state. */
+export type HookConfig = { url?: string; content_type?: string; secret?: string; insecure_ssl?: string | number };
 /** The App the manifest flow created, with its private key. */
 export type CreatedApp = ResponseData<Rest["apps"]["createFromManifest"]>;
 export type User = ResponseData<Rest["users"]["getByUsername"]>;

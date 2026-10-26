@@ -1,6 +1,7 @@
 import { type Change, type Context, known, ManagedResource, type Planned, UNKNOWN } from "@achq/core";
 import { async } from "@achq/utils/async";
-import type { Instance, InstanceSettings, PrivateEndpoint, ProjectAt, ServiceDomain } from "@achq/utils/railway";
+import type { PrivateEndpoint } from "@achq/utils/railway";
+import type { Instance, InstanceSettings, ProjectAt, ServiceDomain } from "@achq/utils/railway/model";
 import { railwayFromEnv } from "./railway.ts";
 import { PLUGIN } from "../plugin.ts";
 

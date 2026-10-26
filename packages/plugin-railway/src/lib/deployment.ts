@@ -2,7 +2,8 @@ import { type Change, type Context, known, ManagedResource, type Planned } from 
 import { async } from "@achq/utils/async";
 import { collections } from "@achq/utils/collections";
 import { crypto } from "@achq/utils/crypto";
-import { DEPLOY_STATUS, FAILED_DEPLOY_STATUSES, type InstanceSettings, type ServiceAt } from "@achq/utils/railway";
+import { DEPLOY_STATUS, FAILED_DEPLOY_STATUSES } from "@achq/utils/railway";
+import type { InstanceSettings, ServiceAt } from "@achq/utils/railway/model";
 import { DEPLOY_POLL_INTERVAL_MS, DEPLOY_TIMEOUT_MS, DEPLOYED } from "./constants.ts";
 import { serviceAt } from "./railway.ts";
 import { PLUGIN } from "../plugin.ts";

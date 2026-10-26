@@ -1,6 +1,7 @@
 import { type Change, type Context, known, ManagedResource, type Planned, type Router, UNKNOWN } from "@achq/core";
 import { type AppSettings, GitHub, type HookConfig } from "@achq/utils/gh";
-import { type AppKeys, appWebhookSecret, joinApps, parseApps, vaultedApp } from "../lib/apps.ts";
+import { appWebhookSecret, joinApps, parseApps, vaultedApp } from "../lib/apps.ts";
+import type { AppKeys } from "../lib/data.ts";
 import { GITHUB_ENV, githubUrls } from "../lib/constants.ts";
 import { appSlug, manifestFlow } from "../lib/manifest.ts";
 import { APP_EVENTS, APP_PERMISSIONS, lacking } from "../lib/permissions.ts";

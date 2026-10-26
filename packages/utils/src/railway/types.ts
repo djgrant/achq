@@ -1,24 +1,15 @@
 import { z } from "zod";
+import type * as model from "./model.ts";
 
-export type ProjectAt = { projectId: string; environmentId: string };
-export type ServiceAt = ProjectAt & { serviceId: string };
-export type InstanceAt = { environmentId: string; serviceId: string };
-
-/** Only the fields achq sets. */
-export type InstanceSettings = {
-  source?: { image?: string | null; repo?: string | null } | null;
-  dockerfilePath?: string | null;
-  startCommand?: string | null;
-  healthcheckPath?: string | null;
-  sleepApplication?: boolean | null;
-};
+export type { InstanceAt, InstanceSettings, ProjectAt, ServiceAt } from "./model.ts";
 
 // What Railway answers, as achq reads it: loose, so fields achq doesn't read pass, and only those its documents ask for are declared.
 
-export const Deployment = z.looseObject({ id: z.string(), status: z.string() });
-export type Deployment = z.infer<typeof Deployment>;
+export type Deployment = model.Deployment;
+export const Deployment = z.looseObject({ id: z.string(), status: z.string() }) satisfies z.ZodType<model.Deployment>;
 
 /** Its settings, as InstanceSettings has them, and its latest deployment. */
+export type Instance = model.Instance;
 export const Instance = z.looseObject({
   source: z.looseObject({ image: z.string().nullish(), repo: z.string().nullish() }).nullish(),
   dockerfilePath: z.string().nullish(),
@@ -26,8 +17,7 @@ export const Instance = z.looseObject({
   healthcheckPath: z.string().nullish(),
   sleepApplication: z.boolean().nullish(),
   latestDeployment: Deployment.nullable(),
-});
-export type Instance = z.infer<typeof Instance>;
+}) satisfies z.ZodType<model.Instance>;
 
 export const DEPLOY_STATUS = { live: "SUCCESS", failed: "FAILED", crashed: "CRASHED" } as const;
 export const FAILED_DEPLOY_STATUSES: readonly string[] = [DEPLOY_STATUS.failed, DEPLOY_STATUS.crashed];
@@ -51,8 +41,8 @@ export type ProjectSnapshot = {
   volumes: AttachedVolume[];
 };
 
-export const ServiceDomain = z.looseObject({ id: z.string(), domain: z.string(), targetPort: z.number().nullable() });
-export type ServiceDomain = z.infer<typeof ServiceDomain>;
+export const ServiceDomain = z.looseObject({ id: z.string(), domain: z.string(), targetPort: z.number().nullable() }) satisfies z.ZodType<model.ServiceDomain>;
+export type ServiceDomain = model.ServiceDomain;
 
 /** A service's private hostname, `<dnsName>.railway.internal`, and what's needed to rename it. */
 export type PrivateEndpoint = { id: string; dnsName: string; privateNetworkId: string };

@@ -1,5 +1,5 @@
 import { type EnvValues, type Input, type Output, type Placement, type Service as AchqService } from "@achq/core";
-import type { InstanceSettings } from "@achq/utils/railway";
+import type { InstanceSettings } from "@achq/utils/railway/model";
 import { BUN_IMAGE, VOLUME } from "./constants.ts";
 import { Deployment, fingerprint } from "./deployment.ts";
 import { hostServiceName, privateUrl } from "./names.ts";

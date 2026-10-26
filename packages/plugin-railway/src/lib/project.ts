@@ -1,6 +1,7 @@
 import { type Context, CreateOnlyResource, type Planned, UNKNOWN } from "@achq/core";
 import { Env } from "@achq/utils/env";
-import { type ProjectAt, type ProjectSnapshot, RailwayError } from "@achq/utils/railway";
+import { type ProjectSnapshot, RailwayError } from "@achq/utils/railway";
+import type { ProjectAt } from "@achq/utils/railway/model";
 import { RAILWAY_ENV } from "./constants.ts";
 import { railwayFromEnv } from "./railway.ts";
 import { PLUGIN } from "../plugin.ts";
