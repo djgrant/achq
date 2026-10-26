@@ -28,6 +28,7 @@
     "./railway": "./src/railway/index.ts",
     "./railway/model": "./src/railway/model.ts",
     "./routes": "./src/routes.ts",
+    "./schema": "./src/schema.ts",
     "./store": "./src/store/index.ts",
     "./store/handler": "./src/store/handler.ts",
     "./store/json-store": "./src/store/json-store.ts",
@@ -36,13 +37,14 @@
     "./time": "./src/time.ts"
   },
   "dependencies": {
-    "@hono/zod-openapi": "^1.6.3",
+    "@hono/standard-validator": "^0.4.0",
     "@octokit/auth-app": "^8.3.1",
     "@octokit/core": "^7.0.8",
     "@octokit/plugin-paginate-rest": "^16.0.0",
     "@octokit/plugin-rest-endpoint-methods": "^17.0.0",
     "@octokit/request-error": "^7.1.2",
+    "@standard-schema/spec": "^1.1.0",
     "hono": "^4.13.13",
-    "zod": "^4.3.6"
+    "valibot": "^1.5.0"
   }
 }

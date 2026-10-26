@@ -1,6 +1,7 @@
 import { defineTask } from "@pokit/core";
 import { sessions } from "@achq/core/commands";
 import { SessionSummary } from "@achq/core/protocol";
+import * as v from "valibot";
 import { z } from "zod";
 import type { Reachable } from "../io/shell.ts";
 import { given } from "./params.ts";
@@ -16,9 +17,9 @@ export const parseSessions = (out: string) => {
   const command = sessions().join(" ");
   const start = out.indexOf("[");
   if (start < 0) throw new Error(`Unexpected output from ${command}: ${out.trim().slice(0, UNEXPECTED_OUTPUT_CHARS)}`);
-  const parsed = z.array(SessionSummary).safeParse(JSON.parse(out.slice(start)));
-  if (!parsed.success) throw new Error(`${command} didn't return a list of sessions: ${z.prettifyError(parsed.error)}`);
-  return parsed.data;
+  const parsed = v.safeParse(v.array(SessionSummary), JSON.parse(out.slice(start)));
+  if (!parsed.success) throw new Error(`${command} didn't return a list of sessions: ${v.summarize(parsed.issues)}`);
+  return parsed.output;
 };
 
 /** A thread's sessions, or every thread's, from the container's runner. */

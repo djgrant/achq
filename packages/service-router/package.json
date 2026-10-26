@@ -27,8 +27,7 @@
     "@achq/core": "workspace:*",
     "@achq/test-utils": "workspace:*",
     "@achq/utils": "workspace:*",
-    "@hono/zod-openapi": "^1.6.3",
     "hono": "^4.13.13",
-    "zod": "^4.3.6"
+    "valibot": "^1.5.0"
   }
 }

@@ -1,4 +1,5 @@
-import { z } from "zod";
+import * as v from "valibot";
+import type { Reads } from "./schema.ts";
 import { errors } from "./errors.ts";
 import type { JsonStore } from "./store/json-store.ts";
 
@@ -14,13 +15,13 @@ export type Job<R> = { id: string; started: string; heartbeat: string; [key: str
 );
 
 /** A stored job, read against `result` for what a done one gave. */
-export const Job = <R>(result: z.ZodType<R>): z.ZodType<Job<R>> => {
-  const base = { id: z.string(), started: z.string(), heartbeat: z.string() };
-  return z.discriminatedUnion("state", [
-    z.looseObject({ ...base, state: z.literal("running") }),
-    z.looseObject({ ...base, state: z.literal("done"), result }),
-    z.looseObject({ ...base, state: z.literal("failed"), error: z.string() }),
-  ]);
+export const Job = <R>(result: Reads<R>): Reads<Job<R>> => {
+  const base = { id: v.string(), started: v.string(), heartbeat: v.string() };
+  return v.variant("state", [
+    v.looseObject({ ...base, state: v.literal("running") }),
+    v.looseObject({ ...base, state: v.literal("done"), result }),
+    v.looseObject({ ...base, state: v.literal("failed"), error: v.string() }),
+  ]) as Reads<Job<R>>;
 };
 
 /** How a job is going: `interrupted` is a running one whose process has stopped saying so, as one that restarted has. */

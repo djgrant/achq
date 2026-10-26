@@ -282,7 +282,7 @@ describe("config changes", () => {
     await records.write(REPO, { repo: REPO, state: "deployed", at: 7 });
 
     expect((await deploy(await makeDeployer(), REPO)).outcome).toBe("deployed");
-    expect(logs).toContain(`store: records "${REPO}" isn't readable, so it's treated as absent: at: Invalid input: expected string, received number`);
+    expect(logs).toContain(`store: records "${REPO}" isn't readable, so it's treated as absent: at: Invalid type: Expected string but received 7`);
     expect(await records.read(REPO)).toMatchObject({ repo: REPO, state: "deployed", at: expect.any(String) });
   });
 

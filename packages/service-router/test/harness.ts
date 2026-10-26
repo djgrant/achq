@@ -8,8 +8,9 @@ import { adminSecret, containerSecret } from "@achq/core/secrets";
 import { signedRequestInit, verifySigned } from "@achq/core/signing";
 import { deployerRoutes } from "@achq/core/routes/deployer";
 import { crypto } from "@achq/utils/crypto";
-import { OpenAPIHono } from "@hono/zod-openapi";
+import { serve as serveRoute } from "@achq/utils/routes";
 import { dirStores } from "@achq/test-utils/helpers/stores";
+import { Hono } from "hono";
 import { createContext } from "../src/context.ts";
 import { replay, settled } from "../src/features/deliveries.ts";
 import { routes } from "../src/routes.ts";
@@ -131,7 +132,7 @@ export const fakeContainer = (name: string, forRepo = repo) => {
  */
 export const fakeDeployer = () => {
   const fake = { events: [] as DeployerEnvelope[], syncs: 0, url: "", respond: accepted as Respond };
-  const app = new OpenAPIHono();
+  const app = new Hono();
   app.use(async (c, next) => {
     const body = await c.req.text();
     if (!verifySigned(adminSecret(key), c.req.method, new URL(c.req.url).pathname, body, c.req.raw.headers)) return c.text("bad signature", 401);
@@ -142,14 +143,14 @@ export const fakeDeployer = () => {
     if (c.req.path === "/sync" && ++fake.syncs < 2) return c.text("waking", 503);
     await next();
   });
-  app.openapi(deployerRoutes.sync, (c) => c.json({ id: "s1" }, 202));
-  app.openapi(deployerRoutes.syncStatus, (c) =>
+  serveRoute(app, deployerRoutes.sync, (c) => c.json({ id: "s1" }, 202));
+  serveRoute(app, deployerRoutes.syncStatus, (c) =>
     c.req.valid("param").id === "s1" ? c.json({ state: "done" as const, result: { deployed: [repo], unchanged: [], uninstalled: [], pruned: [], failed: [] } }, 200) : c.text("no such sync", 404),
   );
-  app.openapi(deployerRoutes.status, (c) => c.json([{ repo, state: "deployed" as const, at: "2026-10-25T00:00:00.000Z" }], 200));
-  app.openapi(deployerRoutes.version, (c) => c.json({ version: "0.1.0", plugins: [{ package: "@achq/github", version: "0.1.0" }] }, 200));
+  serveRoute(app, deployerRoutes.status, (c) => c.json([{ repo, state: "deployed" as const, at: "2026-10-25T00:00:00.000Z" }], 200));
+  serveRoute(app, deployerRoutes.version, (c) => c.json({ version: "0.1.0", plugins: [{ package: "@achq/github", version: "0.1.0" }] }, 200));
   // A shell in any container but `ghost`.
-  app.openapi(deployerRoutes.shell, (c) => {
+  serveRoute(app, deployerRoutes.shell, (c) => {
     const { container, command, tty } = c.req.valid("json");
     return container === "ghost" ? c.text("no such container", 404) : c.json({ argv: ["ssh", ...(tty ? ["-t"] : []), container, ...command], requires: [] }, 200);
   });

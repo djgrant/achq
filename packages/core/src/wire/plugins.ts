@@ -4,6 +4,7 @@ import * as path from "node:path";
 import { mergeProviders, type Providers } from "../contracts/providers.ts";
 import { PLUGIN } from "../plugin.ts";
 import type { Plugin } from "../resources/resource.ts";
+import * as v from "valibot";
 import { PluginRef } from "./protocol.ts";
 
 /** Installs the dependencies `dir/package.json` names, into `dir/node_modules`. */
@@ -21,7 +22,7 @@ const bunInstall: Install = async (dir) => {
 export const pluginsDir = (dataDir: string) => path.join(dataDir, "plugins");
 
 /** `ENV.plugins`'s value, read. */
-export const parsePlugins = (json: string): Plugin[] => PluginRef.array().parse(JSON.parse(json));
+export const parsePlugins = (json: string): Plugin[] => v.parse(v.array(PluginRef), JSON.parse(json));
 
 /**
  * Installs `plugins` in `dir`, if they aren't already, and loads each one's

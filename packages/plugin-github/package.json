@@ -40,6 +40,6 @@
     "@achq/test-utils": "workspace:*",
     "@achq/utils": "workspace:*",
     "@octokit/webhooks-methods": "^6.0.0",
-    "zod": "^4.3.6"
+    "valibot": "^1.5.0"
   }
 }

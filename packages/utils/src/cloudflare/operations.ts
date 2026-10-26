@@ -1,4 +1,4 @@
-import { z } from "zod";
+import * as v from "valibot";
 import {
   AccountSummary,
   Build,
@@ -33,7 +33,7 @@ export type Query = Record<string, string | number | undefined>;
  * schema its envelope's `result` is parsed with. `info`, if it pages, is the
  * schema of the envelope's `result_info`.
  */
-export type CloudflareOperation<Params, Result extends z.ZodType, Info extends z.ZodType = z.ZodType> = {
+export type CloudflareOperation<Params, Result extends v.GenericSchema, Info extends v.GenericSchema = v.GenericSchema> = {
   /** Its key in CLOUDFLARE_OPERATIONS, which errors name. */
   name: string;
   method: Method;
@@ -47,7 +47,7 @@ export type CloudflareOperation<Params, Result extends z.ZodType, Info extends z
   info?: Info;
 };
 
-type Spec = Omit<CloudflareOperation<any, z.ZodType>, "name">;
+type Spec = Omit<CloudflareOperation<any, v.GenericSchema>, "name">;
 
 /** Each operation, named by its key. */
 const named = <T extends Record<string, Spec>>(specs: T) =>
@@ -62,7 +62,7 @@ const RECENT_VERSIONS = 20;
 const enc = encodeURIComponent;
 
 /** A result achq doesn't read. */
-const unread = z.unknown();
+const unread = v.unknown();
 
 type Account = { accountId: string };
 type Script = Account & { worker: string };
@@ -82,7 +82,7 @@ const trigger = (p: BuildTrigger) => `${at(p)}/builds/triggers/${enc(p.trigger)}
 const build = (p: BuildId) => `${at(p)}/builds/builds/${enc(p.build)}`;
 
 export const CLOUDFLARE_OPERATIONS = named({
-  listAccounts: { method: "GET", path: (_: object) => "/accounts", query: () => ({ per_page: PAGE }), result: z.array(AccountSummary) },
+  listAccounts: { method: "GET", path: (_: object) => "/accounts", query: () => ({ per_page: PAGE }), result: v.array(AccountSummary) },
   verifyToken: { method: "GET", path: (_: object) => "/user/tokens/verify", result: TokenStatus },
   getAccount: { method: "GET", path: at, result: AccountSummary },
 
@@ -92,7 +92,7 @@ export const CLOUDFLARE_OPERATIONS = named({
   uploadWorker: { method: "PUT", path: script, body: ({ form }: Script & { form: FormData }) => form, result: unread },
   /** And its Durable Objects with it. */
   deleteWorker: { method: "DELETE", path: script, query: () => ({ force: "true" }), result: unread },
-  listWorkerSecrets: { method: "GET", path: (p: Script) => `${script(p)}/secrets`, result: z.array(WorkerSecret) },
+  listWorkerSecrets: { method: "GET", path: (p: Script) => `${script(p)}/secrets`, result: v.array(WorkerSecret) },
   putWorkerSecret: {
     method: "PUT",
     path: (p: Script & { name: string; text: string }) => `${script(p)}/secrets`,
@@ -103,7 +103,7 @@ export const CLOUDFLARE_OPERATIONS = named({
     method: "GET",
     path: (p: Script) => `${worker(p)}/versions`,
     query: () => ({ per_page: RECENT_VERSIONS }),
-    result: z.array(WorkerVersion),
+    result: v.array(WorkerVersion),
   },
   getWorkerVersion: { method: "GET", path: (p: Script & { version: string }) => `${worker(p)}/versions/${enc(p.version)}`, result: WorkerVersion },
 
@@ -112,7 +112,7 @@ export const CLOUDFLARE_OPERATIONS = named({
     method: "GET",
     path: (p: Account & { page: number }) => `${at(p)}/storage/kv/namespaces`,
     query: ({ page }: { page: number }) => ({ page, per_page: PAGE }),
-    result: z.array(KvNamespaceSummary),
+    result: v.array(KvNamespaceSummary),
   },
   createKvNamespace: {
     method: "POST",
@@ -122,14 +122,14 @@ export const CLOUDFLARE_OPERATIONS = named({
   },
   deleteKvNamespace: { method: "DELETE", path: namespace, result: unread },
   /** Not an envelope: the value itself. */
-  getKvValue: { method: "GET", path: kvValue, result: z.string() },
+  getKvValue: { method: "GET", path: kvValue, result: v.string() },
   putKvValue: { method: "PUT", path: kvValue, body: ({ value }: KvValue & { value: string }) => value, result: unread },
   deleteKvValue: { method: "DELETE", path: kvValue, result: unread },
   listKvKeys: {
     method: "GET",
     path: (p: Namespace & { prefix: string; cursor?: string }) => `${namespace(p)}/keys`,
     query: ({ prefix, cursor }: { prefix: string; cursor?: string }) => ({ prefix, cursor }),
-    result: z.array(KvKey),
+    result: v.array(KvKey),
     info: KvKeysInfo,
   },
 
@@ -142,13 +142,13 @@ export const CLOUDFLARE_OPERATIONS = named({
     method: "GET",
     path: (p: Bucket & { cursor?: string }) => `${bucket(p)}/objects`,
     query: ({ cursor }: { cursor?: string }) => ({ per_page: PAGE * 10, cursor }),
-    result: z.array(R2Object),
+    result: v.array(R2Object),
     info: R2ObjectsInfo,
   },
   deleteR2Object: { method: "DELETE", path: (p: Bucket & { key: string }) => `${bucket(p)}/objects/${enc(p.key)}`, result: unread },
 
   // ── Builds ──
-  listBuildTokens: { method: "GET", path: (p: Account) => `${at(p)}/builds/tokens`, query: () => ({ per_page: PAGE }), result: z.array(BuildToken) },
+  listBuildTokens: { method: "GET", path: (p: Account) => `${at(p)}/builds/tokens`, query: () => ({ per_page: PAGE }), result: v.array(BuildToken) },
   createBuildToken: {
     method: "POST",
     path: (p: Account & { name: string; secret: string; tokenId: string }) => `${at(p)}/builds/tokens`,
@@ -162,7 +162,7 @@ export const CLOUDFLARE_OPERATIONS = named({
     json: ({ repo }: { repo: RepoConnection }) => repo,
     result: RepoConnected,
   },
-  listWorkerTriggers: { method: "GET", path: (p: Account & { scriptTag: string }) => `${at(p)}/builds/workers/${enc(p.scriptTag)}/triggers`, result: z.array(Trigger) },
+  listWorkerTriggers: { method: "GET", path: (p: Account & { scriptTag: string }) => `${at(p)}/builds/workers/${enc(p.scriptTag)}/triggers`, result: v.array(Trigger) },
   createTrigger: {
     method: "POST",
     path: (p: Account & { scriptTag: string; connection: string; settings: TriggerSettings }) => `${at(p)}/builds/triggers`,
@@ -175,7 +175,7 @@ export const CLOUDFLARE_OPERATIONS = named({
   },
   updateTrigger: { method: "PATCH", path: trigger, json: ({ settings }: BuildTrigger & { settings: TriggerSettings }) => settings, result: Trigger },
   deleteTrigger: { method: "DELETE", path: trigger, result: unread },
-  listTriggerVariables: { method: "GET", path: (p: BuildTrigger) => `${trigger(p)}/environment_variables`, result: z.record(z.string(), TriggerVariable) },
+  listTriggerVariables: { method: "GET", path: (p: BuildTrigger) => `${trigger(p)}/environment_variables`, result: v.record(v.string(), TriggerVariable) },
   /** Sets these, leaving the rest. */
   patchTriggerVariables: {
     method: "PATCH",
@@ -203,7 +203,7 @@ export const CLOUDFLARE_OPERATIONS = named({
     method: "GET",
     path: (p: Account & { name: string }) => `${at(p)}/containers/applications`,
     query: ({ name }: { name: string }) => ({ name }),
-    result: z.array(ContainerApplication),
+    result: v.array(ContainerApplication),
   },
   listContainerInstances: {
     method: "GET",

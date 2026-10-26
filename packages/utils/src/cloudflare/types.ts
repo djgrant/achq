@@ -1,36 +1,36 @@
-import { z } from "zod";
+import * as v from "valibot";
 
 // What Cloudflare answers, as achq reads it: loose, so fields achq doesn't read pass, and only those it reads are declared.
 
-export const AccountSummary = z.looseObject({ id: z.string(), name: z.string() });
-export type AccountSummary = z.infer<typeof AccountSummary>;
+export const AccountSummary = v.looseObject({ id: v.string(), name: v.string() });
+export type AccountSummary = v.InferOutput<typeof AccountSummary>;
 
 /** What `/user/tokens/verify` says of an API token. */
-export const TokenStatus = z.looseObject({ id: z.string(), status: z.string() });
-export type TokenStatus = z.infer<typeof TokenStatus>;
+export const TokenStatus = v.looseObject({ id: v.string(), status: v.string() });
+export type TokenStatus = v.InferOutput<typeof TokenStatus>;
 
-export const WorkersSubdomain = z.looseObject({ subdomain: z.string() });
+export const WorkersSubdomain = v.looseObject({ subdomain: v.string() });
 
-export const WorkerSecret = z.looseObject({ name: z.string() });
-export type WorkerSecret = z.infer<typeof WorkerSecret>;
+export const WorkerSecret = v.looseObject({ name: v.string() });
+export type WorkerSecret = v.InferOutput<typeof WorkerSecret>;
 
 /** A Worker, by the new Workers API: its `id` is the script tag a Builds trigger names. */
-export const WorkerSummary = z.looseObject({ id: z.string() });
-export type WorkerSummary = z.infer<typeof WorkerSummary>;
+export const WorkerSummary = v.looseObject({ id: v.string() });
+export type WorkerSummary = v.InferOutput<typeof WorkerSummary>;
 
-export const KvNamespaceSummary = z.looseObject({ id: z.string(), title: z.string() });
-export type KvNamespaceSummary = z.infer<typeof KvNamespaceSummary>;
+export const KvNamespaceSummary = v.looseObject({ id: v.string(), title: v.string() });
+export type KvNamespaceSummary = v.InferOutput<typeof KvNamespaceSummary>;
 
 /** A page of keys' names: the next page's `cursor` is empty on the last. */
-export const KvKey = z.looseObject({ name: z.string() });
-export const KvKeysInfo = z.looseObject({ cursor: z.string().nullish() }).optional();
+export const KvKey = v.looseObject({ name: v.string() });
+export const KvKeysInfo = v.optional(v.looseObject({ cursor: v.nullish(v.string()) }));
 
-export const R2Object = z.looseObject({ key: z.string() });
-export const R2ObjectsInfo = z.looseObject({ cursor: z.string().nullish(), is_truncated: z.boolean().nullish() }).optional();
+export const R2Object = v.looseObject({ key: v.string() });
+export const R2ObjectsInfo = v.optional(v.looseObject({ cursor: v.nullish(v.string()), is_truncated: v.nullish(v.boolean()) }));
 
 /** A user API token Workers Builds deploys with. The API can't say whether it still works. */
-export const BuildToken = z.looseObject({ build_token_uuid: z.string(), build_token_name: z.string(), cloudflare_token_id: z.string().optional() });
-export type BuildToken = z.infer<typeof BuildToken>;
+export const BuildToken = v.looseObject({ build_token_uuid: v.string(), build_token_name: v.string(), cloudflare_token_id: v.optional(v.string()) });
+export type BuildToken = v.InferOutput<typeof BuildToken>;
 
 /** A GitHub repo, by GitHub's ids, as Workers Builds connects to it. */
 export type RepoConnection = {
@@ -41,77 +41,77 @@ export type RepoConnection = {
   repo_name: string;
 };
 
-export const RepoConnected = z.looseObject({ repo_connection_uuid: z.string() });
+export const RepoConnected = v.looseObject({ repo_connection_uuid: v.string() });
 
 const triggerSettings = {
-  trigger_name: z.string(),
-  build_token_uuid: z.string(),
-  build_command: z.string(),
-  deploy_command: z.string(),
-  root_directory: z.string(),
-  branch_includes: z.array(z.string()),
-  branch_excludes: z.array(z.string()),
-  path_includes: z.array(z.string()),
-  path_excludes: z.array(z.string()),
-  build_caching_enabled: z.boolean(),
+  trigger_name: v.string(),
+  build_token_uuid: v.string(),
+  build_command: v.string(),
+  deploy_command: v.string(),
+  root_directory: v.string(),
+  branch_includes: v.array(v.string()),
+  branch_excludes: v.array(v.string()),
+  path_includes: v.array(v.string()),
+  path_excludes: v.array(v.string()),
+  build_caching_enabled: v.boolean(),
 };
 
 /** What a trigger builds and deploys, and when. */
-export type TriggerSettings = z.infer<z.ZodObject<typeof triggerSettings>>;
+export type TriggerSettings = v.InferOutput<v.ObjectSchema<typeof triggerSettings, undefined>>;
 
 /** Its settings are read back to tell whether they've changed. A trigger without a repo connection is taken as the repo's. */
-export const Trigger = z.looseObject({
+export const Trigger = v.looseObject({
   ...triggerSettings,
-  trigger_uuid: z.string(),
-  repo_connection: z.looseObject({ repo_name: z.string(), provider_account_name: z.string() }).nullish(),
+  trigger_uuid: v.string(),
+  repo_connection: v.nullish(v.looseObject({ repo_name: v.string(), provider_account_name: v.string() })),
 });
-export type Trigger = z.infer<typeof Trigger>;
+export type Trigger = v.InferOutput<typeof Trigger>;
 
 /** A secret's value reads as null. */
-export const TriggerVariable = z.looseObject({ value: z.string().nullable() });
-export type TriggerVariable = z.infer<typeof TriggerVariable>;
+export const TriggerVariable = v.looseObject({ value: v.nullable(v.string()) });
+export type TriggerVariable = v.InferOutput<typeof TriggerVariable>;
 
 /** `status` is "stopped" once it's over, and `build_outcome` then says how it went. */
-export const Build = z.looseObject({ build_uuid: z.string(), status: z.string(), build_outcome: z.string().nullable() });
-export type Build = z.infer<typeof Build>;
+export const Build = v.looseObject({ build_uuid: v.string(), status: v.string(), build_outcome: v.nullable(v.string()) });
+export type Build = v.InferOutput<typeof Build>;
 
 /** The builds that made Worker versions, by version id: only which build each was. */
-export const VersionBuilds = z.looseObject({ builds: z.record(z.string(), z.looseObject({ build_uuid: z.string() })).nullish() });
+export const VersionBuilds = v.looseObject({ builds: v.nullish(v.record(v.string(), v.looseObject({ build_uuid: v.string() }))) });
 
 export const BUILD_STOPPED = "stopped";
 export const BUILD_SUCCEEDED = "success";
 
 /** A page of a build's log: each line with its time in milliseconds. */
-export const BuildLogPage = z.looseObject({
-  lines: z.array(z.tuple([z.number(), z.string()])).nullish(),
-  truncated: z.boolean(),
-  cursor: z.string().nullish(),
+export const BuildLogPage = v.looseObject({
+  lines: v.nullish(v.array(v.tuple([v.number(), v.string()]))),
+  truncated: v.boolean(),
+  cursor: v.nullish(v.string()),
 });
-export type BuildLogPage = z.infer<typeof BuildLogPage>;
+export type BuildLogPage = v.InferOutput<typeof BuildLogPage>;
 
 /** The images a version's containers run, by class name, then the image's name in its config. */
-export const WorkerVersion = z.looseObject({
-  id: z.string(),
-  containers: z.array(z.looseObject({ class_name: z.string(), images: z.record(z.string(), z.string()) })).optional(),
+export const WorkerVersion = v.looseObject({
+  id: v.string(),
+  containers: v.optional(v.array(v.looseObject({ class_name: v.string(), images: v.record(v.string(), v.string()) }))),
 });
-export type WorkerVersion = z.infer<typeof WorkerVersion>;
+export type WorkerVersion = v.InferOutput<typeof WorkerVersion>;
 
-export const ContainerApplication = z.looseObject({ id: z.string(), name: z.string() });
-export type ContainerApplication = z.infer<typeof ContainerApplication>;
+export const ContainerApplication = v.looseObject({ id: v.string(), name: v.string() });
+export type ContainerApplication = v.InferOutput<typeof ContainerApplication>;
 
 /**
  * An application's instances, as the dashboard lists them: each Durable Object
  * with the deployment running its container, if any. `wrangler containers ssh`
  * takes a Durable Object's id, or an instance's where there are none.
  */
-export const ContainerInstances = z.looseObject({
-  instances: z.array(
-    z.looseObject({
-      id: z.string(),
-      current_placement: z.looseObject({ status: z.looseObject({ container_status: z.string().nullish(), health: z.string().nullish() }).nullish() }).nullish(),
+export const ContainerInstances = v.looseObject({
+  instances: v.array(
+    v.looseObject({
+      id: v.string(),
+      current_placement: v.nullish(v.looseObject({ status: v.nullish(v.looseObject({ container_status: v.nullish(v.string()), health: v.nullish(v.string()) })) })),
     }),
   ),
-  durable_objects: z.array(z.looseObject({ id: z.string(), deployment_id: z.string().nullish() })).nullish(),
+  durable_objects: v.nullish(v.array(v.looseObject({ id: v.string(), deployment_id: v.nullish(v.string()) }))),
 });
-export type ContainerInstances = z.infer<typeof ContainerInstances>;
-export const ContainerInstancesInfo = z.looseObject({ next_page_token: z.string().nullish() }).nullish();
+export type ContainerInstances = v.InferOutput<typeof ContainerInstances>;
+export const ContainerInstancesInfo = v.nullish(v.looseObject({ next_page_token: v.nullish(v.string()) }));

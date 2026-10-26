@@ -10,24 +10,24 @@ import { routerAdminRoutes } from "@achq/core/routes/router-admin";
 import { adminSecret } from "@achq/core/secrets";
 import { signedFetcher } from "@achq/core/signing";
 import { HttpError } from "@achq/utils/http";
-import { handler } from "@achq/utils/routes";
-import { OpenAPIHono } from "@hono/zod-openapi";
+import { serve } from "@achq/utils/routes";
+import { Hono } from "hono";
 import { config, deployed, fakeContainer, key, repo } from "./harness.ts";
 
 describe("drift between a route and what serves or calls it is a type error", () => {
   test("a server or fake answering what its route doesn't declare", () => {
-    const app = new OpenAPIHono();
-    app.openapi(routerAdminRoutes.status, (c) => c.json([{ repo, state: "deployed" as const, at: "now" }], 200));
+    const app = new Hono();
+    serve(app, routerAdminRoutes.status, (c) => c.json([{ repo, state: "deployed" as const, at: "now" }], 200));
     // @ts-expect-error A state DeployRecord doesn't have.
-    app.openapi(routerAdminRoutes.status, (c) => c.json([{ repo, state: "deploying", at: "now" }], 200));
+    serve(app, routerAdminRoutes.status, (c) => c.json([{ repo, state: "deploying", at: "now" }], 200));
     // @ts-expect-error A status the route doesn't declare: the deployer's sync answers 202.
-    app.openapi(deployerRoutes.sync, (c) => c.json({ id: "s1" }, 200));
+    serve(app, deployerRoutes.sync, (c) => c.json({ id: "s1" }, 200));
     // @ts-expect-error The sync's ID under another name.
-    app.openapi(deployerRoutes.sync, (c) => c.json({ sync: "s1" }, 202));
+    serve(app, deployerRoutes.sync, (c) => c.json({ sync: "s1" }, 202));
     // @ts-expect-error JSON where the route declares text.
-    app.openapi(routerAdminRoutes.syncStatus, (c) => c.json({ error: "no such sync" }, 404));
+    serve(app, routerAdminRoutes.syncStatus, (c) => c.json({ error: "no such sync" }, 404));
     // @ts-expect-error The admin route's 204 answered with a body.
-    app.openapi(routerAdminRoutes.putRepo, handler(routerAdminRoutes.putRepo, (c) => c.json({ ok: true }, 204)));
+    serve(app, routerAdminRoutes.putRepo, (c) => c.json({ ok: true }, 204));
     expect(app).toBeDefined();
   });
 

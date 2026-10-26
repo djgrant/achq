@@ -32,9 +32,10 @@
     "@achq/runner": "workspace:*",
     "@achq/test-utils": "workspace:*",
     "@achq/utils": "workspace:*",
-    "@hono/zod-openapi": "^1.6.3",
     "@pokit/core": "^0.10.0",
     "@pokit/terminal": "^0.10.0",
+    "hono": "^4.13.14",
+    "valibot": "^1.5.0",
     "zod": "^4.3.6"
   }
 }

@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { ManifestInput, RepoManifest, validateManifest } from "../src/model/manifest.ts";
+import * as v from "valibot";
 
 const base: RepoManifest = {
   policies: [{ name: "code", policy: { provider: "github", source: "a" } }],
@@ -13,7 +14,7 @@ const copy = (): RepoManifest => JSON.parse(JSON.stringify(base));
 describe("validateManifest", () => {
   test("rejects extra fields, bad names, missing tags, non-finite data and size limits", () => {
     expect(validateManifest(copy())).toEqual(base);
-    expect(() => validateManifest({ ...copy(), extra: 1 })).toThrow("The config's manifest is invalid at the top level");
+    expect(() => validateManifest({ ...copy(), extra: 1 })).toThrow("The config's manifest is invalid at extra");
     expect(() => validateManifest({ ...copy(), agents: [{ name: "Bad Name", runtime: "claude" }] })).toThrow("agents.0.name");
     expect(() => validateManifest({ ...copy(), workspaces: [{ ...base.workspaces[0], threads: { source: "x" } }] })).toThrow(`needs "channel"`);
     expect(() => validateManifest({ ...copy(), policies: [{ name: "code", policy: { provider: "" } }] })).toThrow(`needs "provider"`);
@@ -43,7 +44,7 @@ describe("validateManifest", () => {
 describe("the manifest's two roles", () => {
   test("as stored, unknown keys a newer version added pass through, and the input's limits don't apply", () => {
     const newer = { ...copy(), extra: 1, agents: [{ name: "Not A Name", runtime: "claude", model: "x" }], containers: Array(21).fill(base.containers[0]) };
-    expect(RepoManifest.parse(newer)).toEqual(newer);
-    expect(ManifestInput.safeParse(newer).success).toBe(false);
+    expect(v.parse(RepoManifest, newer)).toEqual(newer);
+    expect(v.safeParse(ManifestInput, newer).success).toBe(false);
   });
 });

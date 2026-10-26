@@ -25,9 +25,9 @@ test("a response that isn't JSON, or carries errors, is a RailwayError", async (
 
 test("an answer that isn't what the operation declares is a RailwayError naming the operation and where", async () => {
   await expect(answering(JSON.stringify({ data: { apiToken: { workspaces: [{ id: 1, name: "w" }] } } })).workspaces()).rejects.toThrow(
-    new RailwayError("Railway apiToken: apiToken.workspaces.0.id: Invalid input: expected string, received number"),
+    new RailwayError("Railway apiToken: apiToken.workspaces.0.id: Invalid type: Expected string but received 1"),
   );
-  await expect(answering(JSON.stringify({ data: {} })).createProject("p", "ws")).rejects.toThrow("Railway projectCreate: projectCreate: Invalid input: expected object, received undefined");
+  await expect(answering(JSON.stringify({ data: {} })).createProject("p", "ws")).rejects.toThrow("Railway projectCreate: projectCreate: Invalid type: Expected Object but received undefined");
 });
 
 test("fields achq doesn't ask for pass", async () => {

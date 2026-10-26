@@ -4,6 +4,7 @@ import { collections } from "@achq/utils/collections";
 import { errors } from "@achq/utils/errors";
 import type { Vars } from "@achq/utils/env";
 import { GitHub, type Installation, type TokenNarrowing } from "@achq/utils/gh";
+import * as v from "valibot";
 import { GITHUB_API, GITHUB_ENV, githubUrls } from "./constants.ts";
 import { AppKeys } from "./schemas.ts";
 
@@ -21,9 +22,9 @@ export const parseApps = (json: string | undefined) => {
   } catch {
     throw new Error(`${GITHUB_ENV.apps} isn't JSON: it must map each App's slug to its id and privateKey`);
   }
-  const parsed = AppKeys.safeParse(value);
-  if (parsed.success) return parsed.data;
-  const [slug] = parsed.error.issues[0]!.path;
+  const parsed = v.safeParse(AppKeys, value);
+  if (parsed.success) return parsed.output;
+  const slug = parsed.issues[0].path?.[0]?.key;
   throw new Error(slug === undefined ? `${GITHUB_ENV.apps} must map each App's slug to its id and privateKey` : `GitHub App "${String(slug)}" needs an id and a privateKey`);
 };
 

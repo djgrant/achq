@@ -13,7 +13,8 @@ import * as github from "@achq/github/infra";
 import { type FakeRailway, startFakeRailway } from "@achq/test-utils/fakes/vendors/railway";
 import * as railway from "@achq/railway/infra";
 import { fakeOp } from "@achq/test-utils/fakes/vendors/1password";
-import { OpenAPIHono } from "@hono/zod-openapi";
+import { serve } from "@achq/utils/routes";
+import { Hono } from "hono";
 import type { z } from "zod";
 import * as onepassword from "@achq/1password";
 import { infraApply } from "../tasks/infra.apply.ts";
@@ -117,7 +118,7 @@ beforeEach(() => {
     },
   });
   // The router's admin routes the sync takes, as `@achq/core/routes/router-admin` declares them, forwarding to the deployer it fakes.
-  const admin = new OpenAPIHono();
+  const admin = new Hono();
   admin.use(async (c, next) => {
     const routerVars = fake.service("achq-router")!.variables;
     const signed = verifySigned(adminSecret(routerVars.AGENT_WEBHOOK_KEY), c.req.method, new URL(c.req.url).pathname, await c.req.text(), c.req.raw.headers);
@@ -125,7 +126,7 @@ beforeEach(() => {
     await next();
   });
   // The deployer runs what the router was given, as a new one does once it's replaced the old.
-  admin.openapi(routerAdminRoutes.deployerVersion, (c) =>
+  serve(admin, routerAdminRoutes.deployerVersion, (c) =>
     replacing-- > 0
       ? replacing % 2
         ? c.text("the deployer didn't answer", 504)
@@ -133,7 +134,7 @@ beforeEach(() => {
       : c.json({ version: CORE_PLUGIN.version, plugins: JSON.parse(fake.service("achq-router")!.variables.ACHQ_PLUGINS!) }, 200),
   );
   // A sync starts, then is asked after: running once, then done.
-  admin.openapi(routerAdminRoutes.sync, (c) => {
+  serve(admin, routerAdminRoutes.sync, (c) => {
     const request = c.req.valid("json");
     last = request;
     if (request.empty) downs.push({ request, projects: fake.projects.length });
@@ -141,7 +142,7 @@ beforeEach(() => {
     polls = 0;
     return c.json({ id: "sync-1" }, 202);
   });
-  admin.openapi(routerAdminRoutes.syncStatus, (c) => {
+  serve(admin, routerAdminRoutes.syncStatus, (c) => {
     if (c.req.valid("param").id !== "sync-1") return c.text("no such sync", 404);
     if (interrupted-- > 0) return c.json({ state: "interrupted" as const }, 200);
     // One to no repos uninstalls the one there is, and deletes its container.
@@ -150,7 +151,7 @@ beforeEach(() => {
       : { deployed: ["djgrant/x"], unchanged: [], uninstalled: [], pruned: [], failed: [] };
     return c.json(++polls < 2 ? { state: "running" as const } : { state: "done" as const, result }, 200);
   });
-  routerServer = Bun.serve({ port: 0, fetch: new OpenAPIHono().route("/admin", admin).fetch });
+  routerServer = Bun.serve({ port: 0, fetch: new Hono().route("/admin", admin).fetch });
   tmp = fs.mkdtempSync(path.join(os.tmpdir(), "achq-up-"));
   process.env.HOME = tmp;
   process.chdir(tmp);

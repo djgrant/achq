@@ -1,13 +1,12 @@
 // The router's public routes: channels' webhooks, and the repo CLI's, each answering only someone who can push to the repo.
-import { route } from "@achq/utils/routes";
-import { createRoute } from "@hono/zod-openapi";
+import { defineRoute, route } from "@achq/utils/routes";
 import { InstallationRequest, ReachRequest, RepoInstallation, RepoRequest, Shell } from "../protocol.ts";
 
 /** How the repo CLI's routes refuse: no bearer token, a repo name that isn't one, or a token that can't push to it. */
 const refusals = { 400: route.text("bad request"), 401: route.text("missing token"), 403: route.text("no push access") };
 
 /** A channel's delivery: its body is the channel's own, checked by its signature, so it's read raw. */
-export const webhook = createRoute({
+export const webhook = defineRoute({
   method: "post",
   path: "/webhook",
   responses: {
@@ -23,26 +22,26 @@ export const webhook = createRoute({
  * the command that opens a shell in it from your machine, which its deployer
  * computes with the container provider's credentials.
  */
-export const reach = createRoute({
+export const reach = defineRoute({
   method: "post",
   path: "/reach",
-  request: { body: route.body(ReachRequest) },
+  body: ReachRequest,
   responses: { 200: route.json(Shell), ...refusals, 404: route.text("not deployed"), 504: route.text("it didn't wake, or the deployer didn't answer") },
 });
 
 /** For `achq repo install` and `uninstall`: whether the config's source is installed on the repo, and where you'd change that. */
-export const installation = createRoute({
+export const installation = defineRoute({
   method: "post",
   path: "/installation",
-  request: { body: route.body(InstallationRequest) },
+  body: InstallationRequest,
   responses: { 200: route.json(RepoInstallation), ...refusals, 404: route.text("unknown source") },
 });
 
 /** For `achq repo install`, once you've fixed what failed its deploy: deploys the repo again, as installing it does. */
-export const deploy = createRoute({
+export const deploy = defineRoute({
   method: "post",
   path: "/deploy",
-  request: { body: route.body(RepoRequest) },
+  body: RepoRequest,
   responses: { 202: route.text("accepted"), ...refusals },
 });
 

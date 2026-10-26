@@ -1,4 +1,5 @@
-import type { z } from "zod";
+import * as v from "valibot";
+import { type Reads, schema as schemas } from "../schema.ts";
 import { allOf, type JsonStore, type Stores } from "./json-store.ts";
 
 /**
@@ -16,13 +17,6 @@ export type CollectionOptions<T> = {
   log?: (line: string) => void;
 };
 
-/** The first thing wrong with a value, e.g. `containers.0.name: expected string`. */
-const firstIssue = (error: z.ZodError) => {
-  const issue = error.issues[0];
-  if (!issue) return "invalid";
-  return issue.path.length ? `${issue.path.join(".")}: ${issue.message}` : issue.message;
-};
-
 /**
  * The collection `name` in `stores`, read against `schema`, once each of
  * `migrate` has run. A value that fails its schema is treated as absent:
@@ -30,20 +24,20 @@ const firstIssue = (error: z.ZodError) => {
  * name and what's wrong. Nothing removes it, so a newer version can still read
  * it, and the next write of its name replaces it.
  */
-export const collection = async <T>(stores: Stores, name: string, schema: z.ZodType<T>, { migrate = [], log = console.log }: CollectionOptions<T> = {}) => {
+export const collection = async <T>(stores: Stores, name: string, schema: Reads<T>, { migrate = [], log = console.log }: CollectionOptions<T> = {}) => {
   const raw = stores(name);
   const parse = (value: unknown) => {
-    const parsed = schema.safeParse(value);
-    return parsed.success ? parsed.data : undefined;
+    const parsed = v.safeParse(schema, value);
+    return parsed.success ? parsed.output : undefined;
   };
   for (const migration of migrate) await migration(raw, parse);
 
   const read = async (key: string) => {
     const value = await raw.read(key);
     if (value === undefined) return undefined;
-    const parsed = schema.safeParse(value);
-    if (parsed.success) return parsed.data;
-    log(`store: ${name} ${JSON.stringify(key)} isn't readable, so it's treated as absent: ${firstIssue(parsed.error)}`);
+    const parsed = v.safeParse(schema, value);
+    if (parsed.success) return parsed.output;
+    log(`store: ${name} ${JSON.stringify(key)} isn't readable, so it's treated as absent: ${schemas.firstIssue(parsed.issues)}`);
     return undefined;
   };
 

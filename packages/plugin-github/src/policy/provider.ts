@@ -2,7 +2,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { type PolicyCredential, type PolicyData, type PolicyProvider, repoName } from "@achq/core";
 import { disk } from "@achq/utils/disk";
-import type { z } from "zod";
+import * as v from "valibot";
 import type { Permissions } from "@achq/utils/gh";
 import { type Apps, botLogin, type FoundInstallation } from "../lib/apps.ts";
 import { POLICY_PROVIDER } from "../lib/constants.ts";
@@ -25,14 +25,14 @@ const notInstalled = (source: string | undefined, repo: string) =>
  * its provider, source, repo or permission levels that's wrong (each wrong
  * level, for those).
  */
-const shapeProblems = (data: PolicyData, repo: string, issues: z.core.$ZodIssue[]) => {
-  const at = (key: string) => issues.filter((issue) => issue.path[0] === key);
+const shapeProblems = (data: PolicyData, repo: string, issues: v.BaseIssue<unknown>[]) => {
+  const at = (key: string) => issues.filter((issue) => issue.path?.[0]?.key === key);
   if (at("provider").length) return [`Policy is for policy provider "${data.provider}", not github`];
   if (at("source").length) return [`GitHub App "${data.source}" isn't configured on the router`];
   if (at("repo").length) return [`"${data.repo ?? repo}" isn't an owner/name repo`];
   const levels = at("permissions");
   const permissions = data.permissions as Record<string, unknown>;
-  if (levels.length) return levels.map(({ path: [, name] }) => (name === undefined ? `Permissions must map each permission to "read" or "write"` : `Permission ${String(name)} is "${permissions[name as string]}"; it must be "read" or "write"`));
+  if (levels.length) return levels.map(({ path }) => path?.[1]?.key).map((name) => (name === undefined ? `Permissions must map each permission to "read" or "write"` : `Permission ${String(name)} is "${permissions[name as string]}"; it must be "read" or "write"`));
   return issues.map((issue) => issue.message);
 };
 
@@ -49,9 +49,9 @@ export class GitHubPolicyProvider implements PolicyProvider {
   }
 
   async validate(data: PolicyData, repo: string) {
-    const parsed = GitHubPolicyData.safeParse(data);
-    if (!parsed.success) return shapeProblems(data, repo, parsed.error.issues);
-    const policy = parsed.data;
+    const parsed = v.safeParse(GitHubPolicyData, data);
+    if (!parsed.success) return shapeProblems(data, repo, parsed.issues);
+    const policy = parsed.output;
     if (policy.source !== undefined && !this.apps.has(policy.source)) return [`GitHub App "${policy.source}" isn't configured on the router`];
     const target = policy.repo ?? repo;
     if (!repoName.pattern.test(target)) return [`"${target}" isn't an owner/name repo`];
@@ -87,7 +87,7 @@ export class GitHubPolicyProvider implements PolicyProvider {
     const groups = new Map<string, TokenGroup>();
     for (const data of policies) {
       if (data.provider !== POLICY_PROVIDER) continue;
-      const policy = GitHubPolicyData.parse(data);
+      const policy = v.parse(GitHubPolicyData, data);
       const target = policy.repo ?? repo;
       if (!repoName.pattern.test(target)) throw new Error(`"${target}" isn't an owner/name repo`);
       const lookup = `${policy.source ?? ""}\n${repoName.key(target)}`;

@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { z } from "zod";
+import * as v from "valibot";
 import { collection, HttpJsonStore, JsonDirStore, type JsonStore, type Migration, type StoreMemory, storeHandler, type Stores } from "../src/store/index.ts";
 
 const dirs: string[] = [];
@@ -129,7 +129,7 @@ describe("JsonDirStore", () => {
   });
 });
 
-const Repo = z.looseObject({ repo: z.string(), n: z.number() });
+const Repo = v.looseObject({ repo: v.string(), n: v.number() });
 
 describe("collection", () => {
   test("reads and writes values of its schema's type", async () => {
@@ -157,7 +157,7 @@ describe("collection", () => {
     expect(await repos.all()).toEqual([{ repo: "acme/a", n: 1 }]);
     expect(await repos.list()).toEqual(["a", "b"]);
     expect(logs).toHaveLength(2);
-    expect(logs[0]).toBe(`store: repos "b" isn't readable, so it's treated as absent: n: Invalid input: expected number, received string`);
+    expect(logs[0]).toBe(`store: repos "b" isn't readable, so it's treated as absent: n: Invalid type: Expected number but received "two"`);
     // Nothing removed it: a newer version can still read it, and the next write replaces it.
     expect(await stores("repos").read("b")).toEqual({ repo: "acme/b", n: "two" });
     await repos.write("b", { repo: "acme/b", n: 2 });
@@ -178,7 +178,7 @@ describe("collection", () => {
     await stores("repos").write("bad", { repo: 3 });
     const seen: string[][] = [];
     const listed = (raw: JsonStore) => raw.list().then((names) => void seen.push(names));
-    const counted: Migration<z.infer<typeof Repo>> = async (raw, parse) => {
+    const counted: Migration<v.InferOutput<typeof Repo>> = async (raw, parse) => {
       for (const name of await raw.list()) {
         const value = parse(await raw.read(name));
         if (value) await raw.write(`${name}.n`, value.n);

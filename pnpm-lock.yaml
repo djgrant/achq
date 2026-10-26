@@ -63,15 +63,18 @@ importers:
       '@achq/utils':
         specifier: workspace:*
         version: link:../utils
-      '@hono/zod-openapi':
-        specifier: ^1.6.3
-        version: 1.6.3(hono@4.13.14)(zod@4.6.7)
       '@pokit/core':
         specifier: ^0.10.0
         version: 0.10.0(patch_hash=ad88c82325e92d8eebc3bc67bfeb82c92a5bdc1393902ab83ed612383206afc7)(zod@4.6.7)
       '@pokit/terminal':
         specifier: ^0.10.0
         version: 0.10.0(@pokit/core@0.10.0(patch_hash=ad88c82325e92d8eebc3bc67bfeb82c92a5bdc1393902ab83ed612383206afc7)(zod@4.6.7))
+      hono:
+        specifier: ^4.13.14
+        version: 4.13.14
+      valibot:
+        specifier: ^1.5.0
+        version: 1.5.0(typescript@7.0.2)
       zod:
         specifier: ^4.3.6
         version: 4.6.7
@@ -87,15 +90,12 @@ importers:
       '@achq/utils':
         specifier: workspace:*
         version: link:../utils
-      '@hono/zod-openapi':
-        specifier: ^1.6.3
-        version: 1.6.3(hono@4.13.14)(zod@4.6.7)
       hono:
         specifier: ^4.13.13
         version: 4.13.14
-      zod:
-        specifier: ^4.3.6
-        version: 4.6.7
+      valibot:
+        specifier: ^1.5.0
+        version: 1.5.0(typescript@7.0.2)
 
   packages/plugin-1password:
     devDependencies:
@@ -154,9 +154,9 @@ importers:
       '@octokit/webhooks-methods':
         specifier: ^6.0.0
         version: 6.0.0
-      zod:
-        specifier: ^4.3.6
-        version: 4.6.7
+      valibot:
+        specifier: ^1.5.0
+        version: 1.5.0(typescript@7.0.2)
 
   packages/plugin-railway:
     devDependencies:
@@ -187,9 +187,6 @@ importers:
       '@achq/utils':
         specifier: workspace:*
         version: link:../utils
-      '@hono/zod-openapi':
-        specifier: ^1.6.3
-        version: 1.6.3(hono@4.13.14)(zod@4.6.7)
       '@jitl/quickjs-wasmfile-release-sync':
         specifier: ^0.32.0
         version: 0.32.0
@@ -199,9 +196,9 @@ importers:
       quickjs-emscripten-core:
         specifier: ^0.32.0
         version: 0.32.0
-      zod:
-        specifier: ^4.3.6
-        version: 4.6.7
+      valibot:
+        specifier: ^1.5.0
+        version: 1.5.0(typescript@7.0.2)
 
   packages/service-router:
     devDependencies:
@@ -214,15 +211,12 @@ importers:
       '@achq/utils':
         specifier: workspace:*
         version: link:../utils
-      '@hono/zod-openapi':
-        specifier: ^1.6.3
-        version: 1.6.3(hono@4.13.14)(zod@4.6.7)
       hono:
         specifier: ^4.13.13
         version: 4.13.14
-      zod:
-        specifier: ^4.3.6
-        version: 4.6.7
+      valibot:
+        specifier: ^1.5.0
+        version: 1.5.0(typescript@7.0.2)
 
   packages/service-runner:
     devDependencies:
@@ -241,9 +235,6 @@ importers:
       '@achq/utils':
         specifier: workspace:*
         version: link:../utils
-      '@hono/zod-openapi':
-        specifier: ^1.6.3
-        version: 1.6.3(hono@4.13.14)(zod@4.6.7)
       '@types/mustache':
         specifier: ^4.2.6
         version: 4.2.6
@@ -253,9 +244,9 @@ importers:
       mustache:
         specifier: ^4
         version: 4.2.0
-      zod:
-        specifier: ^4.3.6
-        version: 4.6.7
+      valibot:
+        specifier: ^1.5.0
+        version: 1.5.0(typescript@7.0.2)
 
   packages/test-e2e:
     dependencies:
@@ -293,15 +284,16 @@ importers:
       '@achq/utils':
         specifier: workspace:*
         version: link:../utils
-      '@hono/zod-openapi':
-        specifier: ^1.6.3
-        version: 1.6.3(hono@4.13.14)(zod@4.6.7)
+    devDependencies:
+      hono:
+        specifier: ^4.13.14
+        version: 4.13.14
 
   packages/utils:
     dependencies:
-      '@hono/zod-openapi':
-        specifier: ^1.6.3
-        version: 1.6.3(hono@4.13.14)(zod@4.6.7)
+      '@hono/standard-validator':
+        specifier: ^0.4.0
+        version: 0.4.0(@standard-schema/spec@1.1.0)(hono@4.13.14)
       '@octokit/auth-app':
         specifier: ^8.3.1
         version: 8.3.1
@@ -317,19 +309,17 @@ importers:
       '@octokit/request-error':
         specifier: ^7.1.2
         version: 7.1.2
+      '@standard-schema/spec':
+        specifier: ^1.1.0
+        version: 1.1.0
       hono:
         specifier: ^4.13.13
         version: 4.13.14
-      zod:
-        specifier: ^4.3.6
-        version: 4.6.7
+      valibot:
+        specifier: ^1.5.0
+        version: 1.5.0(typescript@7.0.2)
 
 packages:
-
-  '@asteasolutions/zod-to-openapi@9.1.0':
-    resolution: {integrity: sha512-pLMeRgRYS7/vZIgAAkOe2P6+XGTifR1MT9pqDoxZ11EmcJJ+DPmdPqLN8ZZF4U8R9KHCCQCS9c2wtuE8wSrfkw==}
-    peerDependencies:
-      zod: ^4.0.0
 
   '@colors/colors@1.5.0':
     resolution: {integrity: sha512-ooWCrlZP11i8GImSjTHYHLkvFDP48nS4+204nGb1RiX/WXYHmJA2III9/e2DWVabCESdW7hBAEzHRqUn9OUVvQ==}
@@ -338,18 +328,11 @@ packages:
   '@folder/xdg@4.0.1':
     resolution: {integrity: sha512-mIBEyXvNK6sX341FOR6ZyGBmq84sSSkG2ocwTDmi4kJfAF6z8W//6aeMAi6vD/FuTcd4q0Px0HMVyP3ggOT/bg==}
 
-  '@hono/zod-openapi@1.6.3':
-    resolution: {integrity: sha512-VYR82Y60plu8g3pN60OUXMVKpmxh3R04Qs++3DY9vtwZ9/sA/BRY0PcRIR+Z37/3itWtM7pYwT9bKiH9JhqV6Q==}
-    engines: {node: '>=16.0.0'}
+  '@hono/standard-validator@0.4.0':
+    resolution: {integrity: sha512-MxOm1asDh9j7c1D0KiWwppSbFgAQxTRO4YEhjMrJn3lF1BIcXenPdgjSGKDRfQmZdaTaMA8slQLETgVOKyJxFw==}
     peerDependencies:
-      hono: '>=4.10.0'
-      zod: ^4.0.0
-
-  '@hono/zod-validator@0.9.1':
-    resolution: {integrity: sha512-iiv6w0qrIc0arfvCtUqBWsvl4fXjzaTcQcCJTTtCnkawF9HHGE+KjEl0ox3gQJ6rKZEgE3mLExlQCF72M+mNuw==}
-    peerDependencies:
+      '@standard-schema/spec': ^1.0.0
       hono: '>=4.11.2'
-      zod: ^3.25.0 || ^4.0.0
 
   '@jitl/quickjs-ffi-types@0.32.0':
     resolution: {integrity: sha512-v9T+GQpmk43VDJ7d72sf0Nexhk+ArvtUihW27dy7lqAl0zBObFKtSBBIm5RBjwIhE8VwsPPm9PNuvPvNqLWUEg==}
@@ -562,6 +545,9 @@ packages:
   '@sindresorhus/is@4.6.0':
     resolution: {integrity: sha512-t09vSN3MdfsyCHoFcTRCH/iUtG7OJ0CsjzB8cjAmKc/va/kIgeDI/TxsigdncE/4be734m0cvIYwNaV4i2XqAw==}
     engines: {node: '>=10'}
+
+  '@standard-schema/spec@1.1.0':
+    resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
 
   '@types/bun@1.4.4':
     resolution: {integrity: sha512-9wkRDXUXK124pEnAutE6n/l18j+i9GC5IAHK8TmX/2nlySETmky0OU6yL5U8pW1AoKh++AN9auDCr647BfurjQ==}
@@ -1017,9 +1003,6 @@ packages:
   ohash@2.0.12:
     resolution: {integrity: sha512-65S/5gk9YSsaRjcyf7Nfa6h/d3E8/1gslpXfI4W7Dxn/oap8IKRuNT5VXkLQ1YFKIEg4apRY4Pj6aiwFzrDdmw==}
 
-  openapi3-ts@4.6.2:
-    resolution: {integrity: sha512-gyyil3DweqhXiEhTqtAs9wwRLfWHmetwhI4kmM5Rn0d6gtmK863Ki7qqbQnp9+Wwlqoe3B1LFWj7kMp5ctE4rQ==}
-
   package-manager-detector@1.9.0:
     resolution: {integrity: sha512-zAMfbta9nPA8AKkA4WdmNAT8R8s6Dk0/xwPsqNnRidMFcLo1YkLuPDTgs2f64XdzS8vbLNnoJ+uUIkgbz7oRHA==}
 
@@ -1188,6 +1171,14 @@ packages:
   universal-user-agent@7.0.3:
     resolution: {integrity: sha512-TmnEAEAsBJVZM/AADELsK76llnwcf9vMKuPz8JflO1frO8Lchitr0fNaN9d+Ap0BjKtqWqd/J17qeDnXh8CL2A==}
 
+  valibot@1.5.0:
+    resolution: {integrity: sha512-nil6AkP2TChWL43Z5uJ6GTxX01CUA+g8LWUM+N/rB9NBbkUMaUsi9PUNzlUPgoKASgmx9f7eGOYpJ04/fSa6FQ==}
+    peerDependencies:
+      typescript: '>=5'
+    peerDependenciesMeta:
+      typescript:
+        optional: true
+
   wrap-ansi@7.0.0:
     resolution: {integrity: sha512-YVGIj2kamLSTxw6NsZjoBxfSwsn0ycdesmc4p+Q21c5zPuZ1pl+NfxVdxPtdHvmNVOQ6XSYG4AUtyt/Fi7D16Q==}
     engines: {node: '>=10'}
@@ -1234,11 +1225,6 @@ packages:
 
 snapshots:
 
-  '@asteasolutions/zod-to-openapi@9.1.0(zod@4.6.7)':
-    dependencies:
-      openapi3-ts: 4.6.2
-      zod: 4.6.7
-
   '@colors/colors@1.5.0':
     optional: true
 
@@ -1250,18 +1236,10 @@ snapshots:
       write: 2.0.0
       yaml: 2.9.1
 
-  '@hono/zod-openapi@1.6.3(hono@4.13.14)(zod@4.6.7)':
+  '@hono/standard-validator@0.4.0(@standard-schema/spec@1.1.0)(hono@4.13.14)':
     dependencies:
-      '@asteasolutions/zod-to-openapi': 9.1.0(zod@4.6.7)
-      '@hono/zod-validator': 0.9.1(hono@4.13.14)(zod@4.6.7)
+      '@standard-schema/spec': 1.1.0
       hono: 4.13.14
-      openapi3-ts: 4.6.2
-      zod: 4.6.7
-
-  '@hono/zod-validator@0.9.1(hono@4.13.14)(zod@4.6.7)':
-    dependencies:
-      hono: 4.13.14
-      zod: 4.6.7
 
   '@jitl/quickjs-ffi-types@0.32.0': {}
 
@@ -1448,6 +1426,8 @@ snapshots:
   '@rolldown/pluginutils@1.0.1': {}
 
   '@sindresorhus/is@4.6.0': {}
+
+  '@standard-schema/spec@1.1.0': {}
 
   '@types/bun@1.4.4':
     dependencies:
@@ -1784,10 +1764,6 @@ snapshots:
 
   ohash@2.0.12: {}
 
-  openapi3-ts@4.6.2:
-    dependencies:
-      yaml: 2.9.1
-
   package-manager-detector@1.9.0: {}
 
   parse5-htmlparser2-tree-adapter@6.0.1:
@@ -1962,6 +1938,10 @@ snapshots:
   universal-github-app-jwt@2.2.2: {}
 
   universal-user-agent@7.0.3: {}
+
+  valibot@1.5.0(typescript@7.0.2):
+    optionalDependencies:
+      typescript: 7.0.2
 
   wrap-ansi@7.0.0:
     dependencies:

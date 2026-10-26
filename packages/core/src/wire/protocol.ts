@@ -1,5 +1,6 @@
-import { json, type Json } from "@achq/utils/json";
-import { z } from "zod";
+import { json } from "@achq/utils/json";
+import { type Reads, schema } from "@achq/utils/schema";
+import * as v from "valibot";
 import type { BrowserAction } from "../model/browser-action.ts";
 import type { ChannelCredential, PolicyCredential } from "../model/credentials.ts";
 import type { ChannelEvent, DeployerEvent } from "../model/events.ts";
@@ -9,197 +10,195 @@ import type { ThreadRef } from "../model/threads.ts";
 import type * as types from "./types.ts";
 
 /*
- * Each schema has one of two roles. A request schema is a `z.object`: it
+ * Each schema has one of two roles. A request schema is a `v.object`: it
  * strips unknown keys, so an older server ignores a newer CLI's extra field.
  * A wire or stored schema reads what another version of achq wrote: it's a
- * `z.looseObject`, so unknown keys pass through, with no limits, and a field
+ * `v.looseObject`, so unknown keys pass through, with no limits, and a field
  * added to it is optional. The manifest has both roles: `@achq/core/manifest`.
  */
 
 /** A channel event, as the router forwards and keeps it: only what it routes by is checked, as each channel shapes the rest. */
-export const channelEvent = z.custom<ChannelEvent>((value) => json.isPlainObject(value) && typeof value.delivery === "string" && typeof value.type === "string");
+export const channelEvent = v.custom<ChannelEvent>((value) => json.isPlainObject(value) && typeof value.delivery === "string" && typeof value.type === "string");
 
-const repoEvent = z.object({
-  delivery: z.string(),
-  type: z.string(),
-  deploy: z.array(z.string()),
-  uninstall: z.array(z.string()),
-}) satisfies z.ZodType<DeployerEvent>;
+const repoEvent = v.object({
+  delivery: v.string(),
+  type: v.string(),
+  deploy: v.array(v.string()),
+  uninstall: v.array(v.string()),
+}) satisfies Reads<DeployerEvent>;
 
 /** A deployer event as the router keeps it until the deployer answers: a stored schema, so loose. */
-export const deployerEvent = z.looseObject(repoEvent.shape) satisfies z.ZodType<DeployerEvent>;
+export const deployerEvent = v.looseObject(repoEvent.entries) satisfies Reads<DeployerEvent>;
 
 /** What the router forwards to the deployer: which repos to deploy and uninstall. */
-export const DeployerEnvelope = z.object({ event: repoEvent });
-export type DeployerEnvelope = z.infer<typeof DeployerEnvelope>;
+export const DeployerEnvelope = v.object({ event: repoEvent });
+export type DeployerEnvelope = v.InferOutput<typeof DeployerEnvelope>;
 
-export const ContainerEnvelope = z.object({
+export const ContainerEnvelope = v.object({
   event: channelEvent,
   /** The commit whose `.achq/` config the router was given, so the container runs the same one. */
-  commit: z.string(),
+  commit: v.string(),
   /** The container's workspace the router routed the thread to: the one that claimed it, or the first that matches it now. */
-  workspace: z.string(),
+  workspace: v.string(),
 });
-export type ContainerEnvelope = z.infer<typeof ContainerEnvelope>;
+export type ContainerEnvelope = v.InferOutput<typeof ContainerEnvelope>;
 
 /** What the deployer posts and the router keeps: a stored schema, so loose. */
-export const RouterRepoConfig = z.looseObject({
-  repo: z.string(),
+export const RouterRepoConfig = v.looseObject({
+  repo: v.string(),
   /** The commit whose `.achq/` config this is. Forwarded with events so containers run the same config. */
-  commit: z.string(),
-  containers: z.array(z.looseObject({ name: z.string(), url: z.string(), policies: z.array(policyData) })),
-  workspaces: z.array(z.looseObject({ name: z.string(), container: z.string(), threads: selectorData, branch: z.string(), base: z.string() })),
-  triggers: z.array(z.looseObject({ name: z.string(), event: selectorData })),
+  commit: v.string(),
+  containers: v.array(v.looseObject({ name: v.string(), url: v.string(), policies: v.array(policyData) })),
+  workspaces: v.array(v.looseObject({ name: v.string(), container: v.string(), threads: selectorData, branch: v.string(), base: v.string() })),
+  triggers: v.array(v.looseObject({ name: v.string(), event: selectorData })),
 });
-export type RouterRepoConfig = z.infer<typeof RouterRepoConfig>;
+export type RouterRepoConfig = v.InferOutput<typeof RouterRepoConfig>;
 
-const repoSegment = z.string().regex(new RegExp(`^${repoName.segment}$`));
+const repoSegment = v.pipe(v.string(), v.regex(new RegExp(`^${repoName.segment}$`)));
 
 /** A route's `{owner}/{name}`, in characters that can't escape a path or a directory: a repo that doesn't fit is refused with a 400. */
-export const RepoParams = z.object({ owner: repoSegment, name: repoSegment });
-export type RepoParams = z.infer<typeof RepoParams>;
+export const RepoParams = v.object({ owner: repoSegment, name: repoSegment });
+export type RepoParams = v.InferOutput<typeof RepoParams>;
 
 /** A repo, on the infra's code host: what the router's public endpoints for the repo CLI take, with your code host token as the bearer. */
-export const RepoRequest = z.object({ repo: z.string() });
-export type RepoRequest = z.infer<typeof RepoRequest>;
+export const RepoRequest = v.object({ repo: v.string() });
+export type RepoRequest = v.InferOutput<typeof RepoRequest>;
 
 /** A shell in one of the repo's containers: `POST /reach`, which wakes it, and the deployer's `POST /shell`. `tty` for an interactive one. */
-export const ReachRequest = RepoRequest.extend({ container: z.string(), command: z.array(z.string()), tty: z.boolean() });
-export type ReachRequest = z.infer<typeof ReachRequest>;
+export const ReachRequest = v.object({ ...RepoRequest.entries, container: v.string(), command: v.array(v.string()), tty: v.boolean() });
+export type ReachRequest = v.InferOutput<typeof ReachRequest>;
 
-export const Shell = z.object({
-  argv: z.array(z.string()).min(1),
-  env: z.record(z.string(), z.string()).optional(),
-  requires: z.array(z.object({ binary: z.string(), install: z.string() })),
-}) satisfies z.ZodType<types.Shell>;
+export const Shell = v.object({
+  argv: v.pipe(v.array(v.string()), v.minLength(1)),
+  env: v.optional(v.record(v.string(), v.string())),
+  requires: v.array(v.object({ binary: v.string(), install: v.string() })),
+}) satisfies Reads<types.Shell>;
 export type Shell = types.Shell;
 
 /** Whether `source`, e.g. a GitHub App's slug, is installed on the repo: `POST /installation`. */
-export const InstallationRequest = RepoRequest.extend({ source: z.string() });
-export type InstallationRequest = z.infer<typeof InstallationRequest>;
+export const InstallationRequest = v.object({ ...RepoRequest.entries, source: v.string() });
+export type InstallationRequest = v.InferOutput<typeof InstallationRequest>;
 
 /** Who a container says it is. Its signature proves it. */
-export const CredentialsRequest = z.object({ repo: z.string(), container: z.string() });
-export type CredentialsRequest = z.infer<typeof CredentialsRequest>;
+export const CredentialsRequest = v.object({ repo: v.string(), container: v.string() });
+export type CredentialsRequest = v.InferOutput<typeof CredentialsRequest>;
 
-
-export const MintRequest = z.object({ repo: z.string(), policies: z.array(policyData) });
-export type MintRequest = z.infer<typeof MintRequest>;
+export const MintRequest = v.object({ repo: v.string(), policies: v.array(policyData) });
+export type MintRequest = v.InferOutput<typeof MintRequest>;
 
 export const ValidateRequest = MintRequest;
 export type ValidateRequest = MintRequest;
 
-export const SyncRequest = z.object({
+export const SyncRequest = v.object({
   /** Deletes containers no installed repo's manifest has. */
-  prune: z.boolean().optional(),
-  dryRun: z.boolean().optional(),
+  prune: v.optional(v.boolean()),
+  dryRun: v.optional(v.boolean()),
   /** Syncs as if no repo were installed, so each is uninstalled and, with `prune`, every container deleted: `achq infra down`. */
-  empty: z.boolean().optional(),
+  empty: v.optional(v.boolean()),
   /** The containers, as `<repo>/<name>`, you were shown it prunes: if it would prune any other, it fails before it uninstalls or prunes anything. */
-  expect: z.array(z.string()).optional(),
+  expect: v.optional(v.array(v.string())),
 });
-export type SyncRequest = z.infer<typeof SyncRequest>;
+export type SyncRequest = v.InferOutput<typeof SyncRequest>;
 
 /** A thread's session, as the runner's `sessions` command prints them (wire/commands.ts) (a JSON array, most recently run first) for `achq container resume`. `thread` is e.g. the issue number. */
-export const SessionSummary = z.looseObject({ id: z.string(), thread: z.string(), agent: z.string(), workspace: z.string(), lastRun: z.string() });
-export type SessionSummary = z.infer<typeof SessionSummary>;
+export const SessionSummary = v.looseObject({ id: v.string(), thread: v.string(), agent: v.string(), workspace: v.string(), lastRun: v.string() });
+export type SessionSummary = v.InferOutput<typeof SessionSummary>;
 
 // ── Responses and stored values: what another version of achq wrote ──
 
-const jsonValue: z.ZodType<Json> = z.json();
-const threadRef = z.looseObject({ channel: z.string(), id: z.string() }) satisfies z.ZodType<ThreadRef>;
-const browserAction = z.looseObject({ url: z.string(), what: z.string() }) satisfies z.ZodType<BrowserAction>;
-const credential = { value: z.string(), expiresAt: z.string(), scope: z.record(z.string(), jsonValue) };
-const policyCredential = z.looseObject({ ...credential, provider: z.string() }) satisfies z.ZodType<PolicyCredential>;
-const channelCredential = z.looseObject({ ...credential, channel: z.string() }) satisfies z.ZodType<ChannelCredential>;
+const threadRef = v.looseObject({ channel: v.string(), id: v.string() }) satisfies Reads<ThreadRef>;
+const browserAction = v.looseObject({ url: v.string(), what: v.string() }) satisfies Reads<BrowserAction>;
+const credential = { value: v.string(), expiresAt: v.string(), scope: v.record(v.string(), schema.json) };
+const policyCredential = v.looseObject({ ...credential, provider: v.string() }) satisfies Reads<PolicyCredential>;
+const channelCredential = v.looseObject({ ...credential, channel: v.string() }) satisfies Reads<ChannelCredential>;
 
 /** What `POST /admin/mint` answers: one or more credentials per policy provider, covering the policies asked for. */
-export const MintResponse = z.array(policyCredential);
-export type MintResponse = z.infer<typeof MintResponse>;
+export const MintResponse = v.array(policyCredential);
+export type MintResponse = v.InferOutput<typeof MintResponse>;
 
 /** What `POST /admin/validate` answers: what's wrong with the policies, for the repo, if anything. */
-export const ValidateResponse = z.looseObject({ problems: z.array(z.string()) });
-export type ValidateResponse = z.infer<typeof ValidateResponse>;
+export const ValidateResponse = v.looseObject({ problems: v.array(v.string()) });
+export type ValidateResponse = v.InferOutput<typeof ValidateResponse>;
 
 /** A delivery some target never answered, as `GET /admin/failed` lists it. `target` is a container's `<repo>/<name>`, or `deployer`. */
-export const FailedDelivery = z.looseObject({
-  delivery: z.string(),
-  type: z.string(),
-  repo: z.string().optional(),
-  thread: threadRef.optional(),
-  targets: z.array(z.looseObject({ target: z.string(), error: z.string() })),
+export const FailedDelivery = v.looseObject({
+  delivery: v.string(),
+  type: v.string(),
+  repo: v.optional(v.string()),
+  thread: v.optional(threadRef),
+  targets: v.array(v.looseObject({ target: v.string(), error: v.string() })),
 });
-export type FailedDelivery = z.infer<typeof FailedDelivery>;
+export type FailedDelivery = v.InferOutput<typeof FailedDelivery>;
 
 /** What `POST /admin/failed/replay` did: deliveries back in the inbox, and ones with nowhere left to go. */
-export const ReplayResult = z.looseObject({ replayed: z.array(z.string()), dropped: z.array(z.string()) });
-export type ReplayResult = z.infer<typeof ReplayResult>;
+export const ReplayResult = v.looseObject({ replayed: v.array(v.string()), dropped: v.array(v.string()) });
+export type ReplayResult = v.InferOutput<typeof ReplayResult>;
 
-export const CredentialsResponse = z.looseObject({
+export const CredentialsResponse = v.looseObject({
   /** For the agent: one or more per policy provider, covering the container's policies. */
-  credentials: z.array(policyCredential),
+  credentials: v.array(policyCredential),
   /** For the runner only, never the agent: one per channel source the container's workspaces use. */
-  channels: z.array(channelCredential),
+  channels: v.array(channelCredential),
 });
-export type CredentialsResponse = z.infer<typeof CredentialsResponse>;
+export type CredentialsResponse = v.InferOutput<typeof CredentialsResponse>;
 
-export const InstalledRepo = z.looseObject({ repo: z.string() }) satisfies z.ZodType<types.InstalledRepo>;
+export const InstalledRepo = v.looseObject({ repo: v.string() }) satisfies Reads<types.InstalledRepo>;
 export type InstalledRepo = types.InstalledRepo;
 
-export const RepoInstallation = z.looseObject({ installed: z.boolean(), url: z.string() }) satisfies z.ZodType<types.RepoInstallation>;
+export const RepoInstallation = v.looseObject({ installed: v.boolean(), url: v.string() }) satisfies Reads<types.RepoInstallation>;
 export type RepoInstallation = types.RepoInstallation;
 
-export const SourceSettings = z.looseObject({ channel: z.string(), source: z.string(), events: z.array(z.string()), permissions: z.record(z.string(), z.string()) }) satisfies z.ZodType<types.SourceSettings>;
+export const SourceSettings = v.looseObject({ channel: v.string(), source: v.string(), events: v.array(v.string()), permissions: v.record(v.string(), v.string()) }) satisfies Reads<types.SourceSettings>;
 export type SourceSettings = types.SourceSettings;
 
-export const SyncResult = z.looseObject({
-  deployed: z.array(z.string()),
-  unchanged: z.array(z.string()),
-  uninstalled: z.array(z.string()),
-  pruned: z.array(z.string()),
-  failed: z.array(z.looseObject({ repo: z.string(), error: z.string() })),
+export const SyncResult = v.looseObject({
+  deployed: v.array(v.string()),
+  unchanged: v.array(v.string()),
+  uninstalled: v.array(v.string()),
+  pruned: v.array(v.string()),
+  failed: v.array(v.looseObject({ repo: v.string(), error: v.string() })),
 });
-export type SyncResult = z.infer<typeof SyncResult>;
+export type SyncResult = v.InferOutput<typeof SyncResult>;
 
 /** A plugin, as the services are given it: an npm package at a version. */
-export const PluginRef = z.object({ package: z.string(), version: z.string() });
+export const PluginRef = v.object({ package: v.string(), version: v.string() });
 
 /** What the deployer runs: its version and the plugins it loaded. A new deployer reaches it some time after its deploy. */
-export const DeployerVersion = z.looseObject({ version: z.string(), plugins: z.array(PluginRef) });
-export type DeployerVersion = z.infer<typeof DeployerVersion>;
+export const DeployerVersion = v.looseObject({ version: v.string(), plugins: v.array(PluginRef) });
+export type DeployerVersion = v.InferOutput<typeof DeployerVersion>;
 
 /** What `POST /sync` answers: the sync it started, which `GET /sync/<id>` reports on. */
-export const SyncStarted = z.looseObject({ id: z.string() });
-export type SyncStarted = z.infer<typeof SyncStarted>;
+export const SyncStarted = v.looseObject({ id: v.string() });
+export type SyncStarted = v.InferOutput<typeof SyncStarted>;
 
 /**
  * A sync's progress: a failed one's error isn't shown, only logged. An
  * interrupted one stopped when its deployer did, and is started again.
  */
-export const SyncStatus = z.discriminatedUnion("state", [
-  z.looseObject({ state: z.literal("running") }),
-  z.looseObject({ state: z.literal("done"), result: SyncResult }),
-  z.looseObject({ state: z.literal("failed") }),
-  z.looseObject({ state: z.literal("interrupted") }),
+export const SyncStatus = v.variant("state", [
+  v.looseObject({ state: v.literal("running") }),
+  v.looseObject({ state: v.literal("done"), result: SyncResult }),
+  v.looseObject({ state: v.literal("failed") }),
+  v.looseObject({ state: v.literal("interrupted") }),
 ]);
-export type SyncStatus = z.infer<typeof SyncStatus>;
+export type SyncStatus = v.InferOutput<typeof SyncStatus>;
 
-export const DeployState = z.enum(["deployed", "failed", "uninstalled"]) satisfies z.ZodType<types.DeployState>;
+export const DeployState = v.picklist(["deployed", "failed", "uninstalled"]) satisfies Reads<types.DeployState>;
 export type DeployState = types.DeployState;
 
-export const DeployRecord = z.looseObject({
-  repo: z.string(),
+export const DeployRecord = v.looseObject({
+  repo: v.string(),
   state: DeployState,
-  at: z.string(),
-  error: z.string().optional(),
-  commit: z.string().optional(),
+  at: v.string(),
+  error: v.optional(v.string()),
+  commit: v.optional(v.string()),
   /** The containers deployed, by name: the router's `/reach` opens a shell in one. */
-  containers: z.array(z.looseObject({ name: z.string() })).optional(),
-  warnings: z.array(z.string()).optional(),
+  containers: v.optional(v.array(v.looseObject({ name: v.string() }))),
+  warnings: v.optional(v.array(v.string())),
   /** What only you can do to fix a failed deploy, in your browser. `achq repo install` opens it, then deploys again. */
-  action: browserAction.optional(),
-}) satisfies z.ZodType<types.DeployRecord>;
+  action: v.optional(browserAction),
+}) satisfies Reads<types.DeployRecord>;
 export type DeployRecord = types.DeployRecord;
 
-export const Status = DeployRecord.extend({ router: z.string() }) satisfies z.ZodType<types.Status>;
+export const Status = v.looseObject({ ...DeployRecord.entries, router: v.string() }) satisfies Reads<types.Status>;
 export type Status = types.Status;

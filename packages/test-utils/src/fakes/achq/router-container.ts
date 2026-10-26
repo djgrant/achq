@@ -1,6 +1,7 @@
 import { routerContainerRoutes as routes } from "@achq/core/routes/router-container";
 import { verifySigned } from "@achq/core/signing";
-import { OpenAPIHono } from "@hono/zod-openapi";
+import { serve } from "@achq/utils/routes";
+import { Hono } from "hono";
 
 export const CHANNEL_TOKEN = "channel-token-never-for-agents";
 
@@ -8,7 +9,7 @@ export const CHANNEL_TOKEN = "channel-token-never-for-agents";
 export const fakeRouter = (secret: string, opts: { expiresIn?: () => number; now?: () => number } = {}) => {
   const rejected: string[] = [];
   let mints = 0;
-  const app = new OpenAPIHono();
+  const app = new Hono();
   app.use(async (c, next) => {
     const { pathname } = new URL(c.req.url);
     if (!verifySigned(secret, c.req.method, pathname, await c.req.text(), c.req.raw.headers)) {
@@ -17,7 +18,7 @@ export const fakeRouter = (secret: string, opts: { expiresIn?: () => number; now
     }
     await next();
   });
-  app.openapi(routes.credentials, (c) => {
+  serve(app, routes.credentials, (c) => {
     mints++;
     const expiresAt = new Date((opts.now ?? Date.now)() + (opts.expiresIn?.() ?? 60 * 60_000)).toISOString();
     return c.json(

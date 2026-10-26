@@ -3,8 +3,8 @@ import type { MintRequest, RouterRepoConfig, ValidateRequest } from "@achq/core/
 import { routerAdminRoutes as routes } from "@achq/core/routes/router-admin";
 import { adminSecret } from "@achq/core/secrets";
 import { verifySigned } from "@achq/core/signing";
-import { handler } from "@achq/utils/routes";
-import { OpenAPIHono } from "@hono/zod-openapi";
+import { serve } from "@achq/utils/routes";
+import { Hono } from "hono";
 import type { FakeGitHub } from "../vendors/github.ts";
 
 /** The router's admin routes the deployer calls, as `@achq/core/routes/router-admin` declares them, checking every request's admin signature. */
@@ -38,7 +38,7 @@ export class FakeRouter {
   }
 
   private app() {
-    const admin = new OpenAPIHono();
+    const admin = new Hono();
     admin.use(async (c, next) => {
       const url = new URL(c.req.url);
       const path = url.pathname + url.search;
@@ -50,7 +50,7 @@ export class FakeRouter {
       this.calls.push({ method: c.req.method, path, body: text ? JSON.parse(text) : undefined });
       await next();
     });
-    admin.openapi(routes.mint, (c) => {
+    serve(admin, routes.mint, (c) => {
       const request = c.req.valid("json");
       this.mints.push(request);
       const value = `tok-${++this.n}`;
@@ -59,29 +59,23 @@ export class FakeRouter {
       this.github.grant(value, [request.repo], permissions);
       return c.json([{ provider: "github", value, expiresAt: new Date(Date.now() + 3600_000).toISOString(), scope: { repos: [request.repo] } }], 200);
     });
-    admin.openapi(routes.validate, (c) => {
+    serve(admin, routes.validate, (c) => {
       const request = c.req.valid("json");
       this.validations.push(request);
       return c.json({ problems: request.policies.flatMap((p) => this.problems(p, request.repo)) }, 200);
     });
-    admin.openapi(
-      routes.putRepo,
-      handler(routes.putRepo, (c) => {
-        const { owner, name } = c.req.valid("param");
-        this.repos.set(`${owner}/${name}`.toLowerCase(), c.req.valid("json"));
-        return c.body(null, 204);
-      }),
-    );
-    admin.openapi(
-      routes.deleteRepo,
-      handler(routes.deleteRepo, (c) => {
-        const { owner, name } = c.req.valid("param");
-        this.repos.delete(`${owner}/${name}`.toLowerCase());
-        return c.body(null, 204);
-      }),
-    );
-    admin.openapi(routes.installed, (c) => c.json(this.installed, 200));
-    admin.openapi(routes.sources, (c) => c.json(this.sources, 200));
-    return new OpenAPIHono().route("/admin", admin);
+    serve(admin, routes.putRepo, (c) => {
+      const { owner, name } = c.req.valid("param");
+      this.repos.set(`${owner}/${name}`.toLowerCase(), c.req.valid("json"));
+      return c.body(null, 204);
+    });
+    serve(admin, routes.deleteRepo, (c) => {
+      const { owner, name } = c.req.valid("param");
+      this.repos.delete(`${owner}/${name}`.toLowerCase());
+      return c.body(null, 204);
+    });
+    serve(admin, routes.installed, (c) => c.json(this.installed, 200));
+    serve(admin, routes.sources, (c) => c.json(this.sources, 200));
+    return new Hono().route("/admin", admin);
   }
 }

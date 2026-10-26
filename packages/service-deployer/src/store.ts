@@ -4,7 +4,7 @@ import { DeployRecord, SyncResult } from "@achq/core/protocol";
 import { async } from "@achq/utils/async";
 import { Job, jobs } from "@achq/utils/jobs";
 import { collection } from "@achq/utils/store";
-import { z } from "zod";
+import * as v from "valibot";
 
 /** How many syncs' outcomes are kept for `GET /sync/<id>`: the newest started. */
 const KEPT_SYNCS = 10;
@@ -21,19 +21,19 @@ const HANDLED = "handled";
 // What the deployer keeps: stored schemas, so loose, as another version of the deployer may have written them.
 
 /** What a container was last deployed from: a change to either means a rebuild. */
-export const ImageRecord = z.looseObject({ dockerfile: z.string(), blob: z.string() });
-export type ImageRecord = z.infer<typeof ImageRecord>;
+export const ImageRecord = v.looseObject({ dockerfile: v.string(), blob: v.string() });
+export type ImageRecord = v.InferOutput<typeof ImageRecord>;
 
 /**
  * The last deploy that succeeded, kept across later failures and uninstalls.
  * `given` is a hash of what the deployer gave its containers, so a change to it
  * deploys again, as a change to the config does.
  */
-export const DeployedSnapshot = z.looseObject({ tree: z.string(), manifest: RepoManifest, images: z.record(z.string(), ImageRecord), given: z.string().optional() });
-export type DeployedSnapshot = z.infer<typeof DeployedSnapshot>;
+export const DeployedSnapshot = v.looseObject({ tree: v.string(), manifest: RepoManifest, images: v.record(v.string(), ImageRecord), given: v.optional(v.string()) });
+export type DeployedSnapshot = v.InferOutput<typeof DeployedSnapshot>;
 
-export const StoredRecord = DeployRecord.extend({ deployed: DeployedSnapshot.optional() });
-export type StoredRecord = z.infer<typeof StoredRecord>;
+export const StoredRecord = v.looseObject({ ...DeployRecord.entries, deployed: v.optional(DeployedSnapshot) });
+export type StoredRecord = v.InferOutput<typeof StoredRecord>;
 
 /** The record without what only the deployer reads. */
 export const wireRecord = ({ deployed: _deployed, ...record }: StoredRecord): DeployRecord => record;
@@ -41,7 +41,7 @@ export const wireRecord = ({ deployed: _deployed, ...record }: StoredRecord): De
 /** In its container provider's store: a record per repo, by `repoName.key`, the deliveries it's handled, and its syncs, so a restart doesn't lose how one went. */
 export const createStore = async (stores: Stores, log?: (line: string) => void) => {
   const records = await collection(stores, "records", StoredRecord, { log });
-  const handled = await collection(stores, "deliveries", z.array(z.string()), { log });
+  const handled = await collection(stores, "deliveries", v.array(v.string()), { log });
   let deliveries: string[] | undefined;
   const loadDeliveries = async () => (deliveries ??= (await handled.read(HANDLED)) ?? []);
   // One list, shared by every caller, so writes go in order: an older list can't land after a newer one.

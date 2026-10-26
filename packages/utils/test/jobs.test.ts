@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { z } from "zod";
+import * as v from "valibot";
 import { Job, jobs, type JobsOptions } from "../src/jobs.ts";
 import { allOf, type JsonStore } from "../src/store/json-store.ts";
 import { collection } from "../src/store/index.ts";
@@ -17,7 +17,7 @@ const memoryStore = () => {
   return { values, store };
 };
 
-const Result = z.looseObject({ n: z.number() });
+const Result = v.looseObject({ n: v.number() });
 
 /** Jobs over a fresh store, on a clock that moves only when `tick` says. */
 const setup = async (options: Partial<JobsOptions> = {}) => {

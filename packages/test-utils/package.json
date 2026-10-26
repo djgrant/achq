@@ -11,7 +11,9 @@
   },
   "dependencies": {
     "@achq/core": "workspace:*",
-    "@achq/utils": "workspace:*",
-    "@hono/zod-openapi": "^1.6.3"
+    "@achq/utils": "workspace:*"
+  },
+  "devDependencies": {
+    "hono": "^4.13.14"
   }
 }

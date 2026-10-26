@@ -1,13 +1,12 @@
 // The router's route for containers, on the port the public can't reach, signed with each container's secret.
-import { route } from "@achq/utils/routes";
-import { createRoute } from "@hono/zod-openapi";
+import { defineRoute, route } from "@achq/utils/routes";
 import { CredentialsRequest, CredentialsResponse } from "../protocol.ts";
 
 /** The body names the container, and its signature proves it's that container. */
-export const credentials = createRoute({
+export const credentials = defineRoute({
   method: "post",
   path: "/credentials",
-  request: { body: route.body(CredentialsRequest) },
+  body: CredentialsRequest,
   responses: {
     200: route.json(CredentialsResponse),
     400: route.text("bad request"),

@@ -1,13 +1,12 @@
 // The runner's route, for the router, on each repo container, signed with that container's secret.
-import { route } from "@achq/utils/routes";
-import { createRoute } from "@hono/zod-openapi";
+import { defineRoute, route } from "@achq/utils/routes";
 import { ContainerEnvelope } from "../protocol.ts";
 
 /** A delivery the router forwards. Accepted before it's handled, as a run can take hours. */
-export const events = createRoute({
+export const events = defineRoute({
   method: "post",
   path: "/events",
-  request: { body: route.body(ContainerEnvelope) },
+  body: ContainerEnvelope,
   responses: { 202: route.text("accepted") },
 });
 

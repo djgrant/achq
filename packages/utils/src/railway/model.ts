@@ -1,4 +1,4 @@
-// Railway's types as achq keeps them: plain, so plugins' resources, which keep them in their state, and their declarations need no zod.
+// Railway's types as achq keeps them: plain, so plugins' resources, which keep them in their state, and their declarations need no schema library.
 // types.ts's schemas check what Railway answers against them.
 
 export type ProjectAt = { projectId: string; environmentId: string };

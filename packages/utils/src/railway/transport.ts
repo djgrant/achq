@@ -1,3 +1,4 @@
+import * as v from "valibot";
 import { http } from "../http.ts";
 import { type Operation, rootField } from "./operations.ts";
 
@@ -30,9 +31,9 @@ export class RailwayTransport {
     if (errors?.length || !data) throw new RailwayError(`Railway: ${errors?.map((e) => e.message).join("; ") ?? res.status}`);
     // The field it asks for names the operation.
     const name = rootField(operation.document);
-    const parsed = operation.result.safeParse(data[name]);
-    if (parsed.success) return parsed.data;
-    const issue = parsed.error.issues[0]!;
-    throw new RailwayError(`Railway ${name}: ${[name, ...issue.path].join(".")}: ${issue.message}`);
+    const parsed = v.safeParse(operation.result, data[name]);
+    if (parsed.success) return parsed.output;
+    const issue = parsed.issues[0];
+    throw new RailwayError(`Railway ${name}: ${[name, v.getDotPath(issue)].filter(Boolean).join(".")}: ${issue.message}`);
   }
 }

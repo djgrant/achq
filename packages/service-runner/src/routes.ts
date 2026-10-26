@@ -1,7 +1,7 @@
 import { runnerRoutes } from "@achq/core/routes/runner";
 import { signedBy } from "@achq/core/signing";
-import { service } from "@achq/utils/routes";
-import { OpenAPIHono } from "@hono/zod-openapi";
+import { serve, service } from "@achq/utils/routes";
+import { Hono } from "hono";
 import type { Runner } from "./features/runner.ts";
 
 /**
@@ -10,10 +10,9 @@ import type { Runner } from "./features/runner.ts";
  * container's secret.
  */
 export const routes = (runner: Runner) => {
-  const app = new OpenAPIHono();
-  // On its own: chained, `use` returns a plain Hono, which has no `openapi`.
+  const app = new Hono();
   app.use(signedBy(runner.secret, runner.now));
-  app.openapi(runnerRoutes.events, (c) => {
+  serve(app, runnerRoutes.events, (c) => {
     // Handled after answering: the router waits for the response, and a run can take hours.
     runner.accept(c.req.valid("json"));
     return c.text("accepted", 202);

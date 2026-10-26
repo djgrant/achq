@@ -12,12 +12,12 @@ const answering = (result: unknown, extra: Record<string, unknown> = {}) => {
 
 test("a result that isn't what the operation declares is a CloudflareError naming the operation and where", async () => {
   await expect(answering({ name: "w" }).workers.get("w")).rejects.toThrow(
-    new CloudflareError("Cloudflare getWorker: result.id: Invalid input: expected string, received undefined", 200),
+    new CloudflareError('Cloudflare getWorker: result.id: Invalid key: Expected "id" but received undefined', 200),
   );
   await expect(answering([{ id: "v1", containers: [{ class_name: "Service" }] }]).workers.versions("w")).rejects.toThrow(
-    "Cloudflare listWorkerVersions: result.0.containers.0.images: Invalid input: expected record, received undefined",
+    'Cloudflare listWorkerVersions: result.0.containers.0.images: Invalid key: Expected "images" but received undefined',
   );
-  await expect(answering([], { result_info: { cursor: 1 } }).kv.keys("ns", "")).rejects.toThrow("Cloudflare listKvKeys: result_info.cursor: Invalid input: expected string, received number");
+  await expect(answering([], { result_info: { cursor: 1 } }).kv.keys("ns", "")).rejects.toThrow("Cloudflare listKvKeys: result_info.cursor: Invalid type: Expected string but received 1");
 });
 
 test("fields achq doesn't read pass", async () => {

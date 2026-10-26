@@ -1,6 +1,6 @@
 import type { POLICY_PROVIDER } from "./constants.ts";
 
-// What schemas.ts parses, as plain types: resources and their declarations use these, without zod.
+// What schemas.ts parses, as plain types: resources and their declarations use these, without the schemas.
 
 /** ACHQ_GITHUB_APPS: each App's key, by slug. */
 export type AppKeys = Record<string, { id: string; privateKey: string }>;

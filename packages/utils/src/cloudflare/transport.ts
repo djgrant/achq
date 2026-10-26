@@ -1,4 +1,4 @@
-import type { z } from "zod";
+import * as v from "valibot";
 import { http } from "../http.ts";
 import type { CloudflareOperation } from "./operations.ts";
 
@@ -19,7 +19,7 @@ const NOT_FOUND = 404;
 
 type Envelope = { success: boolean; errors?: { code: number; message: string }[]; result: unknown; result_info?: unknown };
 
-type AnyOperation<P> = CloudflareOperation<P, z.ZodType, z.ZodType>;
+type AnyOperation<P> = CloudflareOperation<P, v.GenericSchema, v.GenericSchema>;
 
 export class CloudflareTransport {
   constructor(
@@ -38,11 +38,11 @@ export class CloudflareTransport {
   }
 
   /** `value`, as the operation's schema has it. One that doesn't match says where, naming the operation. */
-  private parse<S extends z.ZodType>(operation: { name: string }, schema: S, value: unknown, where: string, status: number): z.output<S> {
-    const parsed = schema.safeParse(value);
-    if (parsed.success) return parsed.data;
-    const issue = parsed.error.issues[0]!;
-    const path = [where, ...issue.path].join(".");
+  private parse<S extends v.GenericSchema>(operation: { name: string }, schema: S, value: unknown, where: string, status: number): v.InferOutput<S> {
+    const parsed = v.safeParse(schema, value);
+    if (parsed.success) return parsed.output;
+    const issue = parsed.issues[0];
+    const path = [where, v.getDotPath(issue)].filter(Boolean).join(".");
     throw new CloudflareError(`Cloudflare ${operation.name}: ${path}: ${issue.message}`, status);
   }
 
@@ -65,13 +65,13 @@ export class CloudflareTransport {
   }
 
   /** The envelope's `result`, parsed with the operation's schema. */
-  async call<P, R extends z.ZodType>(operation: CloudflareOperation<P, R>, params: P): Promise<z.output<R>> {
+  async call<P, R extends v.GenericSchema>(operation: CloudflareOperation<P, R>, params: P): Promise<v.InferOutput<R>> {
     const { envelope, status } = await this.envelope(operation, params);
     return this.parse(operation, operation.result, envelope.result, "result", status);
   }
 
   /** As `call`, but undefined for a 404: something that isn't there. */
-  async find<P, R extends z.ZodType>(operation: CloudflareOperation<P, R>, params: P): Promise<z.output<R> | undefined> {
+  async find<P, R extends v.GenericSchema>(operation: CloudflareOperation<P, R>, params: P): Promise<v.InferOutput<R> | undefined> {
     try {
       return await this.call(operation, params);
     } catch (e) {
@@ -81,7 +81,7 @@ export class CloudflareTransport {
   }
 
   /** A page of a list: its `result`, and its `result_info`, which says where the next page starts. */
-  async page<P, R extends z.ZodType, I extends z.ZodType>(operation: CloudflareOperation<P, R, I> & { info: I }, params: P) {
+  async page<P, R extends v.GenericSchema, I extends v.GenericSchema>(operation: CloudflareOperation<P, R, I> & { info: I }, params: P) {
     const { envelope, status } = await this.envelope(operation, params);
     return {
       result: this.parse(operation, operation.result, envelope.result, "result", status),
@@ -90,7 +90,7 @@ export class CloudflareTransport {
   }
 
   /** A body that isn't an envelope, e.g. a KV value: undefined for a 404. */
-  async text<P>(operation: CloudflareOperation<P, z.ZodString>, params: P) {
+  async text<P>(operation: CloudflareOperation<P, v.GenericSchema<string>>, params: P) {
     const res = await this.fetch(operation, params);
     if (res.status === NOT_FOUND) return undefined;
     const text = await res.text();

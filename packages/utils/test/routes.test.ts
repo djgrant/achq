@@ -1,24 +1,26 @@
 import { describe, expect, expectTypeOf, test } from "bun:test";
-import { createRoute, OpenAPIHono } from "@hono/zod-openapi";
-import { z } from "zod";
+import { Hono } from "hono";
+import * as v from "valibot";
 import { HttpError } from "../src/http.ts";
-import { handler, route, routeClient, type RouteFetcher, type RouteRequest, service } from "../src/routes.ts";
+import { defineRoute, route, routeClient, type RouteFetcher, type RouteRequest, serve, service } from "../src/routes.ts";
 
-const Thing = z.looseObject({ id: z.string(), size: z.number() });
+const Thing = v.looseObject({ id: v.string(), size: v.number() });
 
-const getThing = createRoute({
+const getThing = defineRoute({
   method: "get",
   path: "/things/{owner}/{id}",
-  request: { params: z.object({ owner: z.string(), id: z.string() }), query: z.object({ deep: z.enum(["yes", "no"]).optional() }) },
+  params: v.object({ owner: v.string(), id: v.string() }),
+  query: v.object({ deep: v.optional(v.picklist(["yes", "no"])) }),
   responses: { 200: route.json(Thing), 404: route.text("no such thing") },
 });
-const putThing = createRoute({
+const putThing = defineRoute({
   method: "put",
   path: "/things/{id}",
-  request: { params: z.object({ id: z.string() }), body: route.body(Thing) },
+  params: v.object({ id: v.string() }),
+  body: Thing,
   responses: { 204: route.empty("stored"), 400: route.text("bad thing") },
 });
-const ping = createRoute({ method: "get", path: "/ping", responses: { 200: route.text("pong") } });
+const ping = defineRoute({ method: "get", path: "/ping", responses: { 200: route.text("pong") } });
 const routes = { getThing, putThing, ping };
 
 /** A fetcher that records what it's sent and answers with `answer`. */
@@ -55,7 +57,7 @@ describe("routeClient", () => {
     const answering = (res: () => Response) => routeClient(routes, recording(res).fetcher, { service: "Things" });
     const wrong = await answering(() => Response.json({ id: 1 })).getThing({ params: { owner: "o", id: "x" } }).catch((e: unknown) => e);
     expect(wrong).not.toBeInstanceOf(HttpError);
-    expect((wrong as Error).message).toBe("Things GET /things/o/x: 200 isn't what the route declares: id: Invalid input: expected string, received number");
+    expect((wrong as Error).message).toBe("Things GET /things/o/x: 200 isn't what the route declares: id: Invalid type: Expected string but received 1");
     await expect(answering(() => new Response("<html>")).getThing({ params: { owner: "o", id: "x" } })).rejects.toThrow("200 isn't what the route declares: not JSON: <html>");
     await expect(answering(() => Response.json({ id: "x", size: 1 }, { status: 201 })).getThing({ params: { owner: "o", id: "x" } })).rejects.toThrow(
       "Things GET /things/o/x: 201, which the route doesn't declare",
@@ -75,10 +77,10 @@ describe("routeClient", () => {
     // Checked by tsc only: bun's runtime expectTypeOf doesn't implement `parameter` and `returns`.
     const types = () => {
       expectTypeOf(client.ping).toEqualTypeOf<() => Promise<string>>();
-      expectTypeOf(client.putThing).parameter(0).toEqualTypeOf<{ params: { id: string }; body: { [k: string]: unknown; id: string; size: number } }>();
+      expectTypeOf(client.putThing).parameter(0).toEqualTypeOf<{ params: { id: string }; body: { id: string; size: number } & { [key: string]: unknown } }>();
       expectTypeOf(client.putThing).returns.resolves.toEqualTypeOf<void>();
-      expectTypeOf(client.getThing).parameter(0).toEqualTypeOf<{ params: { owner: string; id: string } } & { query?: { deep?: "yes" | "no" } }>();
-      expectTypeOf(client.getThing).returns.resolves.toEqualTypeOf<{ [k: string]: unknown; id: string; size: number }>();
+      expectTypeOf(client.getThing).parameter(0).toEqualTypeOf<{ params: { owner: string; id: string } } & { query?: { deep?: "yes" | "no" | undefined } }>();
+      expectTypeOf(client.getThing).returns.resolves.toEqualTypeOf<{ id: string; size: number } & { [key: string]: unknown }>();
     };
     const wrong = () => {
       // @ts-expect-error A missing path param.
@@ -99,50 +101,43 @@ describe("routeClient", () => {
 
 describe("handlers are checked against their route's responses", () => {
   test("a handler that answers what the route doesn't declare is a type error", () => {
-    const app = new OpenAPIHono();
-    app.openapi(getThing, (c) => (c.req.valid("param").id ? c.json({ id: "x", size: 1 }, 200) : c.text("no such thing", 404)));
+    const app = new Hono();
+    serve(app, getThing, (c) => (c.req.valid("param").id ? c.json({ id: "x", size: 1 }, 200) : c.text("no such thing", 404)));
     // @ts-expect-error A field the schema doesn't have, in place of one it requires.
-    app.openapi(getThing, (c) => c.json({ id: "x", sise: 1 }, 200));
+    serve(app, getThing, (c) => c.json({ id: "x", sise: 1 }, 200));
     // @ts-expect-error The right body, at a status the route doesn't declare.
-    app.openapi(getThing, (c) => c.json({ id: "x", size: 1 }, 201));
+    serve(app, getThing, (c) => c.json({ id: "x", size: 1 }, 201));
     // @ts-expect-error JSON where the route declares text.
-    app.openapi(getThing, (c) => c.json({ error: "no such thing" }, 404));
-
-    // The hole: a route declaring a response without content lets its handler answer any Response.
-    app.openapi(putThing, (c) => c.json({ anything: true }, 500));
-    // `handler` closes it.
-    app.openapi(
-      putThing,
-      handler(putThing, (c) => (c.req.valid("json").size ? c.body(null, 204) : c.text("bad thing", 400))),
-    );
+    serve(app, getThing, (c) => c.json({ error: "no such thing" }, 404));
+    // A route with a response without content is checked as closely.
+    serve(app, putThing, (c) => (c.req.valid("json").size ? c.body(null, 204) : c.text("bad thing", 400)));
     // @ts-expect-error A status the route doesn't declare.
-    app.openapi(putThing, handler(putThing, (c) => c.body(null, 200)));
+    serve(app, putThing, (c) => c.body(null, 200));
     // @ts-expect-error JSON where the route declares text.
-    app.openapi(putThing, handler(putThing, (c) => c.json({ error: "bad thing" }, 400)));
+    serve(app, putThing, (c) => c.json({ error: "bad thing" }, 400));
     // @ts-expect-error An untyped Response.
-    app.openapi(putThing, handler(putThing, () => new Response(null, { status: 204 })));
+    serve(app, putThing, () => new Response(null, { status: 204 }));
     expect(app).toBeDefined();
   });
 
   test("a client and a server built from the same declarations agree", async () => {
-    const app = new OpenAPIHono();
+    const app = new Hono();
     const stored = new Map<string, unknown>();
-    app.openapi(
-      putThing,
-      handler(putThing, (c) => {
-        stored.set(c.req.valid("param").id, c.req.valid("json"));
-        return c.body(null, 204);
-      }),
-    );
-    app.openapi(getThing, (c) => {
-      const thing = Thing.safeParse(stored.get(c.req.valid("param").id));
-      return thing.success ? c.json(thing.data, 200) : c.text("no such thing", 404);
+    serve(app, putThing, (c) => {
+      stored.set(c.req.valid("param").id, c.req.valid("json"));
+      return c.body(null, 204);
+    });
+    serve(app, getThing, (c) => {
+      const thing = v.safeParse(Thing, stored.get(c.req.valid("param").id));
+      return thing.success ? c.json(thing.output, 200) : c.text("no such thing", 404);
     });
     const client = routeClient(routes, async (path, init) => app.request(path, init));
     await client.putThing({ params: { id: "t" }, body: { id: "t", size: 3 } });
     expect(await client.getThing({ params: { owner: "o", id: "t" } })).toEqual({ id: "t", size: 3 });
-    // The server validates too: a param or body the route's schema refuses is a 400 from its validator.
-    expect((await app.request("/things/t", { method: "PUT", body: "{}", headers: { "content-type": "application/json" } })).status).toBe(400);
+    // The server checks too: a body the route's schema refuses, or none, is a 400 saying what's wrong.
+    const refused = await app.request("/things/t", { method: "PUT", body: "{}", headers: { "content-type": "application/json" } });
+    expect(refused.status).toBe(400);
+    expect(await refused.text()).toBe("bad request: id: Invalid key: Expected \"id\" but received undefined");
     expect((await app.request("/things/t", { method: "PUT" })).status).toBe(400);
   });
 });

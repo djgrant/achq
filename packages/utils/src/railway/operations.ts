@@ -1,45 +1,46 @@
-import { z } from "zod";
+import * as v from "valibot";
+import type { Reads } from "../schema.ts";
 import { Instance, type InstanceAt, type InstanceSettings, ProjectSummary, type ServiceAt, ServiceDomain, Workspace } from "./types.ts";
 
 export type Operation<Vars, Result> = {
   document: string;
   /** What Railway answers in the field the document asks for, which is the operation's name: parsed with it, and what it gives the caller. */
-  result: z.ZodType<Result>;
+  result: Reads<Result>;
   /** Never set: it carries the variables' type to whoever calls it. */
   vars?: Vars;
 };
 
-export const op = <Vars, Result>(document: string, result: z.ZodType<Result>): Operation<Vars, Result> => ({ document, result });
+export const op = <Vars, Result>(document: string, result: Reads<Result>): Operation<Vars, Result> => ({ document, result });
 
-const edges = <T extends z.ZodType>(node: T) => z.looseObject({ edges: z.array(z.looseObject({ node })) });
+const edges = <T extends v.GenericSchema>(node: T) => v.looseObject({ edges: v.array(v.looseObject({ node })) });
 export type Edges<T> = { edges: { node: T }[] };
 
 export const nodes = <T>(connection: Edges<T>) => connection.edges.map((e) => e.node);
 
 /** The answer of a mutation whose answer achq doesn't read. */
-const nothing = z.unknown().transform((): void => undefined);
+const nothing = v.pipe(v.unknown(), v.transform((): void => undefined));
 
 /** An object's one field. */
-const field = <K extends string, T extends z.ZodType>(key: K, schema: T) => z.looseObject({ [key]: schema } as { [_ in K]: T }).transform((o) => o[key]);
+const field = <K extends string, T extends v.GenericSchema>(key: K, schema: T) => v.pipe(v.looseObject({ [key]: schema } as { [_ in K]: T }), v.transform((o) => o[key]));
 
-const IdName = z.looseObject({ id: z.string(), name: z.string() });
+const IdName = v.looseObject({ id: v.string(), name: v.string() });
 
-export const RawProject = z.looseObject({
-  id: z.string(),
-  name: z.string(),
+export const RawProject = v.looseObject({
+  id: v.string(),
+  name: v.string(),
   environments: edges(IdName),
   services: edges(IdName),
-  volumes: edges(z.looseObject({ id: z.string(), volumeInstances: edges(z.looseObject({ serviceId: z.string().nullable(), mountPath: z.string() })) })),
+  volumes: edges(v.looseObject({ id: v.string(), volumeInstances: edges(v.looseObject({ serviceId: v.nullable(v.string()), mountPath: v.string() })) })),
 });
-export type RawProject = z.infer<typeof RawProject>;
+export type RawProject = v.InferOutput<typeof RawProject>;
 
-const PrivateNetworkEndpoint = z.looseObject({ publicId: z.string(), dnsName: z.string() }).nullable();
+const PrivateNetworkEndpoint = v.nullable(v.looseObject({ publicId: v.string(), dnsName: v.string() }));
 
 export const OPERATIONS = {
-  apiToken: op<Record<string, never>, Workspace[]>(`query { apiToken { workspaces { id name } } }`, field("workspaces", z.array(Workspace))),
+  apiToken: op<Record<string, never>, Workspace[]>(`query { apiToken { workspaces { id name } } }`, field("workspaces", v.array(Workspace))),
   projects: op<{ workspaceId?: string }, ProjectSummary[]>(
     `query ($workspaceId: String) { projects(workspaceId: $workspaceId) { edges { node { id name } } } }`,
-    edges(ProjectSummary).transform(nodes),
+    v.pipe(edges(ProjectSummary), v.transform(nodes)),
   ),
   project: op<{ id: string }, RawProject>(
     `query ($id: String!) {
@@ -54,13 +55,13 @@ export const OPERATIONS = {
   ),
   projectCreate: op<{ input: { name: string; workspaceId: string } }, string>(
     `mutation ($input: ProjectCreateInput!) { projectCreate(input: $input) { id } }`,
-    field("id", z.string()),
+    field("id", v.string()),
   ),
 
   projectDelete: op<{ id: string }, void>(`mutation ($id: String!) { projectDelete(id: $id) }`, nothing),
   serviceCreate: op<{ input: { projectId: string; environmentId: string; name: string } }, string>(
     `mutation ($input: ServiceCreateInput!) { serviceCreate(input: $input) { id } }`,
-    field("id", z.string()),
+    field("id", v.string()),
   ),
   serviceDelete: op<{ id: string; environmentId: string }, void>(
     `mutation ($id: String!, $environmentId: String!) { serviceDelete(id: $id, environmentId: $environmentId) }`,
@@ -89,7 +90,7 @@ export const OPERATIONS = {
     `query ($projectId: String!, $environmentId: String!, $serviceId: String!) {
       serviceInstanceAutoDeployStatus(projectId: $projectId, environmentId: $environmentId, serviceId: $serviceId) { enabled }
     }`,
-    field("enabled", z.boolean()),
+    field("enabled", v.boolean()),
   ),
   serviceInstanceAutoDeployUpdate: op<{ input: ServiceAt & { enabled: boolean } }, void>(
     `mutation ($input: ServiceInstanceAutoDeployUpdateInput!) { serviceInstanceAutoDeployUpdate(input: $input) { enabled } }`,
@@ -112,7 +113,7 @@ export const OPERATIONS = {
     `query ($projectId: String!, $environmentId: String!, $serviceId: String!) {
       variables(projectId: $projectId, environmentId: $environmentId, serviceId: $serviceId)
     }`,
-    z.record(z.string(), z.string()),
+    v.record(v.string(), v.string()),
   ),
   variableCollectionUpsert: op<{ input: ServiceAt & { variables: Record<string, string>; skipDeploys: boolean } }, void>(
     `mutation ($input: VariableCollectionUpsertInput!) { variableCollectionUpsert(input: $input) }`,
@@ -128,16 +129,16 @@ export const OPERATIONS = {
     `query ($projectId: String!, $environmentId: String!, $serviceId: String!) {
       domains(projectId: $projectId, environmentId: $environmentId, serviceId: $serviceId) { serviceDomains { id domain targetPort } }
     }`,
-    field("serviceDomains", z.array(ServiceDomain)),
+    field("serviceDomains", v.array(ServiceDomain)),
   ),
   serviceDomainCreate: op<{ input: InstanceAt & { targetPort: number } }, string>(
     `mutation ($input: ServiceDomainCreateInput!) { serviceDomainCreate(input: $input) { domain } }`,
-    field("domain", z.string()),
+    field("domain", v.string()),
   ),
   serviceDomainDelete: op<{ id: string }, void>(`mutation ($id: String!) { serviceDomainDelete(id: $id) }`, nothing),
   privateNetworks: op<{ environmentId: string }, string[]>(
     `query ($environmentId: String!) { privateNetworks(environmentId: $environmentId) { publicId } }`,
-    z.array(z.looseObject({ publicId: z.string() })).transform((networks) => networks.map((n) => n.publicId)),
+    v.pipe(v.array(v.looseObject({ publicId: v.string() })), v.transform((networks) => networks.map((n) => n.publicId))),
   ),
   privateNetworkEndpoint: op<InstanceAt & { privateNetworkId: string }, { publicId: string; dnsName: string } | null>(
     `query ($environmentId: String!, $privateNetworkId: String!, $serviceId: String!) {

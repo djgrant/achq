@@ -1,5 +1,6 @@
 import { CONFIG_DIR, type CodeHostAsYou, type CodeHostProvider, type ConfigTree, type Credential, type FileLimits, type RepoClient, type RepoInstallation, type RepoManifest, repoName } from "@achq/core";
 import { Status } from "@achq/core/protocol";
+import * as v from "valibot";
 import type { Vars } from "@achq/utils/env";
 import { errors } from "@achq/utils/errors";
 import { type CommitSummary, GitHub, type RepoApi } from "@achq/utils/gh";
@@ -26,10 +27,11 @@ const parseStatus = (repo: string, value: string): Status => {
     throw unreadable("it isn't JSON");
   }
   // Short messages: the path says where, the expected type what.
-  const parsed = Status.safeParse(raw, { error: (issue) => (issue.code === "invalid_type" ? `expected ${issue.expected}` : undefined) });
-  if (parsed.success) return parsed.data;
-  const issue = parsed.error.issues[0]!;
-  throw unreadable(issue.path.length ? `${issue.path.join(".")}: ${issue.message}` : issue.message);
+  const parsed = v.safeParse(Status, raw, { message: (issue) => `expected ${issue.expected}` });
+  if (parsed.success) return parsed.output;
+  const issue = parsed.issues[0];
+  const path = v.getDotPath(issue);
+  throw unreadable(path ? `${path}: ${issue.message}` : issue.message);
 };
 
 /** A repo is set up for achq when the config's one App is installed on it. Only the router has the App keys that list where. */
