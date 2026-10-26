@@ -4,7 +4,7 @@ import type { Paths } from "../features/layout.ts";
 import { sessionsFor } from "../state.ts";
 
 /**
- * A JSON array of their summaries, only: the laptop's `achq container resume` parses it (parseSessions in packages/core/src/wire/commands.ts).
+ * A JSON array of their summaries, only: the laptop's `achq container resume` parses it (parseSessions in packages/cli/tasks/container.list-sessions.ts).
  * SessionSummary is loose, for reading what another version printed, so the summary's own shape strips the rest.
  */
 const summaries = z.array(z.object(SessionSummary.shape));

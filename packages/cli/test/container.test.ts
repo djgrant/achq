@@ -1,11 +1,10 @@
 import { expect, test } from "bun:test";
 import type { Status } from "@achq/core";
-import { parseSessions } from "@achq/core/commands";
 import { reachable } from "../io/shell.ts";
 import { containersOf, pickContainer } from "../pickers/container.ts";
 import { pickSession } from "../pickers/session.ts";
 import { sessionTable } from "../renderers/sessions.ts";
-import { containerListSessions } from "../tasks/container.list-sessions.ts";
+import { containerListSessions, parseSessions } from "../tasks/container.list-sessions.ts";
 import { run } from "../tasks/run.ts";
 import { testRunner } from "./runner.ts";
 
