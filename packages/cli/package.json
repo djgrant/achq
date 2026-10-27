@@ -32,8 +32,8 @@
     "@achq/runner": "workspace:*",
     "@achq/test-utils": "workspace:*",
     "@achq/utils": "workspace:*",
-    "@pokit/core": "^0.10.0",
-    "@pokit/terminal": "^0.10.0",
+    "@pokit/core": "^0.13.0",
+    "@pokit/terminal": "^0.13.0",
     "hono": "^4.13.14",
     "valibot": "^1.5.0",
     "zod": "^4.3.6"

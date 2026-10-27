@@ -5,24 +5,24 @@ settings:
   excludeLinksFromLockfile: false
 
 patchedDependencies:
-  '@pokit/core@0.12.0': ad88c82325e92d8eebc3bc67bfeb82c92a5bdc1393902ab83ed612383206afc7
+  '@pokit/core@0.13.0': ad88c82325e92d8eebc3bc67bfeb82c92a5bdc1393902ab83ed612383206afc7
 
 importers:
 
   .:
     devDependencies:
       '@pokit/core':
-        specifier: ^0.12.0
-        version: 0.12.0(patch_hash=ad88c82325e92d8eebc3bc67bfeb82c92a5bdc1393902ab83ed612383206afc7)(zod@4.6.7)
+        specifier: ^0.13.0
+        version: 0.13.0(patch_hash=ad88c82325e92d8eebc3bc67bfeb82c92a5bdc1393902ab83ed612383206afc7)(zod@4.6.7)
       '@pokit/terminal':
-        specifier: ^0.12.0
-        version: 0.12.0(@pokit/core@0.12.0(patch_hash=ad88c82325e92d8eebc3bc67bfeb82c92a5bdc1393902ab83ed612383206afc7)(zod@4.6.7))
+        specifier: ^0.13.0
+        version: 0.13.0(@pokit/core@0.13.0(patch_hash=ad88c82325e92d8eebc3bc67bfeb82c92a5bdc1393902ab83ed612383206afc7)(zod@4.6.7))
       '@types/bun':
         specifier: ^1.3.14
         version: 1.4.4
       pok-plugins:
         specifier: github:djgrant/pok-plugins
-        version: https://codeload.github.com/djgrant/pok-plugins/tar.gz/267ec295bdd04099455b117c75a1844773636213(@pokit/core@0.12.0(patch_hash=ad88c82325e92d8eebc3bc67bfeb82c92a5bdc1393902ab83ed612383206afc7)(zod@4.6.7))
+        version: https://codeload.github.com/djgrant/pok-plugins/tar.gz/267ec295bdd04099455b117c75a1844773636213(@pokit/core@0.13.0(patch_hash=ad88c82325e92d8eebc3bc67bfeb82c92a5bdc1393902ab83ed612383206afc7)(zod@4.6.7))
       rolldown:
         specifier: ^1.2.15
         version: 1.2.15
@@ -64,11 +64,11 @@ importers:
         specifier: workspace:*
         version: link:../utils
       '@pokit/core':
-        specifier: ^0.10.0
-        version: 0.10.0(zod@4.6.7)
+        specifier: ^0.13.0
+        version: 0.13.0(patch_hash=ad88c82325e92d8eebc3bc67bfeb82c92a5bdc1393902ab83ed612383206afc7)(zod@4.6.7)
       '@pokit/terminal':
-        specifier: ^0.10.0
-        version: 0.10.0(@pokit/core@0.10.0(zod@4.6.7))
+        specifier: ^0.13.0
+        version: 0.13.0(@pokit/core@0.13.0(patch_hash=ad88c82325e92d8eebc3bc67bfeb82c92a5bdc1393902ab83ed612383206afc7)(zod@4.6.7))
       hono:
         specifier: ^4.13.14
         version: 4.13.14
@@ -431,29 +431,17 @@ packages:
   '@oxc-project/types@0.155.0':
     resolution: {integrity: sha512-SeE8JPwW1xs1tHeNycjUtUBdhorRa8o4jlvjwk49R7/Z291i+4DQa7JJIgOm/TaYQZx+QrPQbVJ/9c8dMIZN8Q==}
 
-  '@pokit/core@0.10.0':
-    resolution: {integrity: sha512-aBqV7eY0HeZ6w1O12RiiOJlmNOcGA/1/pwxDwIKLO9cA8om5Q/+50/igfmPIy5pu2mgYBL2nLQ4NTb7dOp/8dQ==}
+  '@pokit/core@0.13.0':
+    resolution: {integrity: sha512-q0x3mnwZ8dQPxSQmxK2/veRuIsJXIeAoUsHaf7KXOLN8zYmqrfq4RjQlKSJD+SM6VoLWLFO0hFTHIo3GJAckzQ==}
     engines: {bun: '>=1.0.0', node: '>=18.0.0'}
     peerDependencies:
       zod: ^4.3.6
 
-  '@pokit/core@0.12.0':
-    resolution: {integrity: sha512-JmqR3PE8Kq4V42vOK0rSUlddtuyJCtP7RRrVWpCnyXLb7KMwYqLYeoflWrD8VNVXMIit/nJqPPbRV2x23QCufw==}
-    engines: {bun: '>=1.0.0', node: '>=18.0.0'}
-    peerDependencies:
-      zod: ^4.3.6
-
-  '@pokit/terminal@0.10.0':
-    resolution: {integrity: sha512-nGoP2gN0OTcDCw7FoG9M0TtWMXIiaU9Qqke9b8F8oZ1jAivaoONPLBqQp+l/gAbn13dDJOYU3duYfC6bCOhCcA==}
+  '@pokit/terminal@0.13.0':
+    resolution: {integrity: sha512-qdHdqH+Ecqrvwu6/ZAljitKhB8q+FbWoh36aaKR+Af5GhkqnBTiHwNd8f1F56ZgSZ03/Upp8YHoWN574yBuDDA==}
     engines: {bun: '>=1.0.0'}
     peerDependencies:
-      '@pokit/core': 0.10.0
-
-  '@pokit/terminal@0.12.0':
-    resolution: {integrity: sha512-lJJZnstxK19IM12FobXel7goJ1ExpP6raRmeDlYy3IaPWaEU33s8Qq8hD4e+JyXshB27kU3TtRqDw0DK6zWZZg==}
-    engines: {bun: '>=1.0.0'}
-    peerDependencies:
-      '@pokit/core': 0.12.0
+      '@pokit/core': 0.13.0
 
   '@rolldown/binding-android-arm-eabi@1.2.15':
     resolution: {integrity: sha512-aLcgK9gIJ3YRvrrtfSBbRa27F5WrpiTaPulnFpsHPxpUHgFlSgnU4854MHwoRGEBhfRJDWCS2WQ7lIjskE9Olw==}
@@ -1376,30 +1364,16 @@ snapshots:
 
   '@oxc-project/types@0.155.0': {}
 
-  '@pokit/core@0.10.0(zod@4.6.7)':
+  '@pokit/core@0.13.0(patch_hash=ad88c82325e92d8eebc3bc67bfeb82c92a5bdc1393902ab83ed612383206afc7)(zod@4.6.7)':
     dependencies:
       '@folder/xdg': 4.0.1
       fast-glob: 3.3.3
       picomatch: 4.0.7
       zod: 4.6.7
 
-  '@pokit/core@0.12.0(patch_hash=ad88c82325e92d8eebc3bc67bfeb82c92a5bdc1393902ab83ed612383206afc7)(zod@4.6.7)':
+  '@pokit/terminal@0.13.0(@pokit/core@0.13.0(patch_hash=ad88c82325e92d8eebc3bc67bfeb82c92a5bdc1393902ab83ed612383206afc7)(zod@4.6.7))':
     dependencies:
-      '@folder/xdg': 4.0.1
-      fast-glob: 3.3.3
-      picomatch: 4.0.7
-      zod: 4.6.7
-
-  '@pokit/terminal@0.10.0(@pokit/core@0.10.0(zod@4.6.7))':
-    dependencies:
-      '@pokit/core': 0.10.0(zod@4.6.7)
-      marked: 15.0.12
-      marked-terminal: 7.3.0(marked@15.0.12)
-      picocolors: 1.1.1
-
-  '@pokit/terminal@0.12.0(@pokit/core@0.12.0(patch_hash=ad88c82325e92d8eebc3bc67bfeb82c92a5bdc1393902ab83ed612383206afc7)(zod@4.6.7))':
-    dependencies:
-      '@pokit/core': 0.12.0(patch_hash=ad88c82325e92d8eebc3bc67bfeb82c92a5bdc1393902ab83ed612383206afc7)(zod@4.6.7)
+      '@pokit/core': 0.13.0(patch_hash=ad88c82325e92d8eebc3bc67bfeb82c92a5bdc1393902ab83ed612383206afc7)(zod@4.6.7)
       marked: 15.0.12
       marked-terminal: 7.3.0(marked@15.0.12)
       picocolors: 1.1.1
@@ -1816,9 +1790,9 @@ snapshots:
       exsolve: 1.1.3
       pathe: 2.0.3
 
-  pok-plugins@https://codeload.github.com/djgrant/pok-plugins/tar.gz/267ec295bdd04099455b117c75a1844773636213(@pokit/core@0.12.0(patch_hash=ad88c82325e92d8eebc3bc67bfeb82c92a5bdc1393902ab83ed612383206afc7)(zod@4.6.7)):
+  pok-plugins@https://codeload.github.com/djgrant/pok-plugins/tar.gz/267ec295bdd04099455b117c75a1844773636213(@pokit/core@0.13.0(patch_hash=ad88c82325e92d8eebc3bc67bfeb82c92a5bdc1393902ab83ed612383206afc7)(zod@4.6.7)):
     dependencies:
-      '@pokit/core': 0.12.0(patch_hash=ad88c82325e92d8eebc3bc67bfeb82c92a5bdc1393902ab83ed612383206afc7)(zod@4.6.7)
+      '@pokit/core': 0.13.0(patch_hash=ad88c82325e92d8eebc3bc67bfeb82c92a5bdc1393902ab83ed612383206afc7)(zod@4.6.7)
       bumpp: 10.4.1
       zod: 4.6.7
     transitivePeerDependencies:
