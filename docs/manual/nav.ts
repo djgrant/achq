@@ -21,7 +21,7 @@ export const manual: DocCategory = {
       links: [
         { label: "Declaring Infra", slug: "manual/infra" },
         { label: "Container Providers", slug: "manual/providers" },
-        { label: "Secrets & Vaults", slug: "manual/credentials" },
+        { label: "Secrets & Vaults", slug: "manual/secrets" },
       ],
     },
     {
