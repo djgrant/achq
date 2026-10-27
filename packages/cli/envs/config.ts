@@ -1,5 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { pathToFileURL } from "node:url";
 import { defineEnvResolver } from "@pokit/core";
 import { disk } from "@achq/utils/disk";
 import type { Vault } from "@achq/core";
@@ -24,7 +25,7 @@ export const loadConfig = async (dir = callerCwd()) => {
   const root = repoRoot(dir);
   const file = path.join(root, CONFIG_FILE);
   if (!fs.existsSync(file)) return;
-  const parsed = v.safeParse(Config, (await import(file)).default);
+  const parsed = v.safeParse(Config, (await import(pathToFileURL(path.resolve(file)).href)).default);
   if (!parsed.success) throw new Error(`${file}: ${schema.firstIssue(parsed.issues)}`);
   return { ...parsed.output, dir: root };
 };
@@ -38,7 +39,11 @@ export const envFrom = (config: CliConfig & { env: string }) =>
   disk.withTempDir("achq-env-", async (dir) => {
     const file = path.join(dir, "env.json");
     const write = "await Bun.write(process.argv[1], JSON.stringify(process.env))";
-    const proc = Bun.spawn(["sh", "-c", `${config.env} "$@"`, "achq", process.execPath, "-e", write, file], {
+    const cmd =
+      process.platform === "win32"
+        ? ["cmd", "/d", "/s", "/c", `${config.env} "${process.execPath}" -e "${write}" "${file}"`]
+        : ["sh", "-c", `${config.env} "$@"`, "achq", process.execPath, "-e", write, file];
+    const proc = Bun.spawn(cmd, {
       cwd: config.dir,
       stdio: ["inherit", "inherit", "inherit"],
     });

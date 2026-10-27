@@ -1,3 +1,4 @@
+import * as path from "node:path";
 import { posix } from "node:path";
 import { CONFIG_DIR, CONFIG_ENTRY, CORE_PLUGIN } from "@achq/core";
 import { type ManifestInput, validateManifest } from "@achq/core/manifest";
@@ -28,11 +29,14 @@ const CONFIG_MODULE = `${SANDBOX_ROOT}/${CONFIG_ENTRY}`;
 const layoutOf = (modules: ConfigModules) => {
   const entrypoints = Object.values(modules);
   // The directory every entrypoint is in, so each one's output keeps its own path under SANDBOX_LIB: there are several `index.ts`s.
-  const root = entrypoints.map(posix.dirname).reduce((a, b) => {
-    while (!`${b}/`.startsWith(`${a}/`)) a = posix.dirname(a);
+  const root = entrypoints.map((e) => path.dirname(path.resolve(e))).reduce((a, b) => {
+    while (!`${b}${path.sep}`.startsWith(`${a}${path.sep}`)) a = path.dirname(a);
     return a;
   });
-  const sandboxPath = (entry: string) => posix.join(SANDBOX_LIB, posix.relative(root, entry).replace(/\.[a-z]+$/, ".js"));
+  const sandboxPath = (entry: string) => {
+    const rel = path.relative(root, path.resolve(entry)).split(path.sep).join("/").replace(/\.[a-z]+$/, ".js");
+    return posix.join(SANDBOX_LIB, rel);
+  };
   // What a config's bare imports resolve to: each package's entry module.
   const imports = Object.fromEntries(Object.entries(modules).map(([specifier, file]) => [specifier, sandboxPath(file)])) as Record<string, string>;
   return {

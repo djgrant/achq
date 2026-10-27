@@ -136,7 +136,7 @@ export const disk = {
     const files: Record<string, string> = {};
     const walk = (sub: string) => {
       for (const entry of fs.readdirSync(path.join(dir, sub), { withFileTypes: true })) {
-        const rel = path.join(sub, entry.name);
+        const rel = sub ? `${sub}/${entry.name}` : entry.name;
         if (entry.isDirectory() && !skip.includes(entry.name)) walk(rel);
         if (entry.isFile()) files[rel] = fs.readFileSync(path.join(dir, rel), "utf8");
       }

@@ -102,8 +102,13 @@ export const subprocess = {
   /** Opens `url` in your browser. */
   /** Whether the browser opened it. */
   openUrl: (url: string) => {
-    const opener = process.platform === "darwin" ? "open" : "xdg-open";
-    return Bun.spawnSync([opener, url], { stdout: "ignore", stderr: "ignore" }).success;
+    const cmd =
+      process.platform === "darwin"
+        ? ["open", url]
+        : process.platform === "win32"
+          ? ["cmd", "/c", "start", "", url.replaceAll("&", "^&")]
+          : ["xdg-open", url];
+    return Bun.spawnSync(cmd, { stdout: "ignore", stderr: "ignore" }).success;
   },
 
   requireBinary: (name: string, what: string, install: string) => {

@@ -17,13 +17,14 @@ const CODE_HOST = githubCodeHostProvider;
 /** The ACHQ infra file, at the infra repo's root. */
 const INFRA_FILE = "achq.infra.ts";
 
-/** The directory `achq` was run in. `bin/achq` passes it on, since pok runs from achq's own directory. */
+/** The directory `achq` was run in. Passed on by CALLER_CWD if set, otherwise captured at load time. */
 const CALLER_CWD = "ACHQ_CALLER_CWD";
+const INITIAL_CWD = process.env[CALLER_CWD] ?? process.cwd();
 
 export type RepoHere = { repo: string; codeHost: CodeHostAsYou };
 
 /** The directory `achq` was run in. */
-export const callerCwd = () => process.env[CALLER_CWD] ?? process.cwd();
+export const callerCwd = () => process.env[CALLER_CWD] ?? INITIAL_CWD;
 
 /** The git repo `dir` is in, or `dir` itself outside one. */
 export const repoRoot = (dir = callerCwd()) => Git.root(dir) ?? dir;

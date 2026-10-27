@@ -1,7 +1,3 @@
-#!/bin/sh
-# Runs achq's CLI from anywhere. Commands work on the repo you ran this in,
-# so pass that directory on.
-ACHQ_CALLER_CWD=$PWD
-export ACHQ_CALLER_CWD
-root="$(dirname "$(readlink -f "$0")")/.."
-exec bun "$root/main.ts" "$@"
+#!/usr/bin/env bun
+// Runs achq's CLI from anywhere.
+import "../main.ts";

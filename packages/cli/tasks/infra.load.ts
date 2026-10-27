@@ -1,4 +1,5 @@
 import * as path from "node:path";
+import { pathToFileURL } from "node:url";
 import { defineTask } from "@pokit/core";
 import { type CodeHost, type Deployer, type Infra, isCodeHost, isDeployer, isRouter, isAgentRuntime, type Resource, type Router, type AgentRuntime } from "@achq/core";
 import { collections } from "@achq/utils/collections";
@@ -22,7 +23,7 @@ export type InfraResources = {
  * recognises its classes whichever copy made them.
  */
 export const loadInfra = async (file: string) => {
-  const mod = await import(path.resolve(file));
+  const mod = await import(pathToFileURL(path.resolve(file)).href);
   if (typeof mod.default !== "function") throw new Error(`${file} must \`export default achq(() => { … })\``);
   return checkInfra(mod.default() as Infra);
 };

@@ -17,10 +17,16 @@ test("a secret is read from stdin without a terminal, and isn't echoed", async (
 });
 
 test("without a terminal, a question isn't asked and the answer is no", async () => {
-  const asked: PromptCall[] = [];
-  const prompter = createRawPrompter({ confirmResponses: true, onPrompt: (call) => void asked.push(call) });
-  expect(await confirm(prompter, "Delete all of this?")).toBe(false);
-  expect(asked).toEqual([]);
+  const tty = [process.stdin.isTTY, process.stdout.isTTY];
+  process.stdin.isTTY = process.stdout.isTTY = false as unknown as true;
+  try {
+    const asked: PromptCall[] = [];
+    const prompter = createRawPrompter({ confirmResponses: true, onPrompt: (call) => void asked.push(call) });
+    expect(await confirm(prompter, "Delete all of this?")).toBe(false);
+    expect(asked).toEqual([]);
+  } finally {
+    [process.stdin.isTTY, process.stdout.isTTY] = tty as [true, true];
+  }
 });
 
 test("waiting for Enter asks the prompter, and goes on once it's answered", async () => {

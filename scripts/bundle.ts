@@ -60,18 +60,10 @@ export const PACKAGES: Package[] = [
   },
   {
     dir: "cli",
-    entries: { "main.ts": { out: "achq.js" } },
+    entries: { "main.ts": { out: "achq.js", bin: true } },
     target: "bun",
     // It evaluates a repo's config in the deployer's sandbox.
     copies: QUICKJS,
-    // It passes on the directory it was run in.
-    script: {
-      bin: "bin/achq",
-      replace: [
-        ['root="$(dirname "$(readlink -f "$0")")/.."', 'root="$(dirname "$(readlink -f "$0")")"'],
-        ['"$root/main.ts"', '"$root/achq.js"'],
-      ],
-    },
   },
 ];
 

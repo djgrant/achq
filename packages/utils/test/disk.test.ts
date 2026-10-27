@@ -146,5 +146,5 @@ test("readTree reads every file, skipping named directories", () => {
   fs.writeFileSync(path.join(dir, "config.ts"), "c");
   fs.writeFileSync(path.join(dir, "lib", "a.ts"), "a");
   fs.writeFileSync(path.join(dir, "node_modules", "x", "i.js"), "i");
-  expect(disk.readTree(dir, { skip: ["node_modules"] })).toEqual({ "config.ts": "c", [path.join("lib", "a.ts")]: "a" });
+  expect(disk.readTree(dir, { skip: ["node_modules"] })).toEqual({ "config.ts": "c", "lib/a.ts": "a" });
 });

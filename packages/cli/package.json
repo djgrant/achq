@@ -17,7 +17,7 @@
   },
   "publishConfig": {
     "bin": {
-      "achq": "dist/achq"
+      "achq": "dist/achq.js"
     }
   },
   "dependencies": {
