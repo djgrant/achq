@@ -14,6 +14,3 @@ packages/core/.second-core
 
 # The services' bundles (scripts/bundle.ts), which is what they publish
 packages/*/dist
-
-# Local post:publish hook (installs the published CLI into ~/npmbin)
-commands/publish.ts
