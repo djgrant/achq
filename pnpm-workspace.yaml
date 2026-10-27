@@ -3,6 +3,3 @@ packages:
 
 minimumReleaseAgeExclude:
   - '@pokit/*'
-
-patchedDependencies:
-  "@pokit/core@0.13.0": patches/@pokit%2Fcore@0.13.0.patch
