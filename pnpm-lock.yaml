@@ -15,7 +15,7 @@ importers:
         specifier: ^1.0.0
         version: 1.0.0(@pokit/core@1.0.0)
       '@types/bun':
-        specifier: ^1.3.14
+        specifier: ^1.4.4
         version: 1.4.4
       pok-plugins:
         specifier: github:djgrant/pok-plugins

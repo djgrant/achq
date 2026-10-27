@@ -2,8 +2,8 @@
 
 `@achq/core` holds the resources both ACHQ infrastructure configs (`achq.infra.ts`) and repository outpost configs (`.achq/config.ts`) declare, and the contracts every plugin implements.
 
-```sh
-pnpm add -D @achq/core
+```bash
+@pm.dev("@achq/core")
 ```
 
 | Used in | Exports |

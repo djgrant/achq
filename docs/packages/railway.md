@@ -2,8 +2,8 @@
 
 `@achq/railway` runs ACHQ (`Router` and `Deployer`) and repository outposts inside a shared Railway project with persistent `/data` volumes and private networking. Imported in `achq.infra.ts` from `@achq/railway/infra`.
 
-```sh
-pnpm add -D @achq/railway
+```bash
+@pm.dev("@achq/railway")
 ```
 
 ## Router & Deployer

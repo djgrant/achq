@@ -2,8 +2,8 @@
 
 `@achq/claude` provides the Claude Code `AgentRuntime` resource for `achq.infra.ts`, the `Agent` resource for `.achq/config.ts`, and the runtime adapter that executes `claude` inside outpost containers.
 
-```sh
-pnpm add -D @achq/claude
+```bash
+@pm.dev("@achq/claude")
 ```
 
 ## Agent runtime

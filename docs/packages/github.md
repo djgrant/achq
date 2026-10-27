@@ -2,8 +2,8 @@
 
 `@achq/github` connects GitHub repositories and issues to ACHQ across two entrypoints:
 
-```sh
-pnpm add -D @achq/github
+```bash
+@pm.dev("@achq/github")
 ```
 
 | Import path | Used in | Exports |

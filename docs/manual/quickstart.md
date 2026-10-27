@@ -6,8 +6,8 @@ Deploy an ACHQ control plane on Cloudflare, subscribe `acme/webapp`, trigger Cla
 
 In your infra repository, add the packages `achq.infra.ts` imports:
 
-```sh
-pnpm add -D @achq/core @achq/cloudflare @achq/github @achq/claude
+```bash
+@pm.dev("@achq/core @achq/cloudflare @achq/github @achq/claude")
 ```
 
 Declare the control plane for the `acme` organization:
@@ -35,8 +35,8 @@ export default achq(() => {
 
 Authenticate with Cloudflare and Claude, then bring the control plane up:
 
-```sh
-npx wrangler login
+```bash
+@pm.dlx("wrangler login")
 export CLAUDE_CODE_OAUTH_TOKEN="$(claude setup-token)"
 achq infra up
 ```
@@ -52,8 +52,8 @@ achq infra up
 
 In `acme/webapp`, add the packages `.achq/config.ts` imports:
 
-```sh
-pnpm add -D @achq/core @achq/github @achq/claude
+```bash
+@pm.dev("@achq/core @achq/github @achq/claude")
 ```
 
 Define the container image where agents will run:

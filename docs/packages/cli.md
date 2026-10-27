@@ -2,8 +2,8 @@
 
 `@achq/cli` provides the `achq` executable. It runs on [Bun](https://bun.sh):
 
-```sh
-pnpm add -g @achq/cli
+```bash
+@pm.add("-g @achq/cli")
 ```
 
 
