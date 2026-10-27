@@ -17,7 +17,7 @@ Add the packages your config imports as dev dependencies, for type-checking and 
 In an infrastructure repository, add `@achq/core` and the plugins `achq.infra.ts` declares resources from:
 
 ```bash
-@pm.dev("@achq/core @achq/cloudflare @achq/github @achq/claude")  # or @achq/railway
+@pm.dev("@achq/core @achq/cloudflare @achq/github @achq/claude")
 ```
 
 In an outpost repository, add `@achq/core` and the plugins `.achq/config.ts` imports:

@@ -1,15 +1,15 @@
 # Introduction
 
-Agent Communications Headquarters (ACHQ) is a SIGINT hub to manage your agents:
+Agent Communications Headquarters (ACHQ) delivers signals intelligence for your agents to act on:
 
-- **Listens** to messages on your communication channels (GitHub issues, Linear, etc.)
-- **Dispatches** agents into remote outposts (Cloudflare Containers, Railway, E2B, etc.)
-- **Connects** you directly to remote agents over a secure line (SSH, Tailscale, etc.)
+- **Listens** to messages on your communication channels (_GitHub issues, Linear, etc._)
+- **Dispatches** agents into remote outposts (_Cloudflare Containers, Railway, E2B, etc._)
+- **Connects** you directly to remote agents over a secure line (_SSH, Tailscale, etc._)
 
 
-## ACHQ
+## The Hub
 
-Stand up a central ACHQ instance your organisation to serve all of your outposts.
+Stand up a central ACHQ hub your organisation to serve all of your outposts.
 
 ```ts [achq.infra.ts]
 const router = new cloudflare.Router("router", { project: "acme-agents" });

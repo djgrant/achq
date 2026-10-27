@@ -37,7 +37,7 @@ importers:
         version: 5.3.0
       '@notation/docs':
         specifier: git+ssh://git@github.com/djgrant/docs.git#main&path:/packages/docs
-        version: git+ssh://git@github.com/djgrant/docs.git#977972169e0f02f2279c5b16e6da8024b2748477&path:/packages/docs(@tanstack/react-router@1.170.44(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(@tanstack/react-start@1.169.2(@voidzero-dev/vite-plus-core@1.2.0(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(typescript@7.0.2)(yaml@2.9.1))(esbuild@0.28.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(rolldown@1.2.15)(supports-color@10.2.2))(@types/node@26.6.5)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(@voidzero-dev/vite-plus-core@1.2.0(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(typescript@7.0.2)(yaml@2.9.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(rolldown@1.2.15)
+        version: git+ssh://git@github.com/djgrant/docs.git#ed33870a4b4229d8a81bf25406b5a69615da5b57&path:/packages/docs(@tanstack/react-router@1.170.44(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(@tanstack/react-start@1.169.2(@voidzero-dev/vite-plus-core@1.2.0(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(typescript@7.0.2)(yaml@2.9.1))(esbuild@0.28.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(rolldown@1.2.15)(supports-color@10.2.2))(@types/node@26.6.5)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(@voidzero-dev/vite-plus-core@1.2.0(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(typescript@7.0.2)(yaml@2.9.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(rolldown@1.2.15)
       '@tanstack/react-router':
         specifier: 1.170.44
         version: 1.170.44(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
@@ -864,8 +864,8 @@ packages:
   '@jridgewell/trace-mapping@0.3.9':
     resolution: {integrity: sha512-3Belt6tdc8bPgAtbcmdtNJlirVoTmEb5e2gC94PnkwEW9jI6CAHUeoG85tjWP5WquqfavoMtMwiG4P926ZKKuQ==}
 
-  '@notation/docs@git+ssh://git@github.com/djgrant/docs.git#977972169e0f02f2279c5b16e6da8024b2748477&path:/packages/docs':
-    resolution: {commit: 977972169e0f02f2279c5b16e6da8024b2748477, path: /packages/docs, repo: git@github.com:djgrant/docs.git, type: git}
+  '@notation/docs@git+ssh://git@github.com/djgrant/docs.git#ed33870a4b4229d8a81bf25406b5a69615da5b57&path:/packages/docs':
+    resolution: {commit: ed33870a4b4229d8a81bf25406b5a69615da5b57, path: /packages/docs, repo: git@github.com:djgrant/docs.git, type: git}
     version: 0.1.0
     hasBin: true
     peerDependencies:
@@ -3879,7 +3879,7 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.6.0
 
-  '@notation/docs@git+ssh://git@github.com/djgrant/docs.git#977972169e0f02f2279c5b16e6da8024b2748477&path:/packages/docs(@tanstack/react-router@1.170.44(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(@tanstack/react-start@1.169.2(@voidzero-dev/vite-plus-core@1.2.0(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(typescript@7.0.2)(yaml@2.9.1))(esbuild@0.28.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(rolldown@1.2.15)(supports-color@10.2.2))(@types/node@26.6.5)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(@voidzero-dev/vite-plus-core@1.2.0(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(typescript@7.0.2)(yaml@2.9.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(rolldown@1.2.15)':
+  '@notation/docs@git+ssh://git@github.com/djgrant/docs.git#ed33870a4b4229d8a81bf25406b5a69615da5b57&path:/packages/docs(@tanstack/react-router@1.170.44(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(@tanstack/react-start@1.169.2(@voidzero-dev/vite-plus-core@1.2.0(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(typescript@7.0.2)(yaml@2.9.1))(esbuild@0.28.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(rolldown@1.2.15)(supports-color@10.2.2))(@types/node@26.6.5)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(@voidzero-dev/vite-plus-core@1.2.0(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(typescript@7.0.2)(yaml@2.9.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(rolldown@1.2.15)':
     dependencies:
       '@cloudflare/vite-plugin': 1.64.0(@types/node@26.6.5)(@voidzero-dev/vite-plus-core@1.2.0(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(typescript@7.0.2)(yaml@2.9.1))(wrangler@4.151.0(@types/node@26.6.5))
       '@comark/react': 0.7.0(react@19.3.1)(shiki@4.5.0)

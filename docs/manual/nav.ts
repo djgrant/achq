@@ -16,6 +16,15 @@ export const manual: DocCategory = {
       ],
     },
     {
+      heading: "The Hub",
+      icon: "cloud",
+      links: [
+        { label: "Declaring Infra", slug: "manual/infra" },
+        { label: "Container Providers", slug: "manual/providers" },
+        { label: "Secrets & Vaults", slug: "manual/credentials" },
+      ],
+    },
+    {
       heading: "Outposts",
       icon: "layers",
       links: [
@@ -23,15 +32,6 @@ export const manual: DocCategory = {
         { label: "Workspaces & Threads", slug: "manual/workspaces" },
         { label: "Agents & Triggers", slug: "manual/agents-and-triggers" },
         { label: "Containers & Policies", slug: "manual/containers" },
-      ],
-    },
-    {
-      heading: "ACHQ",
-      icon: "cloud",
-      links: [
-        { label: "Declaring Infra", slug: "manual/infra" },
-        { label: "Container Providers", slug: "manual/providers" },
-        { label: "Secrets & Vaults", slug: "manual/credentials" },
       ],
     },
     {
