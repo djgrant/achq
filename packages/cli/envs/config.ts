@@ -3,29 +3,30 @@ import * as path from "node:path";
 import { defineEnvResolver } from "@pokit/core";
 import { disk } from "@achq/utils/disk";
 import type { Vault } from "@achq/core";
-import { z } from "zod";
+import { schema } from "@achq/utils/schema";
+import * as v from "valibot";
 import { callerCwd, repoRoot } from "../io/workdir.ts";
 
 /** The CLI's own config, at the root of the repo it's run in. */
 const CONFIG_FILE = "achq.config.ts";
 
-const Config = z.object({
+const Config = v.object({
   /** A command prefix that puts secrets in the environment, e.g. `op run --env-file=.env --`. achq takes on the environment it sets. */
-  env: z.string().optional(),
+  env: v.optional(v.string()),
   /** Where `achq infra up` keeps GitHub Apps' private keys, to give them to another router, e.g. `onepassword.vault("achq")`: anything that reads and writes items. */
-  vault: z.custom<Vault>((v) => typeof (v as Vault | undefined)?.read === "function" && typeof (v as Vault).write === "function", "a vault, e.g. onepassword.vault(\"achq\")").optional(),
+  vault: v.optional(v.custom<Vault>((x) => typeof (x as Vault | undefined)?.read === "function" && typeof (x as Vault).write === "function", "a vault, e.g. onepassword.vault(\"achq\")")),
 });
 
-export type CliConfig = z.infer<typeof Config> & { dir: string };
+export type CliConfig = v.InferOutput<typeof Config> & { dir: string };
 
 /** The config at the root of `dir`'s repo, if there is one. */
 export const loadConfig = async (dir = callerCwd()) => {
   const root = repoRoot(dir);
   const file = path.join(root, CONFIG_FILE);
   if (!fs.existsSync(file)) return;
-  const parsed = Config.safeParse((await import(file)).default);
-  if (!parsed.success) throw new Error(`${file}: ${z.prettifyError(parsed.error)}`);
-  return { ...parsed.data, dir: root };
+  const parsed = v.safeParse(Config, (await import(file)).default);
+  if (!parsed.success) throw new Error(`${file}: ${schema.firstIssue(parsed.issues)}`);
+  return { ...parsed.output, dir: root };
 };
 
 /**
@@ -43,7 +44,7 @@ export const envFrom = (config: CliConfig & { env: string }) =>
     });
     const code = await proc.exited;
     if (code !== 0 || !fs.existsSync(file)) throw new Error(`\`${config.env}\` failed (exit ${code})`);
-    return z.record(z.string(), z.string()).parse(JSON.parse(fs.readFileSync(file, "utf8")));
+    return v.parse(v.record(v.string(), v.string()), JSON.parse(fs.readFileSync(file, "utf8")));
   });
 
 /**

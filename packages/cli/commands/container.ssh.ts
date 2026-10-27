@@ -1,5 +1,5 @@
 import { defineCommand } from "@pokit/core";
-import { z } from "zod";
+import * as v from "valibot";
 import { clean } from "../io/terminal.ts";
 import { needRepo, repoFlag } from "../io/workdir.ts";
 import { containerReach } from "../tasks/container.reach.ts";
@@ -10,7 +10,7 @@ export const command = defineCommand({
   examples: ["achq container ssh", "achq container ssh --repo djgrant/foo --container dev -- ls /data"],
   context: {
     repo: repoFlag,
-    container: { from: "flag", schema: z.string().optional(), description: "Container name" },
+    container: { from: "flag", schema: v.optional(v.string()), description: "Container name" },
   },
   run: clean(async (r, { context }) => {
     const container = await run(r, containerReach, { here: needRepo(context.repo), wanted: context.container });

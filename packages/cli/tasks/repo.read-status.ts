@@ -1,7 +1,7 @@
 import { defineTask } from "@pokit/core";
 import { async } from "@achq/utils/async";
 import { time } from "@achq/utils/time";
-import { z } from "zod";
+import * as v from "valibot";
 import type { RepoHere } from "../io/workdir.ts";
 import { given, sleep } from "./params.ts";
 
@@ -15,7 +15,7 @@ const STATUS_INTERVAL_MS = 5000;
  */
 export const repoReadStatus = defineTask({
   label: "Read the repo's status",
-  params: z.object({ here: given<RepoHere>(), since: z.date().optional(), sleep }),
+  params: v.object({ here: given<RepoHere>(), since: v.optional(v.date()), sleep }),
   run: async (_r, { params: { here, since, sleep } }) => {
     const { repo, codeHost } = here;
     if (!since) return codeHost.status(repo);

@@ -2,7 +2,7 @@ import { defineTask } from "@pokit/core";
 import type { RepoInstallation } from "@achq/core";
 import { routerForPusher } from "@achq/core/clients/router";
 import { HttpError } from "@achq/utils/http";
-import { z } from "zod";
+import * as v from "valibot";
 import type { RepoHere } from "../io/workdir.ts";
 import { given } from "./params.ts";
 
@@ -16,7 +16,7 @@ const NOT_FOUND = 404;
  */
 export const repoAskRouter = defineTask({
   label: "Ask the repo's router",
-  params: z.object({ here: given<RepoHere>(), source: z.string() }),
+  params: v.object({ here: given<RepoHere>(), source: v.string() }),
   run: async (_r, { params: { here, source } }): Promise<{ router: string; installation?: RepoInstallation } | undefined> => {
     const { repo, codeHost } = here;
     const router = (await codeHost.status(repo))?.router;

@@ -1,6 +1,6 @@
 import { defineTask } from "@pokit/core";
 import { routerForPusher } from "@achq/core/clients/router";
-import { z } from "zod";
+import * as v from "valibot";
 import { chooseOne } from "../io/terminal.ts";
 import { reachable } from "../io/shell.ts";
 import { notSetUp, type RepoHere } from "../io/workdir.ts";
@@ -11,7 +11,7 @@ import { runner } from "./run.ts";
 /** The repo's container, the one `wanted` names or picked at the terminal, reached through the router, which wakes it each time. */
 export const containerReach = defineTask({
   label: "Reach the container",
-  params: z.object({ here: given<RepoHere>(), wanted: z.string().optional() }),
+  params: v.object({ here: given<RepoHere>(), wanted: v.optional(v.string()) }),
   run: async (r, { params: { here, wanted } }) => {
     const { repo, codeHost } = here;
     // ACHQ_STATUS says where the repo's containers are, and which router fronts them.

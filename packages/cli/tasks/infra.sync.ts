@@ -3,7 +3,7 @@ import type { SyncRequest } from "@achq/core/protocol";
 import type { RouterAdmin } from "@achq/core/clients/router";
 import { async } from "@achq/utils/async";
 import { time } from "@achq/utils/time";
-import { z } from "zod";
+import * as v from "valibot";
 import { given, sleep } from "./params.ts";
 
 /** How long a sync, which deploys every repo, is waited for, and how often it's asked after. */
@@ -13,7 +13,7 @@ const SYNC_INTERVAL_MS = 5000;
 /** Has the deployer sync, and asks after it until it's done: it can outlast a request, and is started again if its deployer stops while it runs. */
 export const infraSync = defineTask({
   label: "Sync the deployer",
-  params: z.object({ admin: given<RouterAdmin>(), request: given<SyncRequest>(), sleep }),
+  params: v.object({ admin: given<RouterAdmin>(), request: given<SyncRequest>(), sleep }),
   run: async (_r, { params: { admin, request, sleep } }) => {
     const start = () => admin.sync({ body: request }).then(({ id }) => id);
     let id = await start();

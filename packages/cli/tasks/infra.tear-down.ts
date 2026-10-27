@@ -3,14 +3,14 @@ import { teardown } from "@achq/core";
 import type { SyncRequest } from "@achq/core/protocol";
 import { routerAdmin } from "@achq/core/clients/router";
 import { context } from "@achq/core/context";
-import { z } from "zod";
+import * as v from "valibot";
 import { openInBrowser } from "../io/terminal.ts";
 import { planLines } from "../renderers/plan.ts";
 import { formatSync } from "../renderers/sync.ts";
 import { foundRouter } from "./infra.find-router.ts";
 import type { InfraResources } from "./infra.load.ts";
 import { infraSync } from "./infra.sync.ts";
-import { contextParams, given, type Open } from "./params.ts";
+import { contextParams, given, givenOr, maybe, type Open } from "./params.ts";
 import { run } from "./run.ts";
 
 /**
@@ -22,15 +22,15 @@ import { run } from "./run.ts";
  */
 export const infraTearDown = defineTask({
   label: "Tear down the infra",
-  params: z.object({
+  params: v.object({
     infra: given<InfraResources>(),
-    dryRun: z.boolean().default(false),
+    dryRun: v.optional(v.boolean(), false),
     /** Asks you whether to go ahead, once it's shown what it deletes. */
     confirm: given<(message: string) => Promise<boolean>>(),
     /** Opens `url` in your browser to `what`: where you delete what's protected yourself. */
-    open: given<Open>().default(() => openInBrowser),
+    open: givenOr<Open>(() => openInBrowser),
     /** Rewrites the router's public URL; tests point it at a fake. */
-    routerUrl: given<(publicUrl: string) => string>().optional(),
+    routerUrl: maybe<(publicUrl: string) => string>(),
     ...contextParams,
   }),
   run: async (r, { params }) => {

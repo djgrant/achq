@@ -2,7 +2,7 @@ import * as path from "node:path";
 import { defineTask } from "@pokit/core";
 import { type CodeHost, type Deployer, type Infra, isCodeHost, isDeployer, isRouter, isAgentRuntime, type Resource, type Router, type AgentRuntime } from "@achq/core";
 import { collections } from "@achq/utils/collections";
-import { z } from "zod";
+import * as v from "valibot";
 
 export type InfraResources = {
   router: Router;
@@ -55,6 +55,6 @@ export const checkInfra = ({ resources }: Infra) => {
 /** The infra the file declares, checked: every infra command starts here. Its checks load it too, as they run before the command. */
 export const infraLoad = defineTask({
   label: "Load the infra",
-  params: z.object({ file: z.string() }),
+  params: v.object({ file: v.string() }),
   run: (_r, { params }) => loadInfra(params.file),
 });

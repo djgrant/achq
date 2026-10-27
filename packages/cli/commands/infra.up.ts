@@ -1,6 +1,6 @@
 import { defineCommand, dryRunContext } from "@pokit/core";
 import { Env } from "@achq/utils/env";
-import { z } from "zod";
+import * as v from "valibot";
 import { infraChecks, runtimesEnv } from "../checks/infra.ts";
 import { loadConfig } from "../envs/config.ts";
 import { clean } from "../io/terminal.ts";
@@ -14,9 +14,9 @@ export const command = defineCommand({
   label: "Deploy the infra",
   examples: ["achq infra up --dry-run", "achq infra up", "achq infra up --prune", "achq infra up --rotate-deployer-token"],
   context: {
-    prune: { from: "flag", schema: z.boolean().default(false), description: "Delete uninstalled repos' containers" },
+    prune: { from: "flag", schema: v.optional(v.boolean(), false), description: "Delete uninstalled repos' containers" },
     ...dryRunContext,
-    rotateDeployerToken: { from: "flag", schema: z.boolean().default(false), description: "Replace the deployer's own token, where it has one" },
+    rotateDeployerToken: { from: "flag", schema: v.optional(v.boolean(), false), description: "Replace the deployer's own token, where it has one" },
   },
   pre: async () => infraChecks(needInfra(), process.env),
   run: clean(async (r, { context }) => {

@@ -1,8 +1,8 @@
 import { CORE_PLUGIN, type Plugin } from "@achq/core";
 import { defineTask } from "@pokit/core";
-import { z } from "zod";
+import * as v from "valibot";
 import { type Npm, npm } from "../io/npm.ts";
-import { given } from "./params.ts";
+import { given, givenOr } from "./params.ts";
 
 /** What achq runs besides the plugins: the services and the containers' runner, at the version core is. */
 const SERVICES = ["@achq/router", "@achq/deployer", "@achq/runner"];
@@ -14,7 +14,7 @@ const SERVICES = ["@achq/router", "@achq/deployer", "@achq/runner"];
  */
 export const infraCheckPlugins = defineTask({
   label: "Check the plugins on npm",
-  params: z.object({ plugins: given<Plugin[]>(), core: z.string(), npm: given<Npm>().default(() => npm) }),
+  params: v.object({ plugins: given<Plugin[]>(), core: v.string(), npm: givenOr<Npm>(() => npm) }),
   run: async (_r, { params: { plugins, core, npm } }) => {
     // A plugin both the services and containers load is looked up once.
     const wanted = [...SERVICES.map((name) => ({ package: name, version: core })), ...plugins].filter(

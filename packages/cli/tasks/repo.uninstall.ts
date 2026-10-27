@@ -4,11 +4,11 @@ import type { RepoManifest } from "@achq/core/manifest";
 import { async } from "@achq/utils/async";
 import { errors } from "@achq/utils/errors";
 import { time } from "@achq/utils/time";
-import { z } from "zod";
+import * as v from "valibot";
 import { openInBrowser } from "../io/terminal.ts";
 import type { RepoHere } from "../io/workdir.ts";
 import { repoAskRouter } from "./repo.ask-router.ts";
-import { given, log, type Open, sleep } from "./params.ts";
+import { given, givenOr, log, type Open, sleep } from "./params.ts";
 import { run, runner } from "./run.ts";
 
 /** How long you're waited for to remove the repo in your browser, and how often the router is asked whether you have. */
@@ -36,12 +36,12 @@ const installationToRemove = async (r: Runner, here: RepoHere, source: string) =
  */
 export const repoUninstall = defineTask({
   label: "Uninstall achq from the repo",
-  params: z.object({
+  params: v.object({
     here: given<RepoHere>(),
     manifest: given<RepoManifest>(),
-    dryRun: z.boolean().default(false),
+    dryRun: v.optional(v.boolean(), false),
     /** Opens your browser where you remove the repo. */
-    open: given<Open>().default(() => openInBrowser),
+    open: givenOr<Open>(() => openInBrowser),
     log,
     sleep,
   }),

@@ -15,7 +15,7 @@ import * as railway from "@achq/railway/infra";
 import { fakeOp } from "@achq/test-utils/fakes/vendors/1password";
 import { serve } from "@achq/utils/routes";
 import { Hono } from "hono";
-import type { z } from "zod";
+import type * as v from "valibot";
 import * as onepassword from "@achq/1password";
 import { infraApply } from "../tasks/infra.apply.ts";
 import { infraFindRouter } from "../tasks/infra.find-router.ts";
@@ -25,7 +25,7 @@ import { run } from "../tasks/run.ts";
 import { testRunner } from "./runner.ts";
 
 /** What a task takes, as its caller passes it. */
-type Params<T extends { params?: z.ZodType }> = z.input<NonNullable<T["params"]>>;
+type Params<T extends { params?: v.GenericSchema }> = v.InferInput<NonNullable<T["params"]>>;
 type UpDeps = Omit<Params<typeof infraApply>, "infra" | "prune" | "dryRun" | "rotateDeployerToken">;
 type DownDeps = Omit<Params<typeof infraTearDown>, "infra" | "dryRun">;
 

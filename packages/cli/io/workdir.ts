@@ -3,7 +3,7 @@ import * as path from "node:path";
 import type { CodeHostAsYou } from "@achq/core";
 import type { Vars } from "@achq/utils/env";
 import { Git } from "@achq/utils/git";
-import { z } from "zod";
+import * as v from "valibot";
 import { githubCodeHostProvider } from "@achq/github/code-host";
 
 /**
@@ -44,7 +44,7 @@ const repoOn = (codeHost: CodeHostAsYou, wanted: string): RepoHere | undefined =
 /** For a repo achq has never deployed. */
 export const notSetUp = (repo: string) => `${repo} isn't set up yet. To set it up, run \`achq repo install\`.`;
 
-export const repoFlag = { from: "flag", schema: z.string().optional(), description: "owner/name or URL (default: origin)" } as const;
+export const repoFlag = { from: "flag", schema: v.optional(v.string()), description: "owner/name or URL (default: origin)" } as const;
 
 /** The repo `wanted` names, as `owner/name` or a remote URL, or else the one `dir`'s origin names. */
 export const needRepo = (wanted?: string, dir = callerCwd(), env: Vars = process.env) => {

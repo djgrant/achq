@@ -1,5 +1,5 @@
 import { defineCommand, dryRunContext } from "@pokit/core";
-import { z } from "zod";
+import * as v from "valibot";
 import { infraChecks } from "../checks/infra.ts";
 import { loadConfig } from "../envs/config.ts";
 import { clean, confirm } from "../io/terminal.ts";
@@ -13,7 +13,7 @@ export const command = defineCommand({
   examples: ["achq infra down --dry-run", "achq infra down", "achq infra down --yes"],
   context: {
     ...dryRunContext,
-    yes: { from: "flag", schema: z.boolean().default(false), description: "Don't ask first, e.g. in CI" },
+    yes: { from: "flag", schema: v.optional(v.boolean(), false), description: "Don't ask first, e.g. in CI" },
   },
   pre: async () => infraChecks(needInfra(), process.env),
   run: clean(async (r, { context }) => {

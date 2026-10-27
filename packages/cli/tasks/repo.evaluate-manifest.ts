@@ -4,7 +4,7 @@ import { defineTask } from "@pokit/core";
 import { CONFIG_DIR, CONFIG_ENTRY, CORE_PLUGIN } from "@achq/core";
 import { type ConfigModules, evaluateConfig } from "@achq/deployer/config";
 import { disk } from "@achq/utils/disk";
-import { z } from "zod";
+import * as v from "valibot";
 
 /** Installed packages under `.achq/` are not part of the config. */
 const SKIPPED_DIRS = ["node_modules"];
@@ -47,7 +47,7 @@ const configModules = (files: Record<string, string>, repoDir: string): ConfigMo
 /** The repo's manifest, evaluated in the sandbox as the deployer does it, from every file under its `.achq/`. */
 export const repoEvaluateManifest = defineTask({
   label: "Evaluate the repo's config",
-  params: z.object({ dir: z.string() }),
+  params: v.object({ dir: v.string() }),
   run: async (_r, { params: { dir: repoDir } }) => {
     const dir = path.join(repoDir, CONFIG_DIR);
     if (!fs.existsSync(path.join(dir, CONFIG_ENTRY))) throw new Error(`No ${CONFIG_DIR}/${CONFIG_ENTRY} in ${repoDir}`);

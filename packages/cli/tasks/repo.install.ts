@@ -4,13 +4,13 @@ import type { RepoManifest } from "@achq/core/manifest";
 import { routerForPusher } from "@achq/core/clients/router";
 import { subprocess } from "@achq/utils/subprocess";
 import { time } from "@achq/utils/time";
-import { z } from "zod";
+import * as v from "valibot";
 import { interactive, openInBrowser, waitForEnter } from "../io/terminal.ts";
 import type { RepoHere } from "../io/workdir.ts";
 import { formatStatus } from "../renderers/status.ts";
 import { repoAskRouter } from "./repo.ask-router.ts";
 import { repoReadStatus, STATUS_TIMEOUT_MS } from "./repo.read-status.ts";
-import { given, log, type Open, sleep } from "./params.ts";
+import { given, givenOr, log, type Open, sleep } from "./params.ts";
 import { run, runner } from "./run.ts";
 
 /** How many times what a failed deploy says only you can fix is opened, and the repo deployed again. */
@@ -19,17 +19,17 @@ const FIX_ATTEMPTS = 3;
 /** A deploy that failed with something only you can fix, in your browser. */
 const needsYou = (status: Status | undefined) => status?.state === "failed" && !!status.action;
 
-const Params = z.object({
+const Params = v.object({
   here: given<RepoHere>(),
   manifest: given<RepoManifest>(),
-  dryRun: z.boolean().default(false),
+  dryRun: v.optional(v.boolean(), false),
   /** Opens your browser where you install the config's source. */
-  open: given<Open>().default(() => openInBrowser),
+  open: givenOr<Open>(() => openInBrowser),
   /** Opens what a failed deploy says only you can fix, having said what it opens. */
-  openUrl: given<(url: string) => unknown>().default(() => (url: string) => subprocess.openUrl(url)),
+  openUrl: givenOr<(url: string) => unknown>(() => (url: string) => subprocess.openUrl(url)),
   /** Whether there's someone at a terminal to wait for. */
-  interactive: z.boolean().default(interactive),
-  now: given<() => Date>().default(() => () => new Date()),
+  interactive: v.optional(v.boolean(), interactive),
+  now: givenOr<() => Date>(() => () => new Date()),
   log,
   sleep,
 });
@@ -41,7 +41,7 @@ const Params = z.object({
  * moved to another provider, whose deploy names its own router: either way,
  * the source's install page.
  */
-const planInstall = async (r: Runner, { here, manifest, log }: z.output<typeof Params>) => {
+const planInstall = async (r: Runner, { here, manifest, log }: v.InferOutput<typeof Params>) => {
   const { repo, codeHost } = here;
   const source = codeHost.sourceOf(manifest);
   const { missing, warnings } = await codeHost.checkSource(source, manifest);
@@ -63,7 +63,7 @@ const planInstall = async (r: Runner, { here, manifest, log }: z.output<typeof P
  * router deploy again, and waits for that result. Without a terminal, says
  * what to do and stops. The last status, or undefined if none came in time.
  */
-const fixInBrowser = async (r: Runner, status: Status | undefined, params: z.output<typeof Params>) => {
+const fixInBrowser = async (r: Runner, status: Status | undefined, params: v.InferOutput<typeof Params>) => {
   const { here, log } = params;
   const { repo, codeHost } = here;
   for (let attempt = 0; status?.state === "failed" && status.action && attempt < FIX_ATTEMPTS; attempt++) {

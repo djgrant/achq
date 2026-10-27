@@ -4,7 +4,7 @@ import type { DeployerVersion } from "@achq/core/protocol";
 import { async } from "@achq/utils/async";
 import { json } from "@achq/utils/json";
 import { time } from "@achq/utils/time";
-import { z } from "zod";
+import * as v from "valibot";
 import { given, log, sleep } from "./params.ts";
 
 /** How long a new deployer is waited for to replace the one running, and how often it's asked what it runs. */
@@ -17,7 +17,7 @@ const describe = ({ version, plugins }: DeployerVersion) => [`@achq/deployer@${v
 /** Waits until the deployer runs `wanted`: its version, with the plugins it was given. */
 export const infraAwaitDeployer = defineTask({
   label: "Wait for the deployer",
-  params: z.object({ admin: given<RouterAdmin>(), wanted: given<DeployerVersion>(), log, sleep }),
+  params: v.object({ admin: given<RouterAdmin>(), wanted: given<DeployerVersion>(), log, sleep }),
   run: async (_r, { params: { admin, wanted, log, sleep } }) => {
     const same = (running: DeployerVersion | undefined) => !!running && running.version === wanted.version && json.stableStringify(running.plugins) === json.stableStringify(wanted.plugins);
     // A deployer, or router, that's still starting doesn't answer, which counts as not yet.

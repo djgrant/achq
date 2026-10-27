@@ -2,7 +2,7 @@ import { defineTask } from "@pokit/core";
 import { known, plan, pluginsOf } from "@achq/core";
 import { routerAdmin } from "@achq/core/clients/router";
 import { context } from "@achq/core/context";
-import { z } from "zod";
+import * as v from "valibot";
 import { openInBrowser, readSecret } from "../io/terminal.ts";
 import { planLines } from "../renderers/plan.ts";
 import type { Npm } from "../io/npm.ts";
@@ -10,7 +10,7 @@ import { infraAwaitDeployer } from "./infra.await-deployer.ts";
 import { infraCheckPlugins } from "./infra.check-plugins.ts";
 import type { InfraResources } from "./infra.load.ts";
 import { infraSync } from "./infra.sync.ts";
-import { contextParams, given, type Open } from "./params.ts";
+import { contextParams, given, givenOr, maybe, type Open } from "./params.ts";
 import { run, runner } from "./run.ts";
 
 /**
@@ -21,22 +21,22 @@ import { run, runner } from "./run.ts";
  */
 export const infraApply = defineTask({
   label: "Apply the infra",
-  params: z.object({
+  params: v.object({
     infra: given<InfraResources>(),
-    prune: z.boolean().default(false),
-    dryRun: z.boolean().default(false),
+    prune: v.optional(v.boolean(), false),
+    dryRun: v.optional(v.boolean(), false),
     /** Replace the deployer's own token, where it has one. */
-    rotateDeployerToken: z.boolean().default(false),
+    rotateDeployerToken: v.optional(v.boolean(), false),
     /** What every container gets. */
-    containerEnv: z.record(z.string(), z.string()),
+    containerEnv: v.record(v.string(), v.string()),
     /** Where packages are looked up: npm, unless tests give another. */
-    npm: given<Npm>().optional(),
+    npm: maybe<Npm>(),
     /** Opens `url` in your browser to `what`, e.g. to create an App. */
-    open: given<Open>().default(() => openInBrowser),
+    open: givenOr<Open>(() => openInBrowser),
     /** Asks you for a secret: by default at the terminal. */
-    prompt: given<(message: string) => Promise<string>>().optional(),
+    prompt: maybe<(message: string) => Promise<string>>(),
     /** Rewrites the router's public URL for the sync; tests point it at a fake. */
-    routerUrl: given<(publicUrl: string) => string>().optional(),
+    routerUrl: maybe<(publicUrl: string) => string>(),
     ...contextParams,
   }),
   run: async (r, { params }) => {

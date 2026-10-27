@@ -1,6 +1,6 @@
 import { resume } from "@achq/core/commands";
 import { defineCommand } from "@pokit/core";
-import { z } from "zod";
+import * as v from "valibot";
 import { chooseOne, clean, terminalEnv } from "../io/terminal.ts";
 import { needRepo, repoFlag } from "../io/workdir.ts";
 import { pickSession } from "../pickers/session.ts";
@@ -13,10 +13,10 @@ export const command = defineCommand({
   label: "Open an agent session",
   examples: ["achq container resume", "achq container resume 34", "achq container resume 34 <session>", "achq container resume --repo djgrant/foo"],
   context: {
-    thread: { from: "arg", schema: z.coerce.number().int().positive().optional(), description: "Issue number (default: pick from all sessions)" },
-    session: { from: "arg", schema: z.string().optional(), description: "Session ID or agent name" },
+    thread: { from: "arg", schema: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1))), description: "Issue number (default: pick from all sessions)" },
+    session: { from: "arg", schema: v.optional(v.string()), description: "Session ID or agent name" },
     repo: repoFlag,
-    container: { from: "flag", schema: z.string().optional(), description: "Container name" },
+    container: { from: "flag", schema: v.optional(v.string()), description: "Container name" },
   },
   run: clean(async (r, { context }) => {
     const thread = context.thread === undefined ? undefined : String(context.thread);
